@@ -40,6 +40,8 @@ ADD_CFLAGS =
 # matrix computation libraries for CPU/GPU
 #---------------------------------------------
 
+USE_NGRAPH = 1
+
 # whether use CUDA during compile
 USE_CUDA = 0
 

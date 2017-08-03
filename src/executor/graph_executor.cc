@@ -13,6 +13,9 @@
 #include "./graph_executor.h"
 #include "../engine/profiler.h"
 
+#include "../ngraph/intermediary_graph.h"
+
+#include <iostream>
 namespace mxnet {
 namespace exec {
 GraphExecutor::~GraphExecutor() {
@@ -434,6 +437,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                          const std::vector<NDArray>& aux_states,
                          Executor* shared_exec,
                          const nnvm::NodeEntryMap<NDArray>& feed_dict) {
+
   // create in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes
   auto get_ctx1 = [](const NDArray& nd) { return nd.ctx(); };
   auto get_ctx2 = [default_ctx](const NDArray& nd) -> Context {
@@ -782,6 +786,11 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                          std::unordered_map<std::string, NDArray>* shared_buffer,
                          Executor* shared_exec,
                          const nnvm::NodeEntryMap<NDArray>& feed_dict) {
+  std::cout << "Printing Symbol" << std::endl;
+  ngraph::Graph ng = ngraph::ParseNNVMSymbol(symbol);
+  ng.WriteDot("low_MLP.dot");
+  
+  symbol.Print(std::cout);
   nnvm::Graph g = InitGraph(symbol, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
                             aux_state_ctxes, grad_req_types);
   // The following code of shape and dtype inferences and argument

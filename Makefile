@@ -93,7 +93,9 @@ ifeq ($(USE_NNPACK), 1)
 	CFLAGS += -DMXNET_USE_NNPACK=1
 	LDFLAGS += -lnnpack
 endif
-
+ifeq ($(USE_NGRAPH),1)
+	CFLAGS += -I$(ROOTDIR)/src/ngraph
+endif 
 ifeq ($(USE_MKL2017), 1)
 	CFLAGS += -DMXNET_USE_MKL2017=1
 	CFLAGS += -DUSE_MKL=1
@@ -204,6 +206,7 @@ endif
 all: lib/libmxnet.a lib/libmxnet.so $(BIN) extra-packages
 
 SRC = $(wildcard src/*/*/*.cc src/*/*.cc src/*.cc)
+$(info $$SRC is [${SRC}])
 OBJ = $(patsubst %.cc, build/%.o, $(SRC))
 CUSRC = $(wildcard src/*/*/*.cu src/*/*.cu src/*.cu)
 CUOBJ = $(patsubst %.cu, build/%_gpu.o, $(CUSRC))
