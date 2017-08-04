@@ -31,10 +31,11 @@ DEV = 0
 DEBUG = 0
 
 # the additional link flags you want to add
-ADD_LDFLAGS =
+ADD_LDFLAGS = -L/usr/local/Cellar/python/2.7.13_1/Frameworks/Python.framework/Versions/2.7/lib/ -lpython2.7
 
 # the additional compile flags you want to add
-ADD_CFLAGS =
+ADD_CFLAGS =  -I/usr/local/Cellar/python/2.7.13_1/Frameworks/Python.framework/Versions/2.7/include/python2.7/
+# 
 
 #---------------------------------------------
 # matrix computation libraries for CPU/GPU

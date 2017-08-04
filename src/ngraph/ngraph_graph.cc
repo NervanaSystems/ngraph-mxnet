@@ -1,9 +1,55 @@
-#include "intermediary_graph.h"
+#include "ngraph_graph.h"
 #include <map>
 #include <functional>
 
 
 namespace ngraph{
+
+    const static std::vector<std::string> ngraph_ops({
+            "add",
+            "divide",
+            "equal",
+            "greater_equal",
+            "greater",
+            "less_equal",
+            "less",
+            "maximum",
+            "minimum",
+            "multiply",
+            "not_equal",
+            "pow",
+            "mod",
+            "subtract",
+            "abs",
+            "exp",
+            "tanh",
+            "sigmoid",
+            "relu",
+            "log",
+            "negative",
+            "square",
+            "sign",
+            "reduce_max",
+            "reduce_mean",
+            "reduce_min",
+            "reduce_prod",
+            "reduce_sum",
+            "matmul",
+    });
+
+    void Node::Check_InNgraph(){
+        if (type == NodeType::kVariable || type == NodeType::kData){
+            in_ngraph = true;
+        } else {
+            for (auto op : ngraph_ops){
+                if (op == operation){
+                    in_ngraph = true;
+                    break;
+                }
+            }
+        }
+    }
+
     typedef std::map<std::string, std::function<Graph(const NodePtr)> > layerGraphs;
 
     static layerGraphs create_layerGraphs(){
@@ -11,7 +57,7 @@ namespace ngraph{
 
         layer_funcs[std::string("FullyConnected")] = [](const NodePtr node){
             Graph tmpGraph;
-            auto dotop = std::make_shared<Node>(NodeType::kOp, "dot_" + node->name, "dot", node->dict);
+            auto dotop = std::make_shared<Node>(NodeType::kOp, "dot_" + node->name, "matmul", node->dict);
             dotop->inputs.emplace_back(node->inputs[1]);
             dotop->inputs.emplace_back(node->inputs[0]);
             tmpGraph.AddNode(dotop);
@@ -26,21 +72,12 @@ namespace ngraph{
             Graph tmpGraph;
             auto act_type = node->dict["act_type"];
             auto inputs = node->inputs;
-            if (act_type == "tanh"){
-                auto tanh = std::make_shared<Node>(NodeType::kOp, node->name, "tanh");
-                tanh->inputs = inputs;
-                tmpGraph.AddNode(tanh);
-            } else if (act_type == "sigmoid"){
-                auto sig = std::make_shared<Node>(NodeType::kOp, node->name, "sigmoid");
-                sig->inputs=inputs;
-                tmpGraph.AddNode(sig);
-            } else if (act_type =="relu") {
-                auto zero = std::make_shared<Node>(NodeType::kVariable, "zeros_like_"+node->name);
-                tmpGraph.AddNode(zero);
-                auto max = std::make_shared<Node>(NodeType::kOp, node->name, "maximum");
-                max->inputs=inputs;
-                max->inputs.emplace_back(zero);
-                tmpGraph.AddNode(max);
+            if (act_type == "tanh" || 
+                act_type == "sigmoid" || 
+                act_type == "relu"){
+                tmpGraph.AddNode(std::make_shared<Node>(
+                    NodeType::kOp, node->name, 
+                    act_type, node->dict, node->inputs));
             } else if (act_type == "softrelu"){
                 auto one = std::make_shared<Node>(NodeType::kVariable, "ones_like_"+node->name);
                 tmpGraph.AddNode(one);
@@ -78,6 +115,7 @@ namespace ngraph{
         dotfile.open(fname);
         dotfile << "digraph G { " << std::endl;
         dotfile << "size=\"8,10.5\"" <<std::endl;
+        Check_InNgraph();
         for (auto n : nodes_){
             for (auto i : n->inputs){
                 dotfile << i->name << " -> " << n->name << ";" <<std::endl;
@@ -85,8 +123,13 @@ namespace ngraph{
         }
         for (auto n : nodes_){
             if (n->type == NodeType::kOp){
-                dotfile << n->name << " [label=\"" << n->name + "\nOp: " + n->operation << "\"];" <<std::endl;
-            } 
+                dotfile << n->name << " [label=\"" << n->name + "\nOp: " + n->operation << "\"" ;
+                if (n->in_ngraph)
+                    dotfile << ", fillcolor = red, style = filled";
+                dotfile << "];" << std::endl ;
+            } else {
+                dotfile << n->name << " [fillcolor = red, style = filled];" << std::endl ;
+            }
         }
         dotfile << "}" << std::endl;
         dotfile.close();
@@ -130,6 +173,7 @@ namespace ngraph{
                 }
             }
         );
+        tmpGraph.Check_InNgraph();
         return tmpGraph;
     }
 

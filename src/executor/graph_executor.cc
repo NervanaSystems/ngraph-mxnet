@@ -13,7 +13,7 @@
 #include "./graph_executor.h"
 #include "../engine/profiler.h"
 
-#include "../ngraph/intermediary_graph.h"
+#include "../ngraph/ngraph_graph.h"
 
 #include <iostream>
 namespace mxnet {
