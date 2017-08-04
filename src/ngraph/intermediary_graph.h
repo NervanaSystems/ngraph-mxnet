@@ -1,3 +1,7 @@
+#ifndef NGRAPH_INTERMEDIARY_GRAPH_H_
+#define NGRAPH_INTERMEDIARY_GRAPH_H_
+
+
 #include <vector>
 #include <string>
 #include <iostream>
@@ -49,3 +53,5 @@ public:
 Graph ParseNNVMSymbol(nnvm::Symbol& symbol);
 
 } //end namespace ngraph
+
+#endif

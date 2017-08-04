@@ -5,6 +5,7 @@
 
 namespace ngraph{
     typedef std::map<std::string, std::function<Graph(const NodePtr)> > layerGraphs;
+
     static layerGraphs create_layerGraphs(){
         layerGraphs layer_funcs;
 
@@ -34,14 +35,14 @@ namespace ngraph{
                 sig->inputs=inputs;
                 tmpGraph.AddNode(sig);
             } else if (act_type =="relu") {
-                auto zero = std::make_shared<Node>(NodeType::kVariable, "0");
+                auto zero = std::make_shared<Node>(NodeType::kVariable, "zeros_like_"+node->name);
                 tmpGraph.AddNode(zero);
                 auto max = std::make_shared<Node>(NodeType::kOp, node->name, "maximum");
                 max->inputs=inputs;
                 max->inputs.emplace_back(zero);
                 tmpGraph.AddNode(max);
             } else if (act_type == "softrelu"){
-                auto one = std::make_shared<Node>(NodeType::kVariable, "1");
+                auto one = std::make_shared<Node>(NodeType::kVariable, "ones_like_"+node->name);
                 tmpGraph.AddNode(one);
                 auto exp = std::make_shared<Node>(NodeType::kOp, node->name + "_exp", "exp");
                 exp->inputs = inputs;
@@ -59,6 +60,7 @@ namespace ngraph{
         };
         return layer_funcs;
     }
+
     layerGraphs layer_funcs = create_layerGraphs();
 
     std::string createNodeLabel(NodePtr n){
@@ -112,18 +114,17 @@ namespace ngraph{
                     }
                     op_node->inputs.emplace_back(tmpnode);
                   }
-                  if (op_node->operation == std::string("FullyConnected")){ 
-                        auto tmp = layer_funcs[op_node->operation](op_node);
+                  auto replace_subgraph = [&tmpGraph](NodePtr subgraph){
+                        auto tmp = layer_funcs[subgraph->operation](subgraph);
                         for (auto n : tmp.nodes_){
                             tmpGraph.AddNode(n);
-                        }
-                  } else if (op_node->operation == std::string("Activation")){ 
-                        auto tmp = layer_funcs[op_node->operation](op_node);
-                        for (auto n : tmp.nodes_){
-                            tmpGraph.AddNode(n);
-                        }
+                        }                    
+                  };
+                  if (op_node->operation == std::string("FullyConnected") || 
+                      op_node->operation == std::string("Activation")){ 
+                      replace_subgraph(op_node);
                   } else {
-                        tmpGraph.AddNode(op_node);
+                      tmpGraph.AddNode(op_node);
                   }
                   
                 }
