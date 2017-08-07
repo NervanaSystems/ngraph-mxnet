@@ -21,5 +21,7 @@ namespace ngraph{
 
     };
 
-}
+    void CollapseGraph(const nnvm::Graph& graph);
+
+} // end namespace ngraph
 #endif

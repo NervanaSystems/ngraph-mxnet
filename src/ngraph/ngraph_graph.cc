@@ -1,6 +1,7 @@
 #include "ngraph_graph.h"
 #include <map>
 #include <functional>
+#include <algorithm>
 
 
 namespace ngraph{
@@ -36,16 +37,14 @@ namespace ngraph{
             "reduce_sum",
             "matmul",
     });
-
     void Node::Check_InNgraph(){
-        if (type == NodeType::kVariable || type == NodeType::kData){
-            in_ngraph = true;
-        } else {
-            for (auto op : ngraph_ops){
-                if (op == operation){
-                    in_ngraph = true;
-                    break;
-                }
+        in_ngraph = true;
+    }
+    void OpNode::Check_InNgraph(){
+        for (auto op : ngraph_ops){
+            if (op == operation){
+                in_ngraph = true;
+                break;
             }
         }
     }
@@ -57,11 +56,11 @@ namespace ngraph{
 
         layer_funcs[std::string("FullyConnected")] = [](const NodePtr node){
             Graph tmpGraph;
-            auto dotop = std::make_shared<Node>(NodeType::kOp, "dot_" + node->name, "matmul", node->dict);
+            auto dotop = std::make_shared<OpNode>(node->orig_node, "dot_" + node->name, "matmul");
             dotop->inputs.emplace_back(node->inputs[1]);
             dotop->inputs.emplace_back(node->inputs[0]);
             tmpGraph.AddNode(dotop);
-            auto addop = std::make_shared<Node>(NodeType::kOp, node->name, "add", node->dict);
+            auto addop = std::make_shared<OpNode>(node->orig_node, node->name, "add");
             addop->inputs.emplace_back(dotop);
             addop->inputs.emplace_back(node->inputs[2]);
             tmpGraph.AddNode(addop);
@@ -70,25 +69,25 @@ namespace ngraph{
 
         layer_funcs[std::string("Activation")] = [](const NodePtr node){
             Graph tmpGraph;
-            auto act_type = node->dict["act_type"];
+            auto act_type = node->orig_node->attrs.dict["act_type"];
             auto inputs = node->inputs;
             if (act_type == "tanh" || 
                 act_type == "sigmoid" || 
                 act_type == "relu"){
-                tmpGraph.AddNode(std::make_shared<Node>(
-                    NodeType::kOp, node->name, 
-                    act_type, node->dict, node->inputs));
+                tmpGraph.AddNode(std::make_shared<OpNode>(
+                    node->orig_node, node->name, 
+                    act_type, node->inputs));
             } else if (act_type == "softrelu"){
-                auto one = std::make_shared<Node>(NodeType::kVariable, "ones_like_"+node->name);
+                auto one = std::make_shared<VariableNode>(node->orig_node, "ones_like_"+node->name);
                 tmpGraph.AddNode(one);
-                auto exp = std::make_shared<Node>(NodeType::kOp, node->name + "_exp", "exp");
+                auto exp = std::make_shared<OpNode>(node->orig_node, node->name + "_exp", "exp");
                 exp->inputs = inputs;
                 tmpGraph.AddNode(exp);
-                auto add = std::make_shared<Node>(NodeType::kOp, node->name + "_add", "add");
+                auto add = std::make_shared<OpNode>(node->orig_node, node->name + "_add", "add");
                 add->inputs.emplace_back(one);
                 add->inputs.emplace_back(exp);
                 tmpGraph.AddNode(add);
-                auto log = std::make_shared<Node>(NodeType::kOp, node->name, "log");
+                auto log = std::make_shared<OpNode>(node->orig_node, node->name, "log");
                 log->inputs.emplace_back(add);
                 tmpGraph.AddNode(add);
             }
@@ -100,17 +99,9 @@ namespace ngraph{
 
     layerGraphs layer_funcs = create_layerGraphs();
 
-    std::string createNodeLabel(NodePtr n){
-        std::string nlabel;
-        if (n->type == NodeType::kOp){
-            nlabel = "Op: " + n->operation +"\n" +n->name;
-        } else {
-            nlabel = n->name;
-        }
-        return nlabel;
-    }
 
-    void Graph::WriteDot(std::string fname){
+
+    void Graph::WriteDot(const std::string& fname){
         std::ofstream dotfile;
         dotfile.open(fname);
         dotfile << "digraph G { " << std::endl;
@@ -122,29 +113,22 @@ namespace ngraph{
             }
         }
         for (auto n : nodes_){
-            if (n->type == NodeType::kOp){
-                dotfile << n->name << " [label=\"" << n->name + "\nOp: " + n->operation << "\"" ;
-                if (n->in_ngraph)
-                    dotfile << ", fillcolor = red, style = filled";
-                dotfile << "];" << std::endl ;
-            } else {
-                dotfile << n->name << " [fillcolor = red, style = filled];" << std::endl ;
-            }
+            dotfile << n->createNodeLabel() << std::endl ;
         }
         dotfile << "}" << std::endl;
         dotfile.close();
     }
 
 
-    Graph ParseNNVMSymbol(nnvm::Symbol& symbol){
+    Graph ParseNNVMGraph(const nnvm::Graph& graph){
         Graph tmpGraph;
-        nnvm::DFSVisit(symbol.outputs, 
+        nnvm::DFSVisit(graph.outputs, 
             [&tmpGraph](const nnvm::NodePtr node) {
 
                 if (node->is_variable()) {
-                  tmpGraph.AddNode(std::make_shared<Node>(NodeType::kVariable, node->attrs.name));
+                  tmpGraph.AddNode(std::make_shared<VariableNode>(node, node->attrs.name));
                 } else {
-                  auto op_node = std::make_shared<Node>(NodeType::kOp, node->attrs.name, node->op()->name, node->attrs.dict) ;
+                  auto op_node = std::make_shared<OpNode>(node, node->attrs.name, node->op()->name) ;
 
                   for (size_t i = 0; i < node->inputs.size(); ++i) {
                     const nnvm::NodeEntry& e = node->inputs[i];
@@ -152,19 +136,19 @@ namespace ngraph{
                     try{
                         tmpnode = tmpGraph[e.node->attrs.name];
                     } catch (std::string & error){
-                        tmpnode = std::make_shared<Node>(NodeType::kVariable, e.node->attrs.name);
+                        tmpnode = std::make_shared<VariableNode>(node, e.node->attrs.name);
                         tmpGraph.AddNode(tmpnode);
                     }
                     op_node->inputs.emplace_back(tmpnode);
                   }
-                  auto replace_subgraph = [&tmpGraph](NodePtr subgraph){
+                  auto replace_subgraph = [&tmpGraph](OpNodePtr subgraph){
                         auto tmp = layer_funcs[subgraph->operation](subgraph);
                         for (auto n : tmp.nodes_){
                             tmpGraph.AddNode(n);
                         }                    
                   };
-                  if (op_node->operation == std::string("FullyConnected") || 
-                      op_node->operation == std::string("Activation")){ 
+                  if (std::count (ngraph_ops.begin(), ngraph_ops.end(), 
+                                  op_node->operation)>0){ 
                       replace_subgraph(op_node);
                   } else {
                       tmpGraph.AddNode(op_node);

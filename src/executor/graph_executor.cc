@@ -13,7 +13,7 @@
 #include "./graph_executor.h"
 #include "../engine/profiler.h"
 
-#include "../ngraph/ngraph_graph.h"
+#include "../ngraph/ngraph_compiler.h"
 
 #include <iostream>
 namespace mxnet {
@@ -786,11 +786,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                          std::unordered_map<std::string, NDArray>* shared_buffer,
                          Executor* shared_exec,
                          const nnvm::NodeEntryMap<NDArray>& feed_dict) {
-  std::cout << "Printing Symbol" << std::endl;
-  ngraph::Graph ng = ngraph::ParseNNVMSymbol(symbol);
-  ng.WriteDot("low_MLP.dot");
-  
-  symbol.Print(std::cout);
+
   nnvm::Graph g = InitGraph(symbol, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
                             aux_state_ctxes, grad_req_types);
   // The following code of shape and dtype inferences and argument
@@ -815,6 +811,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
     }
   }
   g = nnvm::pass::InferShape(g, arg_shapes, "__shape__");
+
   if (g.GetAttr<size_t>("shape_num_unknown_nodes") != 0U) {
     HandleInferShapeError(num_forward_inputs_, g.indexed_graph(),
                           g.GetAttr<nnvm::ShapeVector>("shape"));
@@ -826,6 +823,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                          g.GetAttr<nnvm::DTypeVector>("dtype"));
   }
 
+  ngraph::CollapseGraph(g);
   // Create in_args, arg_grads, and aux_states using
   // the inferred shapes and dtypes.
   if (nullptr == shared_buffer) {  // regular simple bind

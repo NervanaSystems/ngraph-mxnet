@@ -13,42 +13,65 @@
 
 namespace ngraph {
 
-    enum class NodeType{
-        kData,
-        kOp,
-        kVariable
-    };
+    class Node;
 
-    struct Node;
-
+    using nnvmNodePtr = std::shared_ptr<nnvm::Node>;
     using NodePtr = std::shared_ptr<Node>;
 
-    struct Node {
-        Node(NodeType t, std::string s):  type(t), name(s){};
-        Node(NodeType t, std::string s, std::string op): 
-            type(t), name(s), operation(op){};
-        Node(NodeType t, std::string s, std::string op, 
-             std::unordered_map<std::string, std::string> d): 
-            type(t), name(s), operation(op), dict(d){};
-        Node(NodeType t, std::string s, std::string op, 
-             std::unordered_map<std::string, std::string> d,
-             std::vector<NodePtr> i): 
-            type(t), name(s), operation(op), dict(d), inputs(i){};
-        void Check_InNgraph();
+    class Node {
+    public:
+        Node(const nnvmNodePtr n, std::string s): orig_node(n), name(s) {};
+        Node(const nnvmNodePtr n, std::string s, std::vector<NodePtr> i): 
+            orig_node(n), name(s), inputs(i) {};
+        virtual void Check_InNgraph();
+        virtual std::string createNodeLabel(){
+            return name + " [fillcolor = red, style = filled];";
+        }
 
-        NodeType type;
+        nnvmNodePtr orig_node;
         std::string name;
-        std::string operation;
-        std::unordered_map<std::string, std::string> dict;
         std::vector<NodePtr> inputs;
-
         bool in_ngraph = false;
     };
 
+    class DataNode : public Node {
+    public:
+        DataNode(const nnvmNodePtr n, std::string s): Node(n,s) {};
+        DataNode(const nnvmNodePtr n, std::string s, std::vector<NodePtr> i):  
+            Node(n,s,i) {};
+    };
+
+    class VariableNode : public Node {
+    public:
+        VariableNode(const nnvmNodePtr n, std::string s):  Node(n,s) {};
+        VariableNode(const nnvmNodePtr n, std::string s, std::vector<NodePtr> i):  
+            Node(n,s,i) {};
+    };
+
+    class OpNode : public Node {
+    public:
+        std::string createNodeLabel(){
+            std::string out = name + " [label=\"" + name 
+                            + "\nOp: " + operation + "\"" ;
+            if (in_ngraph) out += ", fillcolor = red, style = filled";
+            out += "];";
+            return out;
+        }
+        OpNode(const nnvmNodePtr n, std::string s, std::string o):
+            Node(n,s), operation(o) {};
+        OpNode(const nnvmNodePtr n, std::string s,
+               std::string o, std::vector<NodePtr> i):  
+            Node(n,s,i) , operation(o) {};
+
+        void Check_InNgraph();
+        std::string operation;
+    };
+    using OpNodePtr = std::shared_ptr<OpNode>;
     class Graph{
     public:
+
         void AddNode(NodePtr node){nodes_.emplace_back(node);};
-        void WriteDot(std::string fname);
+        void WriteDot(const std::string& fname);
         NodePtr operator[](std::string name){
             for (auto n : nodes_)
                 if (n->name == name)
@@ -63,7 +86,7 @@ namespace ngraph {
         subGraph(Graph g);
     };
 
-    Graph ParseNNVMSymbol(nnvm::Symbol& symbol);
+    Graph ParseNNVMGraph(const nnvm::Graph& graph);
 
 } //end namespace ngraph
 
