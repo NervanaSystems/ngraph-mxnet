@@ -53,7 +53,7 @@ namespace ngraph{
         for (auto x : NgraphBinaryOps_) NgraphOps_.emplace_back(x.first);
     }
 
-    void PyCompiler::CheckGraph(Graph graph){
+    void PyCompiler::CheckInNGraph(Graph graph){
         for (auto node : graph.nodes_){
             if (node->type == NodeType::kOp){
                 for (auto op : NgraphOps_){
@@ -71,9 +71,66 @@ namespace ngraph{
     void PyCompiler::Compile(nnvm::Graph& graph, const size_t num_forward_inputs){
         gil_state state;
         auto g = ParseNNVMGraph(graph, num_forward_inputs);
-        CheckGraph(g);
+        CheckInNGraph(g);
+
         IdentifySubgraphs(g);
-        g.WriteDot("test.dot");
+
+        CollapseSubgraphs(g);
+
+        if (true){
+            g.WriteDot("test.dot");
+            for (auto n : g.nodes_){
+                if (n->type == NodeType::kGraph){
+                    auto sg = std::dynamic_pointer_cast<Graph>(n);
+                    std::ostringstream stream;
+                    stream << "test" << sg->subgraph << ".dot";
+                    sg->WriteDot(stream.str());
+                }
+            }
+        }
+    }
+
+    void PyCompiler::CollapseSubgraphs(Graph& graph){
+        int i = 1;
+        while (true) {
+            auto tmpGraph = std::make_shared<Graph>();
+            for (auto node : graph.nodes_)
+                if (node->subgraph == i)
+                    tmpGraph->AddNode(node);
+
+            if (tmpGraph->nodes_.size()>0){
+                tmpGraph->in_ngraph=true;
+                tmpGraph->subgraph = i;
+                auto name = tmpGraph->nodes_.back()->name;
+                tmpGraph->name = "subgraph_" + name;
+                for (auto node: tmpGraph->nodes_){
+                    for (auto input: node->inputs){
+                        if (input->subgraph != i)
+                            tmpGraph->inputs.emplace_back(input);
+                    }
+                }
+                auto it = std::find_if(graph.nodes_.begin(), graph.nodes_.end(), 
+                        [name](NodePtr n) -> bool {return (n->name == name);});
+
+                graph.nodes_.insert(it, tmpGraph);
+                graph.nodes_.erase(std::remove_if(
+                               graph.nodes_.begin(), 
+                               graph.nodes_.end(),
+                               [i](NodePtr n) -> bool {
+                                    return ((n->subgraph == i) &&
+                                            (n->type == NodeType::kOp));}), 
+                               graph.nodes_.end());
+
+                for (auto n : graph.nodes_)
+                    for (size_t i=0; i < n->inputs.size(); ++i)
+                        if (n->inputs[i]->name == name)
+                            n->inputs[i] = tmpGraph;
+
+            } else {
+                break;
+            }
+            i += 1;
+        }
     }
 
     void PyCompiler::IdentifySubgraphs(Graph& graph){
@@ -83,9 +140,9 @@ namespace ngraph{
                 auto subgraph_nodes = graph.DFSselect(i,
                         [](NodePtr s){return s->in_ngraph;});
                 if (subgraph_nodes.size()>2){
-                    for (auto node : subgraph_nodes){
-                        node->subgraph = sg;
-                    }
+                    for (auto node : subgraph_nodes)
+                        if (node->type == NodeType::kOp)
+                            node->subgraph = sg;
                     sg += 1;
                 }
             }

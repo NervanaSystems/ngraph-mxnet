@@ -7,6 +7,7 @@
 #include <iostream>
 #include <fstream>
 #include <memory>
+#include <algorithm>
 
 #include <nnvm/graph.h>
 #include <nnvm/symbolic.h>

@@ -17,10 +17,11 @@ namespace ngraph{
     private:
         UnaryOps create_UnaryOps(const py::module& ns, const py::module& ng);
         BinaryOps create_BinaryOps(const py::module& ns, const py::module& ng);
-        void CheckGraph(Graph graph);
+        void CheckInNGraph(Graph graph);
         void createPyPlaceholder(NodePtr node);
         // void createPyOp(NodePtr node);
         void IdentifySubgraphs(Graph& graph);
+        void CollapseSubgraphs(Graph& graph);
 
         UnaryOps NgraphUnaryOps_;
         BinaryOps NgraphBinaryOps_;

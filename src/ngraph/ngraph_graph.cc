@@ -3,7 +3,6 @@ using namespace pybind11::literals;
 #include <map>
 #include <stack>
 #include <functional>
-#include <algorithm>
 
 
 namespace ngraph{
