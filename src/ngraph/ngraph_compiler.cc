@@ -9,26 +9,29 @@ namespace ngraph{
                         "log", "negative", "square", "sign",} )
             output[op] = [ns, op](const py::object& py_operand, 
                                   const std::string& name){
-                return ns.attr(op)(py_operand).attr("named")(name);
-            };
+                return ns.attr(op)(py_operand).attr("named")(name);};
         for (auto op : {"flatten",} )
             output[op] = [ng, op](const py::object& py_operand, 
                                       const std::string& name){
-                return ng.attr(op)(py_operand).attr("named")(name);
-            };
+                return ng.attr(op)(py_operand).attr("named")(name);};
         return output;
     }
 
     BinaryOps PyCompiler::create_BinaryOps(const py::module& ns, const py::module& ng){
         BinaryOps output;
+        using namespace pybind11::literals;
         for (auto op : { "add", "divide", "equal", "greater_equal", "greater",
                          "less_equal", "less", "maximum", "minimum", "multiply", 
-                         "not_equal", "pow", "mod", "subtract", "matmul"} )
+                         "not_equal", "pow", "mod", "subtract"} )
             output[op] = [ns, op](const py::object& lhs, 
                                   const py::object& rhs,
                                   const std::string& name){
-                return ns.attr(op)(lhs, rhs).attr("named")(name);
-            };
+                return ns.attr(op)(lhs, rhs).attr("named")(name);};
+        for (auto op : {"matmul",} )
+            output[op] = [ns, op](const py::object& lhs, 
+                                  const py::object& rhs,
+                                  const std::string& name){
+                return ns.attr(op)(lhs, rhs, "transpose_b"_a = 1).attr("named")(name);};
         return output;
     }
 
@@ -53,7 +56,7 @@ namespace ngraph{
         for (auto x : NgraphBinaryOps_) NgraphOps_.emplace_back(x.first);
     }
 
-    void PyCompiler::CheckInNGraph(Graph graph){
+    void PyCompiler::CheckInNGraph(Graph& graph){
         for (auto node : graph.nodes_){
             if (node->type == NodeType::kOp){
                 for (auto op : NgraphOps_){
@@ -77,6 +80,13 @@ namespace ngraph{
 
         CollapseSubgraphs(g);
 
+        for (auto n : g.nodes_){
+            if (n->type == NodeType::kGraph){
+                auto sg = std::dynamic_pointer_cast<Graph>(n);
+                CompileSubgraph(sg);
+            }
+        }
+
         if (true){
             g.WriteDot("test.dot");
             for (auto n : g.nodes_){
@@ -88,6 +98,60 @@ namespace ngraph{
                 }
             }
         }
+    }
+
+    void PyCompiler::CompileNode(NodePtr node, std::shared_ptr<Graph> graph){
+        if (op_map.count(node->name)>0){
+            return; 
+        } else if (node->inputs.size()==1){
+            if (op_map.count(node->inputs[0]->name) == 0){
+                CompileNode(node->inputs[0], graph);
+            }
+            op_map[node->name]=NgraphUnaryOps_[node->operation](
+                                    op_map[node->inputs[0]->name],
+                                    node->name);
+        } else if (node->inputs.size()==2) {
+            for (int i = 0; i < 2; ++i){
+                if (op_map.count(node->inputs[0]->name) == 0){
+                    CompileNode(node->inputs[0], graph);
+                }
+            }
+            op_map[node->name]=NgraphBinaryOps_[node->operation](
+                                    op_map[node->inputs[0]->name],
+                                    op_map[node->inputs[1]->name],
+                                    node->name);
+        } else {
+            throw("operation not yet supported");
+        }
+    }
+
+    void PyCompiler::CompileSubgraph(std::shared_ptr<Graph> graph){
+        auto subgraph_name = graph->name;
+        std::vector<std::string> tmpvec;
+        placeholder_order[subgraph_name] = tmpvec;
+
+        for (auto node : graph->nodes_){
+            for (auto input : node->inputs){
+                auto found_input = std::find(graph->nodes_.begin(),
+                                             graph->nodes_.end(),
+                                             input);
+                if (found_input == graph->nodes_.end())
+                    createPyPlaceholder(input, subgraph_name);
+            }
+        }
+        for (auto node : graph->nodes_){
+            CompileNode(node, graph);
+        }
+        py::tuple py_placeholders = py::make_tuple();
+        for (size_t i = 0; i < placeholder_order[subgraph_name].size(); ++i) {
+            py_placeholders = py_placeholders.attr("__add__")(
+                py::make_tuple(op_map[placeholder_order[subgraph_name][int(i)]]));
+        }
+
+        graph->py_computation.reset(new py::object(
+                transformer_.attr("computation")(
+                    op_map[graph->nodes_.back()->name], *py_placeholders)));
+
     }
 
     void PyCompiler::CollapseSubgraphs(Graph& graph){
@@ -157,12 +221,14 @@ namespace ngraph{
         return shape_tuple;
     }
 
-    void PyCompiler::createPyPlaceholder(NodePtr node){
-        using namespace pybind11::literals;
-        py::tuple py_shape = TShapeToTuple(node->shape);
-        op_map[node->name] = ns_.attr("placeholder")("shape"_a = py_shape
-                               ).attr("named")(node->name);
-        placeholder_order.emplace_back(node->name);
+    void PyCompiler::createPyPlaceholder(NodePtr node, std::string subgraph_name){
+        if (op_map.count(node->name) == 0){
+            py::tuple py_shape = TShapeToTuple(node->shape);
+            using namespace pybind11::literals;
+            op_map[node->name] = ns_.attr("placeholder")("shape"_a = py_shape
+                                   ).attr("named")(node->name);
+            placeholder_order[subgraph_name].emplace_back(node->name);
+        }
     }
 
 } //end namespace ngraph

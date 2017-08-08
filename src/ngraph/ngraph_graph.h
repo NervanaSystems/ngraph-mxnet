@@ -62,7 +62,7 @@ namespace ngraph {
     public:
         std::string createNodeLabel(){
             std::ostringstream stream;
-            stream << " sg=" << subgraph;
+            stream << shape << " sg=" << subgraph;
             std::string out = name + " [label=\"" + name 
                             + "\nOp: " + operation + stream.str()+ "\"";
             if (in_ngraph) out += ", fillcolor = red, style = filled";
@@ -96,6 +96,7 @@ namespace ngraph {
             throw "node not in graph";
         };
         std::vector<NodePtr> nodes_;
+        std::unique_ptr<py::object> py_computation;
     };
 
 

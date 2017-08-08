@@ -17,12 +17,13 @@ namespace ngraph{
     private:
         UnaryOps create_UnaryOps(const py::module& ns, const py::module& ng);
         BinaryOps create_BinaryOps(const py::module& ns, const py::module& ng);
-        void CheckInNGraph(Graph graph);
-        void createPyPlaceholder(NodePtr node);
+        void CheckInNGraph(Graph& graph);
+        void createPyPlaceholder(NodePtr node, std::string subgraph_name);
         // void createPyOp(NodePtr node);
         void IdentifySubgraphs(Graph& graph);
         void CollapseSubgraphs(Graph& graph);
-
+        void CompileSubgraph(std::shared_ptr<Graph> graph);
+        void CompileNode(NodePtr node, std::shared_ptr<Graph> graph);
         UnaryOps NgraphUnaryOps_;
         BinaryOps NgraphBinaryOps_;
         std::vector<std::string> NgraphOps_;
@@ -34,7 +35,7 @@ namespace ngraph{
         py::object transformer_;
         
         std::map<std::string, py::object> op_map;
-        std::vector<std::string> placeholder_order;
+        std::map<std::string, std::vector<std::string> > placeholder_order;
 
     };
 

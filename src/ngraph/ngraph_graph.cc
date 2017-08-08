@@ -151,23 +151,12 @@ namespace ngraph{
             }
         );
 
-        // const auto& idx = graph.indexed_graph();
-        // const auto inferred_shapes = graph.GetAttr<std::vector<nnvm::TShape>>("shape");
-        // for (auto node : tmpGraph){
-        //     const uint32_t nid = idx.node_id(node->orig_node);
-        //     const uint32_t eid = idx.entry_id(nid, 0);
-        //     const auto inferred_shape = inferred_shapes[eid];
-        //     tmpGraph
-        // }
-
         const auto& idx = graph.indexed_graph();
         const auto inferred_shapes = graph.GetAttr<std::vector<nnvm::TShape>>("shape");
-        for (size_t i = 0; i < num_forward_inputs; ++i) {
-            const uint32_t nid = idx.input_nodes().at(i);
+        for (auto node : tmpGraph.nodes_){
+            const uint32_t nid = idx.node_id(node->orig_node.get());
             const uint32_t eid = idx.entry_id(nid, 0);
-            const auto inferred_shape = inferred_shapes[eid];
-            const std::string& arg_name = idx[nid].source->attrs.name;
-            tmpGraph[arg_name]->shape = inferred_shape;
+            node->shape = inferred_shapes[eid];
         }
         return tmpGraph;
     }
