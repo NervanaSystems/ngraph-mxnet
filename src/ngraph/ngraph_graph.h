@@ -20,8 +20,10 @@ namespace ngraph {
 
     using nnvmNodePtr = std::shared_ptr<nnvm::Node>;
     using NodePtr = std::shared_ptr<Node>;
+    // std::map<int, std::string> fillcolor;
+    // fillcolor[0]=whi
 
-    enum class NodeType {kData,kVariable,kOp};
+    enum class NodeType {kVariable, kOp, kGraph};
     class Node {
     public:
         Node(NodeType t, const nnvmNodePtr n, std::string s): 
@@ -31,11 +33,11 @@ namespace ngraph {
                 type(t), orig_node(n), name(s), inputs(i) {};
         virtual std::string createNodeLabel(){
             std::ostringstream stream;
-            stream << shape;
+            stream << shape << " sg=" << subgraph;
             return name + " [label = \"" + name + "\n" + stream.str() + 
                              "\", fillcolor = red, style = filled];";
         }
-        // virtual py::object getPyNode(py::module& ng, py::module& ns);
+
         NodeType type;
         nnvmNodePtr orig_node;
         std::string name;
@@ -43,14 +45,8 @@ namespace ngraph {
         nnvm::TShape shape;
         bool in_ngraph = false;
         std::string operation = "";
-    };
-
-    class DataNode : public Node {
-    public:
-        DataNode(const nnvmNodePtr n, std::string s): 
-            Node(NodeType::kData, n,s) {};
-        DataNode(const nnvmNodePtr n, std::string s, std::vector<NodePtr> i):  
-            Node(NodeType::kData, n,s,i) {};
+        py::object ngraph_rep;
+        int subgraph = 0;
     };
 
     class VariableNode : public Node {
@@ -64,8 +60,10 @@ namespace ngraph {
     class OpNode : public Node {
     public:
         std::string createNodeLabel(){
+            std::ostringstream stream;
+            stream << " sg=" << subgraph;
             std::string out = name + " [label=\"" + name 
-                            + "\nOp: " + operation + "\"" ;
+                            + "\nOp: " + operation + stream.str()+ "\"";
             if (in_ngraph) out += ", fillcolor = red, style = filled";
             out += "];";
             return out;
@@ -77,13 +75,19 @@ namespace ngraph {
             Node(NodeType::kOp,n,s,i){operation = o;};
 
     };
-    using OpNodePtr = std::shared_ptr<OpNode>;
-    
-    class Graph{
-    public:
 
+    
+    class Graph : public Node {
+    public:
+        Graph(): Node(NodeType::kGraph, nullptr, "") {};
+        Graph(std::string name): Node(NodeType::kGraph, nullptr, name) {};
         void AddNode(NodePtr node){nodes_.emplace_back(node);};
         void WriteDot(const std::string& fname);
+        std::vector<NodePtr> DFSselect(NodePtr s, std::function<bool(NodePtr)> func);
+        void DFSUtil(NodePtr s, 
+                     std::map<std::string, bool>& visited,
+                     std::vector<NodePtr>& outNodes,
+                     std::function<bool(NodePtr)>& func);
         NodePtr operator[](std::string name){
             for (auto n : nodes_)
                 if (n->name == name)
@@ -93,9 +97,6 @@ namespace ngraph {
         std::vector<NodePtr> nodes_;
     };
 
-    class subGraph : public Graph{
-        subGraph(Graph g);
-    };
 
     Graph ParseNNVMGraph(nnvm::Graph& graph, const size_t num_forward_inputs);
 

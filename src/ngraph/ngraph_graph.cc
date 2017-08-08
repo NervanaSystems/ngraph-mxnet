@@ -1,12 +1,14 @@
 #include "ngraph_graph.h"
 using namespace pybind11::literals;
 #include <map>
+#include <stack>
 #include <functional>
 #include <algorithm>
 
 
 namespace ngraph{
 
+    using OpNodePtr = std::shared_ptr<OpNode>;
     using layerGraphs = std::map<std::string, std::function<Graph(const NodePtr)> >;
 
     static layerGraphs create_layerGraphs(){
@@ -22,6 +24,13 @@ namespace ngraph{
             addop->inputs.emplace_back(dotop);
             addop->inputs.emplace_back(node->inputs[2]);
             tmpGraph.AddNode(addop);
+            return tmpGraph;
+        };
+
+        layer_funcs[std::string("Flatten")] = [](const NodePtr node){
+            Graph tmpGraph;
+            auto flatop = std::make_shared<OpNode>(node->orig_node, node->name, "flatten", node->inputs);
+            tmpGraph.AddNode(flatop);
             return tmpGraph;
         };
 
@@ -56,38 +65,6 @@ namespace ngraph{
     }
 
     auto layer_funcs = create_layerGraphs();
-    const static std::vector<std::string> ngraph_ops({
-            "add",
-            "divide",
-            "equal",
-            "greater_equal",
-            "greater",
-            "less_equal",
-            "less",
-            "maximum",
-            "minimum",
-            "multiply",
-            "not_equal",
-            "pow",
-            "mod",
-            "subtract",
-            "abs",
-            "exp",
-            "tanh",
-            "sigmoid",
-            "relu",
-            "log",
-            "negative",
-            "square",
-            "sign",
-            "reduce_max",
-            "reduce_mean",
-            "reduce_min",
-            "reduce_prod",
-            "reduce_sum",
-            "matmul",
-    });
-
 
     void Graph::WriteDot(const std::string& fname){
         std::ofstream dotfile;
@@ -104,6 +81,35 @@ namespace ngraph{
         }
         dotfile << "}" << std::endl;
         dotfile.close();
+    }
+
+    void Graph::DFSUtil(NodePtr s, 
+                        std::map<std::string, bool>& visited,
+                        std::vector<NodePtr>& outNodes,
+                        std::function<bool(NodePtr)>& func)
+    {
+        // Mark the current node as visited
+        visited[s->name] = true;
+     
+        if (func(s)){
+            outNodes.push_back(s);
+            for (auto i : s->inputs){
+                if (!visited[i->name]){
+                    DFSUtil(i, visited, outNodes, func);
+                }
+            }
+        }
+    }
+     
+    std::vector<NodePtr> Graph::DFSselect(NodePtr s, std::function<bool(NodePtr)> func)
+    {
+        std::map<std::string, bool> visited;
+        for (auto n : nodes_) visited[n->name] = false;
+
+        std::vector<NodePtr> outNodes;
+        DFSUtil(s, visited, outNodes, func);
+        return outNodes;
+
     }
 
     Graph ParseNNVMGraph(nnvm::Graph& graph, const size_t num_forward_inputs){
@@ -134,7 +140,8 @@ namespace ngraph{
                         }                    
                   };
                   if (op_node->operation == "FullyConnected" ||
-                      op_node->operation == "Activation"){ 
+                      op_node->operation == "Activation" ||
+                      op_node->operation == "Flatten"){ 
                       replace_subgraph(op_node);
                   } else {
                       tmpGraph.AddNode(op_node);

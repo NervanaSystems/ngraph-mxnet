@@ -6,8 +6,8 @@
 #include "ngraph_emitter.h"
 
 namespace ngraph{
-    using UnaryOps = std::map<std::string, std::function<py::object(const py::object&)> >;
-    using BinaryOps = std::map<std::string, std::function<py::object(const py::object&, const py::object&)> >;
+    using UnaryOps = std::map<std::string, std::function<py::object(const py::object&, const std::string&)> >;
+    using BinaryOps = std::map<std::string, std::function<py::object(const py::object&, const py::object&, const std::string&)> >;
 
     class PyCompiler{
     public:
@@ -20,6 +20,7 @@ namespace ngraph{
         void CheckGraph(Graph graph);
         void createPyPlaceholder(NodePtr node);
         // void createPyOp(NodePtr node);
+        void IdentifySubgraphs(Graph& graph);
 
         UnaryOps NgraphUnaryOps_;
         BinaryOps NgraphBinaryOps_;
@@ -32,7 +33,7 @@ namespace ngraph{
         py::object transformer_;
         
         std::map<std::string, py::object> op_map;
-        std::map<int, std::string> placeholder_order;
+        std::vector<std::string> placeholder_order;
 
     };
 
