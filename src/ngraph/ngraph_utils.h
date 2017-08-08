@@ -18,5 +18,5 @@ namespace ngraph {
       PyGILState_STATE m_gstate;
     };
 
-}  // namespace ngraph
+} // namespace ngraph
 #endif  // UTILS_H_
