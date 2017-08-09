@@ -10,10 +10,11 @@ namespace ngraph{
             output[op] = [ns, op](const py::object& py_operand, 
                                   const std::string& name){
                 return ns.attr(op)(py_operand).attr("named")(name);};
-        for (auto op : {"flatten",} )
-            output[op] = [ng, op](const py::object& py_operand, 
-                                      const std::string& name){
-                return ng.attr(op)(py_operand).attr("named")(name);};
+            using namespace pybind11::literals;
+        output["flatten"] = [ng](const py::object& py_operand, 
+                                 const std::string& name){
+            return ng.attr("flatten_at")(py_operand, 1).attr("named")(name);
+        };
         return output;
     }
 
@@ -27,11 +28,12 @@ namespace ngraph{
                                   const py::object& rhs,
                                   const std::string& name){
                 return ns.attr(op)(lhs, rhs).attr("named")(name);};
-        for (auto op : {"matmul",} )
-            output[op] = [ns, op](const py::object& lhs, 
-                                  const py::object& rhs,
-                                  const std::string& name){
-                return ns.attr(op)(lhs, rhs, "transpose_b"_a = 1).attr("named")(name);};
+        output["matmul"] = [ns, ng](const py::object& lhs, 
+                                    const py::object& rhs,
+                                    const std::string& name){
+            return ng.attr("Transpose")(
+                        ns.attr("matmul")(lhs, rhs, "transpose_b"_a = 1
+                                ).attr("named")(name));};
         return output;
     }
 
@@ -82,6 +84,7 @@ namespace ngraph{
 
         for (auto n : g.nodes_){
             if (n->type == NodeType::kGraph){
+                std::cout <<n->name <<std::endl;
                 auto sg = std::dynamic_pointer_cast<Graph>(n);
                 CompileSubgraph(sg);
             }
