@@ -12,7 +12,7 @@ namespace ngraph{
     class PyCompiler{
     public:
         PyCompiler();
-        void Compile(nnvm::Graph& graph, const size_t num_forward_inputs);
+        nnvm::Graph Compile(nnvm::Graph graph);
 
     private:
         UnaryOps create_UnaryOps(const py::module& ns, const py::module& ng);

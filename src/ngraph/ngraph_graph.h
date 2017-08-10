@@ -44,6 +44,7 @@ namespace ngraph {
         std::string name;
         std::vector<NodePtr> inputs;
         nnvm::TShape shape;
+        int dtype;
         bool in_ngraph = false;
         std::string operation = "";
         py::object ngraph_rep;
@@ -96,11 +97,11 @@ namespace ngraph {
             throw "node not in graph";
         };
         std::vector<NodePtr> nodes_;
-        std::unique_ptr<py::object> py_computation;
+        std::shared_ptr<py::object> py_computation;
     };
 
 
-    Graph ParseNNVMGraph(nnvm::Graph& graph, const size_t num_forward_inputs);
+    Graph ParseNNVMGraph(nnvm::Graph& graphs);
 
 } //end namespace ngraph
 

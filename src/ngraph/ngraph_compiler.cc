@@ -1,5 +1,7 @@
 #include "ngraph_compiler.h"
+#include "ngraph_nnvm_ops.h"
 #include "reverse_iterate.h"
+#include <nnvm/node.h>
 
 
 namespace ngraph{
@@ -73,9 +75,9 @@ namespace ngraph{
         }
     }
 
-    void PyCompiler::Compile(nnvm::Graph& graph, const size_t num_forward_inputs){
+    nnvm::Graph PyCompiler::Compile(nnvm::Graph graph){
         gil_state state;
-        auto g = ParseNNVMGraph(graph, num_forward_inputs);
+        auto g = ParseNNVMGraph(graph);
         CheckInNGraph(g);
 
         IdentifySubgraphs(g);
@@ -87,6 +89,7 @@ namespace ngraph{
                 std::cout <<n->name <<std::endl;
                 auto sg = std::dynamic_pointer_cast<Graph>(n);
                 CompileSubgraph(sg);
+                register_subgraph(sg);
             }
         }
 
@@ -101,6 +104,8 @@ namespace ngraph{
                 }
             }
         }
+
+        return graph;
     }
 
     void PyCompiler::CompileNode(NodePtr node, std::shared_ptr<Graph> graph){

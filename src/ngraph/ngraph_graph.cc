@@ -28,8 +28,8 @@ namespace ngraph{
 
         layer_funcs[std::string("Flatten")] = [](const NodePtr node){
             Graph tmpGraph;
-            auto flatop = std::make_shared<OpNode>(node->orig_node, node->name, "flatten", node->inputs);
-            tmpGraph.AddNode(flatop);
+            tmpGraph.AddNode(std::make_shared<OpNode>(
+                node->orig_node, node->name, "flatten", node->inputs));
             return tmpGraph;
         };
 
@@ -41,8 +41,7 @@ namespace ngraph{
                 act_type == "sigmoid" || 
                 act_type == "relu"){
                 tmpGraph.AddNode(std::make_shared<OpNode>(
-                    node->orig_node, node->name, 
-                    act_type, node->inputs));
+                    node->orig_node, node->name, act_type, node->inputs));
             } else if (act_type == "softrelu"){
                 auto one = std::make_shared<VariableNode>(node->orig_node, "ones_like_"+node->name);
                 tmpGraph.AddNode(one);
@@ -111,7 +110,7 @@ namespace ngraph{
 
     }
 
-    Graph ParseNNVMGraph(nnvm::Graph& graph, const size_t num_forward_inputs){
+    Graph ParseNNVMGraph(nnvm::Graph& graph){
         Graph tmpGraph;
         nnvm::DFSVisit(graph.outputs, 
             [&tmpGraph](const nnvm::NodePtr node) {
@@ -134,9 +133,7 @@ namespace ngraph{
                   }
                   auto replace_subgraph = [&tmpGraph](OpNodePtr subgraph){
                         auto tmp = layer_funcs[subgraph->operation](subgraph);
-                        for (auto n : tmp.nodes_){
-                            tmpGraph.AddNode(n);
-                        }                    
+                        for (auto n : tmp.nodes_) tmpGraph.AddNode(n);                   
                   };
                   if (op_node->operation == "FullyConnected" ||
                       op_node->operation == "Activation" ||
@@ -153,10 +150,12 @@ namespace ngraph{
 
         const auto& idx = graph.indexed_graph();
         const auto inferred_shapes = graph.GetAttr<std::vector<nnvm::TShape>>("shape");
+        const auto inferred_dtypes = graph.GetAttr<std::vector<int>>("dtype");
         for (auto node : tmpGraph.nodes_){
             const uint32_t nid = idx.node_id(node->orig_node.get());
             const uint32_t eid = idx.entry_id(nid, 0);
             node->shape = inferred_shapes[eid];
+            node->dtype = inferred_dtypes[eid];
         }
         return tmpGraph;
     }

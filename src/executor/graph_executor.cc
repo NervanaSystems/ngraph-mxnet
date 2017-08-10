@@ -823,7 +823,9 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                          g.GetAttr<nnvm::DTypeVector>("dtype"));
   }
   ngraph::PyCompiler py_compiler;
-  py_compiler.Compile(g, symbol.ListInputs(nnvm::Symbol::kAll).size());
+  g = py_compiler.Compile(g);
+  // idx = g.indexed_graph();
+
   // Create in_args, arg_grads, and aux_states using
   // the inferred shapes and dtypes.
   if (nullptr == shared_buffer) {  // regular simple bind
