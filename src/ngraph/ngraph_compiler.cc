@@ -2,6 +2,7 @@
 #include "ngraph_nnvm_ops.h"
 #include "reverse_iterate.h"
 #include <nnvm/node.h>
+#include <nnvm/pass.h>
 
 
 namespace ngraph{
@@ -84,15 +85,7 @@ namespace ngraph{
 
         CollapseSubgraphs(g);
 
-        for (auto n : g.nodes_){
-            if (n->type == NodeType::kGraph){
-                std::cout <<n->name <<std::endl;
-                auto sg = std::dynamic_pointer_cast<Graph>(n);
-                CompileSubgraph(sg);
-                register_subgraph(sg);
-            }
-        }
-
+        // Output Graphviz dot files for vizualization
         if (true){
             g.WriteDot("test.dot");
             for (auto n : g.nodes_){
@@ -105,7 +98,46 @@ namespace ngraph{
             }
         }
 
+        for (auto n : g.nodes_){
+            if (n->type == NodeType::kGraph){
+                std::cout <<n->name <<std::endl;
+                auto sg = std::dynamic_pointer_cast<Graph>(n);
+                CompileSubgraph(sg);
+                register_subgraph(sg);
+                auto sg_node = CreateNNVMNode(sg);
+                auto name = sg->nodes_.back()->name;
+                nnvm::DFSVisit(graph.outputs, 
+                    [sg_node, &name](const nnvm::NodePtr node) {
+                        auto matches_name = [&name](nnvm::NodeEntry n) -> bool {
+                                    return (n.node->attrs.name == name);};
+                        for (auto input : node->inputs){
+                            auto it = std::find_if(node->inputs.begin(), 
+                                node->inputs.end(), matches_name);        
+                            if (it != node->inputs.end()){
+                                node->inputs.insert(it, sg_node);
+                                node->inputs.erase(
+                                    std::remove_if(node->inputs.begin(), 
+                                       node->inputs.end(), matches_name), 
+                                    node->inputs.end());
+
+                            }
+                        }
+                    }
+                );
+            }
+        }   
+
         return graph;
+    }    
+
+    nnvm::NodeEntry PyCompiler::CreateNNVMNode(std::shared_ptr<Graph> graph){
+        auto node = nnvm::Node::Create();
+        node->attrs.name = graph->name;
+        node->attrs.op = get_subgraph_op(graph);
+        for (auto input : graph->inputs)
+            node->inputs.emplace_back(
+                nnvm::NodeEntry{input->orig_node, 0, 0});
+        return nnvm::NodeEntry{node, 0, 0};
     }
 
     void PyCompiler::CompileNode(NodePtr node, std::shared_ptr<Graph> graph){
@@ -147,9 +179,8 @@ namespace ngraph{
                     createPyPlaceholder(input, subgraph_name);
             }
         }
-        for (auto node : graph->nodes_){
-            CompileNode(node, graph);
-        }
+        for (auto node : graph->nodes_) CompileNode(node, graph);
+
         py::tuple py_placeholders = py::make_tuple();
         for (size_t i = 0; i < placeholder_order[subgraph_name].size(); ++i) {
             py_placeholders = py_placeholders.attr("__add__")(
@@ -181,6 +212,7 @@ namespace ngraph{
                             tmpGraph->inputs.emplace_back(input);
                     }
                 }
+
                 auto it = std::find_if(graph.nodes_.begin(), graph.nodes_.end(), 
                         [name](NodePtr n) -> bool {return (n->name == name);});
 

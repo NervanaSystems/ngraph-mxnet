@@ -24,6 +24,7 @@ namespace ngraph{
         void CollapseSubgraphs(Graph& graph);
         void CompileSubgraph(std::shared_ptr<Graph> graph);
         void CompileNode(NodePtr node, std::shared_ptr<Graph> graph);
+        nnvm::NodeEntry CreateNNVMNode(std::shared_ptr<Graph> graph);
         UnaryOps NgraphUnaryOps_;
         BinaryOps NgraphBinaryOps_;
         std::vector<std::string> NgraphOps_;

@@ -5,14 +5,16 @@
 #include "pybind11/numpy.h"
 #include <nnvm/graph.h>
 #include <nnvm/symbolic.h>
-#include <nnvm/op.h>
 #include <nnvm/op_attr_types.h>
 #include <cstring>
 #include <mxnet/operator.h>
 #include "../operator/operator_common.h"
 
 namespace ngraph {
-
+    nnvm::Op* get_subgraph_op(std::shared_ptr<Graph> graph){
+        return &(::dmlc::Registry<::nnvm::Op>::Get(
+            )->__REGISTER_OR_GET__(graph->name));
+    }
     void register_subgraph(std::shared_ptr<Graph> graph) {
         auto op = ::dmlc::Registry<::nnvm::Op>::Get(
                         )->__REGISTER_OR_GET__(graph->name);
