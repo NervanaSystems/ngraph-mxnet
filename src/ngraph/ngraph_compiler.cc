@@ -83,7 +83,11 @@ void PyCompiler::CheckInNGraph(Graph& graph) {
   }
 }
 
-nnvm::Graph PyCompiler::Compile(nnvm::Graph graph) {
+nnvm::Graph PyCompiler::Compile(
+  nnvm::Graph graph,
+  std::unordered_map<std::string, nnvm::TShape>& arg_shape_map,
+  std::unordered_map<std::string, int>& arg_dtype_map
+) {
   gil_state state;
   auto g = ParseNNVMGraph(graph);
   CheckInNGraph(g);
@@ -105,11 +109,12 @@ nnvm::Graph PyCompiler::Compile(nnvm::Graph graph) {
     }
   }
 
+  nnvm::Graph out_graph;
+
   for (auto n : g.nodes_) {
     if (n->type == NodeType::kGraph) {
-      std::cout << n->name << std::endl;
       auto sg = std::dynamic_pointer_cast<Graph>(n);
-      CompileSubgraph(sg);
+      CompileSubgraph(sg, arg_shape_map, arg_dtype_map);
       register_subgraph(sg);
       auto sg_node = CreateNNVMNode(sg);
       auto name = sg->nodes_.back()->name;
@@ -133,7 +138,9 @@ nnvm::Graph PyCompiler::Compile(nnvm::Graph graph) {
     }
   }
 
-  return graph;
+  out_graph.outputs = graph.outputs;
+
+  return out_graph;
 }
 
 nnvm::NodeEntry PyCompiler::CreateNNVMNode(std::shared_ptr<Graph> graph) {
@@ -143,6 +150,8 @@ nnvm::NodeEntry PyCompiler::CreateNNVMNode(std::shared_ptr<Graph> graph) {
   for (auto input : graph->inputs)
     node->inputs.emplace_back(
       nnvm::NodeEntry{input->orig_node, 0, 0});
+  NGraphParam op;
+  node->attrs.parsed = std::move(op);
   return nnvm::NodeEntry{node, 0, 0};
 }
 
@@ -171,7 +180,11 @@ void PyCompiler::CompileNode(NodePtr node, std::shared_ptr<Graph> graph) {
   }
 }
 
-void PyCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
+void PyCompiler::CompileSubgraph(
+  std::shared_ptr<Graph> graph,
+  std::unordered_map<std::string, nnvm::TShape>& arg_shape_map,
+  std::unordered_map<std::string, int>& arg_dtype_map
+) {
   auto subgraph_name = graph->name;
   std::vector<std::string> tmpvec;
   placeholder_order[subgraph_name] = tmpvec;
@@ -183,6 +196,10 @@ void PyCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
                                    input);
       if (found_input == graph->nodes_.end())
         createPyPlaceholder(input, subgraph_name);
+        if (input->type != NodeType::kOp){
+          arg_shape_map[input->name] = input->shape;
+          arg_dtype_map[input->name] = input->dtype;
+        }
     }
   }
   for (auto node : graph->nodes_) CompileNode(node, graph);
@@ -211,7 +228,9 @@ void PyCompiler::CollapseSubgraphs(Graph& graph) {
       tmpGraph->in_ngraph = true;
       tmpGraph->subgraph = i;
       auto name = tmpGraph->nodes_.back()->name;
+      auto shape = tmpGraph->nodes_.back()->shape;
       tmpGraph->name = "subgraph_" + name;
+      tmpGraph->shape = shape;
       for (auto node : tmpGraph->nodes_) {
         for (auto input : node->inputs) {
           if (input->subgraph != i)

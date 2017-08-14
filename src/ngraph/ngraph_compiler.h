@@ -12,7 +12,10 @@ using BinaryOps = std::map<std::string, std::function<py::object(const py::objec
 class PyCompiler {
   public:
     PyCompiler();
-    nnvm::Graph Compile(nnvm::Graph graph);
+    nnvm::Graph Compile(
+        nnvm::Graph graph,
+        std::unordered_map<std::string, nnvm::TShape>& arg_shape_map,
+        std::unordered_map<std::string, int>& arg_dtype_map);
 
   private:
     UnaryOps create_UnaryOps(const py::module& ns, const py::module& ng);
@@ -22,7 +25,10 @@ class PyCompiler {
     // void createPyOp(NodePtr node);
     void IdentifySubgraphs(Graph& graph);
     void CollapseSubgraphs(Graph& graph);
-    void CompileSubgraph(std::shared_ptr<Graph> graph);
+    void CompileSubgraph(
+        std::shared_ptr<Graph> graph,
+        std::unordered_map<std::string, nnvm::TShape>& arg_shape_map,
+        std::unordered_map<std::string, int>& arg_dtype_map);
     void CompileNode(NodePtr node, std::shared_ptr<Graph> graph);
     nnvm::NodeEntry CreateNNVMNode(std::shared_ptr<Graph> graph);
     UnaryOps NgraphUnaryOps_;

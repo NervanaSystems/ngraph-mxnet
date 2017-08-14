@@ -94,7 +94,7 @@ ifeq ($(USE_NNPACK), 1)
 	LDFLAGS += -lnnpack
 endif
 ifeq ($(USE_NGRAPH),1)
-	CFLAGS += -I$(ROOTDIR)/src/ngraph
+	CFLAGS += -I$(ROOTDIR)/src/ngraph -DMXNET_USE_NGRAPH=1
 endif 
 ifeq ($(USE_MKL2017), 1)
 	CFLAGS += -DMXNET_USE_MKL2017=1

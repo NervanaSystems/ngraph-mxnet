@@ -13,7 +13,9 @@
 #include "./graph_executor.h"
 #include "../engine/profiler.h"
 
+#if MXNET_USE_NGRAPH == 1
 #include "../ngraph/ngraph_compiler.h"
+#endif
 
 #include <iostream>
 namespace mxnet {
@@ -795,37 +797,72 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
 
   // Initialize arg_shapes and arg_dtypes for shape and type inferences.
   // It contains all in_args and aux_states' shapes and types in a certain order.
-  const nnvm::IndexedGraph& idx = g.indexed_graph();
-  nnvm::ShapeVector arg_shapes(idx.input_nodes().size(), TShape());
-  nnvm::DTypeVector arg_dtypes(idx.input_nodes().size(), -1);
-  for (size_t i = 0; i < num_forward_inputs_; ++i) {
-    const uint32_t nid = idx.input_nodes().at(i);
-    const std::string& name = idx[nid].source->attrs.name;
-    auto it1 = arg_shape_map.find(name);
-    if (arg_shape_map.end() != it1) {
-      arg_shapes[i] = it1->second;
-    }
-    auto it2 = arg_dtype_map.find(name);
-    if (arg_dtype_map.end() != it2) {
-      arg_dtypes[i] = it2->second;
-    }
-  }
-  g = nnvm::pass::InferShape(g, arg_shapes, "__shape__");
+  auto num_forward_inputs = num_forward_inputs_;
+  auto infer_graph = [num_forward_inputs] (
+    nnvm::Graph g,
+    const std::unordered_map<std::string, TShape>& arg_shape_map,
+    const std::unordered_map<std::string, int>& arg_dtype_map
+  ) -> nnvm::Graph {
 
-  if (g.GetAttr<size_t>("shape_num_unknown_nodes") != 0U) {
-    HandleInferShapeError(num_forward_inputs_, g.indexed_graph(),
-                          g.GetAttr<nnvm::ShapeVector>("shape"));
-  }
+    const nnvm::IndexedGraph& idx = g.indexed_graph();
 
-  g = nnvm::pass::InferType(g, arg_dtypes, "__dtype__");
-  if (g.GetAttr<size_t>("dtype_num_unknown_nodes") != 0U) {
-    HandleInferTypeError(num_forward_inputs_, g.indexed_graph(),
-                         g.GetAttr<nnvm::DTypeVector>("dtype"));
-  }
+    nnvm::ShapeVector arg_shapes(idx.input_nodes().size(), TShape());
+    nnvm::DTypeVector arg_dtypes(idx.input_nodes().size(), -1);
+    for (size_t i = 0; i < num_forward_inputs; ++i) {
+      const uint32_t nid = idx.input_nodes().at(i);
+      const std::string& name = idx[nid].source->attrs.name;
+      auto it1 = arg_shape_map.find(name);
+      if (arg_shape_map.end() != it1) {
+        arg_shapes[i] = it1->second;
+      }
+      auto it2 = arg_dtype_map.find(name);
+      if (arg_dtype_map.end() != it2) {
+        arg_dtypes[i] = it2->second;
+      }
+    }
+    g = nnvm::pass::InferShape(g, arg_shapes, "__shape__");
+    if (g.GetAttr<size_t>("shape_num_unknown_nodes") != 0U) {
+      HandleInferShapeError(num_forward_inputs, g.indexed_graph(),
+                            g.GetAttr<nnvm::ShapeVector>("shape"));
+    }
+
+    g = nnvm::pass::InferType(g, arg_dtypes, "__dtype__");
+    if (g.GetAttr<size_t>("dtype_num_unknown_nodes") != 0U) {
+      HandleInferTypeError(num_forward_inputs, g.indexed_graph(),
+                           g.GetAttr<nnvm::DTypeVector>("dtype"));
+    }
+    return g;
+  };
+
+  g = infer_graph(g, arg_shape_map, arg_dtype_map);
+
+
+#if MXNET_USE_NGRAPH == 1
+  std::unordered_map<std::string, TShape> ngraph_arg_shape_map;
+  std::unordered_map<std::string, int> ngraph_arg_dtype_map;
+
   ngraph::PyCompiler py_compiler;
-  g = py_compiler.Compile(g);
-  // idx = g.indexed_graph();
+  g = py_compiler.Compile(g, ngraph_arg_shape_map, ngraph_arg_dtype_map);
+  // create "device" and "context" attrs for the graph
+  g = AssignContext(g, default_ctx, ctx_map,
+                    in_arg_ctxes,
+                    arg_grad_ctxes,
+                    aux_state_ctxes,
+                    num_forward_inputs_,
+                    num_forward_outputs_);
 
+  const auto& idx = g.indexed_graph();
+  // get number of nodes used in forward pass
+  num_forward_nodes_ = 0;
+  for (size_t i = 0; i < num_forward_outputs_; ++i) 
+    num_forward_nodes_ = std::max(
+                           num_forward_nodes_, 
+                           static_cast<size_t>(idx.outputs()[i].node_id + 1));
+
+  g = infer_graph(g, ngraph_arg_shape_map, ngraph_arg_dtype_map);
+#else
+  const auto& idx = g.indexed_graph();
+#endif
   // Create in_args, arg_grads, and aux_states using
   // the inferred shapes and dtypes.
   if (nullptr == shared_buffer) {  // regular simple bind
