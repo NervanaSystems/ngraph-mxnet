@@ -65,6 +65,12 @@ USE_OPENCV = 1
 # use openmp for parallelization
 USE_OPENMP = 1
 
+# whether to use NGRAPH during compile
+# Need to point to a version of python with ngraph installed
+USE_NGRAPH = 0
+PY_INCLUDE = /usr/include/python2.7
+PY_LIB = /usr/lib
+
 # MKL ML Library for Intel CPU/Xeon Phi
 # Please refer to MKL_README.md for details
 

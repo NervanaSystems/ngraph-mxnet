@@ -94,8 +94,9 @@ ifeq ($(USE_NNPACK), 1)
 	LDFLAGS += -lnnpack
 endif
 ifeq ($(USE_NGRAPH),1)
-	CFLAGS += -I$(ROOTDIR)/src/ngraph -DMXNET_USE_NGRAPH=1
-endif 
+        CFLAGS += -I$(ROOTDIR)/src/ngraph -I$(PY_INCLUDE) -DMXNET_USE_NGRAPH=1
+        LDFLAGS += -L$(PY_LIB) -lpython2.7
+endif
 ifeq ($(USE_MKL2017), 1)
 	CFLAGS += -DMXNET_USE_MKL2017=1
 	CFLAGS += -DUSE_MKL=1
@@ -206,6 +207,9 @@ endif
 all: lib/libmxnet.a lib/libmxnet.so $(BIN) extra-packages
 
 SRC = $(wildcard src/*/*/*.cc src/*/*.cc src/*.cc)
+ifneq ($(USE_NGRAPH),1)
+    SRC := $(foreach f,$(SRC),$(if $(findstring src/ngraph,$f),,$f))
+endif
 OBJ = $(patsubst %.cc, build/%.o, $(SRC))
 CUSRC = $(wildcard src/*/*/*.cu src/*/*.cu src/*.cu)
 CUOBJ = $(patsubst %.cu, build/%_gpu.o, $(CUSRC))
