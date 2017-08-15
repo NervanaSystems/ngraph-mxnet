@@ -6,9 +6,10 @@
 
 namespace ngraph {
     namespace py = pybind11;
-// Runs python initializer, needs to be called ONLY once
+    // Singleton Function to initialize python interpreter
     void InitializePython();
-
+    
+    // class to lock and release interpreter
     class gil_state {
      public:
       gil_state() : m_gstate{PyGILState_Ensure()} {}

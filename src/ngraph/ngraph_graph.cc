@@ -6,13 +6,14 @@ using namespace pybind11::literals;
 
 
 namespace ngraph {
-
+// Type Aliases
 using OpNodePtr = std::shared_ptr<OpNode>;
 using layerGraphs = std::map<std::string, std::function<Graph(const NodePtr)> >;
 
+// Generator to create functions that convert mxnet layer operations
+// into a series of ngraph operations
 static layerGraphs create_layerGraphs() {
   layerGraphs layer_funcs;
-
   layer_funcs[std::string("FullyConnected")] = [](const NodePtr node) {
     Graph tmpGraph;
     auto dotop = std::make_shared<OpNode>(node->orig_node, "dot_" + node->name, "matmul");
@@ -61,35 +62,43 @@ static layerGraphs create_layerGraphs() {
   };
   return layer_funcs;
 }
-
+// Create dictionary of layer->ngraph functions
 auto layer_funcs = create_layerGraphs();
 
 void Graph::WriteDot(const std::string& fname) {
+  //open file stream, write graphviz header
   std::ofstream dotfile;
   dotfile.open(fname);
   dotfile << "digraph G { " << std::endl;
   dotfile << "size=\"8,10.5\"" << std::endl;
+
+  // Loop over inputs, write graph connections
   for (auto n : nodes_) {
     for (auto i : n->inputs) {
       dotfile << i->name << " -> " << n->name << ";" << std::endl;
     }
   }
+  // Loop over nodes and write labels
   for (auto n : nodes_) {
     dotfile << n->createNodeLabel() << std::endl ;
   }
+  // Finish file.
   dotfile << "}" << std::endl;
   dotfile.close();
 }
-
+// Utility to mark a node as visited and recursive search based on the results
+// of an input function
 void Graph::DFSUtil(NodePtr s,
                     std::map<std::string, bool>& visited,
                     std::vector<NodePtr>& outNodes,
                     std::function<bool(NodePtr)>& func) {
   // Mark the current node as visited
   visited[s->name] = true;
-
+  // if this node matches func condition
   if (func(s)) {
+    // add it to the output
     outNodes.push_back(s);
+    // visit it's inputs
     for (auto i : s->inputs) {
       if (!visited[i->name]) {
         DFSUtil(i, visited, outNodes, func);
@@ -98,26 +107,34 @@ void Graph::DFSUtil(NodePtr s,
   }
 }
 
+// Depth first selection of nodes based on function criterion
 std::vector<NodePtr> Graph::DFSselect(NodePtr s, std::function<bool(NodePtr)> func) {
+  // init visited vector
   std::map<std::string, bool> visited;
   for (auto n : nodes_) visited[n->name] = false;
-
+  // init output vector
   std::vector<NodePtr> outNodes;
+  // recursiveliy search the graph
   DFSUtil(s, visited, outNodes, func);
   return outNodes;
 
 }
-
+// Function that parses an nnvm Graph into an intermediary graph
 Graph ParseNNVMGraph(nnvm::Graph& graph) {
+  // create inermediary graph
   Graph tmpGraph;
+  // Use NNVM's depth first search to trace the tree and construct the 
+  // intermediary graph
   nnvm::DFSVisit(graph.outputs,
   [&tmpGraph](const nnvm::NodePtr node) {
 
     if (node->is_variable()) {
+      // add variable to the graph
       tmpGraph.AddNode(std::make_shared<VariableNode>(node, node->attrs.name));
     } else {
+      // create operation node
       auto op_node = std::make_shared<OpNode>(node, node->attrs.name, node->op()->name) ;
-
+      // setup operation inputs
       for (size_t i = 0; i < node->inputs.size(); ++i) {
         const nnvm::NodeEntry& e = node->inputs[i];
         std::shared_ptr<Node> tmpnode;
@@ -129,23 +146,28 @@ Graph ParseNNVMGraph(nnvm::Graph& graph) {
         }
         op_node->inputs.emplace_back(tmpnode);
       }
+      // define a lambda to turn an op_node into a series of nodes in
+      // intermediate graph based on layer expansions
       auto replace_subgraph = [&tmpGraph](OpNodePtr subgraph) {
         auto tmp = layer_funcs[subgraph->operation](subgraph);
         for (auto n : tmp.nodes_) tmpGraph.AddNode(n);
       };
+
       if (op_node->operation == "FullyConnected" ||
           op_node->operation == "Activation" ||
           op_node->operation == "Flatten") {
+        // perform layer expansions
         replace_subgraph(op_node);
       } else {
+        // add operation
         tmpGraph.AddNode(op_node);
       }
 
 
     }
-  }
-                );
+  });
 
+  // get the shape and data types of all of the nodes
   const auto& idx = graph.indexed_graph();
   const auto inferred_shapes = graph.GetAttr<std::vector<nnvm::TShape>>("shape");
   const auto inferred_dtypes = graph.GetAttr<std::vector<int>>("dtype");
@@ -155,6 +177,7 @@ Graph ParseNNVMGraph(nnvm::Graph& graph) {
     node->shape = inferred_shapes[eid];
     node->dtype = inferred_dtypes[eid];
   }
+  // return intermediary graph
   return tmpGraph;
 }
 

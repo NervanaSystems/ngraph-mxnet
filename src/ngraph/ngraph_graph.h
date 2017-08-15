@@ -17,12 +17,17 @@
 
 namespace ngraph {
 
+//Forward Delcaration for type aliases
 class Node;
 
+// Useful type aliases
 using nnvmNodePtr = std::shared_ptr<nnvm::Node>;
 using NodePtr = std::shared_ptr<Node>;
 
+// Possible Types of nodes in Current Version
 enum class NodeType {kVariable, kOp, kGraph};
+
+// Base class for Nodes in Intermediary Analysis Graph
 class Node {
  public:
   Node(NodeType t, const nnvmNodePtr n, std::string s): 
@@ -30,25 +35,30 @@ class Node {
   Node(NodeType t, const nnvmNodePtr n, std::string s, std::vector<NodePtr> i):
     type(t), orig_node(n), name(s), inputs(i) {};
 
+  // Function to create node label, used to export graph to graphviz for debug
   virtual std::string createNodeLabel() {
     std::ostringstream stream;
     stream << shape << " sg=" << subgraph;
     return name + " [label = \"" + name + "\n" + stream.str() +
            "\", fillcolor = red, style = filled];";
   }
-
+  // basic information about node
   NodeType type;
   nnvmNodePtr orig_node;
   std::string name;
   std::vector<NodePtr> inputs;
+
+  //mxnet type information
   nnvm::TShape shape;
   int dtype;
+  //information to store graph parsing in
   bool in_ngraph = false;
   std::string operation = "";
-  py::object ngraph_rep;
   int subgraph = 0;
+  py::object ngraph_rep;
 };
 
+//Variable Node
 class VariableNode : public Node {
  public:
   VariableNode(const nnvmNodePtr n, std::string s):
@@ -57,8 +67,10 @@ class VariableNode : public Node {
     Node(NodeType::kVariable, n, s, i) {};
 };
 
+//Operation node
 class OpNode : public Node {
  public:
+  //Include operation in graphviz
   std::string createNodeLabel() {
     std::ostringstream stream;
     stream << shape << " sg=" << subgraph;
@@ -76,29 +88,39 @@ class OpNode : public Node {
 
 };
 
-
+/* 
+Graph class
+Graph subclasses Node to that we can embed graphs into other graphs
+This is useful when we take a graph and replace it with an ngraph computation
+*/
 class Graph : public Node {
  public:
   Graph(): Node(NodeType::kGraph, nullptr, "") {};
   Graph(std::string name): Node(NodeType::kGraph, nullptr, name) {};
+  //Add a node to the graph
   void AddNode(NodePtr node) {nodes_.emplace_back(node);};
+  //Write the graph to a Graphviz file
   void WriteDot(const std::string& fname);
+  // Function for doing depth first search on the graph and selecting nodes
   std::vector<NodePtr> DFSselect(NodePtr s, std::function<bool(NodePtr)> func);
+  // Utility function for graph search
   void DFSUtil(NodePtr s,
                std::map<std::string, bool>& visited,
                std::vector<NodePtr>& outNodes,
                std::function<bool(NodePtr)>& func);
+  // get the node corresponding to a name
   NodePtr operator[](std::string name) {
     for (auto n : nodes_)
       if (n->name == name)
         return n;
     throw "node not in graph";
   };
+
   std::vector<NodePtr> nodes_;
   std::shared_ptr<py::object> py_computation;
 };
 
-
+// Function for parsing nnvm graph into intermediary ngraph structure
 Graph ParseNNVMGraph(nnvm::Graph& graphs);
 
 } //end namespace ngraph

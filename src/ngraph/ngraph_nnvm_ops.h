@@ -5,10 +5,12 @@
 #include <nnvm/op.h>
 
 namespace ngraph {
-
+// function for returning nnvm::Op corresponding to a subgraph
 nnvm::Op* get_subgraph_op(std::shared_ptr<Graph> graph);
+// function for registering subgraph operation with nnvm
 void register_subgraph(std::shared_ptr<Graph> graph);
 
+// dummy parameter struct to match mxnet API
 struct NGraphParam{
   std::vector<std::string> arguments;
   std::vector<std::string> aux_states;
