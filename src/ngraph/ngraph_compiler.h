@@ -37,10 +37,7 @@ class PyCompiler {
     // each graph node represented a combined ngraph operation
     void CollapseSubgraphs(Graph& graph);
     // compile subgraph into ngraph python objects
-    void CompileSubgraph(
-        std::shared_ptr<Graph> graph,
-        std::unordered_map<std::string, nnvm::TShape>& arg_shape_map,
-        std::unordered_map<std::string, int>& arg_dtype_map);
+    void CompileSubgraph(std::shared_ptr<Graph> graph);
     // compile a single node into an ngraph python object
     void CompileNode(NodePtr node, std::shared_ptr<Graph> graph);
     // create a new nnvm node based on subgraph

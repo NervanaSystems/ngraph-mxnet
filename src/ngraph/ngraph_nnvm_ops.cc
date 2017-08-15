@@ -109,7 +109,7 @@ void register_subgraph(std::shared_ptr<Graph> graph) {
       const std::vector<mxnet::OpReqType>& req,
       const std::vector<mxnet::TBlob>& outputs
   ) -> void {
-    // Lock the Ggil
+    // Lock the gil
     gil_state state;
     // get a tuple of numpy arrays that point to the input data
     py::tuple py_placeholder_vals = py::make_tuple();

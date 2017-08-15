@@ -116,14 +116,24 @@ nnvm::Graph PyCompiler::Compile(
       }
     }
   }
-
+  for (auto node : g.nodes_){
+    // store the input variable shape for use by nnvm
+    // This is happening because my nnvm graph manipulations are
+    // breaking the infer shape functionality, so shapes of inputs
+    // don't get properly inferred. Works, because we're inferring
+    // the shapes before doing all of this, but not ideal
+    if (node->type != NodeType::kGraph) {
+      arg_shape_map[node->name] = node->shape;
+      arg_dtype_map[node->name] = node->dtype;
+    }
+  }
   // find the subgraphs
   for (auto n : g.nodes_) {
     if (n->type == NodeType::kGraph) {
       // extract and compile subgraph
       auto sg = std::dynamic_pointer_cast<Graph>(n);
       // compile the subgraph into a python computation
-      CompileSubgraph(sg, arg_shape_map, arg_dtype_map);
+      CompileSubgraph(sg);
       // register compiled subgraph with nnvm
       register_subgraph(sg);
       // create nnvm node
@@ -214,11 +224,7 @@ void PyCompiler::CompileNode(NodePtr node, std::shared_ptr<Graph> graph) {
 }
 
 // Compile a Subgraph into ngraph python objects
-void PyCompiler::CompileSubgraph(
-  std::shared_ptr<Graph> graph,
-  std::unordered_map<std::string, nnvm::TShape>& arg_shape_map,
-  std::unordered_map<std::string, int>& arg_dtype_map
-) {
+void PyCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
   // initalize a placeholder order vector for this subgraph
   auto subgraph_name = graph->name;
   std::vector<std::string> tmpvec;
@@ -233,11 +239,6 @@ void PyCompiler::CompileSubgraph(
       // if it's found, create a placeholder python object
       if (found_input == graph->nodes_.end())
         createPyPlaceholder(input, subgraph_name);
-      // store the input variable shape for use by nnvm
-      if (input->type != NodeType::kOp) {
-        arg_shape_map[input->name] = input->shape;
-        arg_dtype_map[input->name] = input->dtype;
-      }
     }
   }
   // compile the operations
@@ -245,6 +246,7 @@ void PyCompiler::CompileSubgraph(
   // create a python tuple of the variable placeholds to compile the computation  
   py::tuple py_placeholders = py::make_tuple();
   for (size_t i = 0; i < placeholder_order[subgraph_name].size(); ++i) {
+    // std::cout << placeholder_order[subgraph_name][int(i)] << std::endl;
     py_placeholders = py_placeholders.attr("__add__")(
                         py::make_tuple(
                           op_map[placeholder_order[subgraph_name][int(i)]]));
@@ -281,6 +283,7 @@ void PyCompiler::CollapseSubgraphs(Graph& graph) {
       auto shape = tmpGraph->nodes_.back()->shape;
       tmpGraph->name = "subgraph_" + name;
       tmpGraph->shape = shape;
+      tmpGraph->dtype = tmpGraph->nodes_.back()->dtype;
       // setup inputs to this subgraph (as a node)
       for (auto node : tmpGraph->nodes_) {
         for (auto input : node->inputs) {
