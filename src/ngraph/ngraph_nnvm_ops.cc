@@ -1,11 +1,13 @@
-#include "ngraph_nnvm_ops.h"
+#include <mshadow/base.h>
 #include <mshadow/tensor.h>
 #include <mxnet/operator.h>
 #include <nnvm/graph.h>
 #include <nnvm/op_attr_types.h>
 #include <nnvm/symbolic.h>
 #include <cstring>
+
 #include "../operator/operator_common.h"
+#include "ngraph_nnvm_ops.h"
 #include "ngraph_utils.h"
 #include "pybind11/eval.h"
 #include "pybind11/numpy.h"
