@@ -118,6 +118,7 @@ class Graph : public Node {
 
   std::vector<NodePtr> nodes_;
   std::shared_ptr<py::object> py_computation;
+  std::shared_ptr<py::object> py_backward;
 };
 
 // Function for parsing nnvm graph into intermediary ngraph structure

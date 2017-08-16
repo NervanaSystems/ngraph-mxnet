@@ -7,6 +7,16 @@
 using namespace pybind11::literals;
 
 namespace ngraph {
+// Function to convert TShape object into a list of dimension shapes in
+// a python tuple
+py::tuple TShapeToTuple(nnvm::TShape shape) {
+  py::tuple shape_tuple = py::make_tuple();
+  for (auto x : shape) {
+    shape_tuple = shape_tuple.attr("__add__")(py::make_tuple(x));
+  }
+  return shape_tuple;
+}
+
 //unary op genrating function generator
 UnaryOps PyCompiler::create_UnaryOps(const py::module& ns, const py::module& ng) {
   UnaryOps output;
@@ -116,7 +126,7 @@ nnvm::Graph PyCompiler::Compile(
       }
     }
   }
-  for (auto node : g.nodes_){
+  for (auto node : g.nodes_) {
     // store the input variable shape for use by nnvm
     // This is happening because my nnvm graph manipulations are
     // breaking the infer shape functionality, so shapes of inputs
@@ -196,7 +206,7 @@ void PyCompiler::CompileNode(NodePtr node, std::shared_ptr<Graph> graph) {
   // if the node has been compiled, return
   if (op_map.count(node->name) > 0) {
     return;
-  // compile unary operations
+    // compile unary operations
   } else if (node->inputs.size() == 1) {
     // if the input hasn't been compiled, compile it
     if (op_map.count(node->inputs[0]->name) == 0) {
@@ -207,7 +217,7 @@ void PyCompiler::CompileNode(NodePtr node, std::shared_ptr<Graph> graph) {
     op_map[node->name] = NgraphUnaryOps_[node->operation](
                            op_map[node->inputs[0]->name],
                            node->name);
-  // compile binary operations, same idea as unary operations
+    // compile binary operations, same idea as unary operations
   } else if (node->inputs.size() == 2) {
     for (int i = 0; i < 2; ++i) {
       if (op_map.count(node->inputs[0]->name) == 0) {
@@ -243,10 +253,9 @@ void PyCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
   }
   // compile the operations
   for (auto node : graph->nodes_) CompileNode(node, graph);
-  // create a python tuple of the variable placeholds to compile the computation  
+  // create a python tuple of the variable placeholds to compile the computation
   py::tuple py_placeholders = py::make_tuple();
   for (size_t i = 0; i < placeholder_order[subgraph_name].size(); ++i) {
-    // std::cout << placeholder_order[subgraph_name][int(i)] << std::endl;
     py_placeholders = py_placeholders.attr("__add__")(
                         py::make_tuple(
                           op_map[placeholder_order[subgraph_name][int(i)]]));
@@ -255,7 +264,39 @@ void PyCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
   graph->py_computation.reset(new py::object(
                                 transformer_.attr("computation")(
                                   op_map[graph->nodes_.back()->name],
-                                   *py_placeholders)));
+                                  *py_placeholders)));
+
+
+  // backward computation
+  py::tuple py_deriv_ops = py::make_tuple();
+  py::tuple py_back_placeholders = py::make_tuple();
+  py::tuple py_shape = TShapeToTuple(graph->shape);
+
+  auto back_grad = ns_.attr("placeholder")("shape"_a = py_shape).attr(
+                     "named")(graph->name + "_out_grad");
+
+  for (size_t i = 0; i < placeholder_order[subgraph_name].size(); ++i) {
+    py_back_placeholders = py_back_placeholders.attr("__add__")(
+                             py::make_tuple(
+                               op_map[placeholder_order[subgraph_name][int(i)]]
+                             ));
+    py_deriv_ops = py_deriv_ops.attr("__add__")(
+                     py::make_tuple(
+                       ng_.attr("deriv")(
+                         op_map[graph->nodes_.back()->name],
+                         op_map[placeholder_order[subgraph_name][int(i)]],
+                         back_grad)
+                     ));
+  }
+
+  py_back_placeholders = py_back_placeholders.attr("__add__")(
+                           py::make_tuple(back_grad));
+
+  // compile the backward computation
+  graph->py_backward.reset(new py::object(
+                                transformer_.attr("computation")(
+                                  py_deriv_ops,
+                                  *py_back_placeholders)));
 
 }
 
@@ -334,16 +375,6 @@ void PyCompiler::IdentifySubgraphs(Graph& graph) {
       }
     }
   }
-}
-
-// Function to convert TShape object into a list of dimension shapes in
-// a python tuple
-py::tuple TShapeToTuple(nnvm::TShape shape) {
-  py::tuple shape_tuple = py::make_tuple();
-  for (auto x : shape) {
-    shape_tuple = shape_tuple.attr("__add__")(py::make_tuple(x));
-  }
-  return shape_tuple;
 }
 
 // Function for emitting a variable placeholder in ngraph
