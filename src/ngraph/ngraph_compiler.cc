@@ -1,8 +1,8 @@
 #include "ngraph_compiler.h"
-#include "ngraph_nnvm_ops.h"
-#include "reverse_iterate.h"
 #include <nnvm/node.h>
 #include <nnvm/pass.h>
+#include "ngraph_nnvm_ops.h"
+#include "reverse_iterate.h"
 
 using namespace pybind11::literals;
 
@@ -17,45 +17,42 @@ py::tuple TShapeToTuple(nnvm::TShape shape) {
   return shape_tuple;
 }
 
-//unary op genrating function generator
-UnaryOps PyCompiler::create_UnaryOps(const py::module& ns, const py::module& ng) {
+// unary op genrating function generator
+UnaryOps PyCompiler::create_UnaryOps(const py::module& ns,
+                                     const py::module& ng) {
   UnaryOps output;
   for (auto op : {
-         "abs", "exp", "tanh", "sigmoid", "relu",
-         "log", "negative", "square", "sign",
-       } ) {
-    output[op] = [ns, op](const py::object & py_operand,
-                          const std::string & name
-    ) {return ns.attr(op)(py_operand).attr("named")(name);};
+           "abs", "exp", "tanh", "sigmoid", "relu", "log", "negative", "square",
+           "sign",
+       }) {
+    output[op] = [ns, op](const py::object& py_operand,
+                          const std::string& name) {
+      return ns.attr(op)(py_operand).attr("named")(name);
+    };
   }
-  output["flatten"] = [ng](const py::object & py_operand,
-                           const std::string & name
-  ) {return ng.attr("flatten_at")(py_operand, 1).attr("named")(name);};
+  output["flatten"] = [ng](const py::object& py_operand,
+                           const std::string& name) {
+    return ng.attr("flatten_at")(py_operand, 1).attr("named")(name);
+  };
 
   return output;
 }
 // binary op generating function generator
-BinaryOps PyCompiler::create_BinaryOps(const py::module& ns, const py::module& ng) {
+BinaryOps PyCompiler::create_BinaryOps(const py::module& ns,
+                                       const py::module& ng) {
   BinaryOps output;
   using namespace pybind11::literals;
-  for (auto op : {
-         "add", "divide", "equal", "greater_equal", "greater",
-         "less_equal", "less", "maximum", "minimum", "multiply",
-         "not_equal", "pow", "mod", "subtract"
-       } )
-    output[op] = [ns, op](const py::object & lhs,
-                          const py::object & rhs,
-                          const std::string & name
-    ) {
-    return ns.attr(op)(lhs, rhs).attr("named")(name);
-  };
-  output["matmul"] = [ns, ng](const py::object & lhs,
-                              const py::object & rhs,
-                              const std::string & name
-  ) {
+  for (auto op : {"add", "divide", "equal", "greater_equal", "greater",
+                  "less_equal", "less", "maximum", "minimum", "multiply",
+                  "not_equal", "pow", "mod", "subtract"})
+    output[op] = [ns, op](const py::object& lhs, const py::object& rhs,
+                          const std::string& name) {
+      return ns.attr(op)(lhs, rhs).attr("named")(name);
+    };
+  output["matmul"] = [ns, ng](const py::object& lhs, const py::object& rhs,
+                              const std::string& name) {
     return ng.attr("Transpose")(
-             ns.attr("matmul")(lhs, rhs, "transpose_b"_a = 1
-                              ).attr("named")(name));
+        ns.attr("matmul")(lhs, rhs, "transpose_b"_a = 1).attr("named")(name));
   };
   return output;
 }
@@ -68,11 +65,11 @@ PyCompiler::PyCompiler() {
   // // import python modules
   ng_ = py::module::import("ngraph");
   ns_ = py::module::import(
-          "ngraph.frontends.tensorflow.tf_importer.ngraph_shaped");
+      "ngraph.frontends.tensorflow.tf_importer.ngraph_shaped");
   ngt_ = py::module::import("ngraph.transformers");
   transformer_ = ngt_.attr("make_transformer")();
 
-  //Create Operation Maps
+  // Create Operation Maps
   NgraphUnaryOps_ = create_UnaryOps(ns_, ng_);
   NgraphBinaryOps_ = create_BinaryOps(ns_, ng_);
 
@@ -101,10 +98,9 @@ void PyCompiler::CheckInNGraph(Graph& graph) {
 
 // Main compilation function
 nnvm::Graph PyCompiler::Compile(
-  nnvm::Graph graph,
-  std::unordered_map<std::string, nnvm::TShape>& arg_shape_map,
-  std::unordered_map<std::string, int>& arg_dtype_map
-) {
+    nnvm::Graph graph,
+    std::unordered_map<std::string, nnvm::TShape>& arg_shape_map,
+    std::unordered_map<std::string, int>& arg_dtype_map) {
   gil_state state;
   auto g = ParseNNVMGraph(graph);
 
@@ -154,19 +150,18 @@ nnvm::Graph PyCompiler::Compile(
       // use nnvm depth first search to fix node connections in nnvm
       nnvm::DFSVisit(graph.outputs, [sg_node, &name](const nnvm::NodePtr node) {
         auto matches_name = [&name](nnvm::NodeEntry n) -> bool {
-          return (n.node->attrs.name == name);};
+          return (n.node->attrs.name == name);
+        };
 
         for (auto input : node->inputs) {
-          auto it = std::find_if(node->inputs.begin(),
-                                 node->inputs.end(), matches_name);
+          auto it = std::find_if(node->inputs.begin(), node->inputs.end(),
+                                 matches_name);
 
           if (it != node->inputs.end()) {
             node->inputs.insert(it, sg_node);
-            node->inputs.erase(
-              std::remove_if(node->inputs.begin(),
-                             node->inputs.end(), matches_name),
-              node->inputs.end());
-
+            node->inputs.erase(std::remove_if(node->inputs.begin(),
+                                              node->inputs.end(), matches_name),
+                               node->inputs.end());
           }
         }
       });
@@ -191,8 +186,7 @@ nnvm::NodeEntry PyCompiler::CreateNNVMNode(std::shared_ptr<Graph> graph) {
   node->attrs.op = get_subgraph_op(graph);
   // setup the ninputs to the node
   for (auto input : graph->inputs)
-    node->inputs.emplace_back(
-      nnvm::NodeEntry{input->orig_node, 0, 0});
+    node->inputs.emplace_back(nnvm::NodeEntry{input->orig_node, 0, 0});
   // create dummy node parameters
   NGraphParam op;
   node->attrs.parsed = std::move(op);
@@ -215,8 +209,7 @@ void PyCompiler::CompileNode(NodePtr node, std::shared_ptr<Graph> graph) {
     // get the genrating function for the current operation
     // create the python object for the current operation
     op_map[node->name] = NgraphUnaryOps_[node->operation](
-                           op_map[node->inputs[0]->name],
-                           node->name);
+        op_map[node->inputs[0]->name], node->name);
     // compile binary operations, same idea as unary operations
   } else if (node->inputs.size() == 2) {
     for (int i = 0; i < 2; ++i) {
@@ -225,11 +218,10 @@ void PyCompiler::CompileNode(NodePtr node, std::shared_ptr<Graph> graph) {
       }
     }
     op_map[node->name] = NgraphBinaryOps_[node->operation](
-                           op_map[node->inputs[0]->name],
-                           op_map[node->inputs[1]->name],
-                           node->name);
+        op_map[node->inputs[0]->name], op_map[node->inputs[1]->name],
+        node->name);
   } else {
-    throw ("operation not yet supported");
+    throw("operation not yet supported");
   }
 }
 
@@ -243,9 +235,8 @@ void PyCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
   for (auto node : graph->nodes_) {
     for (auto input : node->inputs) {
       // find inputs for this node
-      auto found_input = std::find(graph->nodes_.begin(),
-                                   graph->nodes_.end(),
-                                   input);
+      auto found_input =
+          std::find(graph->nodes_.begin(), graph->nodes_.end(), input);
       // if it's found, create a placeholder python object
       if (found_input == graph->nodes_.end())
         createPyPlaceholder(input, subgraph_name);
@@ -257,47 +248,34 @@ void PyCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
   py::tuple py_placeholders = py::make_tuple();
   for (size_t i = 0; i < placeholder_order[subgraph_name].size(); ++i) {
     py_placeholders = py_placeholders.attr("__add__")(
-                        py::make_tuple(
-                          op_map[placeholder_order[subgraph_name][int(i)]]));
+        py::make_tuple(op_map[placeholder_order[subgraph_name][int(i)]]));
   }
   // compile the python computation
-  graph->py_computation.reset(new py::object(
-                                transformer_.attr("computation")(
-                                  op_map[graph->nodes_.back()->name],
-                                  *py_placeholders)));
-
+  graph->py_computation.reset(new py::object(transformer_.attr("computation")(
+      op_map[graph->nodes_.back()->name], *py_placeholders)));
 
   // backward computation
   py::tuple py_deriv_ops = py::make_tuple();
   py::tuple py_back_placeholders = py::make_tuple();
   py::tuple py_shape = TShapeToTuple(graph->shape);
 
-  auto back_grad = ns_.attr("placeholder")("shape"_a = py_shape).attr(
-                     "named")(graph->name + "_out_grad");
+  auto back_grad = ns_.attr("placeholder")("shape"_a = py_shape)
+                       .attr("named")(graph->name + "_out_grad");
 
   for (size_t i = 0; i < placeholder_order[subgraph_name].size(); ++i) {
     py_back_placeholders = py_back_placeholders.attr("__add__")(
-                             py::make_tuple(
-                               op_map[placeholder_order[subgraph_name][int(i)]]
-                             ));
-    py_deriv_ops = py_deriv_ops.attr("__add__")(
-                     py::make_tuple(
-                       ng_.attr("deriv")(
-                         op_map[graph->nodes_.back()->name],
-                         op_map[placeholder_order[subgraph_name][int(i)]],
-                         back_grad)
-                     ));
+        py::make_tuple(op_map[placeholder_order[subgraph_name][int(i)]]));
+    py_deriv_ops = py_deriv_ops.attr("__add__")(py::make_tuple(ng_.attr(
+        "deriv")(op_map[graph->nodes_.back()->name],
+                 op_map[placeholder_order[subgraph_name][int(i)]], back_grad)));
   }
 
-  py_back_placeholders = py_back_placeholders.attr("__add__")(
-                           py::make_tuple(back_grad));
+  py_back_placeholders =
+      py_back_placeholders.attr("__add__")(py::make_tuple(back_grad));
 
   // compile the backward computation
   graph->py_backward.reset(new py::object(
-                                transformer_.attr("computation")(
-                                  py_deriv_ops,
-                                  *py_back_placeholders)));
-
+      transformer_.attr("computation")(py_deriv_ops, *py_back_placeholders)));
 }
 
 // Function to collapse the intermediary graph into a graph
@@ -309,8 +287,7 @@ void PyCompiler::CollapseSubgraphs(Graph& graph) {
     auto tmpGraph = std::make_shared<Graph>();
     // loop over all nodes and add nodes in the current subgraph to
     for (auto node : graph.nodes_)
-      if (node->subgraph == i)
-        tmpGraph->AddNode(node);
+      if (node->subgraph == i) tmpGraph->AddNode(node);
 
     if (tmpGraph->nodes_.size() == 0) {
       // if we don't find any nodes, assume we've run out of subgraphs
@@ -328,30 +305,28 @@ void PyCompiler::CollapseSubgraphs(Graph& graph) {
       // setup inputs to this subgraph (as a node)
       for (auto node : tmpGraph->nodes_) {
         for (auto input : node->inputs) {
-          if (input->subgraph != i)
-            tmpGraph->inputs.emplace_back(input);
+          if (input->subgraph != i) tmpGraph->inputs.emplace_back(input);
         }
       }
       // find the position we're replacing in the graph
-      auto it = std::find_if(graph.nodes_.begin(), graph.nodes_.end(),
-                             [name](NodePtr n) -> bool {return (n->name == name);});
+      auto it =
+          std::find_if(graph.nodes_.begin(), graph.nodes_.end(),
+                       [name](NodePtr n) -> bool { return (n->name == name); });
       // insert the subgraph as a node
       graph.nodes_.insert(it, tmpGraph);
       // delete all the ndoes we're replacing with the subgraph
       graph.nodes_.erase(
-        std::remove_if(graph.nodes_.begin(),
-                       graph.nodes_.end(),
-      [i](NodePtr n) -> bool {
-        return ((n->subgraph == i) &&
-        (n->type == NodeType::kOp));}  ),
-      graph.nodes_.end());
+          std::remove_if(graph.nodes_.begin(), graph.nodes_.end(),
+                         [i](NodePtr n) -> bool {
+                           return ((n->subgraph == i) &&
+                                   (n->type == NodeType::kOp));
+                         }),
+          graph.nodes_.end());
 
       // set subgraph as input to all of the nodes downline.
       for (auto n : graph.nodes_)
         for (size_t i = 0; i < n->inputs.size(); ++i)
-          if (n->inputs[i]->name == name)
-            n->inputs[i] = tmpGraph;
-
+          if (n->inputs[i]->name == name) n->inputs[i] = tmpGraph;
     }
     i += 1;
   }
@@ -364,13 +339,12 @@ void PyCompiler::IdentifySubgraphs(Graph& graph) {
   for (auto i : reverse_iterate(graph.nodes_)) {
     if (i->subgraph == 0) {
       // select nodes in the a subgraph starting here and going up the graph
-      auto subgraph_nodes = graph.DFSselect(i,
-      [](NodePtr s) {return s->in_ngraph;});
+      auto subgraph_nodes =
+          graph.DFSselect(i, [](NodePtr s) { return s->in_ngraph; });
       // if we found a significantly large subgraph, label it
       if (subgraph_nodes.size() > 2) {
         for (auto node : subgraph_nodes)
-          if (node->type == NodeType::kOp)
-            node->subgraph = sg;
+          if (node->type == NodeType::kOp) node->subgraph = sg;
         sg += 1;
       }
     }
@@ -384,11 +358,11 @@ void PyCompiler::createPyPlaceholder(NodePtr node, std::string subgraph_name) {
     // get shape
     py::tuple py_shape = TShapeToTuple(node->shape);
     // create placeholder in python, store it in class dictionary
-    op_map[node->name] = ns_.attr("placeholder")("shape"_a = py_shape
-                                                ).attr("named")(node->name);
+    op_map[node->name] =
+        ns_.attr("placeholder")("shape"_a = py_shape).attr("named")(node->name);
     // store placeholder order in vector for correct execution later
     placeholder_order[subgraph_name].emplace_back(node->name);
   }
 }
 
-} //end namespace ngraph
+}  // end namespace ngraph

@@ -5,19 +5,19 @@
 #include "pybind11/pybind11.h"
 
 namespace ngraph {
-    namespace py = pybind11;
-    // Singleton Function to initialize python interpreter
-    void InitializePython();
-    
-    // class to lock and release interpreter
-    class gil_state {
-     public:
-      gil_state() : m_gstate{PyGILState_Ensure()} {}
-      ~gil_state() { PyGILState_Release(m_gstate); }
+namespace py = pybind11;
+// Singleton Function to initialize python interpreter
+void InitializePython();
 
-     private:
-      PyGILState_STATE m_gstate;
-    };
+// class to lock and release interpreter
+class gil_state {
+ public:
+  gil_state() : m_gstate{PyGILState_Ensure()} {}
+  ~gil_state() { PyGILState_Release(m_gstate); }
 
-} // namespace ngraph
+ private:
+  PyGILState_STATE m_gstate;
+};
+
+}  // namespace ngraph
 #endif  // UTILS_H_

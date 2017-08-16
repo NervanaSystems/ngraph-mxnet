@@ -1,8 +1,8 @@
-#include <mutex>
 #include <cstdlib>
+#include <mutex>
 
-#include "ngraph_utils.h"
 #include "Python.h"
+#include "ngraph_utils.h"
 
 namespace ngraph {
 
