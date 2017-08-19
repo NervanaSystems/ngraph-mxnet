@@ -16,9 +16,9 @@ static layerGraphs create_layerGraphs() {
   layer_funcs[std::string("FullyConnected")] = [](const NodePtr node) {
     Graph tmpGraph;
     auto dotop = std::make_shared<OpNode>(node->orig_node, "dot_" + node->name,
-                                          "matmul");
-    dotop->inputs.emplace_back(node->inputs[1]);
+                                          "dot");
     dotop->inputs.emplace_back(node->inputs[0]);
+    dotop->inputs.emplace_back(node->inputs[1]);
     tmpGraph.AddNode(dotop);
     auto addop = std::make_shared<OpNode>(node->orig_node, node->name, "add");
     addop->inputs.emplace_back(dotop);

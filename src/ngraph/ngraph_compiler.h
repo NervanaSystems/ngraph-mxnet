@@ -28,14 +28,14 @@ class PyCompiler {
 
  private:
   // create unary operation functions
-  UnaryOps create_UnaryOps(const py::module& ns, const py::module& ng);
+  UnaryOps create_UnaryOps(const py::module& ng);
   // create binary operation functions
-  BinaryOps create_BinaryOps(const py::module& ns, const py::module& ng);
-
+  BinaryOps create_BinaryOps(const py::module& ng);
   // check nodes against ngraph operations
   void CheckInNGraph(Graph& graph);
   // create variable objects in ngraph
-  void createPyPlaceholder(NodePtr node, std::string subgraph_name);
+  void createPyPlaceholder(NodePtr node, std::string subgraph_name,
+                           py::tuple axes);
   // identify cluster of nodes that are ngraph compatible
   void IdentifySubgraphs(Graph& graph);
   // convert graph from identified nodes to a network of nodes and graphs,
