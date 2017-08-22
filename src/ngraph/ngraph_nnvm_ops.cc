@@ -13,17 +13,48 @@
 #include "pybind11/numpy.h"
 
 namespace ngraph {
+// Utility function for TBlob inputs -> list of numpy arrays
+inline py::tuple make_placeholder_vals(
+    const std::vector<mxnet::TBlob>& inputs) {
+  py::tuple py_placeholder_vals = py::make_tuple();
+  for (size_t i = 0; i < inputs.size(); ++i) {
+    // Create py::array of actual value of placeholder[i]
+    float* value = (float*)inputs[i].dptr_;
+    std::vector<size_t> shape;
+    for (size_t j = 0; j < inputs[i].shape_.ndim(); ++j) {
+      shape.push_back(inputs[i].shape_[j]);
+    }
+    py::array_t<float> py_placeholder_val(shape, value);
+    // push array to placeholder
+    py_placeholder_vals =
+        py_placeholder_vals.attr("__add__")(py::make_tuple(py_placeholder_val));
+  }
+  return py_placeholder_vals;
+}
+// Utility function for numpy array outputs -> TBlob
+template <typename T>
+inline void py_result_to_TBlob(T py_result,
+                               const std::vector<mxnet::TBlob>& outputs,
+                               int outnum) {
+  py::array_t<float> py_array_result(py_result);
+  void* res_ptr = (void*)py_array_result.request().ptr;
+  size_t buffer_size = 4;
+  for (size_t i = 0; i < outputs[outnum].shape_.ndim(); ++i)
+    buffer_size *= outputs[outnum].shape_[i];
+  // Memcpy to output
+  std::memcpy(outputs[outnum].dptr_, res_ptr, buffer_size);
+}
 
 // get the OP from nnvm, return a pointer to it.
 nnvm::Op* get_subgraph_op(std::shared_ptr<Graph> graph) {
   return &(
-      ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(graph->name));
+      ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__("ngraph_" + graph->name));
 }
 
 void register_forward_op(std::shared_ptr<Graph> graph) {
   // register the op with nnvm
-  auto op =
-      ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(graph->name);
+  auto& op =
+      ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__("ngraph_" + graph->name);
   // setup the inputs and outpus
   int num_inputs = graph->inputs.size();
   op.set_num_inputs(num_inputs);
@@ -32,9 +63,28 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   // register the inputs with nnvm
   std::vector<std::string> input_names;
   for (auto n : graph->inputs) {
-    input_names.emplace_back(n->name);
-    op.add_argument(n->name, "NDArray-or-Symbol", "argument " + n->name);
+      input_names.emplace_back(n->name);
+      op.add_argument(n->name, "NDArray-or-Symbol", "argument " + n->name);
   }
+
+  // register lambda to list inputs
+  op.set_attr<nnvm::FListInputNames>(
+      "FListInputNames",
+      [input_names](const nnvm::NodeAttrs& attrs) { return input_names; });
+
+  // // get the auxillary inputs
+  std::vector<uint32_t> mutate_vars;
+  for (size_t i = 0; i < graph->inputs.size(); ++i) {
+    if (graph->inputs[i]->type == NodeType::kAux) {
+      mutate_vars.emplace_back(i);//graph->inputs[i]->name);
+    }
+  }
+
+  // register lambda to list inputs
+  op.set_attr<nnvm::FMutateInputs>(
+      "FMutateInputs",
+      [mutate_vars](const nnvm::NodeAttrs& attrs) { return mutate_vars; });
+
   // dummy attribute parser for execution
   auto attr_parser = [](nnvm::NodeAttrs* attrs) {
     if (attrs->parsed.empty()) {
@@ -43,11 +93,6 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
     }
   };
   op.set_attr_parser(attr_parser);
-
-  // register lambda to list inputs
-  op.set_attr<nnvm::FListInputNames>(
-      "FListInputNames",
-      [input_names](const nnvm::NodeAttrs& attrs) { return input_names; });
 
   // register lambda to say nothing is inplace
   op.set_attr<nnvm::FInplaceOption>("FInplaceOption",
@@ -67,12 +112,10 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
       });
 
   // Register Gradient node generation function
-  auto back_op_name = "_backward_" + graph->name;
+  auto back_op_name = "_backward_" + ("ngraph_" +graph->name);
   op.set_attr<nnvm::FGradient>(
       "FGradient", [back_op_name](const nnvm::NodePtr& n,
                                   const std::vector<nnvm::NodeEntry>& ograds) {
-        // auto p = mxnet::op::MakeNode(back_op_name, ,
-        // nullptr, &n->attrs.dict, &n);
         auto p = nnvm::Node::Create();
         p->attrs.op = nnvm::Op::Get(back_op_name);
         p->attrs.name = n->attrs.name + "_backward";
@@ -127,40 +170,22 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
         // Lock the gil
         gil_state state;
         // get a tuple of numpy arrays that point to the input data
-        py::tuple py_placeholder_vals = py::make_tuple();
-        for (size_t i = 0; i < inputs.size(); ++i) {
-          // Create py::array of actual value of placeholder[i]
-          float* value = (float*)inputs[i].dptr_;
-          std::vector<size_t> shape;
-          for (size_t j = 0; j < inputs[i].shape_.ndim(); ++j)
-            shape.push_back(inputs[i].shape_[j]);
-          py::array_t<float> py_placeholder_val(shape, value);
-          // push array to placeholder
-          py_placeholder_vals = py_placeholder_vals.attr("__add__")(
-              py::make_tuple(py_placeholder_val));
-        }
+        py::tuple py_placeholder_vals = make_placeholder_vals(inputs);
         // run the computation
         py::object py_result = (*computation)(*py_placeholder_vals);
         // get the ouput array
-        py::array_t<float> py_array_result(py_result);
-        void* res_ptr = (void*)py_array_result.request().ptr;
-        size_t buffer_size = 4;
-        for (size_t i = 0; i < outputs[0].shape_.ndim(); ++i)
-          buffer_size *= outputs[0].shape_[i];
-        // Memcpy to output
-        std::memcpy(outputs[0].dptr_, res_ptr, buffer_size);
+        py_result_to_TBlob(py_result, outputs, 0);
       });
 }
 
 void register_backward_op(std::shared_ptr<Graph> graph) {
   // register the op with nnvm
-  auto op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
-      "_backward_" + graph->name);
+  auto& op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
+      "_backward_" + ("ngraph_" + graph->name));
   // setup the inputs and outpus
   int num_inputs = graph->inputs.size();
   op.set_num_inputs(num_inputs + 1);
   op.set_num_outputs(num_inputs);
-  std::vector<std::string> input_names;
 
   // dummy attribute parser for execution
   auto attr_parser = [](nnvm::NodeAttrs* attrs) {
@@ -171,11 +196,11 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
   };
   op.set_attr_parser(attr_parser);
   // Mark as backward
-  op.set_attr<nnvm::TIsBackward>("TIsBackward", true);
+  op.set_attr<bool>("TIsBackward", true);
 
   auto computation = graph->py_backward;
   auto name = graph->name;
-
+  
   // create the compute lambda
   op.set_attr<mxnet::FCompute>(
       "FCompute<cpu>",
@@ -187,29 +212,12 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
         // Lock the gil
         gil_state state;
         // get a tuple of numpy arrays that point to the input data
-        py::tuple py_placeholder_vals = py::make_tuple();
-        for (size_t i = 0; i < inputs.size(); ++i) {
-          // Create py::array of actual value of placeholder[i]
-          float* value = (float*)inputs[i].dptr_;
-          std::vector<size_t> shape;
-          for (size_t j = 0; j < inputs[i].shape_.ndim(); ++j)
-            shape.push_back(inputs[i].shape_[j]);
-          py::array_t<float> py_placeholder_val(shape, value);
-          // push array to placeholder
-          py_placeholder_vals = py_placeholder_vals.attr("__add__")(
-              py::make_tuple(py_placeholder_val));
-        }
+
+        py::tuple py_placeholder_vals = make_placeholder_vals(inputs);
         // run the computation
         py::list py_result = (*computation)(*py_placeholder_vals);
         for (size_t j = 0; j < py_result.size(); ++j) {
-          // get the ouput array
-          py::array_t<float> py_array_result(py_result[j]);
-          void* res_ptr = (void*)py_array_result.request().ptr;
-          size_t buffer_size = 4;
-          for (size_t i = 0; i < outputs[0].shape_.ndim(); ++i)
-            buffer_size *= outputs[0].shape_[i];
-          // Memcpy to output
-          std::memcpy(outputs[j].dptr_, res_ptr, buffer_size);
+          py_result_to_TBlob(py_result[j], outputs, j);
         }
       });
 }

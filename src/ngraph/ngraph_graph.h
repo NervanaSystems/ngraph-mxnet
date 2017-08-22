@@ -24,7 +24,7 @@ using nnvmNodePtr = std::shared_ptr<nnvm::Node>;
 using NodePtr = std::shared_ptr<Node>;
 
 // Possible Types of nodes in Current Version
-enum class NodeType { kVariable, kOp, kGraph };
+enum class NodeType {kVariable, kAux, kOp, kGraph};
 
 // Base class for Nodes in Intermediary Analysis Graph
 class Node {
@@ -64,6 +64,15 @@ class VariableNode : public Node {
       : Node(NodeType::kVariable, n, s){};
   VariableNode(const nnvmNodePtr n, std::string s, std::vector<NodePtr> i)
       : Node(NodeType::kVariable, n, s, i){};
+};
+
+// Aux Node
+class AuxNode : public Node {
+ public:
+  AuxNode(const nnvmNodePtr n, std::string s)
+      : Node(NodeType::kAux, n, s){};
+  AuxNode(const nnvmNodePtr n, std::string s, std::vector<NodePtr> i)
+      : Node(NodeType::kAux, n, s, i){};
 };
 
 // Operation node
@@ -115,6 +124,17 @@ class Graph : public Node {
       if (n->name == name) return n;
     throw "node not in graph";
   };
+  void WriteSubgraphDots(std::string base){
+    WriteDot(base + ".dot");
+    for (auto n : nodes_) {
+      if (n->type == NodeType::kGraph) {
+        auto sg = std::dynamic_pointer_cast<Graph>(n);
+        std::ostringstream stream;
+        stream << base << sg->subgraph << ".dot";
+        sg->WriteDot(stream.str());
+      }
+    }
+  }
 
   std::vector<NodePtr> nodes_;
   std::shared_ptr<py::object> py_computation;

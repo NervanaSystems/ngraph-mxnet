@@ -1,5 +1,4 @@
 #include "ngraph_graph.h"
-using namespace pybind11::literals;
 #include <functional>
 #include <map>
 #include <stack>
@@ -13,56 +12,16 @@ using layerGraphs = std::map<std::string, std::function<Graph(const NodePtr)>>;
 // into a series of ngraph operations
 static layerGraphs create_layerGraphs() {
   layerGraphs layer_funcs;
-  layer_funcs[std::string("FullyConnected")] = [](const NodePtr node) {
-    Graph tmpGraph;
-    auto dotop = std::make_shared<OpNode>(node->orig_node, "dot_" + node->name,
-                                          "dot");
-    dotop->inputs.emplace_back(node->inputs[0]);
-    dotop->inputs.emplace_back(node->inputs[1]);
-    tmpGraph.AddNode(dotop);
-    auto addop = std::make_shared<OpNode>(node->orig_node, node->name, "add");
-    addop->inputs.emplace_back(dotop);
-    addop->inputs.emplace_back(node->inputs[2]);
-    tmpGraph.AddNode(addop);
-    return tmpGraph;
-  };
-
-  layer_funcs[std::string("Flatten")] = [](const NodePtr node) {
-    Graph tmpGraph;
-    tmpGraph.AddNode(std::make_shared<OpNode>(node->orig_node, node->name,
-                                              "flatten", node->inputs));
-    return tmpGraph;
-  };
-
   layer_funcs[std::string("Activation")] = [](const NodePtr node) {
     Graph tmpGraph;
     auto act_type = node->orig_node->attrs.dict["act_type"];
-    auto inputs = node->inputs;
-    if (act_type == "tanh" || act_type == "sigmoid" || act_type == "relu") {
-      tmpGraph.AddNode(std::make_shared<OpNode>(node->orig_node, node->name,
-                                                act_type, node->inputs));
-    } else if (act_type == "softrelu") {
-      auto one = std::make_shared<VariableNode>(node->orig_node,
-                                                "ones_like_" + node->name);
-      tmpGraph.AddNode(one);
-      auto exp =
-          std::make_shared<OpNode>(node->orig_node, node->name + "_exp", "exp");
-      exp->inputs = inputs;
-      tmpGraph.AddNode(exp);
-      auto add =
-          std::make_shared<OpNode>(node->orig_node, node->name + "_add", "add");
-      add->inputs.emplace_back(one);
-      add->inputs.emplace_back(exp);
-      tmpGraph.AddNode(add);
-      auto log = std::make_shared<OpNode>(node->orig_node, node->name, "log");
-      log->inputs.emplace_back(add);
-      tmpGraph.AddNode(add);
-    }
-
+    tmpGraph.AddNode(std::make_shared<OpNode>(node->orig_node, node->name,
+                                              act_type, node->inputs));
     return tmpGraph;
   };
   return layer_funcs;
 }
+
 // Create dictionary of layer->ngraph functions
 auto layer_funcs = create_layerGraphs();
 
@@ -87,6 +46,7 @@ void Graph::WriteDot(const std::string& fname) {
   dotfile << "}" << std::endl;
   dotfile.close();
 }
+
 // Utility to mark a node as visited and recursive search based on the results
 // of an input function
 void Graph::DFSUtil(NodePtr s, std::map<std::string, bool>& visited,
@@ -125,39 +85,42 @@ Graph ParseNNVMGraph(nnvm::Graph& graph) {
   Graph tmpGraph;
   // Use NNVM's depth first search to trace the tree and construct the
   // intermediary graph
-  nnvm::DFSVisit(graph.outputs, [&tmpGraph](const nnvm::NodePtr node) {
+  nnvm::DFSVisit(graph.outputs, [&graph, &tmpGraph](const nnvm::NodePtr node) {
+    const auto& idx = graph.indexed_graph();
 
-    if (node->is_variable()) {
+    const auto& mutable_nodes = idx.mutable_input_nodes();
+    const uint32_t nid = idx.node_id(node.get());
+    if (mutable_nodes.count(nid) != 0){
+      // add an auxillary node to the graph
+      tmpGraph.AddNode(std::make_shared<AuxNode>(node, node->attrs.name));
+    } else if (node->is_variable()) {
       // add variable to the graph
       tmpGraph.AddNode(std::make_shared<VariableNode>(node, node->attrs.name));
     } else {
       // create operation node
+      auto op_name = node->op()->name;
+      if (op_name.substr(0,9) == "elemwise_"){
+        op_name = op_name.substr(9);
+      }
       auto op_node =
-          std::make_shared<OpNode>(node, node->attrs.name, node->op()->name);
+          std::make_shared<OpNode>(node, node->attrs.name, op_name);
       // setup operation inputs
       for (size_t i = 0; i < node->inputs.size(); ++i) {
-        const nnvm::NodeEntry& e = node->inputs[i];
-        std::shared_ptr<Node> tmpnode;
-        try {
-          tmpnode = tmpGraph[e.node->attrs.name];
-        } catch (std::string& error) {
-          tmpnode = std::make_shared<VariableNode>(node, e.node->attrs.name);
-          tmpGraph.AddNode(tmpnode);
-        }
-        op_node->inputs.emplace_back(tmpnode);
+          const nnvm::NodeEntry& e = node->inputs[i];
+          std::shared_ptr<Node> tmpnode;
+          try {
+            tmpnode = tmpGraph[e.node->attrs.name];
+          } catch (std::string& error) {
+            tmpnode = std::make_shared<VariableNode>(node, e.node->attrs.name);
+            tmpGraph.AddNode(tmpnode);
+          }
+          op_node->inputs.emplace_back(tmpnode);
       }
-      // define a lambda to turn an op_node into a series of nodes in
-      // intermediate graph based on layer expansions
-      auto replace_subgraph = [&tmpGraph](OpNodePtr subgraph) {
-        auto tmp = layer_funcs[subgraph->operation](subgraph);
-        for (auto n : tmp.nodes_) tmpGraph.AddNode(n);
-      };
-
-      if (op_node->operation == "FullyConnected" ||
-          op_node->operation == "Activation" ||
-          op_node->operation == "Flatten") {
+      if (layer_funcs.count(op_node->operation) != 0) {
         // perform layer expansions
-        replace_subgraph(op_node);
+        auto tmp = layer_funcs[op_node->operation](op_node);
+        for (auto n : tmp.nodes_) 
+          tmpGraph.AddNode(n);
       } else {
         // add operation
         tmpGraph.AddNode(op_node);

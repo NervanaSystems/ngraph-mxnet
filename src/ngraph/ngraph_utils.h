@@ -3,6 +3,7 @@
 
 #include <Python.h>
 #include "pybind11/pybind11.h"
+using namespace pybind11::literals;
 
 namespace ngraph {
 namespace py = pybind11;

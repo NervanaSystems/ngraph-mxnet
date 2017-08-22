@@ -17,7 +17,6 @@
 #include "../ngraph/ngraph_compiler.h"
 #endif
 
-#include <iostream>
 namespace mxnet {
 namespace exec {
 GraphExecutor::~GraphExecutor() {
@@ -199,27 +198,24 @@ inline ValueType get_node_attr(
  * \brief Create the graph for backward pass.
  * This is triggered by both simple_bind and bind flows.
  */
-nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Symbol symbol,
+
+
+nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Graph g, std::vector<nnvm::NodePtr> args,
                                          const std::vector<OpReqType>& grad_req_types) {
   using nnvm::NodePtr;
   using nnvm::NodeEntry;
   // initial information
-  num_forward_outputs_ = symbol.outputs.size();
-  num_forward_inputs_ = symbol.ListInputs(nnvm::Symbol::kAll).size();
-
-  nnvm::Graph g;
-  g.outputs = symbol.outputs;
   bool need_grad = false;
   for (OpReqType req : grad_req_types) {
     if (req != kNullOp) need_grad = true;
   }
+
   if (!need_grad) return g;
   for (size_t i = 0; i < g.outputs.size(); ++i) {
     NodeEntry ngrad{nnvm::Node::Create(), 0, 0};
     head_grad_entry_.emplace_back(AttrHint(ngrad, g.outputs[i]));
     head_grad_map_[ngrad.node.get()] = i;
   }
-  std::vector<NodePtr> args = symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs);
   std::vector<NodeEntry> xs;
   for (size_t i = 0; i < grad_req_types.size(); ++i) {
     if (grad_req_types[i] != kNullOp) {
@@ -240,6 +236,7 @@ nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Symbol symbol,
     if (type == "SoftmaxOutput") return false;
     if (type == "BatchNorm") return false;
     if (type == "CuDNNBatchNorm") return false;
+    if (type.substr(0,7) == "ngraph") return false;
     return true;
   };
 
@@ -249,7 +246,7 @@ nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Symbol symbol,
 
   // take gradient
   nnvm::Graph g_grad = nnvm::pass::Gradient(
-      g, symbol.outputs, xs, head_grad_entry_,
+      g, g.outputs, xs, head_grad_entry_,
       AggregateGradient, need_mirror, nullptr,
       zero_ops, "_copy");
   CHECK_EQ(g_grad.outputs.size(), xs.size());
@@ -439,7 +436,6 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                          const std::vector<NDArray>& aux_states,
                          Executor* shared_exec,
                          const nnvm::NodeEntryMap<NDArray>& feed_dict) {
-  std::cout << "other init function" << std::endl;
   // create in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes
   auto get_ctx1 = [](const NDArray& nd) { return nd.ctx(); };
   auto get_ctx2 = [default_ctx](const NDArray& nd) -> Context {
@@ -508,7 +504,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
 
 #if MXNET_USE_NGRAPH == 1
   auto num_forward_inputs = num_forward_inputs_;
-
+  /// AHHHHHHHH
+  /// SO MUCH CODE COPY!
   auto infer_graph = [num_forward_inputs] (
     nnvm::Graph g,
     const std::unordered_map<std::string, TShape>& arg_shape_map,
@@ -550,6 +547,9 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
 
   ngraph::PyCompiler py_compiler;
   g = py_compiler.Compile(g, ngraph_arg_shape_map, ngraph_arg_dtype_map);
+  
+  g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), 
+    grad_req_types);
   // create "device" and "context" attrs for the graph
   g = AssignContext(g, default_ctx, ctx_map,
                     in_arg_ctxes,
@@ -857,7 +857,6 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                          std::unordered_map<std::string, NDArray>* shared_buffer,
                          Executor* shared_exec,
                          const nnvm::NodeEntryMap<NDArray>& feed_dict) {
-
   nnvm::Graph g = InitGraph(symbol, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
                             aux_state_ctxes, grad_req_types);
   // The following code of shape and dtype inferences and argument
@@ -913,6 +912,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   ngraph::PyCompiler py_compiler;
   g = py_compiler.Compile(g, ngraph_arg_shape_map, ngraph_arg_dtype_map);
   // create "device" and "context" attrs for the graph
+  g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), grad_req_types);
+
   g = AssignContext(g, default_ctx, ctx_map,
                     in_arg_ctxes,
                     arg_grad_ctxes,
@@ -929,6 +930,9 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                            static_cast<size_t>(idx.outputs()[i].node_id + 1));
 
   g = infer_graph(g, ngraph_arg_shape_map, ngraph_arg_dtype_map);
+  auto ng_g = ngraph::ParseNNVMGraph(g);
+  ng_g.WriteSubgraphDots("out");
+  
 #else
   const auto& idx = g.indexed_graph();
 #endif
@@ -970,9 +974,15 @@ Graph GraphExecutor::InitGraph(nnvm::Symbol symbol,
                                const std::vector<Context>& arg_grad_ctxes,
                                const std::vector<Context>& aux_state_ctxes,
                                const std::vector<OpReqType>& grad_req_types) {
-  // setup gradient
-  nnvm::Graph g = InitFullGraph(symbol, grad_req_types);
+  num_forward_outputs_ = symbol.outputs.size();
+  num_forward_inputs_ = symbol.ListInputs(nnvm::Symbol::kAll).size();
 
+  nnvm::Graph g;
+  g.outputs = symbol.outputs;
+  // setup gradient
+#if MXNET_USE_NGRAPH == 0
+  g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), 
+                    grad_req_types);
   // create "device" and "context" attrs for the graph
   g = AssignContext(g, default_ctx, ctx_map,
                     in_arg_ctxes,
@@ -988,6 +998,7 @@ Graph GraphExecutor::InitGraph(nnvm::Symbol symbol,
     num_forward_nodes_ = std::max(
         num_forward_nodes_, static_cast<size_t>(idx.outputs()[i].node_id + 1));
   }
+#endif
   return g;
 }
 

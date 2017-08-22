@@ -17,7 +17,6 @@ void _InitializePython() {
   }
   Py_Initialize();
   PyEval_InitThreads();
-  PyEval_ReleaseLock();
 }
 
 void InitializePython() {
