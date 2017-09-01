@@ -1,4 +1,6 @@
 #include "ngraph_graph.h"
+#include "ngraph_graph_utils.h"
+#include "reverse_iterate.h"
 #include <functional>
 #include <map>
 #include <stack>
@@ -6,25 +8,8 @@
 namespace ngraph {
 // Type Aliases
 using OpNodePtr = std::shared_ptr<OpNode>;
-using layerGraphs = std::map<std::string, std::function<Graph(const NodePtr)>>;
 
-// Generator to create functions that convert mxnet layer operations
-// into a series of ngraph operations
-static layerGraphs create_layerGraphs() {
-  layerGraphs layer_funcs;
-  layer_funcs[std::string("Activation")] = [](const NodePtr node) {
-    Graph tmpGraph;
-    auto act_type = node->orig_node->attrs.dict["act_type"];
-    tmpGraph.AddNode(std::make_shared<OpNode>(node->orig_node, node->name,
-                                              act_type, node->inputs));
-    return tmpGraph;
-  };
-  return layer_funcs;
-}
-
-// Create dictionary of layer->ngraph functions
-auto layer_funcs = create_layerGraphs();
-
+// Utility for writing a graph to a file for graphviz visualization
 void Graph::WriteDot(const std::string& fname) {
   // open file stream, write graphviz header
   std::ofstream dotfile;
@@ -79,68 +64,119 @@ std::vector<NodePtr> Graph::DFSselect(NodePtr s,
   DFSUtil(s, visited, outNodes, func);
   return outNodes;
 }
-// Function that parses an nnvm Graph into an intermediary graph
-Graph ParseNNVMGraph(nnvm::Graph& graph) {
-  // create inermediary graph
-  Graph tmpGraph;
-  // Use NNVM's depth first search to trace the tree and construct the
-  // intermediary graph
-  nnvm::DFSVisit(graph.outputs, [&graph, &tmpGraph](const nnvm::NodePtr node) {
-    const auto& idx = graph.indexed_graph();
 
-    const auto& mutable_nodes = idx.mutable_input_nodes();
-    const uint32_t nid = idx.node_id(node.get());
-    if (mutable_nodes.count(nid) != 0){
-      // add an auxillary node to the graph
-      tmpGraph.AddNode(std::make_shared<AuxNode>(node, node->attrs.name));
-    } else if (node->is_variable()) {
-      // add variable to the graph
-      tmpGraph.AddNode(std::make_shared<VariableNode>(node, node->attrs.name));
-    } else {
-      // create operation node
-      auto op_name = node->op()->name;
-      if (op_name.substr(0,9) == "elemwise_"){
-        op_name = op_name.substr(9);
-      }
-      auto op_node =
-          std::make_shared<OpNode>(node, node->attrs.name, op_name);
-      // setup operation inputs
-      for (size_t i = 0; i < node->inputs.size(); ++i) {
-          const nnvm::NodeEntry& e = node->inputs[i];
-          std::shared_ptr<Node> tmpnode;
-          try {
-            tmpnode = tmpGraph[e.node->attrs.name];
-          } catch (std::string& error) {
-            tmpnode = std::make_shared<VariableNode>(node, e.node->attrs.name);
-            tmpGraph.AddNode(tmpnode);
-          }
-          op_node->inputs.emplace_back(tmpnode);
-      }
-      if (layer_funcs.count(op_node->operation) != 0) {
-        // perform layer expansions
-        auto tmp = layer_funcs[op_node->operation](op_node);
-        for (auto n : tmp.nodes_) 
-          tmpGraph.AddNode(n);
+// Utility for removing bad branches in a directed, acylic subraph.
+// WILL FAIL HORRIBLY IF THERE are cyclic connections
+void Graph::RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
+                       std::function<bool(NodePtr)> func) {
+  // if this node matches func condition
+  if (func(s)) {
+    outNodes.push_back(s);
+  } else {
+    outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), s),
+                   outNodes.end());
+  }
+  // visit it's inputs
+  for (auto i : s->inputs) RemoveUtil(i, outNodes, func);
+}
+
+// Find a subgraph, check it for bad branches
+std::vector<NodePtr> Graph::FindSubgraph(NodePtr s,
+                                         std::function<bool(NodePtr)> func) {
+  auto subgraph_nodes = DFSselect(s, func);
+  std::vector<NodePtr> outNodes;
+  if (subgraph_nodes.size() > 2) {
+    // search for broken loops
+    bool found_bad = false;
+    auto good_subgraph_node = [subgraph_nodes, func,
+                               found_bad](NodePtr s) mutable {
+      if (!func(s)) found_bad = true;
+      if (found_bad) return false;
+      if (std::find(subgraph_nodes.begin(), subgraph_nodes.end(), s) !=
+          subgraph_nodes.end()) {
+        return true;
       } else {
-        // add operation
-        tmpGraph.AddNode(op_node);
+        return false;
+      }
+    };
+    // remove nodes on broken loops
+    RemoveUtil(s, outNodes, good_subgraph_node);
+  } else {
+    outNodes = subgraph_nodes;
+  }
+  return outNodes;
+}
+
+// function to identify and label connected ngraph ops as subgraphs
+void Graph::IdentifySubgraphs(std::function<bool(NodePtr)> func) {
+  int sg = 1;
+  // loop over the nodes from the back
+  for (auto i : reverse_iterate(nodes_)) {
+    if (i->subgraph == 0) {
+      // select nodes in the a subgraph starting here and going up the graph
+      auto subgraph_nodes = FindSubgraph(i, func);
+      // if we found a significantly large subgraph, label it
+      if (subgraph_nodes.size() > 2) {
+        for (auto node : subgraph_nodes)
+          if (node->type == NodeType::kOp) node->subgraph = sg;
+        sg += 1;
       }
     }
-  });
-
-  // get the shape and data types of all of the nodes
-  const auto& idx = graph.indexed_graph();
-  const auto inferred_shapes =
-      graph.GetAttr<std::vector<nnvm::TShape>>("shape");
-  const auto inferred_dtypes = graph.GetAttr<std::vector<int>>("dtype");
-  for (auto node : tmpGraph.nodes_) {
-    const uint32_t nid = idx.node_id(node->orig_node.get());
-    const uint32_t eid = idx.entry_id(nid, 0);
-    node->shape = inferred_shapes[eid];
-    node->dtype = inferred_dtypes[eid];
   }
-  // return intermediary graph
-  return tmpGraph;
+}
+
+// Function to collapse the intermediary graph into a graph
+// with subgraphs for nodes
+void Graph::CollapseSubgraphs() {
+  // loop variable for undefined number of subgraphs
+  int i = 1;
+  while (true) {
+    auto tmpGraph = std::make_shared<Graph>();
+    // loop over all nodes and add nodes in the current subgraph to
+    for (auto node : nodes_)
+      if (node->subgraph == i) tmpGraph->AddNode(node);
+
+    if (tmpGraph->nodes_.size() == 0) {
+      // if we don't find any nodes, assume we've run out of subgraphs
+      break;
+    } else {
+      // if we found nodes, setup subgraph
+      tmpGraph->in_ngraph = true;
+      tmpGraph->subgraph = i;
+      // set node name and shape based on last node in the subgraph
+      auto name = tmpGraph->nodes_.back()->name;
+      auto shape = tmpGraph->nodes_.back()->shape;
+      tmpGraph->name = "subgraph_" + name + "_" + randomString();
+      tmpGraph->shape = shape;
+      tmpGraph->dtype = tmpGraph->nodes_.back()->dtype;
+      // setup inputs to this subgraph (as a node)
+      for (auto node : tmpGraph->nodes_) {
+        for (auto input : node->inputs) {
+          if (input->subgraph != i) tmpGraph->inputs.emplace_back(input);
+        }
+      }
+      // find the position we're replacing in the graph
+      auto it =
+          std::find_if(nodes_.begin(), nodes_.end(),
+                       [name](NodePtr n) -> bool { return (n->name == name); });
+      // insert the subgraph as a node
+      nodes_.insert(it, tmpGraph);
+      // delete all the ndoes we're replacing with the subgraph
+      nodes_.erase(
+          std::remove_if(nodes_.begin(), nodes_.end(),
+                         [i](NodePtr n) -> bool {
+                           return ((n->subgraph == i) &&
+                                   (n->type == NodeType::kOp));
+                         }),
+          nodes_.end());
+
+      // set subgraph as input to all of the nodes downline.
+      for (auto n : nodes_)
+        for (size_t i = 0; i < n->inputs.size(); ++i)
+          if (n->inputs[i]->name == name) n->inputs[i] = tmpGraph;
+    }
+    i += 1;
+  }
 }
 
 }  // namespace ngraph

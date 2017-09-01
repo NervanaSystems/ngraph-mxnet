@@ -36,9 +36,10 @@ template <typename T>
 inline void py_result_to_TBlob(T py_result,
                                const std::vector<mxnet::TBlob>& outputs,
                                int outnum) {
+  //TODO: handle other data types
   py::array_t<float> py_array_result(py_result);
   void* res_ptr = (void*)py_array_result.request().ptr;
-  size_t buffer_size = 4;
+  size_t buffer_size = 4; //4 bytes per 32bit float
   for (size_t i = 0; i < outputs[outnum].shape_.ndim(); ++i)
     buffer_size *= outputs[outnum].shape_[i];
   // Memcpy to output

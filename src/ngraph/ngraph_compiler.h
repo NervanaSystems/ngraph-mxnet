@@ -9,6 +9,7 @@ namespace ngraph {
 // pyobject
 using axes_pair = std::pair<std::string, int>;
 using axes_map = std::map<axes_pair, py::object>;
+using layerGraphs = std::map<std::string, std::function<Graph(const NodePtr)>>;
 
 using UnaryOps =
     std::map<std::string,
@@ -19,7 +20,7 @@ using BinaryOps =
                                       const std::string&)> >;
 using LayerOps =
     std::map<std::string,
-             std::function<py::object(const NodePtr&, const std::string&)> >;
+             std::function<py::object(const NodePtr&, py::object, const std::string&)> >;
 
 class PyCompiler {
  public:
@@ -39,15 +40,15 @@ class PyCompiler {
   BinaryOps create_BinaryOps(const py::module& ng);
   // create larger MXNet layer operations
   LayerOps create_LayerOps(const py::module& ng);
+  // Generator to create functions that convert mxnet layer operations
+  // into a series of ngraph operations
+  layerGraphs create_layerGraphs();
+  // parse the nnvm graph into an intermediate rep
+  Graph ParseNNVMGraph(nnvm::Graph& graph);
   // check nodes against ngraph operations
   void CheckInNGraph(Graph& graph);
   // create variable objects in ngraph
   py::object createPyPlaceholder(std::string name, py::tuple axes);
-  // identify cluster of nodes that are ngraph compatible
-  void IdentifySubgraphs(Graph& graph);
-  // convert graph from identified nodes to a network of nodes and graphs,
-  // each graph node represented a combined ngraph operation
-  void CollapseSubgraphs(Graph& graph);
   // compile subgraph into ngraph python objects
   void CompileSubgraph(std::shared_ptr<Graph> graph);
   // compile inputs to a node

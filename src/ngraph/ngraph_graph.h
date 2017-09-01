@@ -118,12 +118,25 @@ class Graph : public Node {
   void DFSUtil(NodePtr s, std::map<std::string, bool>& visited,
                std::vector<NodePtr>& outNodes,
                std::function<bool(NodePtr)>& func);
+  
+  // void findBrokenLoop(std::function<bool(NodePtr)> func);
+  void IdentifySubgraphs(std::function<bool(NodePtr)> func);
+  std::vector<NodePtr> FindSubgraph(NodePtr s,
+                                    std::function<bool(NodePtr)> func);
+  void RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
+                       std::function<bool(NodePtr)> func);
+
+  // convert graph from identified nodes to a network of nodes and graphs,
+  // each graph node represented a combined ngraph operation
+  void CollapseSubgraphs();
+
   // get the node corresponding to a name
   NodePtr operator[](std::string name) {
     for (auto n : nodes_)
       if (n->name == name) return n;
     throw "node not in graph";
   };
+
   void WriteSubgraphDots(std::string base){
     WriteDot(base + ".dot");
     for (auto n : nodes_) {
@@ -141,8 +154,6 @@ class Graph : public Node {
   std::shared_ptr<py::object> py_backward;
 };
 
-// Function for parsing nnvm graph into intermediary ngraph structure
-Graph ParseNNVMGraph(nnvm::Graph& graphs);
 
 }  // end namespace ngraph
 
