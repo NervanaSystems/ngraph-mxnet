@@ -66,20 +66,43 @@ std::vector<NodePtr> Graph::DFSselect(NodePtr s,
 }
 
 // Utility for removing bad branches in a directed, acylic subraph.
-// WILL FAIL HORRIBLY IF THERE are cyclic connections
+// Will fail for cyclic graphs
 void Graph::RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
                        std::function<bool(NodePtr)> func) {
+  std::cout << outNodes.size() << std::endl;
   // if this node matches func condition
-  if (func(s)) {
-    outNodes.push_back(s);
-  } else {
+  if (!func(s))
     outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), s),
                    outNodes.end());
-  }
-  // visit it's inputs
-  for (auto i : s->inputs) RemoveUtil(i, outNodes, func);
+  // visit it's inputs if they're still in the subgraph
+  for (auto i : s->inputs)
+    if (std::find(outNodes.begin(), outNodes.end(), i) != outNodes.end())
+      RemoveUtil(i, outNodes, func);
 }
 
+std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
+                                         std::function<bool(NodePtr)> func) {
+  // if this node matches func condition
+
+  std::vector<NodePtr> outNodes;
+  std::function<void(NodePtr)> get_inputs;
+  get_inputs = [&outNodes, &get_inputs] (NodePtr s){
+    // std::cout << outNodes.size() << std::endl;
+    if (std::find(outNodes.begin(), outNodes.end(), s) == outNodes.end()){
+      // std::cout << "adding " << s->name << std::endl;
+      outNodes.emplace_back(s);
+    }
+    for (auto i : s->inputs)
+      if (std::find(outNodes.begin(), outNodes.end(), i) == outNodes.end()){
+        get_inputs(i);
+      }
+  };
+  get_inputs(s);
+  std::cout << s->name << " " << outNodes.size() <<std ::endl;
+  RemoveUtil(s, outNodes, func);
+  std::cout << s->name << " " << outNodes.size() <<std ::endl;
+  return outNodes;
+}
 // Find a subgraph, check it for bad branches
 std::vector<NodePtr> Graph::FindSubgraph(NodePtr s,
                                          std::function<bool(NodePtr)> func) {
@@ -100,7 +123,8 @@ std::vector<NodePtr> Graph::FindSubgraph(NodePtr s,
       }
     };
     // remove nodes on broken loops
-    RemoveUtil(s, outNodes, good_subgraph_node);
+    // std::cout << "---------------------------------------" <<std::endl;
+    outNodes = RemoveBroken(s, good_subgraph_node);
   } else {
     outNodes = subgraph_nodes;
   }

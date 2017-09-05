@@ -123,8 +123,10 @@ class Graph : public Node {
   void IdentifySubgraphs(std::function<bool(NodePtr)> func);
   std::vector<NodePtr> FindSubgraph(NodePtr s,
                                     std::function<bool(NodePtr)> func);
+  std::vector<NodePtr> RemoveBroken(NodePtr s,
+                                    std::function<bool(NodePtr)> func);
   void RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
-                       std::function<bool(NodePtr)> func);
+                  std::function<bool(NodePtr)> func);
 
   // convert graph from identified nodes to a network of nodes and graphs,
   // each graph node represented a combined ngraph operation
