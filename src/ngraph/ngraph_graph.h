@@ -124,6 +124,7 @@ class Graph : public Node {
   std::vector<NodePtr> FindSubgraph(NodePtr s,
                                     std::function<bool(NodePtr)> func);
   std::vector<NodePtr> RemoveBroken(NodePtr s,
+                                    std::vector<NodePtr>& subgraph_nodes,
                                     std::function<bool(NodePtr)> func);
   void RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
                   std::function<bool(NodePtr)> func);

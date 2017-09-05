@@ -80,12 +80,13 @@ void Graph::RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
 }
 
 std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
+                                         std::vector<NodePtr>& subgraph_nodes,
                                          std::function<bool(NodePtr)> func) {
   // if this node matches func condition
 
   std::vector<NodePtr> outNodes;
   std::function<void(NodePtr)> get_inputs;
-  
+
   get_inputs = [&outNodes, &get_inputs] (NodePtr s){
     if (std::find(outNodes.begin(), outNodes.end(), s) == outNodes.end()){
       outNodes.emplace_back(s);
@@ -96,9 +97,21 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
       }
   };
   get_inputs(s);
-  std::cout << s->name << " " << outNodes.size() <<std ::endl;
-  RemoveUtil(s, outNodes, func);
-  std::cout << s->name << " " << outNodes.size() <<std ::endl;
+
+  bool found_bad = false;
+  auto good_subgraph_node = [subgraph_nodes, func,
+                             found_bad](NodePtr s) mutable {
+    if (!func(s)) found_bad = true;
+    if (found_bad) return false;
+    if (std::find(subgraph_nodes.begin(), subgraph_nodes.end(), s) !=
+        subgraph_nodes.end()) {
+      return true;
+    } else {
+      return false;
+    }
+  };
+
+  RemoveUtil(s, outNodes, good_subgraph_node);
   return outNodes;
 }
 // Find a subgraph, check it for bad branches
@@ -108,21 +121,8 @@ std::vector<NodePtr> Graph::FindSubgraph(NodePtr s,
   std::vector<NodePtr> outNodes;
   if (subgraph_nodes.size() > 2) {
     // search for broken loops
-    bool found_bad = false;
-    auto good_subgraph_node = [subgraph_nodes, func,
-                               found_bad](NodePtr s) mutable {
-      if (!func(s)) found_bad = true;
-      if (found_bad) return false;
-      if (std::find(subgraph_nodes.begin(), subgraph_nodes.end(), s) !=
-          subgraph_nodes.end()) {
-        return true;
-      } else {
-        return false;
-      }
-    };
     // remove nodes on broken loops
-    // std::cout << "---------------------------------------" <<std::endl;
-    outNodes = RemoveBroken(s, good_subgraph_node);
+    outNodes = RemoveBroken(s, subgraph_nodes, func);
   } else {
     outNodes = subgraph_nodes;
   }
