@@ -69,7 +69,6 @@ std::vector<NodePtr> Graph::DFSselect(NodePtr s,
 // Will fail for cyclic graphs
 void Graph::RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
                        std::function<bool(NodePtr)> func) {
-  std::cout << outNodes.size() << std::endl;
   // if this node matches func condition
   if (!func(s))
     outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), s),
@@ -86,10 +85,9 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
 
   std::vector<NodePtr> outNodes;
   std::function<void(NodePtr)> get_inputs;
+  
   get_inputs = [&outNodes, &get_inputs] (NodePtr s){
-    // std::cout << outNodes.size() << std::endl;
     if (std::find(outNodes.begin(), outNodes.end(), s) == outNodes.end()){
-      // std::cout << "adding " << s->name << std::endl;
       outNodes.emplace_back(s);
     }
     for (auto i : s->inputs)
