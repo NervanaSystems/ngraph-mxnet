@@ -104,6 +104,8 @@ Graph class
 Graph subclasses Node to that we can embed graphs into other graphs
 This is useful when we take a graph and replace it with an ngraph computation
 */
+using edgeRemoveTup = std::tuple<std::string, std::string, bool>;
+
 class Graph : public Node {
  public:
   Graph() : Node(NodeType::kGraph, nullptr, ""){};
@@ -127,7 +129,8 @@ class Graph : public Node {
                                     std::vector<NodePtr>& subgraph_nodes,
                                     std::function<bool(NodePtr)> func);
   void RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
-                  std::function<bool(NodePtr)> func);
+                  std::function<bool(NodePtr)> func, 
+                  std::vector<edgeRemoveTup>& visited_edges);
 
   // convert graph from identified nodes to a network of nodes and graphs,
   // each graph node represented a combined ngraph operation

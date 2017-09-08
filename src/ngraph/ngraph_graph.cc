@@ -65,18 +65,28 @@ std::vector<NodePtr> Graph::DFSselect(NodePtr s,
   return outNodes;
 }
 
+using edgeRemoveTup = std::tuple<std::string, std::string, bool>;
 // Utility for removing bad branches in a directed, acylic subraph.
 // Will fail for cyclic graphs
-void Graph::RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
-                       std::function<bool(NodePtr)> func) {
+void Graph::RemoveUtil(
+    NodePtr s, std::vector<NodePtr>& outNodes,
+    std::function<bool(NodePtr)> func,
+    std::vector<edgeRemoveTup>& visited_edges) {
   // if this node matches func condition
   if (!func(s))
     outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), s),
                    outNodes.end());
   // visit it's inputs if they're still in the subgraph
   for (auto i : s->inputs)
-    if (std::find(outNodes.begin(), outNodes.end(), i) != outNodes.end())
-      RemoveUtil(i, outNodes, func);
+    if (std::find(outNodes.begin(), outNodes.end(), i) != outNodes.end()) {
+      auto edge_tup = edgeRemoveTup{s->name, i->name, func(s)};
+
+      if (std::find(visited_edges.begin(), visited_edges.end(), edge_tup) !=
+          visited_edges.end()) {
+        visited_edges.push_back(edge_tup);
+        RemoveUtil(i, outNodes, func, visited_edges);
+      }
+    }
 }
 
 std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
@@ -86,13 +96,14 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
 
   std::vector<NodePtr> outNodes;
   std::function<void(NodePtr)> get_inputs;
+  std::vector<edgeRemoveTup > visited_edges;
 
-  get_inputs = [&outNodes, &get_inputs] (NodePtr s){
-    if (std::find(outNodes.begin(), outNodes.end(), s) == outNodes.end()){
+  get_inputs = [&outNodes, &get_inputs](NodePtr s) {
+    if (std::find(outNodes.begin(), outNodes.end(), s) == outNodes.end()) {
       outNodes.emplace_back(s);
     }
     for (auto i : s->inputs)
-      if (std::find(outNodes.begin(), outNodes.end(), i) == outNodes.end()){
+      if (std::find(outNodes.begin(), outNodes.end(), i) == outNodes.end()) {
         get_inputs(i);
       }
   };
@@ -111,7 +122,7 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
     }
   };
 
-  RemoveUtil(s, outNodes, good_subgraph_node);
+  RemoveUtil(s, outNodes, good_subgraph_node, visited_edges);
   return outNodes;
 }
 // Find a subgraph, check it for bad branches
