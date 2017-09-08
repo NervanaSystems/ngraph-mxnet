@@ -80,8 +80,7 @@ void Graph::RemoveUtil(
   for (auto i : s->inputs)
     if (std::find(outNodes.begin(), outNodes.end(), i) != outNodes.end()) {
       auto edge_tup = edgeRemoveTup{s->name, i->name, func(s)};
-
-      if (std::find(visited_edges.begin(), visited_edges.end(), edge_tup) !=
+      if (std::find(visited_edges.begin(), visited_edges.end(), edge_tup) ==
           visited_edges.end()) {
         visited_edges.push_back(edge_tup);
         RemoveUtil(i, outNodes, func, visited_edges);
@@ -95,9 +94,9 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
   // if this node matches func condition
 
   std::vector<NodePtr> outNodes;
-  std::function<void(NodePtr)> get_inputs;
   std::vector<edgeRemoveTup > visited_edges;
 
+  std::function<void(NodePtr)> get_inputs;
   get_inputs = [&outNodes, &get_inputs](NodePtr s) {
     if (std::find(outNodes.begin(), outNodes.end(), s) == outNodes.end()) {
       outNodes.emplace_back(s);
