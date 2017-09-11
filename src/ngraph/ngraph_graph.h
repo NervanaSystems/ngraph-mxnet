@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <map>
 
 #include <nnvm/graph.h>
 #include <nnvm/symbolic.h>

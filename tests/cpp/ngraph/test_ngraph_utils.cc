@@ -1,6 +1,7 @@
 #include "test_util.h"
 #include "../../src/ngraph/ngraph_graph_utils.h"
 #include "../../src/ngraph/ngraph_compiler_utils.h"
+#include "../../src/ngraph/ngraph_pycompiler_utils.h"
 namespace ngraph {
 
 struct testAxes_utils {

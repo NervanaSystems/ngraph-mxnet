@@ -2,7 +2,6 @@
 #include "ngraph_graph_utils.h"
 #include "reverse_iterate.h"
 #include <functional>
-#include <map>
 #include <stack>
 
 namespace ngraph {

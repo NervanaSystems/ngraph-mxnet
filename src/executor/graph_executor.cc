@@ -545,8 +545,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   std::unordered_map<std::string, TShape> ngraph_arg_shape_map;
   std::unordered_map<std::string, int> ngraph_arg_dtype_map;
 
-  ngraph::PyCompiler py_compiler;
-  g = py_compiler.Compile(g, ngraph_arg_shape_map, ngraph_arg_dtype_map);
+  ngraph::Compiler compiler;
+  g = compiler.Compile(g, ngraph_arg_shape_map, ngraph_arg_dtype_map);
   
   g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), 
     grad_req_types);
@@ -909,8 +909,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   std::unordered_map<std::string, TShape> ngraph_arg_shape_map;
   std::unordered_map<std::string, int> ngraph_arg_dtype_map;
 
-  ngraph::PyCompiler py_compiler;
-  g = py_compiler.Compile(g, ngraph_arg_shape_map, ngraph_arg_dtype_map);
+  ngraph::Compiler compiler;
+  g = compiler.Compile(g, ngraph_arg_shape_map, ngraph_arg_dtype_map);
   // create "device" and "context" attrs for the graph
   g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), grad_req_types);
 

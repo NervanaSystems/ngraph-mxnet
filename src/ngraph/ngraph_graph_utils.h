@@ -6,7 +6,7 @@
 namespace ngraph {
 
 //create a random string to avoid subgraph name collisions
-std::string randomString(const int length = 12) {
+inline std::string randomString(const int length = 12) {
   static const char alphabet[] =
       "abcdefghijklmnopqrstuvwxyz"
       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
