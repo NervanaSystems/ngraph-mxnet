@@ -134,6 +134,29 @@ layerGraphs Compiler::create_layerGraphs() {
                                               act_type, node->inputs));
     return tmpGraph;
   };
+
+  layer_funcs[std::string("split")] = [](const NodePtr node) {
+    Graph tmpGraph(node->name);
+    int num_outputs = 1;
+    for (auto& kv : node->orig_node->attrs.dict) 
+      if (kv.first == "num_outputs") num_outputs = std::stoi(kv.second);
+    
+    tmpGraph.num_outputs = num_outputs;
+    for (int i = 0; i < num_outputs; ++i) {
+      auto tmpslice = std::make_shared<OpNode>(
+          node->orig_node, node->name + "_" + std::to_string(i), "split");
+      tmpslice->inputs.push_back(node->inputs[0]);
+      tmpslice->multioutput_index = i;
+      tmpGraph.AddNode(tmpslice);
+    }
+    // TODO: Jayaram says marking the last N-1 slices as inputs to the
+    // first slice will help transformer optimizations
+    return tmpGraph;
+  };
+
+  layer_funcs[std::string("SliceChannel")] = [&layer_funcs](const NodePtr node) {
+    return layer_funcs["split"](node);
+  };
   return layer_funcs;
 }
 
@@ -168,15 +191,30 @@ Graph Compiler::ParseNNVMGraph(nnvm::Graph& graph) {
         try {
           tmpnode = tmpGraph[e.node->attrs.name];
         } catch (std::string& error) {
-          tmpnode = std::make_shared<VariableNode>(node, e.node->attrs.name);
-          tmpGraph.AddNode(tmpnode);
+          try {
+            auto name = e.node->attrs.name + "_" + std::to_string(e.index);
+            tmpnode = tmpGraph[name];
+          } catch (std::string& error) {
+            tmpnode = std::make_shared<VariableNode>(node, e.node->attrs.name);
+            tmpGraph.AddNode(tmpnode);
+          }
         }
         op_node->inputs.emplace_back(tmpnode);
       }
+      auto expand_layers = [&layer_funcs](std::shared_ptr<OpNode>& op_node,
+                                          Graph& tmpGraph) {
+        auto tmp = layer_funcs[op_node->operation](op_node);
+        if (tmp.num_outputs > 1)
+          tmpGraph.nodes_.erase(std::remove(tmpGraph.nodes_.begin(),
+                                            tmpGraph.nodes_.end(), op_node),
+                                tmpGraph.nodes_.end());
+
+        for (auto n : tmp.nodes_) tmpGraph.AddNode(n);
+      };
+
       if (layer_funcs.count(op_node->operation) != 0) {
         // perform layer expansions
-        auto tmp = layer_funcs[op_node->operation](op_node);
-        for (auto n : tmp.nodes_) tmpGraph.AddNode(n);
+        expand_layers(op_node, tmpGraph);
       } else {
         // add operation
         tmpGraph.AddNode(op_node);

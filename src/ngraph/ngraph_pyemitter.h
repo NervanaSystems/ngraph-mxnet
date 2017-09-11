@@ -38,6 +38,7 @@ protected:
   // create variable objects in ngraph
   py::object createPyPlaceholder(std::string name, py::tuple axes);
   py::object make_axis(int length, std::string name);
+  py::object match_axes(const py::object& lhs, const py::object& rhs);
 
   // maps of ngraph operation generator functions
   UnaryOps NgraphUnaryOps_;

@@ -126,9 +126,16 @@ void PyCompiler::CompileNode(NodePtr node, std::shared_ptr<Graph> graph) {
       data = ng_.attr("axes_with_order")(ng_.attr("expand_dims")(data, D, 2),
                                          createPyTuple(pyvec{C, D, H, W, N}));
     } else if (num_axes(data) == 2) {
-      if (getNthAxis(data, 0) !=
-          getNthAxis(op_map[graph->nodes_[0]->inputs[0]->name], 0)) {
+      auto data_first_axis = getNthAxis(data, 0);
+      auto batch_axis =
+          getNthAxis(op_map[graph->nodes_[0]->inputs[0]->name], 0);
+      if (data_first_axis.attr("length").cast<int>() !=
+          batch_axis.attr("length").cast<int>()) {
         data = ng_.attr("Transpose")(data);
+      }
+      if (data_first_axis != batch_axis) {
+        data = ng_.attr("cast_axes")(
+            data, createPyTuple(pyvec{batch_axis, getNthAxis(data, 1)}));
       }
     }
     op_map[node->name] =

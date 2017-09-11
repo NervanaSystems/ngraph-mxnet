@@ -123,6 +123,57 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
   RemoveUtil(s, outNodes, good_subgraph_node, visited_edges);
   return outNodes;
 }
+
+//I'm not totally sure this is the right approach, but it seems to work.
+std::vector<NodePtr> Graph::PruneSubgraphOutputs(
+    NodePtr s, std::vector<NodePtr>& subgraph_nodes,
+    std::function<bool(NodePtr)> func) {
+  auto in_graphvec = [](std::vector<NodePtr>& subgraph_nodes,
+                        NodePtr s) -> bool {
+    if (std::find(subgraph_nodes.begin(), subgraph_nodes.end(), s) ==
+        subgraph_nodes.end()) {
+      return false;
+    } else {
+      return true;
+    }
+  };
+
+  auto get_subgraph_outputs = [this, &subgraph_nodes, &in_graphvec]() {
+    std::vector<NodePtr> outNodes;
+    for (auto n : nodes_)
+      if (!in_graphvec(subgraph_nodes, n))
+        for (auto i : n->inputs)
+          if (in_graphvec(subgraph_nodes, i) && !in_graphvec(outNodes, i))
+            outNodes.emplace_back(i);
+    return outNodes;
+  };
+
+  auto prune_subgraph = [&subgraph_nodes](std::vector<NodePtr> outNodes) {
+    for (auto n : outNodes)
+      if (n != subgraph_nodes.back())
+        subgraph_nodes.erase(
+            std::remove(subgraph_nodes.begin(), subgraph_nodes.end(), n),
+            subgraph_nodes.end());
+  };
+
+  std::vector<NodePtr> outNodes;
+  bool single_output = false;
+  int count = 0;
+  while (!single_output && count < 10) {
+    outNodes = get_subgraph_outputs();
+    if (outNodes.size() <= 1) {
+      single_output = true;
+    } else {
+      prune_subgraph(outNodes);
+      subgraph_nodes = RemoveBroken(s, subgraph_nodes, func);
+    }
+    count += 1;
+  }
+
+  return subgraph_nodes;
+}
+
+
 // Find a subgraph, check it for bad branches
 std::vector<NodePtr> Graph::FindSubgraph(NodePtr s,
                                          std::function<bool(NodePtr)> func) {
@@ -132,6 +183,7 @@ std::vector<NodePtr> Graph::FindSubgraph(NodePtr s,
     // search for broken loops
     // remove nodes on broken loops
     outNodes = RemoveBroken(s, subgraph_nodes, func);
+    outNodes = PruneSubgraphOutputs(s, outNodes, func);
   } else {
     outNodes = subgraph_nodes;
   }
@@ -180,10 +232,16 @@ void Graph::CollapseSubgraphs() {
       tmpGraph->name = "subgraph_" + name + "_" + randomString();
       tmpGraph->shape = shape;
       tmpGraph->dtype = tmpGraph->nodes_.back()->dtype;
+      auto in_tmpGraphInputs = [&tmpGraph](NodePtr n) {
+        if (std::find(tmpGraph->inputs.begin(), tmpGraph->inputs.end(), n) ==
+            tmpGraph->inputs.end()) return false;
+        return true;
+      };
       // setup inputs to this subgraph (as a node)
       for (auto node : tmpGraph->nodes_) {
         for (auto input : node->inputs) {
-          if (input->subgraph != i) tmpGraph->inputs.emplace_back(input);
+          if (input->subgraph != i && !in_tmpGraphInputs(input)) 
+            tmpGraph->inputs.emplace_back(input);
         }
       }
       // find the position we're replacing in the graph

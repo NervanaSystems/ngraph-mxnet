@@ -52,6 +52,7 @@ class Node {
   nnvm::TShape shape;
   int dtype;
   // information to store graph parsing in
+  int multioutput_index = -1;
   bool in_ngraph = false;
   std::string operation = "";
   int subgraph = 0;
@@ -132,7 +133,9 @@ class Graph : public Node {
   void RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
                   std::function<bool(NodePtr)> func, 
                   std::vector<edgeRemoveTup>& visited_edges);
-
+  std::vector<NodePtr> PruneSubgraphOutputs(
+      NodePtr s, std::vector<NodePtr>& subgraph_nodes,
+      std::function<bool(NodePtr)> func);
   // convert graph from identified nodes to a network of nodes and graphs,
   // each graph node represented a combined ngraph operation
   void CollapseSubgraphs();
@@ -141,7 +144,7 @@ class Graph : public Node {
   NodePtr operator[](std::string name) {
     for (auto n : nodes_)
       if (n->name == name) return n;
-    throw "node not in graph";
+    throw std::string{"node not in graph"};
   };
 
   void WriteSubgraphDots(std::string base){
@@ -155,7 +158,7 @@ class Graph : public Node {
       }
     }
   }
-
+  int num_outputs = 1;
   std::vector<NodePtr> nodes_;
   std::shared_ptr<py::object> py_computation;
   std::shared_ptr<py::object> py_backward;

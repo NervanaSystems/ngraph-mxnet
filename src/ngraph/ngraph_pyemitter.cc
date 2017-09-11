@@ -38,6 +38,23 @@ py::object PyEmitter::createPyPlaceholder(std::string name, py::tuple axes) {
   return op;
 }
 
+// Lambda to match axes names for elementwise additions
+// Useful if MXnet has created two identically shaped tensors
+// from different paths/names
+py::object PyEmitter::match_axes(const py::object& lhs, const py::object& rhs) {
+  pyvec lhsaxes;
+  pyvec rhsaxes;
+  for (auto ax : lhs.attr("axes")) lhsaxes.push_back(ax.cast<py::object>());
+  for (auto ax : rhs.attr("axes")) rhsaxes.push_back(ax.cast<py::object>());
+  if (lhsaxes.size() != rhsaxes.size()) return rhs;
+  for (size_t i = 0; i < lhsaxes.size(); ++i)
+    if (lhsaxes[i].attr("length").cast<int>() !=
+        rhsaxes[i].attr("length").cast<int>())
+      return rhs;
+
+  return ng_.attr("cast_axes")(rhs, lhs.attr("axes"));
+}
+
 // unary op genrating function generator
 UnaryOps PyEmitter::create_UnaryOps(const py::module& ng) {
   UnaryOps output;
@@ -75,30 +92,11 @@ UnaryOps PyEmitter::create_UnaryOps(const py::module& ng) {
 // binary op generating function generator
 BinaryOps PyEmitter::create_BinaryOps(const py::module& ng) {
   BinaryOps output;
-  // Lambda to match axes names for elementwise additions
-  // Useful if MXnet has created two identically shaped tensors
-  // from different paths/names
-  auto match_axes = [ng](const py::object& lhs, const py::object& rhs) {
-    pyvec lhsaxes;
-    pyvec rhsaxes;
-    for (auto ax : lhs.attr("axes")) lhsaxes.push_back(ax.cast<py::object>());
-    for (auto ax : rhs.attr("axes")) rhsaxes.push_back(ax.cast<py::object>());
-    if (lhsaxes.size() != rhsaxes.size()) return rhs;
-    for (size_t i = 0; i < lhsaxes.size(); ++i) {
-      if (lhsaxes[i].attr("length").cast<int>() !=
-          rhsaxes[i].attr("length").cast<int>()) {
-        return rhs;
-      }
-    }
-    return ng.attr("cast_axes")(rhs, lhs.attr("axes"));
-  };
-
   for (auto op : {"add", "divide", "equal", "greater_equal", "greater",
                   "less_equal", "less", "maximum", "minimum", "multiply",
                   "not_equal", "pow", "mod", "subtract", "dot"})
-    output[op] = [ng, op, match_axes](const py::object& lhs,
-                                      const py::object& rhs,
-                                      const std::string& name) {
+    output[op] = [ng, op, this](const py::object& lhs, const py::object& rhs,
+                                const std::string& name) {
       return ng.attr(op)(lhs, match_axes(lhs, rhs)).attr("named")(name);
     };
   return output;
@@ -107,27 +105,98 @@ BinaryOps PyEmitter::create_BinaryOps(const py::module& ng) {
 // MXNet high level ops generating function
 LayerOps PyEmitter::create_LayerOps(const py::module& ng) {
   LayerOps output;
+  output["split"] = [ng, this](const NodePtr& node, py::object data) {
+
+    int axis = 1;
+    int num_outputs = 1;
+    int index = node->multioutput_index;
+    bool squeeze_axis = false;
+    for (auto& kv : node->orig_node->attrs.dict) {
+      if (kv.first == "num_outputs") num_outputs = std::stoi(kv.second);
+      if (kv.first == "axis") axis = std::stoi(kv.second);
+      if (kv.first == "squeeze_axis") squeeze_axis = std::stoi(kv.second);
+    }
+
+    pyvec axes;
+    pyvec slices;
+    int i = 0;
+    int step = 0;
+    for (auto ax : data.attr("axes")) {
+      if (i != axis) {
+        axes.push_back(ax.cast<py::object>());
+        slices.push_back(py::slice{0, ax.attr("length").cast<int>(), 1});
+      } else {
+        step = ax.attr("length").cast<int>() / num_outputs;
+        slices.push_back(py::slice{index * step, (index + 1) * step, 1});
+      }
+      i+=1;
+    }
+    py::object op;
+    if (squeeze_axis && step == 1) {
+      op = ng_.attr("tensor_slice")(data, createPyTuple(slices),
+                                    createPyTuple(axes));
+    } else {
+      op = ng_.attr("tensor_slice")(data, createPyTuple(slices));
+    }
+    return op;
+  };
+
+  output["expand_dims"] = [ng, this](const NodePtr& node, py::object data) {
+    int axis = 1;
+    for (auto& kv : node->orig_node->attrs.dict)
+      if (kv.first == "axis") axis = std::stoi(kv.second);
+
+    auto T = make_axis(1, node->name + "_T");
+    return ng.attr("expand_dims")(data, T, axis);
+  };
+
+  output["Concat"] = [ng, this](const NodePtr& node, py::object data) {
+    int axis = 1;
+    for (auto& kv : node->orig_node->attrs.dict)
+      if (kv.first == "axis") axis = std::stoi(kv.second);
+
+    auto T = getNthAxis(data, axis);
+    py::list inputs;
+
+    auto first = true;
+    for (auto n : node->inputs) {
+      if (first) {
+        inputs.attr("append")(data);
+      } else {
+        inputs.attr("append")(match_axes(data, op_map[n->name]));
+      }
+    }
+    return ng.attr("concat_along_axis")(inputs, T);
+  };
   // Create a fully connected layer op in Ngraph
   output["FullyConnected"] = [ng, this](const NodePtr& node, py::object data) {
 
     // create a new axis for this layer and store it in a temporary vectcor
     auto newax = make_axis(node->inputs[2]->shape[0], node->name + "_axis");
-    pyvec weight_ax_vec;
-    weight_ax_vec.push_back(newax);
-    // get the last axis of the datay
-    weight_ax_vec.push_back(getNthAxis(data, 1));
-
+    auto dataaxis = getNthAxis(data, 1);
     // create weight placeholder
-    auto weight = createPyPlaceholder(node->inputs[1]->name,
-                                      createPyTuple(weight_ax_vec));
-
+    py::object weight;
+    if (op_map.find(node->inputs[1]->name) != op_map.end()) {
+      weight = op_map[node->inputs[1]->name];
+      weight =
+          ng.attr("cast_axes")(weight, createPyTuple(pyvec{newax, dataaxis}));
+    } else {
+      weight = createPyPlaceholder(node->inputs[1]->name,
+                                   createPyTuple(pyvec{newax, dataaxis}));
+    }
     // create bias placeholder
-    auto bias =
-        createPyPlaceholder(node->inputs[2]->name, createPyTuple(pyvec{newax}));
+    py::object bias;
+    if (op_map.find(node->inputs[2]->name) != op_map.end()) {
+      bias = op_map[node->inputs[2]->name];
+      bias = ng.attr("cast_axes")(bias, createPyTuple(pyvec{newax}));
+    } else {
+      bias = createPyPlaceholder(node->inputs[2]->name,
+                                 createPyTuple(pyvec{newax}));
+    }
 
-    // return the op
-    return ng.attr("add")(ng.attr("dot")(data, weight), bias)
-        .attr("named")(node->name);
+    auto op = ng.attr("add")(ng.attr("dot")(data, weight), bias)
+                  .attr("named")(node->name);
+    return op;
   };
   // Bridge Between MXNet's Convolution Op and ngraphs Convolution Op
   output["Convolution"] = [ng, this](const NodePtr& node, py::object data) {
