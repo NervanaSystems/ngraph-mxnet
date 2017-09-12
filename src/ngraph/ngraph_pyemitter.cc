@@ -363,6 +363,9 @@ LayerOps PyEmitter::create_LayerOps(const py::module& ng) {
       auto second = ng.attr("multiply")(val, 1.0 - momentum);
       return ng.attr("add")(first, second);
     };
+
+    moving_mean = mom_update(mean,moving_mean);
+    moving_var = mom_update(mean,moving_var);
     // Utility function for actually computing batch norm
     // separated out for global stats.
     auto batch_norm = [&eps, &data, &gamma, &beta, &ng](py::object mean,
@@ -373,8 +376,14 @@ LayerOps PyEmitter::create_LayerOps(const py::module& ng) {
       auto xi = ng.attr("multiply")(numer, denom);
       return ng.attr("add")(ng.attr("multiply")(xi, gamma), beta);
     };
-    // TODO: Enable use_global_stats
-    auto op = batch_norm(mean, var);
+    
+    py::object op;
+    if (use_global_stats){
+      op = batch_norm(moving_mean, moving_var);
+    } else {
+      op = batch_norm(mean, var);
+    }
+  
     op = ng.attr("unflatten")(op);
 
     return op;
