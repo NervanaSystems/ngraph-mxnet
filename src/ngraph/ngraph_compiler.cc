@@ -23,7 +23,8 @@ nnvm::Graph Compiler::Compile(
 
   CheckInNGraph(g);
 
-  g.IdentifySubgraphs([](NodePtr s) { return s->in_ngraph; });
+  g.IdentifySubgraphs(
+      [](NodePtr s) { return (s->in_ngraph && s->type == NodeType::kOp); });
 
   g.CollapseSubgraphs();
 

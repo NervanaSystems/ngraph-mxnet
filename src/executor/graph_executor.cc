@@ -453,13 +453,15 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                             arg_grad_ctxes, aux_state_ctxes, grad_req_types);
 
   // create arg_shapes and arg_dtypes for shape and type inferences
-  auto infer_graph_inputs = [&] (nnvm::Graph g) -> nnvm::Graph {
+  auto num_forward_inputs = num_forward_inputs_;
+  auto infer_graph = [this, num_forward_inputs, &aux_states, &grad_req_types,
+                      &in_args, &arg_grad_store](nnvm::Graph g) -> nnvm::Graph {
+    nnvm::ShapeVector arg_shapes;
+    nnvm::DTypeVector arg_dtypes;
     const auto& idx = g.indexed_graph();
     const auto& mutable_nodes = idx.mutable_input_nodes();
     size_t arg_top = 0, aux_top = 0;
     data_entry_.resize(idx.num_node_entries());
-    nnvm::ShapeVector arg_shapes;
-    nnvm::DTypeVector arg_dtypes;
     for (size_t i = 0; i < num_forward_inputs_; ++i) {
       const uint32_t nid = idx.input_nodes().at(i);
       const std::string& arg_name = idx[nid].source->attrs.name;
@@ -477,7 +479,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
         arg_dtypes.push_back(in_args[arg_top].dtype());
         in_arg_map_.emplace(arg_name, in_args[arg_top]);
         if (kNullOp != grad_req_types[arg_top]) {
-          grad_store_.emplace_back(grad_req_types[arg_top], arg_grad_store[arg_top]);
+          grad_store_.emplace_back(grad_req_types[arg_top],
+                                   arg_grad_store[arg_top]);
           arg_grad_map_.emplace(arg_name, arg_grad_store[arg_top]);
         }
         ++arg_top;
@@ -487,53 +490,11 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
     arg_shapes.resize(idx.input_nodes().size(), TShape());
     g = nnvm::pass::InferShape(g, arg_shapes, "__shape__");
     if (g.GetAttr<size_t>("shape_num_unknown_nodes") != 0U) {
-      HandleInferShapeError(num_forward_inputs_, g.indexed_graph(),
-                            g.GetAttr<nnvm::ShapeVector>("shape"));
-    }
-
-    arg_dtypes.resize(idx.input_nodes().size(), -1);
-    g = nnvm::pass::InferType(g, arg_dtypes, "__dtype__");
-    if (g.GetAttr<size_t>("dtype_num_unknown_nodes") != 0U) {
-      HandleInferTypeError(num_forward_inputs_, g.indexed_graph(),
-                           g.GetAttr<nnvm::DTypeVector>("dtype"));
-    }
-    return g;
-  };
-
-  g = infer_graph_inputs(g);
-
-#if MXNET_USE_NGRAPH == 1
-  auto num_forward_inputs = num_forward_inputs_;
-  /// AHHHHHHHH
-  /// SO MUCH CODE COPY!
-  auto infer_graph = [num_forward_inputs] (
-    nnvm::Graph g,
-    const std::unordered_map<std::string, TShape>& arg_shape_map,
-    const std::unordered_map<std::string, int>& arg_dtype_map
-  ) -> nnvm::Graph {
-    
-    const nnvm::IndexedGraph& idx = g.indexed_graph();
-    nnvm::ShapeVector arg_shapes(idx.input_nodes().size(), TShape());
-    nnvm::DTypeVector arg_dtypes(idx.input_nodes().size(), -1);
-    for (size_t i = 0; i < num_forward_inputs; ++i) {
-      const uint32_t nid = idx.input_nodes().at(i);
-      const std::string& name = idx[nid].source->attrs.name;
-      auto it1 = arg_shape_map.find(name);
-      if (arg_shape_map.end() != it1) {
-        arg_shapes[i] = it1->second;
-      }
-      auto it2 = arg_dtype_map.find(name);
-      if (arg_dtype_map.end() != it2) {
-        arg_dtypes[i] = it2->second;
-      }
-    }
-
-    g = nnvm::pass::InferShape(g, arg_shapes, "__shape__");
-    if (g.GetAttr<size_t>("shape_num_unknown_nodes") != 0U) {
       HandleInferShapeError(num_forward_inputs, g.indexed_graph(),
                             g.GetAttr<nnvm::ShapeVector>("shape"));
     }
 
+    arg_dtypes.resize(idx.input_nodes().size(), -1);
     g = nnvm::pass::InferType(g, arg_dtypes, "__dtype__");
     if (g.GetAttr<size_t>("dtype_num_unknown_nodes") != 0U) {
       HandleInferTypeError(num_forward_inputs, g.indexed_graph(),
@@ -542,6 +503,9 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
     return g;
   };
 
+  g = infer_graph(g);
+
+#if MXNET_USE_NGRAPH == 1
   std::unordered_map<std::string, TShape> ngraph_arg_shape_map;
   std::unordered_map<std::string, int> ngraph_arg_dtype_map;
 
@@ -558,15 +522,14 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                     num_forward_inputs_,
                     num_forward_outputs_);
 
-  const auto& idx = g.indexed_graph();
   // get number of nodes used in forward pass
+  const auto& idx = g.indexed_graph();
   num_forward_nodes_ = 0;
   for (size_t i = 0; i < num_forward_outputs_; ++i) 
     num_forward_nodes_ = std::max(
                            num_forward_nodes_, 
                            static_cast<size_t>(idx.outputs()[i].node_id + 1));
-
-  g = infer_graph(g, ngraph_arg_shape_map, ngraph_arg_dtype_map);
+  g = infer_graph(g);
 #else
   const auto& idx = g.indexed_graph();
 #endif

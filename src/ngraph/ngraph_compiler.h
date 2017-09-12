@@ -19,13 +19,13 @@ class Compiler {
       nnvm::Graph graph,
       std::unordered_map<std::string, nnvm::TShape>& arg_shape_map,
       std::unordered_map<std::string, int>& arg_dtype_map);
+  // parse the nnvm graph into an intermediate rep
+  Graph ParseNNVMGraph(nnvm::Graph& graph);
 
  private:
   // Generator to create functions that convert mxnet layer operations
   // into a series of ngraph operations
   layerGraphs create_layerGraphs();
-  // parse the nnvm graph into an intermediate rep
-  Graph ParseNNVMGraph(nnvm::Graph& graph);
   // check nodes against ngraph operations
   void CheckInNGraph(Graph& graph);
   // create variable objects in ngraph
