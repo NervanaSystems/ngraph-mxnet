@@ -80,12 +80,6 @@ UnaryOps PyEmitter::create_UnaryOps(const py::module& ng) {
         .attr("named")(name);
   };
 
-  output["Flatten"] = [ng](const py::object& py_operand,
-                           const std::string& name) {
-    return ng.attr("flatten_at")(py_operand, num_axes(py_operand) - 1)
-        .attr("named")(name);
-  };
-
   return output;
 }
 
@@ -105,6 +99,12 @@ BinaryOps PyEmitter::create_BinaryOps(const py::module& ng) {
 // MXNet high level ops generating function
 LayerOps PyEmitter::create_LayerOps(const py::module& ng) {
   LayerOps output;
+
+  output["Flatten"] = [ng](const NodePtr& node, py::object data) {
+    return ng.attr("flatten_at")(data, num_axes(data) - 1)
+        .attr("named")(node->name);
+  };
+  
   output["split"] = [ng, this](const NodePtr& node, py::object data) {
 
     int axis = 1;
@@ -376,7 +376,7 @@ LayerOps PyEmitter::create_LayerOps(const py::module& ng) {
       auto xi = ng.attr("multiply")(numer, denom);
       return ng.attr("add")(ng.attr("multiply")(xi, gamma), beta);
     };
-    
+
     py::object op;
     if (use_global_stats){
       op = batch_norm(moving_mean, moving_var);
