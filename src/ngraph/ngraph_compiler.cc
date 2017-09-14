@@ -24,7 +24,9 @@ nnvm::Graph Compiler::Compile(
   CheckInNGraph(g);
 
   g.IdentifySubgraphs(
-      [](NodePtr s) { return (s->in_ngraph && s->type == NodeType::kOp); });
+      [](NodePtr s) { 
+        return (s->in_ngraph && s->type == NodeType::kOp); 
+      });
 
   g.CollapseSubgraphs();
 
@@ -32,7 +34,7 @@ nnvm::Graph Compiler::Compile(
   if (true) {
     g.WriteSubgraphDots("test");
   }
-
+  // throw;
   for (auto node : g.nodes_) {
     // store the input variable shape for use by nnvm
     // This is happening because my nnvm graph manipulations are
@@ -91,12 +93,27 @@ nnvm::Graph Compiler::Compile(
 void Compiler::CheckInNGraph(Graph& graph) {
   // loop over nodes
   for (auto node : graph.nodes_) {
-    // if it's an operation, check operation name
     if (node->type == NodeType::kOp) {
-      for (auto op : NgraphOps_) {
-        if (node->operation == op) {
-          node->in_ngraph = true;
-          break;
+      //check if it's a multi output related node
+      bool multioutput = false;
+      auto is_multi = [](NodePtr node) {
+        for (auto& kv : node->orig_node->attrs.dict)
+          if (kv.first == "num_outputs")
+            if (std::stoi(kv.second) > 1) return true;
+        return false;
+      };
+      if (is_multi(node)) multioutput = true;
+      for (auto& n : node->inputs)
+        if (is_multi(n)) multioutput = true;
+
+      if (multioutput) {
+      } else {
+        // if it's an operation, check operation name
+        for (auto op : NgraphOps_) {
+          if (node->operation == op) {
+            node->in_ngraph = true;
+            break;
+          }
         }
       }
     } else {
@@ -136,28 +153,28 @@ layerGraphs Compiler::create_layerGraphs() {
     return tmpGraph;
   };
 
-  layer_funcs[std::string("split")] = [](const NodePtr node) {
-    Graph tmpGraph(node->name);
-    int num_outputs = 1;
-    for (auto& kv : node->orig_node->attrs.dict) 
-      if (kv.first == "num_outputs") num_outputs = std::stoi(kv.second);
+  // layer_funcs[std::string("split")] = [](const NodePtr node) {
+  //   Graph tmpGraph(node->name);
+  //   int num_outputs = 1;
+  //   for (auto& kv : node->orig_node->attrs.dict) 
+  //     if (kv.first == "num_outputs") num_outputs = std::stoi(kv.second);
     
-    tmpGraph.num_outputs = num_outputs;
-    for (int i = 0; i < num_outputs; ++i) {
-      auto tmpslice = std::make_shared<OpNode>(
-          node->orig_node, node->name + "_" + std::to_string(i), "split");
-      tmpslice->inputs.push_back(node->inputs[0]);
-      tmpslice->multioutput_index = i;
-      tmpGraph.AddNode(tmpslice);
-    }
-    // TODO: Jayaram says marking the last N-1 slices as inputs to the
-    // first slice will help transformer optimizations
-    return tmpGraph;
-  };
+  //   tmpGraph.num_outputs = num_outputs;
+  //   for (int i = 0; i < num_outputs; ++i) {
+  //     auto tmpslice = std::make_shared<OpNode>(
+  //         node->orig_node, node->name + "_" + std::to_string(i), "split");
+  //     tmpslice->inputs.push_back(node->inputs[0]);
+  //     tmpslice->multioutput_index = i;
+  //     tmpGraph.AddNode(tmpslice);
+  //   }
+  //   // TODO: Jayaram says marking the last N-1 slices as inputs to the
+  //   // first slice will help transformer optimizations
+  //   return tmpGraph;
+  // };
 
-  layer_funcs[std::string("SliceChannel")] = [&layer_funcs](const NodePtr node) {
-    return layer_funcs["split"](node);
-  };
+  // layer_funcs[std::string("SliceChannel")] = [&layer_funcs](const NodePtr node) {
+  //   return layer_funcs["split"](node);
+  // };
   return layer_funcs;
 }
 

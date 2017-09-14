@@ -78,7 +78,12 @@ void PyCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
     // reorder axes for mxnet convention.
     op = ng_.attr("axes_with_order")(op, createPyTuple(pyvec{N, C, H, W}));
   }
-
+  // // std::cout << node->name << std::endl;
+  // for (auto ax : op.attr("axes")) {
+  //   std::cout << ax.attr("name").cast<std::string>() << " "
+  //             << ax.attr("length").cast<int>() << std::endl;
+  // }
+  // std::cout << "-----" << std::endl;
   // compile the python computation
   graph->py_computation.reset(
       new py::object(transformer_.attr("computation")(op, *py_placeholders)));

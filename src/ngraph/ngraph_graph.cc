@@ -150,7 +150,7 @@ std::vector<NodePtr> Graph::PruneSubgraphOutputs(
 
   auto prune_subgraph = [&subgraph_nodes](std::vector<NodePtr> outNodes) {
     for (auto n : outNodes)
-      if (n != subgraph_nodes.back())
+      if (n != subgraph_nodes[0])
         subgraph_nodes.erase(
             std::remove(subgraph_nodes.begin(), subgraph_nodes.end(), n),
             subgraph_nodes.end());
