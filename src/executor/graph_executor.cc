@@ -892,9 +892,9 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                            num_forward_nodes_, 
                            static_cast<size_t>(idx.outputs()[i].node_id + 1));
 
+  // auto ng_g = compiler.ParseNNVMGraph(g);
+  // ng_g.WriteSubgraphDots("out");
   g = infer_graph(g, ngraph_arg_shape_map, ngraph_arg_dtype_map);
-  //auto ng_g = py_compiler.ParseNNVMGraph(g);
-  //ng_g.WriteSubgraphDots("out");
   
 #else
   const auto& idx = g.indexed_graph();

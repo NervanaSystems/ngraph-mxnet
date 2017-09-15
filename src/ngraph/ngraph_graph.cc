@@ -17,15 +17,16 @@ void Graph::WriteDot(const std::string& fname) {
   dotfile << "size=\"8,10.5\"" << std::endl;
 
   // Loop over inputs, write graph connections
-  for (auto n : nodes_) {
+  for (auto n : nodes_) 
     for (auto i : n->inputs) {
+      if (i->name == "") i->name = randomString(6);
+      if (n->name == "") n->name = randomString(6);
       dotfile << i->name << " -> " << n->name << ";" << std::endl;
     }
-  }
   // Loop over nodes and write labels
-  for (auto n : nodes_) {
-    dotfile << n->createNodeLabel() << std::endl;
-  }
+  for (auto n : nodes_) 
+    if (n->name !="")
+      dotfile << n->createNodeLabel() << std::endl;
   // Finish file.
   dotfile << "}" << std::endl;
   dotfile.close();
@@ -124,7 +125,8 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
   return outNodes;
 }
 
-//I'm not totally sure this is the right approach, but it seems to work.
+// I'm not totally sure this is the right approach, but it seems to work.
+// Possibly too slow for more complex graphs like DS2
 std::vector<NodePtr> Graph::PruneSubgraphOutputs(
     NodePtr s, std::vector<NodePtr>& subgraph_nodes,
     std::function<bool(NodePtr)> func) {
@@ -179,14 +181,13 @@ std::vector<NodePtr> Graph::FindSubgraph(NodePtr s,
                                          std::function<bool(NodePtr)> func) {
   auto subgraph_nodes = DFSselect(s, func);
   std::vector<NodePtr> outNodes;
+  outNodes = subgraph_nodes;
   if (subgraph_nodes.size() > 2) {
     // search for broken loops
     // remove nodes on broken loops
-    outNodes = RemoveBroken(s, subgraph_nodes, func);
+    outNodes = RemoveBroken(s, outNodes, func);
     outNodes = PruneSubgraphOutputs(s, outNodes, func);
-  } else {
-    outNodes = subgraph_nodes;
-  }
+  } 
   return outNodes;
 }
 
