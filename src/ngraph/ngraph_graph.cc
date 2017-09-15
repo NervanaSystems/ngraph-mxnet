@@ -245,27 +245,29 @@ void Graph::CollapseSubgraphs() {
             tmpGraph->inputs.emplace_back(input);
         }
       }
+      // set subgraph as input to all of the nodes downline.
+      for (auto n : nodes_)
+        for (size_t i = 0; i < n->inputs.size(); ++i)
+          if (n->inputs[i]->name == name) n->inputs[i] = tmpGraph;
+      
       // find the position we're replacing in the graph
       auto it =
           std::find_if(nodes_.begin(), nodes_.end(),
                        [name](NodePtr n) -> bool { return (n->name == name); });
       // insert the subgraph as a node
       nodes_.insert(it, tmpGraph);
-      // delete all the ndoes we're replacing with the subgraph
-      nodes_.erase(
-          std::remove_if(nodes_.begin(), nodes_.end(),
-                         [i](NodePtr n) -> bool {
-                           return ((n->subgraph == i) &&
-                                   (n->type == NodeType::kOp));
-                         }),
-          nodes_.end());
-
-      // set subgraph as input to all of the nodes downline.
-      for (auto n : nodes_)
-        for (size_t i = 0; i < n->inputs.size(); ++i)
-          if (n->inputs[i]->name == name) n->inputs[i] = tmpGraph;
     }
     i += 1;
+  }
+  for (int j = 1; j < i; ++j){
+    // delete all the nodes we're replacing with the subgraph
+    nodes_.erase(
+        std::remove_if(nodes_.begin(), nodes_.end(),
+                       [j](NodePtr n) -> bool {
+                         return ((n->subgraph == j) && 
+                                 (n->type == NodeType::kOp));
+                       }),
+        nodes_.end());
   }
 }
 

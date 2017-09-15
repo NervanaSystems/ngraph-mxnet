@@ -13,7 +13,7 @@ std::shared_ptr<Graph> PyCompiler::Compile(NodePtr graph) {
   gil_state state;
   // clear the op_map and placeholder_order
   std::map<std::string, py::object> tmp_op_map;
-  std::map<std::string, std::vector<std::string> > tmp_placeholder_order;
+  std::vector<std::string> tmp_placeholder_order;
   op_map = tmp_op_map;
   placeholder_order = tmp_placeholder_order;
   // cast the graph
@@ -26,16 +26,13 @@ std::shared_ptr<Graph> PyCompiler::Compile(NodePtr graph) {
 // Compile a Subgraph into ngraph python objects
 void PyCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
   // initalize a placeholder order vector for this subgraph
-  auto subgraph_name = graph->name;
-  std::vector<std::string> tmpvec;
-  for (auto i : graph->inputs) tmpvec.push_back(i->name);
-  placeholder_order[subgraph_name] = tmpvec;
+  for (auto i : graph->inputs) placeholder_order.push_back(i->name);
   // compile the operations
   for (auto node : graph->nodes_) {
     if (NgraphLayerOps_.count(node->operation) == 0) {
-      CompileInputs(node, subgraph_name);
+      CompileInputs(node);
     } else if (op_map.count(node->inputs[0]->name) == 0) {
-      CompileInput(node->inputs[0], subgraph_name, {});
+      CompileInput(node->inputs[0], {});
     }
     CompileNode(node, graph);
     if (false) {
@@ -50,9 +47,8 @@ void PyCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
 
   // create a python tuple of the variable placeholds to compile the computation
   py::tuple py_placeholders = py::make_tuple();
-  for (size_t i = 0; i < placeholder_order[subgraph_name].size();
-       ++i) {
-    auto name = placeholder_order[subgraph_name][int(i)];
+  for (size_t i = 0; i < placeholder_order.size(); ++i) {
+    auto name = placeholder_order[int(i)];
     py_placeholders =
         py_placeholders.attr("__add__")(py::make_tuple(op_map[name]));
   }
@@ -98,14 +94,13 @@ void PyCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
           .attr("named")(graph->name + "_out_grad");
 
   py::tuple py_back_placeholders = py::make_tuple(back_grad);
-  for (size_t i = 0; i < placeholder_order[subgraph_name].size();
-       ++i) {
+  for (size_t i = 0; i < placeholder_order.size(); ++i) {
     py_back_placeholders = py_back_placeholders.attr("__add__")(py::make_tuple(
-        op_map[placeholder_order[subgraph_name][int(i)]]));
+        op_map[placeholder_order[int(i)]]));
     py_deriv_ops =
         py_deriv_ops.attr("__add__")(py::make_tuple(ng_.attr("deriv")(
             op_map[graph->nodes_.back()->name],
-            op_map[placeholder_order[subgraph_name][int(i)]],
+            op_map[placeholder_order[int(i)]],
             back_grad)));
   }
 
@@ -164,8 +159,7 @@ void PyCompiler::CompileNode(NodePtr node, std::shared_ptr<Graph> graph) {
 // Compile the inputs, matching ngraph axes.
 // This is pretty hacky, primarily for single/double input nodes
 // layer ops handled separately
-void PyCompiler::CompileInput(NodePtr input, std::string subgraph_name,
-                              axes_map node_axes) {
+void PyCompiler::CompileInput(NodePtr input, axes_map node_axes) {
   if (op_map.count(input->name) == 0) {
     axes_map input_axes;
     int axnum = 0;
@@ -206,9 +200,9 @@ void PyCompiler::CompileInput(NodePtr input, std::string subgraph_name,
   }
 }
 
-void PyCompiler::CompileInputs(NodePtr node, std::string subgraph_name) {
+void PyCompiler::CompileInputs(NodePtr node) {
   axes_map node_axes;
-  for (auto input : node->inputs) CompileInput(input, subgraph_name, node_axes);
+  for (auto input : node->inputs) CompileInput(input, node_axes);
 }
 
 }  // end namespace ngraph
