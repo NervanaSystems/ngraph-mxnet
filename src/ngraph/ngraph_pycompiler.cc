@@ -40,14 +40,6 @@ void PyCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
       CompileInput(node->inputs[0], {});
     }
     CompileNode(node, graph);
-    if (false) {
-      std::cout << node->name << std::endl;
-      for (auto ax : op_map[node->name].attr("axes")) {
-        std::cout << ax.attr("name").cast<std::string>() << " "
-                  << ax.attr("length").cast<int>() << std::endl;
-      }
-      std::cout << "-----" << std::endl;
-    }
   }
 
   // create a python tuple of the variable placeholds to compile the computation
@@ -66,7 +58,6 @@ void PyCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
     auto W = getNthAxis(op, 3);
     auto N = getNthAxis(op, 4);
     // reshape via tensor slice
-    // op = slice_tensor(ng, op, pyvec{C, H, W, N});
     op = ng_.attr("tensor_slice")(
         op,
         createPyTuple(pyvec{
@@ -79,13 +70,7 @@ void PyCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
     // reorder axes for mxnet convention.
     op = ng_.attr("axes_with_order")(op, createPyTuple(pyvec{N, C, H, W}));
   }
-  // std::cout << graph->name << std::endl;
-  // for (auto ax : op.attr("axes")) {
-  //   std::cout << ax.attr("name").cast<std::string>() << " "
-  //             << ax.attr("length").cast<int>() << std::endl;
-  // }
-  // std::cout << "-----" << std::endl;
-  //compile the python computation
+
   graph->py_computation.reset(
       new py::object(transformer_.attr("computation")(op, *py_placeholders)));
 

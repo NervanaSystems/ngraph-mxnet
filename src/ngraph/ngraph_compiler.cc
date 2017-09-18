@@ -36,13 +36,11 @@ nnvm::Graph Compiler::Compile(
         return (s->in_ngraph && s->type == NodeType::kOp && !in_feed_dict); 
       });
 
-  g.WriteSubgraphDots("pre_collapse");
+  if (false) g.WriteSubgraphDots("pre_collapse");
   g.CollapseSubgraphs();
 
   // Output Graphviz dot files for vizualization
-  if (true) {
-    g.WriteSubgraphDots("test");
-  }
+  if (false) g.WriteSubgraphDots("post_collapse");
   // throw;
   for (auto node : g.nodes_) {
     // store the input variable shape for use by nnvm
@@ -162,28 +160,6 @@ layerGraphs Compiler::create_layerGraphs() {
     return tmpGraph;
   };
 
-  // layer_funcs[std::string("split")] = [](const NodePtr node) {
-  //   Graph tmpGraph(node->name);
-  //   int num_outputs = 1;
-  //   for (auto& kv : node->orig_node->attrs.dict) 
-  //     if (kv.first == "num_outputs") num_outputs = std::stoi(kv.second);
-    
-  //   tmpGraph.num_outputs = num_outputs;
-  //   for (int i = 0; i < num_outputs; ++i) {
-  //     auto tmpslice = std::make_shared<OpNode>(
-  //         node->orig_node, node->name + "_" + std::to_string(i), "split");
-  //     tmpslice->inputs.push_back(node->inputs[0]);
-  //     tmpslice->multioutput_index = i;
-  //     tmpGraph.AddNode(tmpslice);
-  //   }
-  //   // TODO: Jayaram says marking the last N-1 slices as inputs to the
-  //   // first slice will help transformer optimizations
-  //   return tmpGraph;
-  // };
-
-  // layer_funcs[std::string("SliceChannel")] = [&layer_funcs](const NodePtr node) {
-  //   return layer_funcs["split"](node);
-  // };
   return layer_funcs;
 }
 
