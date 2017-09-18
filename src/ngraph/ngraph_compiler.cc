@@ -28,10 +28,11 @@ nnvm::Graph Compiler::Compile(
         return (s->in_ngraph && s->type == NodeType::kOp); 
       });
 
+  // g.WriteSubgraphDots("pre_collapse");
   g.CollapseSubgraphs();
 
   // Output Graphviz dot files for vizualization
-  if (true) {
+  if (false) {
     g.WriteSubgraphDots("test");
   }
   // throw;

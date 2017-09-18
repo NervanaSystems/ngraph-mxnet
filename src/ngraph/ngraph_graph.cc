@@ -45,7 +45,7 @@ void Graph::DFSUtil(NodePtr s, std::map<std::string, bool>& visited,
     outNodes.push_back(s);
     // visit it's inputs
     for (auto i : s->inputs) {
-      if (!visited[i->name]) {
+      if (!visited[i->name] && i->subgraph == 0) {
         DFSUtil(i, visited, outNodes, func);
       }
     }
@@ -202,7 +202,11 @@ void Graph::IdentifySubgraphs(std::function<bool(NodePtr)> func) {
       // if we found a significantly large subgraph, label it
       if (subgraph_nodes.size() > 2) {
         for (auto node : subgraph_nodes)
-          if (node->type == NodeType::kOp) node->subgraph = sg;
+          node->subgraph = sg;
+        for (auto node : subgraph_nodes)
+          for (auto i : node->inputs) 
+            if (i->subgraph != sg)
+              i->subgraph = -1;
         sg += 1;
       }
     }
@@ -259,16 +263,16 @@ void Graph::CollapseSubgraphs() {
     }
     i += 1;
   }
-  for (int j = 1; j < i; ++j){
-    // delete all the nodes we're replacing with the subgraph
-    nodes_.erase(
-        std::remove_if(nodes_.begin(), nodes_.end(),
-                       [j](NodePtr n) -> bool {
-                         return ((n->subgraph == j) && 
-                                 (n->type == NodeType::kOp));
-                       }),
-        nodes_.end());
-  }
+
+  // delete all the nodes we're replacing with the subgraph
+  nodes_.erase(
+      std::remove_if(nodes_.begin(), nodes_.end(),
+                     [](NodePtr n) -> bool {
+                       return ((n->subgraph > 0) && 
+                               (n->type == NodeType::kOp));
+                     }),
+      nodes_.end());
+
 }
 
 }  // namespace ngraph
