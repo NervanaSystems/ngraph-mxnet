@@ -31,6 +31,7 @@ class PyCompiler : public PyEmitter {
   void CompileInputs(NodePtr node);
   // compile a single node into an ngraph python object
   void CompileNode(NodePtr node, std::shared_ptr<Graph> graph);
+  void ClearOpMap();
 };
 
 }  // end namespace ngraph

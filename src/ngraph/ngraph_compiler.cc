@@ -17,22 +17,30 @@ Compiler::Compiler() {
 nnvm::Graph Compiler::Compile(
     nnvm::Graph graph,
     std::unordered_map<std::string, nnvm::TShape>& arg_shape_map,
-    std::unordered_map<std::string, int>& arg_dtype_map) {
+    std::unordered_map<std::string, int>& arg_dtype_map,
+    const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict) {
 
   auto g = ParseNNVMGraph(graph);
 
   CheckInNGraph(g);
 
   g.IdentifySubgraphs(
-      [](NodePtr s) { 
-        return (s->in_ngraph && s->type == NodeType::kOp); 
+      [&feed_dict](NodePtr s) { 
+        bool in_feed_dict = false;
+        for (auto kv : feed_dict){
+          if (kv.first.node->attrs.name == s->name){
+            in_feed_dict = true;
+            break;
+          }
+        }
+        return (s->in_ngraph && s->type == NodeType::kOp && !in_feed_dict); 
       });
 
-  // g.WriteSubgraphDots("pre_collapse");
+  g.WriteSubgraphDots("pre_collapse");
   g.CollapseSubgraphs();
 
   // Output Graphviz dot files for vizualization
-  if (false) {
+  if (true) {
     g.WriteSubgraphDots("test");
   }
   // throw;

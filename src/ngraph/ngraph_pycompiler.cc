@@ -12,15 +12,20 @@ std::shared_ptr<Graph> PyCompiler::Compile(NodePtr graph) {
   // lock gil
   gil_state state;
   // clear the op_map and placeholder_order
-  std::map<std::string, py::object> tmp_op_map;
-  std::vector<std::string> tmp_placeholder_order;
-  op_map = tmp_op_map;
-  placeholder_order = tmp_placeholder_order;
+  ClearOpMap();
   // cast the graph
   auto sg = std::dynamic_pointer_cast<Graph>(graph);
   // compile the subgraph into a python computation
   CompileSubgraph(sg);
+  ClearOpMap();
   return sg;
+}
+
+void PyCompiler::ClearOpMap(){
+  std::map<std::string, py::object> tmp_op_map;
+  std::vector<std::string> tmp_placeholder_order;
+  op_map = tmp_op_map;
+  placeholder_order = tmp_placeholder_order;
 }
 
 // Compile a Subgraph into ngraph python objects
@@ -74,13 +79,13 @@ void PyCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
     // reorder axes for mxnet convention.
     op = ng_.attr("axes_with_order")(op, createPyTuple(pyvec{N, C, H, W}));
   }
-  // // std::cout << node->name << std::endl;
+  // std::cout << graph->name << std::endl;
   // for (auto ax : op.attr("axes")) {
   //   std::cout << ax.attr("name").cast<std::string>() << " "
   //             << ax.attr("length").cast<int>() << std::endl;
   // }
   // std::cout << "-----" << std::endl;
-  // compile the python computation
+  //compile the python computation
   graph->py_computation.reset(
       new py::object(transformer_.attr("computation")(op, *py_placeholders)));
 

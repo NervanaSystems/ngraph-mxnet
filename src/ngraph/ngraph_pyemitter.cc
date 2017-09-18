@@ -168,6 +168,7 @@ LayerOps PyEmitter::create_LayerOps(const py::module& ng) {
   //   }
   //   return ng.attr("concat_along_axis")(inputs, T);
   // };
+  
   // Create a fully connected layer op in Ngraph
   output["FullyConnected"] = [ng, this](const NodePtr& node, py::object data) {
 
