@@ -52,7 +52,7 @@ protected:
 
   // information on compiled objects
   std::map<std::string, py::object> op_map;
-  std::map<std::string, std::vector<std::string> > placeholder_order;
+  std::vector<std::string> placeholder_order;
 };
 
 }  // end namespace ngraph

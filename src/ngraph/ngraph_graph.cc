@@ -17,15 +17,16 @@ void Graph::WriteDot(const std::string& fname) {
   dotfile << "size=\"8,10.5\"" << std::endl;
 
   // Loop over inputs, write graph connections
-  for (auto n : nodes_) {
+  for (auto n : nodes_) 
     for (auto i : n->inputs) {
+      if (i->name == "") i->name = randomString(6);
+      if (n->name == "") n->name = randomString(6);
       dotfile << i->name << " -> " << n->name << ";" << std::endl;
     }
-  }
   // Loop over nodes and write labels
-  for (auto n : nodes_) {
-    dotfile << n->createNodeLabel() << std::endl;
-  }
+  for (auto n : nodes_) 
+    if (n->name !="")
+      dotfile << n->createNodeLabel() << std::endl;
   // Finish file.
   dotfile << "}" << std::endl;
   dotfile.close();
@@ -44,7 +45,7 @@ void Graph::DFSUtil(NodePtr s, std::map<std::string, bool>& visited,
     outNodes.push_back(s);
     // visit it's inputs
     for (auto i : s->inputs) {
-      if (!visited[i->name]) {
+      if (!visited[i->name] && i->subgraph == 0) {
         DFSUtil(i, visited, outNodes, func);
       }
     }
@@ -124,7 +125,8 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
   return outNodes;
 }
 
-//I'm not totally sure this is the right approach, but it seems to work.
+// I'm not totally sure this is the right approach, but it seems to work.
+// Possibly too slow for more complex graphs like DS2
 std::vector<NodePtr> Graph::PruneSubgraphOutputs(
     NodePtr s, std::vector<NodePtr>& subgraph_nodes,
     std::function<bool(NodePtr)> func) {
@@ -179,14 +181,13 @@ std::vector<NodePtr> Graph::FindSubgraph(NodePtr s,
                                          std::function<bool(NodePtr)> func) {
   auto subgraph_nodes = DFSselect(s, func);
   std::vector<NodePtr> outNodes;
+  outNodes = subgraph_nodes;
   if (subgraph_nodes.size() > 2) {
     // search for broken loops
     // remove nodes on broken loops
-    outNodes = RemoveBroken(s, subgraph_nodes, func);
+    outNodes = RemoveBroken(s, outNodes, func);
     outNodes = PruneSubgraphOutputs(s, outNodes, func);
-  } else {
-    outNodes = subgraph_nodes;
-  }
+  } 
   return outNodes;
 }
 
@@ -201,7 +202,11 @@ void Graph::IdentifySubgraphs(std::function<bool(NodePtr)> func) {
       // if we found a significantly large subgraph, label it
       if (subgraph_nodes.size() > 2) {
         for (auto node : subgraph_nodes)
-          if (node->type == NodeType::kOp) node->subgraph = sg;
+          node->subgraph = sg;
+        for (auto node : subgraph_nodes)
+          for (auto i : node->inputs) 
+            if (i->subgraph != sg)
+              i->subgraph = -1;
         sg += 1;
       }
     }
@@ -244,28 +249,30 @@ void Graph::CollapseSubgraphs() {
             tmpGraph->inputs.emplace_back(input);
         }
       }
+      // set subgraph as input to all of the nodes downline.
+      for (auto n : nodes_)
+        for (size_t i = 0; i < n->inputs.size(); ++i)
+          if (n->inputs[i]->name == name) n->inputs[i] = tmpGraph;
+      
       // find the position we're replacing in the graph
       auto it =
           std::find_if(nodes_.begin(), nodes_.end(),
                        [name](NodePtr n) -> bool { return (n->name == name); });
       // insert the subgraph as a node
       nodes_.insert(it, tmpGraph);
-      // delete all the ndoes we're replacing with the subgraph
-      nodes_.erase(
-          std::remove_if(nodes_.begin(), nodes_.end(),
-                         [i](NodePtr n) -> bool {
-                           return ((n->subgraph == i) &&
-                                   (n->type == NodeType::kOp));
-                         }),
-          nodes_.end());
-
-      // set subgraph as input to all of the nodes downline.
-      for (auto n : nodes_)
-        for (size_t i = 0; i < n->inputs.size(); ++i)
-          if (n->inputs[i]->name == name) n->inputs[i] = tmpGraph;
     }
     i += 1;
   }
+
+  // delete all the nodes we're replacing with the subgraph
+  nodes_.erase(
+      std::remove_if(nodes_.begin(), nodes_.end(),
+                     [](NodePtr n) -> bool {
+                       return ((n->subgraph > 0) && 
+                               (n->type == NodeType::kOp));
+                     }),
+      nodes_.end());
+
 }
 
 }  // namespace ngraph

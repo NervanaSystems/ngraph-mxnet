@@ -27,11 +27,11 @@ class PyCompiler : public PyEmitter {
   // compile subgraph into ngraph python objects
   void CompileSubgraph(std::shared_ptr<Graph> graph);
   // compile inputs to a node
-  void CompileInput(NodePtr input, std::string subgraph_name,
-                    axes_map node_axes);
-  void CompileInputs(NodePtr node, std::string subgraph_name);
+  void CompileInput(NodePtr input, axes_map node_axes);
+  void CompileInputs(NodePtr node);
   // compile a single node into an ngraph python object
   void CompileNode(NodePtr node, std::shared_ptr<Graph> graph);
+  void ClearOpMap();
 };
 
 }  // end namespace ngraph
