@@ -12,7 +12,7 @@ using layerGraphs = std::map<std::string, std::function<Graph(const NodePtr)>>;
 
 class Compiler {
  public:
-  Compiler(const nnvm::Graph &graph);
+  Compiler(const nnvm::Graph& graph);
   // Main interface from MXNet
   // Compile a graph, take an MXNet graph and replace subsections of it
   // with ngraph operations

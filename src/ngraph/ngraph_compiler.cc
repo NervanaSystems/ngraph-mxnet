@@ -1,8 +1,8 @@
 #include "ngraph_compiler.h"
-#include "ngraph_compiler_utils.h"
 #include <nnvm/node.h>
 #include <nnvm/pass.h>
 #include <algorithm>
+#include "ngraph_compiler_utils.h"
 #include "ngraph_nnvm_ops.h"
 
 namespace ngraph {
@@ -41,7 +41,7 @@ layerGraphs create_layerGraphs() {
 }
 
 // Compiler initialization
-Compiler::Compiler(const nnvm::Graph &graph) : graph_(graph) {
+Compiler::Compiler(const nnvm::Graph& graph) : graph_(graph) {
   // initialize ngraph_
   ParseNNVMGraph();
   CheckInNGraph();
@@ -52,18 +52,16 @@ nnvm::Graph Compiler::Compile(
     std::unordered_map<std::string, nnvm::TShape>& arg_shape_map,
     std::unordered_map<std::string, int>& arg_dtype_map,
     const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict) {
-
-  ngraph_.IdentifySubgraphs(
-      [&feed_dict](NodePtr s) { 
-        bool in_feed_dict = false;
-        for (auto kv : feed_dict){
-          if (kv.first.node->attrs.name == s->name){
-            in_feed_dict = true;
-            break;
-          }
-        }
-        return (s->in_ngraph && s->type == NodeType::kOp && !in_feed_dict); 
-      });
+  ngraph_.IdentifySubgraphs([&feed_dict](NodePtr s) {
+    bool in_feed_dict = false;
+    for (auto kv : feed_dict) {
+      if (kv.first.node->attrs.name == s->name) {
+        in_feed_dict = true;
+        break;
+      }
+    }
+    return (s->in_ngraph && s->type == NodeType::kOp && !in_feed_dict);
+  });
 
   if (false) ngraph_.WriteSubgraphDots("pre_collapse");
   ngraph_.CollapseSubgraphs();
@@ -96,7 +94,8 @@ nnvm::Graph Compiler::Compile(
       auto name = sg->nodes_.back()->name;
 
       // use nnvm depth first search to fix node connections in nnvm
-      nnvm::DFSVisit(graph_.outputs, [sg_node, &name](const nnvm::NodePtr node) {
+      nnvm::DFSVisit(graph_.outputs, [sg_node,
+                                      &name](const nnvm::NodePtr node) {
         auto matches_name = [&name](nnvm::NodeEntry n) -> bool {
           return (n.node->attrs.name == name);
         };
@@ -130,7 +129,7 @@ void Compiler::CheckInNGraph() {
   // loop over nodes
   for (auto node : ngraph_.nodes_) {
     if (node->type == NodeType::kOp) {
-      //check if it's a multi output related node
+      // check if it's a multi output related node
       bool multioutput = false;
       auto is_multi = [](NodePtr node) {
         for (auto& kv : node->orig_node->attrs.dict)
@@ -164,8 +163,8 @@ void Compiler::ParseNNVMGraph() {
   auto layer_funcs = create_layerGraphs();
   // Use NNVM's depth first search to trace the tree and construct the
   // intermediary graph
-  nnvm::DFSVisit(graph_.outputs, [this, 
-                                 &layer_funcs](const nnvm::NodePtr node) {
+  nnvm::DFSVisit(graph_.outputs, [this,
+                                  &layer_funcs](const nnvm::NodePtr node) {
     const auto& idx = this->graph_.indexed_graph();
 
     const auto& mutable_nodes = idx.mutable_input_nodes();
@@ -175,7 +174,8 @@ void Compiler::ParseNNVMGraph() {
       this->ngraph_.AddNode(std::make_shared<AuxNode>(node, node->attrs.name));
     } else if (node->is_variable()) {
       // add variable to the graph
-      this->ngraph_.AddNode(std::make_shared<VariableNode>(node, node->attrs.name));
+      this->ngraph_.AddNode(
+          std::make_shared<VariableNode>(node, node->attrs.name));
     } else {
       // create operation node
       auto op_name = clean_opname(node->op()->name);
@@ -197,12 +197,14 @@ void Compiler::ParseNNVMGraph() {
         }
         op_node->inputs.emplace_back(tmpnode);
       }
-      auto expand_layers = [this, &layer_funcs](std::shared_ptr<OpNode>& op_node) {
+      auto expand_layers = [this,
+                            &layer_funcs](std::shared_ptr<OpNode>& op_node) {
         auto tmp = layer_funcs[op_node->operation](op_node);
         if (tmp.num_outputs > 1)
-          this->ngraph_.nodes_.erase(std::remove(this->ngraph_.nodes_.begin(),
-                                            this->ngraph_.nodes_.end(), op_node),
-                                this->ngraph_.nodes_.end());
+          this->ngraph_.nodes_.erase(
+              std::remove(this->ngraph_.nodes_.begin(),
+                          this->ngraph_.nodes_.end(), op_node),
+              this->ngraph_.nodes_.end());
 
         for (auto n : tmp.nodes_) this->ngraph_.AddNode(n);
       };
