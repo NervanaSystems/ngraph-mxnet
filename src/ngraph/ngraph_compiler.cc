@@ -41,8 +41,9 @@ layerGraphs create_layerGraphs() {
 }
 
 // Compiler initialization
-Compiler::Compiler(const nnvm::Graph& graph) : graph_(graph) {
+Compiler::Compiler(const nnvm::Graph& graph) {
   // initialize ngraph_
+  DeepCopy(graph);
   ParseNNVMGraph();
   CheckInNGraph();
 }
@@ -52,6 +53,7 @@ nnvm::Graph Compiler::Compile(
     std::unordered_map<std::string, nnvm::TShape>& arg_shape_map,
     std::unordered_map<std::string, int>& arg_dtype_map,
     const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict) {
+
   ngraph_.IdentifySubgraphs([&feed_dict](NodePtr s) {
     bool in_feed_dict = false;
     for (auto kv : feed_dict) {
@@ -122,6 +124,96 @@ nnvm::Graph Compiler::Compile(
   out_graph.outputs = graph_.outputs;
 
   return out_graph;
+}
+
+nnvm::NodeEntryMap<mxnet::NDArray> Compiler::makeCopiedFeedDict(
+    nnvm::NodeEntryMap<mxnet::NDArray> feed_dict) {
+
+  nnvm::NodeEntryMap<mxnet::NDArray> out_dict;
+  for (auto kv : feed_dict){
+    auto e = kv.first;
+    e.node = node_map_[kv.first.node->attrs.name];
+    out_dict[e] = kv.second;
+  }
+  return out_dict;
+}
+
+nnvmNodeVec Compiler::GetCopiedNodes(nnvmNodeVec inputs){
+  nnvmNodeVec output;
+  for (auto node : inputs){
+    output.push_back(node_map_[node->attrs.name]);
+  }
+  return output;
+}
+
+nnvm::NodePtr CopyNode(const nnvm::NodePtr& node){
+  return std::make_shared<nnvm::Node>(*(node.get()));
+}
+
+void Compiler::CopyNodes(const nnvm::Graph& graph) {
+
+  std::function<void(const nnvm::NodePtr&)> copy_nodes;
+
+  copy_nodes = [this, &copy_nodes](const nnvm::NodePtr& node) {
+
+    for (const auto& input : node->inputs) {
+      if (!node_map_.count(input.node->attrs.name)) {
+        node_map_[input.node->attrs.name] = CopyNode(input.node);
+        copy_nodes(node_map_[input.node->attrs.name]);
+      }
+    }
+
+    for (const auto& input : node->control_deps) {
+      if (!node_map_.count(input->attrs.name)) {
+        node_map_[input->attrs.name] = CopyNode(input);
+        copy_nodes(node_map_[input->attrs.name]);
+      }
+    }
+  };
+
+  for (auto& out : graph.outputs) {
+    node_map_[out.node->attrs.name] = CopyNode(out.node);
+    copy_nodes(out.node);
+  }
+}
+
+void Compiler::DeepCopy(nnvm::Graph graph){
+  
+  CopyNodes(graph);
+
+  std::map<std::string, bool> visited;
+
+  std::function<void(const nnvm::NodePtr&)> set_inputs;
+
+  set_inputs = [&visited, &set_inputs, this](const nnvm::NodePtr& node) {
+    int i = 0;
+    for (const auto& input : node->inputs) {
+      node->inputs[i].node = node_map_[input.node->attrs.name];
+      if (!visited.count(input.node->attrs.name)){
+        visited[input.node->attrs.name] = true;
+        set_inputs(node_map_[input.node->attrs.name]);
+      }
+      ++i;
+    }
+
+    i = 0;
+    for (const auto& input : node->control_deps) {
+      node->control_deps[i] = node_map_[input->attrs.name];
+      if (!visited.count(input->attrs.name)){
+        visited[input->attrs.name] = true;
+        set_inputs(node_map_[input->attrs.name]);
+      }
+      ++i;
+    }
+  };
+
+  graph_.outputs = graph.outputs;
+  graph_.attrs = graph.attrs;
+
+  for (auto& out : graph_.outputs) {
+    out.node = node_map_[out.node->attrs.name];
+    set_inputs(out.node);
+  }
 }
 
 // Check nodes in NGraph

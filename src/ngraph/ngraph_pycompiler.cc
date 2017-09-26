@@ -69,6 +69,14 @@ void PyCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
         createPyTuple(pyvec{C, H, W, N}));
     // reorder axes for mxnet convention.
     op = ng_.attr("axes_with_order")(op, createPyTuple(pyvec{N, C, H, W}));
+  } else if (num_axes(op) == 2) {
+    auto data_first_axis = getNthAxis(op, 0);
+    auto batch_axis =
+        getNthAxis(op_map[graph->nodes_[0]->inputs[0]->name], 0);
+    if (data_first_axis.attr("length").cast<int>() !=
+        batch_axis.attr("length").cast<int>()) {
+      op = ng_.attr("Transpose")(op);
+    }
   }
 
   graph->py_computation.reset(
@@ -123,6 +131,7 @@ void PyCompiler::CompileNode(NodePtr node, std::shared_ptr<Graph> graph) {
           batch_axis.attr("length").cast<int>()) {
         data = ng_.attr("Transpose")(data);
       }
+      data_first_axis = getNthAxis(data, 0);
       if (data_first_axis != batch_axis) {
         data = ng_.attr("cast_axes")(
             data, createPyTuple(pyvec{batch_axis, getNthAxis(data, 1)}));

@@ -512,8 +512,9 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   ngraph::Compiler compiler(g);
   g = compiler.Compile(ngraph_arg_shape_map, ngraph_arg_dtype_map, feed_dict);
   
-  g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), 
-    grad_req_types);
+  g = InitFullGraph(g, compiler.GetCopiedNodes(
+                           symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs)),
+                    grad_req_types);
   // create "device" and "context" attrs for the graph
   g = AssignContext(g, default_ctx, ctx_map,
                     in_arg_ctxes,
@@ -537,7 +538,12 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // Initialize the rest attributes of the graph.
   // This function can be called by regular bind
   // operation flow as well.
+#if MXNET_USE_NGRAPH == 1
+  FinishInitGraph(symbol, g, shared_exec, 
+                  compiler.makeCopiedFeedDict(feed_dict));
+#else
   FinishInitGraph(symbol, g, shared_exec, feed_dict);
+#endif
 }
 
 /*!
@@ -875,7 +881,9 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   ngraph::Compiler compiler(g);
   g = compiler.Compile(ngraph_arg_shape_map, ngraph_arg_dtype_map, feed_dict);
   // create "device" and "context" attrs for the graph
-  g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), grad_req_types);
+  g = InitFullGraph(g, compiler.GetCopiedNodes(
+                           symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs)),
+                    grad_req_types);
 
   g = AssignContext(g, default_ctx, ctx_map,
                     in_arg_ctxes,
@@ -920,7 +928,12 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // Initialize the rest attributes of the graph.
   // This function can be called by regular bind
   // operation flow as well.
+#if MXNET_USE_NGRAPH == 1
+  FinishInitGraph(symbol, g, shared_exec, 
+                  compiler.makeCopiedFeedDict(feed_dict));
+#else
   FinishInitGraph(symbol, g, shared_exec, feed_dict);
+#endif
 }
 
 /*!
