@@ -12,31 +12,24 @@ using layerGraphs = std::map<std::string, std::function<Graph(const NodePtr)>>;
 
 class Compiler {
  public:
-  Compiler();
+  Compiler(const nnvm::Graph& graph);
   // Main interface from MXNet
   // Compile a graph, take an MXNet graph and replace subsections of it
   // with ngraph operations
   nnvm::Graph Compile(
-      nnvm::Graph graph,
       std::unordered_map<std::string, nnvm::TShape>& arg_shape_map,
       std::unordered_map<std::string, int>& arg_dtype_map,
       const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict);
   // parse the nnvm graph into an intermediate rep
-  Graph ParseNNVMGraph(nnvm::Graph& graph);
+  void ParseNNVMGraph();
 
  private:
-  // Generator to create functions that convert mxnet layer operations
-  // into a series of ngraph operations
-  layerGraphs create_layerGraphs();
   // check nodes against ngraph operations
-  void CheckInNGraph(Graph& graph);
-  // create variable objects in ngraph
-  // create a new nnvm node based on subgraph
-  nnvm::NodeEntry CreateNNVMNode(std::shared_ptr<Graph> graph);
-  // vector of available operations
-  std::vector<std::string> NgraphOps_;
+  void CheckInNGraph();
 
   PyCompiler compiler_;
+  nnvm::Graph graph_;
+  ngraph::Graph ngraph_;
 };
 
 }  // end namespace ngraph
