@@ -43,8 +43,7 @@ layerGraphs create_layerGraphs() {
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph,
                    const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict,
-                   nnvmNodeVec inputs){
-
+                   nnvmNodeVec inputs) {
   DeepCopy(graph);
   makeCopiedInputs(inputs);
   makeCopiedFeedDict(feed_dict);
@@ -128,34 +127,39 @@ nnvm::Graph Compiler::Compile() {
   return out_graph;
 }
 
-nnvm::NodeEntryMap<mxnet::NDArray> Compiler::GetFeedDict() {
+const nnvm::NodeEntryMap<mxnet::NDArray>& Compiler::GetFeedDict() {
   return feed_dict_;
 }
-std::vector<nnvm::NodePtr> Compiler::GetInputs(){
-  return inputs_;
+const std::vector<nnvm::NodePtr>& Compiler::GetInputs() { return inputs_; }
+
+state_map  Compiler::CopySavedStates(state_map saved_states) {
+  state_map new_saved_states;
+  for (auto kv : saved_states) {
+    new_saved_states[node_map_[kv.first->attrs.name].get()] = kv.second;
+  }
+  return new_saved_states;
 }
 
 void Compiler::makeCopiedFeedDict(
     nnvm::NodeEntryMap<mxnet::NDArray> feed_dict) {
-  for (auto kv : feed_dict){
+  for (auto kv : feed_dict) {
     auto e = kv.first;
     e.node = node_map_[kv.first.node->attrs.name];
     feed_dict_[e] = kv.second;
   }
 }
 
-void Compiler::makeCopiedInputs(nnvmNodeVec inputs){
-  for (auto node : inputs){
+void Compiler::makeCopiedInputs(nnvmNodeVec inputs) {
+  for (auto node : inputs) {
     inputs_.push_back(node_map_[node->attrs.name]);
   }
 }
 
-nnvm::NodePtr CopyNode(const nnvm::NodePtr& node){
+nnvm::NodePtr CopyNode(const nnvm::NodePtr& node) {
   return std::make_shared<nnvm::Node>(*(node.get()));
 }
 
 void Compiler::CopyNodes(const nnvm::Graph& graph) {
-
   std::function<void(const nnvm::NodePtr&)> copy_nodes;
 
   copy_nodes = [this, &copy_nodes](const nnvm::NodePtr& node) {
@@ -181,8 +185,7 @@ void Compiler::CopyNodes(const nnvm::Graph& graph) {
   }
 }
 
-void Compiler::DeepCopy(nnvm::Graph graph){
-  
+void Compiler::DeepCopy(nnvm::Graph graph) {
   CopyNodes(graph);
 
   std::map<std::string, bool> visited;
@@ -193,7 +196,7 @@ void Compiler::DeepCopy(nnvm::Graph graph){
     int i = 0;
     for (const auto& input : node->inputs) {
       node->inputs[i].node = node_map_[input.node->attrs.name];
-      if (!visited.count(input.node->attrs.name)){
+      if (!visited.count(input.node->attrs.name)) {
         visited[input.node->attrs.name] = true;
         set_inputs(node_map_[input.node->attrs.name]);
       }
@@ -203,7 +206,7 @@ void Compiler::DeepCopy(nnvm::Graph graph){
     i = 0;
     for (const auto& input : node->control_deps) {
       node->control_deps[i] = node_map_[input->attrs.name];
-      if (!visited.count(input->attrs.name)){
+      if (!visited.count(input->attrs.name)) {
         visited[input->attrs.name] = true;
         set_inputs(node_map_[input->attrs.name]);
       }

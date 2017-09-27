@@ -508,6 +508,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
 #if MXNET_USE_NGRAPH == 1
   ngraph::Compiler compiler(g, feed_dict, 
     symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs));
+  saved_states_ = compiler.CopySavedStates(saved_states_);
   g = compiler.Compile();
   
   g = InitFullGraph(g, compiler.GetInputs(), grad_req_types);
@@ -870,7 +871,9 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
 
 
 #if MXNET_USE_NGRAPH == 1
-  ngraph::Compiler compiler(g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs));
+  ngraph::Compiler compiler(g, feed_dict, 
+    symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs));
+  saved_states_ = compiler.CopySavedStates(saved_states_);
   g = compiler.Compile();
   // create "device" and "context" attrs for the graph
   g = InitFullGraph(g, compiler.GetInputs(), grad_req_types);
