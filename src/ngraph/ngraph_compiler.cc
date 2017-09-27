@@ -42,9 +42,12 @@ layerGraphs create_layerGraphs() {
 
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph,
-                   const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict){}
-  // initialize ngraph_
+                   const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict,
+                   nnvmNodeVec inputs){
+
   DeepCopy(graph);
+  makeCopiedInputs(inputs);
+  makeCopiedFeedDict(feed_dict);
   ParseNNVMGraph();
   CheckInNGraph();
 
@@ -76,7 +79,7 @@ nnvm::Graph Compiler::Compile() {
     // breaking the infer shape functionality, so shapes of inputs
     // don't get properly inferred. Works, because we're inferring
     // the shapes before doing all of this, but not ideal
-    if (node->type != NodeType::kGraph) {
+    if (node->type == NodeType::kAux || node->type == NodeType::kVariable) {
       ngraphShape_[node->name] = node->shape;
       ngraphDtype_[node->name] = node->dtype;
     }
@@ -125,24 +128,26 @@ nnvm::Graph Compiler::Compile() {
   return out_graph;
 }
 
-nnvm::NodeEntryMap<mxnet::NDArray> Compiler::makeCopiedFeedDict(
-    nnvm::NodeEntryMap<mxnet::NDArray> feed_dict) {
+nnvm::NodeEntryMap<mxnet::NDArray> Compiler::GetFeedDict() {
+  return feed_dict_;
+}
+std::vector<nnvm::NodePtr> Compiler::GetInputs(){
+  return inputs_;
+}
 
-  nnvm::NodeEntryMap<mxnet::NDArray> out_dict;
+void Compiler::makeCopiedFeedDict(
+    nnvm::NodeEntryMap<mxnet::NDArray> feed_dict) {
   for (auto kv : feed_dict){
     auto e = kv.first;
     e.node = node_map_[kv.first.node->attrs.name];
-    out_dict[e] = kv.second;
+    feed_dict_[e] = kv.second;
   }
-  return out_dict;
 }
 
-nnvmNodeVec Compiler::GetCopiedNodes(nnvmNodeVec inputs){
-  nnvmNodeVec output;
+void Compiler::makeCopiedInputs(nnvmNodeVec inputs){
   for (auto node : inputs){
-    output.push_back(node_map_[node->attrs.name]);
+    inputs_.push_back(node_map_[node->attrs.name]);
   }
-  return output;
 }
 
 nnvm::NodePtr CopyNode(const nnvm::NodePtr& node){

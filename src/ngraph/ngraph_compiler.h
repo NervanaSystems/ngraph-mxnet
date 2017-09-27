@@ -17,16 +17,16 @@ using ngraphDtype = std::unordered_map<std::string, int>;
 class Compiler {
  public:
   Compiler(const nnvm::Graph& graph,
-           const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict);
+           const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict,
+           std::vector<nnvm::NodePtr> inputs);
   // Main interface from MXNet
   // Compile a graph, take an MXNet graph and replace subsections of it
   // with ngraph operations
   nnvm::Graph Compile();
   // parse the nnvm graph into an intermediate rep
   void ParseNNVMGraph();
-  nnvmNodeVec GetCopiedNodes(nnvmNodeVec inputs);
-  nnvm::NodeEntryMap<mxnet::NDArray> makeCopiedFeedDict(
-    nnvm::NodeEntryMap<mxnet::NDArray> feed_dict);
+  nnvm::NodeEntryMap<mxnet::NDArray> GetFeedDict();
+  nnvmNodeVec GetInputs();
 
   const ngraphShape& GetNgraphShape() { return ngraphShape_; }
   const ngraphDtype& GetNgraphDtype() { return ngraphDtype_; }
@@ -36,6 +36,8 @@ class Compiler {
   void CheckInNGraph();
   void DeepCopy(nnvm::Graph graph);
   void CopyNodes(const nnvm::Graph& graph);
+  void makeCopiedFeedDict(nnvm::NodeEntryMap<mxnet::NDArray> feed_dict);
+  void makeCopiedInputs(nnvmNodeVec inputs);
 
   PyCompiler compiler_;
   NodeMap node_map_;
@@ -43,6 +45,8 @@ class Compiler {
   ngraph::Graph ngraph_;
   ngraphShape ngraphShape_;
   ngraphDtype ngraphDtype_;
+  nnvm::NodeEntryMap<mxnet::NDArray> feed_dict_;
+  nnvmNodeVec inputs_;
 };
 
 }  // end namespace ngraph

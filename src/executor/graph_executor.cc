@@ -506,12 +506,11 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   g = infer_graph(g);
 
 #if MXNET_USE_NGRAPH == 1
-  ngraph::Compiler compiler(g, feed_dict);
+  ngraph::Compiler compiler(g, feed_dict, 
+    symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs));
   g = compiler.Compile();
   
-  g = InitFullGraph(g, compiler.GetCopiedNodes(
-                           symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs)),
-                    grad_req_types);
+  g = InitFullGraph(g, compiler.GetInputs(), grad_req_types);
   // create "device" and "context" attrs for the graph
   g = AssignContext(g, default_ctx, ctx_map,
                     in_arg_ctxes,
@@ -536,8 +535,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // This function can be called by regular bind
   // operation flow as well.
 #if MXNET_USE_NGRAPH == 1
-  FinishInitGraph(symbol, g, shared_exec, 
-                  compiler.makeCopiedFeedDict(feed_dict));
+  FinishInitGraph(symbol, g, shared_exec, compiler.GetFeedDict());
 #else
   FinishInitGraph(symbol, g, shared_exec, feed_dict);
 #endif
@@ -872,12 +870,10 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
 
 
 #if MXNET_USE_NGRAPH == 1
-  ngraph::Compiler compiler(g, feed_dict);
+  ngraph::Compiler compiler(g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs));
   g = compiler.Compile();
   // create "device" and "context" attrs for the graph
-  g = InitFullGraph(g, compiler.GetCopiedNodes(
-                           symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs)),
-                    grad_req_types);
+  g = InitFullGraph(g, compiler.GetInputs(), grad_req_types);
 
   g = AssignContext(g, default_ctx, ctx_map,
                     in_arg_ctxes,
@@ -923,8 +919,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // This function can be called by regular bind
   // operation flow as well.
 #if MXNET_USE_NGRAPH == 1
-  FinishInitGraph(symbol, g, shared_exec, 
-                  compiler.makeCopiedFeedDict(feed_dict));
+  FinishInitGraph(symbol, g, shared_exec, compiler.GetFeedDict());
 #else
   FinishInitGraph(symbol, g, shared_exec, feed_dict);
 #endif
