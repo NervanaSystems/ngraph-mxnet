@@ -16,7 +16,7 @@ namespace ngraph {
 // map aliases for maps of name, function, where function returns an ngraph
 // pyobject
 using layerGraphs = std::map<std::string, std::function<Graph(const NodePtr)>>;
-using NodeMap = std::map<std::string, std::shared_ptr<nnvm::Node>>;
+using NodeMap = std::map<const nnvm::Node*, std::shared_ptr<nnvm::Node>>;
 using nnvmNodeVec = std::vector<nnvm::NodePtr>;
 using ngraphShape = std::unordered_map<std::string, nnvm::TShape>;
 using ngraphDtype = std::unordered_map<std::string, int>;

@@ -135,7 +135,7 @@ const std::vector<nnvm::NodePtr>& Compiler::GetInputs() { return inputs_; }
 state_map  Compiler::CopySavedStates(state_map saved_states) {
   state_map new_saved_states;
   for (auto kv : saved_states) {
-    new_saved_states[node_map_[kv.first->attrs.name].get()] = kv.second;
+    new_saved_states[node_map_[kv.first].get()] = kv.second;
   }
   return new_saved_states;
 }
@@ -144,14 +144,14 @@ void Compiler::makeCopiedFeedDict(
     nnvm::NodeEntryMap<mxnet::NDArray> feed_dict) {
   for (auto kv : feed_dict) {
     auto e = kv.first;
-    e.node = node_map_[kv.first.node->attrs.name];
+    e.node = node_map_[kv.first.node.get()];
     feed_dict_[e] = kv.second;
   }
 }
 
 void Compiler::makeCopiedInputs(nnvmNodeVec inputs) {
   for (auto node : inputs) {
-    inputs_.push_back(node_map_[node->attrs.name]);
+    inputs_.push_back(node_map_[node.get()]);
   }
 }
 
@@ -165,22 +165,22 @@ void Compiler::CopyNodes(const nnvm::Graph& graph) {
   copy_nodes = [this, &copy_nodes](const nnvm::NodePtr& node) {
 
     for (const auto& input : node->inputs) {
-      if (!node_map_.count(input.node->attrs.name)) {
-        node_map_[input.node->attrs.name] = CopyNode(input.node);
-        copy_nodes(node_map_[input.node->attrs.name]);
+      if (!node_map_.count(input.node.get())) {
+        node_map_[input.node.get()] = CopyNode(input.node);
+        copy_nodes(node_map_[input.node.get()]);
       }
     }
 
     for (const auto& input : node->control_deps) {
-      if (!node_map_.count(input->attrs.name)) {
-        node_map_[input->attrs.name] = CopyNode(input);
-        copy_nodes(node_map_[input->attrs.name]);
+      if (!node_map_.count(input.get())) {
+        node_map_[input.get()] = CopyNode(input);
+        copy_nodes(node_map_[input.get()]);
       }
     }
   };
 
   for (auto& out : graph.outputs) {
-    node_map_[out.node->attrs.name] = CopyNode(out.node);
+    node_map_[out.node.get()] = CopyNode(out.node);
     copy_nodes(out.node);
   }
 }
@@ -188,29 +188,33 @@ void Compiler::CopyNodes(const nnvm::Graph& graph) {
 void Compiler::DeepCopy(nnvm::Graph graph) {
   CopyNodes(graph);
 
-  std::map<std::string, bool> visited;
+  std::map<const nnvm::NodePtr, bool> visited;
 
   std::function<void(const nnvm::NodePtr&)> set_inputs;
 
   set_inputs = [&visited, &set_inputs, this](const nnvm::NodePtr& node) {
     int i = 0;
-    for (const auto& input : node->inputs) {
-      node->inputs[i].node = node_map_[input.node->attrs.name];
-      if (!visited.count(input.node->attrs.name)) {
-        visited[input.node->attrs.name] = true;
-        set_inputs(node_map_[input.node->attrs.name]);
+    for (const auto input : node->inputs) {
+      if (node_map_.count(input.node.get())){
+        node->inputs[i].node = node_map_[input.node.get()];
+        if (!visited.count(input.node)) {
+          visited[input.node] = true;
+          set_inputs(node_map_[input.node.get()]);
+        }
       }
       ++i;
     }
 
     i = 0;
-    for (const auto& input : node->control_deps) {
-      node->control_deps[i] = node_map_[input->attrs.name];
-      if (!visited.count(input->attrs.name)) {
-        visited[input->attrs.name] = true;
-        set_inputs(node_map_[input->attrs.name]);
+    for (const auto input : node->control_deps) {
+      if (node_map_.count(input.get())){
+        node->control_deps[i] = node_map_[input.get()];
+        if (!visited.count(input)) {
+          visited[input] = true;
+          set_inputs(node_map_[input.get()]);
+        }
+        ++i;
       }
-      ++i;
     }
   };
 
@@ -218,7 +222,8 @@ void Compiler::DeepCopy(nnvm::Graph graph) {
   graph_.attrs = graph.attrs;
 
   for (auto& out : graph_.outputs) {
-    out.node = node_map_[out.node->attrs.name];
+    if (node_map_.count(out.node.get()))
+      out.node = node_map_[out.node.get()];
     set_inputs(out.node);
   }
 }
