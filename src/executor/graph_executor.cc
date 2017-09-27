@@ -506,11 +506,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   g = infer_graph(g);
 
 #if MXNET_USE_NGRAPH == 1
-  std::unordered_map<std::string, TShape> ngraph_arg_shape_map;
-  std::unordered_map<std::string, int> ngraph_arg_dtype_map;
-
-  ngraph::Compiler compiler(g);
-  g = compiler.Compile(ngraph_arg_shape_map, ngraph_arg_dtype_map, feed_dict);
+  ngraph::Compiler compiler(g, feed_dict);
+  g = compiler.Compile();
   
   g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), 
     grad_req_types);
@@ -869,11 +866,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
 
 
 #if MXNET_USE_NGRAPH == 1
-  std::unordered_map<std::string, TShape> ngraph_arg_shape_map;
-  std::unordered_map<std::string, int> ngraph_arg_dtype_map;
-
-  ngraph::Compiler compiler(g);
-  g = compiler.Compile(ngraph_arg_shape_map, ngraph_arg_dtype_map, feed_dict);
+  ngraph::Compiler compiler(g, feed_dict);
+  g = compiler.Compile();
   // create "device" and "context" attrs for the graph
   g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), grad_req_types);
 
@@ -894,7 +888,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
 
   // auto ng_g = compiler.ParseNNVMGraph(g);
   // ng_g.WriteSubgraphDots("out");
-  g = infer_graph(g, ngraph_arg_shape_map, ngraph_arg_dtype_map);
+  g = infer_graph(g, compiler.GetNgraphShape(), compiler.GetNgraphDtype());
   
 #else
   const auto& idx = g.indexed_graph();

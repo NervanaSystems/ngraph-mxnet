@@ -9,19 +9,22 @@ namespace ngraph {
 // map aliases for maps of name, function, where function returns an ngraph
 // pyobject
 using layerGraphs = std::map<std::string, std::function<Graph(const NodePtr)>>;
+using ngraphShape = std::unordered_map<std::string, nnvm::TShape>;
+using ngraphDtype = std::unordered_map<std::string, int>;
 
 class Compiler {
  public:
-  Compiler(const nnvm::Graph& graph);
+  Compiler(const nnvm::Graph& graph,
+           const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict);
   // Main interface from MXNet
   // Compile a graph, take an MXNet graph and replace subsections of it
   // with ngraph operations
-  nnvm::Graph Compile(
-      std::unordered_map<std::string, nnvm::TShape>& arg_shape_map,
-      std::unordered_map<std::string, int>& arg_dtype_map,
-      const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict);
+  nnvm::Graph Compile();
   // parse the nnvm graph into an intermediate rep
   void ParseNNVMGraph();
+
+  const ngraphShape& GetNgraphShape() { return ngraphShape_; }
+  const ngraphDtype& GetNgraphDtype() { return ngraphDtype_; }
 
  private:
   // check nodes against ngraph operations
@@ -30,6 +33,8 @@ class Compiler {
   PyCompiler compiler_;
   nnvm::Graph graph_;
   ngraph::Graph ngraph_;
+  ngraphShape ngraphShape_;
+  ngraphDtype ngraphDtype_;
 };
 
 }  // end namespace ngraph
