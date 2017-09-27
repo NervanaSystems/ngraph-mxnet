@@ -41,18 +41,12 @@ layerGraphs create_layerGraphs() {
 }
 
 // Compiler initialization
-Compiler::Compiler(const nnvm::Graph& graph) {
+Compiler::Compiler(const nnvm::Graph& graph,
+                   const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict){}
   // initialize ngraph_
   DeepCopy(graph);
   ParseNNVMGraph();
   CheckInNGraph();
-}
-
-// Main compilation function
-nnvm::Graph Compiler::Compile(
-    std::unordered_map<std::string, nnvm::TShape>& arg_shape_map,
-    std::unordered_map<std::string, int>& arg_dtype_map,
-    const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict) {
 
   ngraph_.IdentifySubgraphs([&feed_dict](NodePtr s) {
     bool in_feed_dict = false;
@@ -64,13 +58,18 @@ nnvm::Graph Compiler::Compile(
     }
     return (s->in_ngraph && s->type == NodeType::kOp && !in_feed_dict);
   });
+}
 
+// Main compilation function
+nnvm::Graph Compiler::Compile() {
+  // Output Graphviz dot files (pre collapse) for vizualization
   if (false) ngraph_.WriteSubgraphDots("pre_collapse");
+
   ngraph_.CollapseSubgraphs();
 
-  // Output Graphviz dot files for vizualization
+  // Output Graphviz dot files (post collapse) for vizualization
   if (false) ngraph_.WriteSubgraphDots("post_collapse");
-  // throw;
+
   for (auto node : ngraph_.nodes_) {
     // store the input variable shape for use by nnvm
     // This is happening because my nnvm graph manipulations are
@@ -78,8 +77,8 @@ nnvm::Graph Compiler::Compile(
     // don't get properly inferred. Works, because we're inferring
     // the shapes before doing all of this, but not ideal
     if (node->type != NodeType::kGraph) {
-      arg_shape_map[node->name] = node->shape;
-      arg_dtype_map[node->name] = node->dtype;
+      ngraphShape_[node->name] = node->shape;
+      ngraphDtype_[node->name] = node->dtype;
     }
   }
 
