@@ -43,7 +43,7 @@ layerGraphs create_layerGraphs() {
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph,
                    const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict,
-                   nnvmNodeVec inputs) {
+                   const nnvmNodeVec& inputs) {
   DeepCopy(graph);
   makeCopiedInputs(inputs);
   makeCopiedFeedDict(feed_dict);
@@ -124,7 +124,7 @@ nnvm::Graph Compiler::Compile() {
   // initialize it with original graph nodes
   out_graph.outputs = graph_.outputs;
 
-  return out_graph;
+  return std::move(out_graph);
 }
 
 const nnvm::NodeEntryMap<mxnet::NDArray>& Compiler::GetFeedDict() {
@@ -132,7 +132,7 @@ const nnvm::NodeEntryMap<mxnet::NDArray>& Compiler::GetFeedDict() {
 }
 const std::vector<nnvm::NodePtr>& Compiler::GetInputs() { return inputs_; }
 
-StateMap  Compiler::CopySavedStates(StateMap saved_states) {
+StateMap  Compiler::CopySavedStates(const StateMap& saved_states) {
   StateMap new_saved_states;
   for (auto kv : saved_states) {
     new_saved_states[node_map_[kv.first].get()] = kv.second;
@@ -141,7 +141,7 @@ StateMap  Compiler::CopySavedStates(StateMap saved_states) {
 }
 
 void Compiler::makeCopiedFeedDict(
-    nnvm::NodeEntryMap<mxnet::NDArray> feed_dict) {
+    const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict) {
   for (auto kv : feed_dict) {
     auto e = kv.first;
     e.node = node_map_[kv.first.node.get()];
@@ -149,7 +149,7 @@ void Compiler::makeCopiedFeedDict(
   }
 }
 
-void Compiler::makeCopiedInputs(nnvmNodeVec inputs) {
+void Compiler::makeCopiedInputs(const nnvmNodeVec& inputs) {
   for (auto node : inputs) {
     inputs_.push_back(node_map_[node.get()]);
   }
@@ -194,7 +194,7 @@ void Compiler::CopyNodes(const nnvm::Graph& graph) {
   }
 }
 
-void Compiler::DeepCopy(nnvm::Graph graph) {
+void Compiler::DeepCopy(const nnvm::Graph& graph) {
   // make copies of all the graph nodes
   CopyNodes(graph);
   // a map for storing information on where the recursion has visited.

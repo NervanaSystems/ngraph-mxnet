@@ -26,14 +26,14 @@ class Compiler {
  public:
   Compiler(const nnvm::Graph& graph,
            const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict,
-           std::vector<nnvm::NodePtr> inputs);
+           const nnvmNodeVec& inputs);
   // Main interface from MXNet
   // Compile a graph, take an MXNet graph and replace subsections of it
   // with ngraph operations
   nnvm::Graph Compile();
   // parse the nnvm graph into an intermediate rep
   void ParseNNVMGraph();
-  StateMap CopySavedStates(StateMap saved_states);
+  StateMap CopySavedStates(const StateMap& saved_states);
 
   const ngraphShape& GetNgraphShape() { return ngraphShape_; }
   const ngraphDtype& GetNgraphDtype() { return ngraphDtype_; }
@@ -43,10 +43,10 @@ class Compiler {
  private:
   // check nodes against ngraph operations
   void CheckInNGraph();
-  void DeepCopy(nnvm::Graph graph);
+  void DeepCopy(const nnvm::Graph& graph);
   void CopyNodes(const nnvm::Graph& graph);
-  void makeCopiedFeedDict(nnvm::NodeEntryMap<mxnet::NDArray> feed_dict);
-  void makeCopiedInputs(nnvmNodeVec inputs);
+  void makeCopiedFeedDict(const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict);
+  void makeCopiedInputs(const nnvmNodeVec& inputs);
 
   PyCompiler compiler_;
   NodeMap node_map_;
