@@ -42,11 +42,14 @@ layerGraphs create_layerGraphs() {
 
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph,
-                   const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict)
-    : graph_(graph) {
-  // initialize ngraph_
+                   const NDArrayMap& feed_dict,
+                   const NNVMNodeVec& inputs) {
+  DeepCopy(graph);
+  makeCopiedInputs(inputs);
+  makeCopiedFeedDict(feed_dict);
   ParseNNVMGraph();
   CheckInNGraph();
+
   ngraph_.IdentifySubgraphs([&feed_dict](NodePtr s) {
     bool in_feed_dict = false;
     for (auto kv : feed_dict) {
@@ -75,7 +78,7 @@ nnvm::Graph Compiler::Compile() {
     // breaking the infer shape functionality, so shapes of inputs
     // don't get properly inferred. Works, because we're inferring
     // the shapes before doing all of this, but not ideal
-    if (node->type != NodeType::kGraph) {
+    if (node->type == NodeType::kAux || node->type == NodeType::kVariable) {
       ngraphShape_[node->name] = node->shape;
       ngraphDtype_[node->name] = node->dtype;
     }
@@ -121,7 +124,120 @@ nnvm::Graph Compiler::Compile() {
   // initialize it with original graph nodes
   out_graph.outputs = graph_.outputs;
 
-  return out_graph;
+  return std::move(out_graph);
+}
+
+
+StateMap  Compiler::CopySavedStates(const StateMap& saved_states) {
+  StateMap new_saved_states;
+  for (auto kv : saved_states) {
+    new_saved_states[nodeMap_[kv.first].get()] = kv.second;
+  }
+  return new_saved_states;
+}
+
+void Compiler::makeCopiedFeedDict(const NDArrayMap& feed_dict) {
+  for (auto kv : feed_dict) {
+    auto e = kv.first;
+    e.node = nodeMap_[kv.first.node.get()];
+    feedDict_[e] = kv.second;
+  }
+}
+
+void Compiler::makeCopiedInputs(const NNVMNodeVec& inputs) {
+  for (auto node : inputs) {
+    inputs_.push_back(nodeMap_[node.get()]);
+  }
+}
+
+void Compiler::CopyNodes(const nnvm::Graph& graph) {
+  // lambda that makes a copy of a node and returns
+  // a new smart pointer to that copy
+  auto CopyNode = [](const nnvm::NodePtr& node){
+    return std::make_shared<nnvm::Node>(*(node.get()));
+  };
+  // forward declaration
+  std::function<void(const nnvm::NodePtr&)> copy_nodes;
+
+  // function to copy a node and it's inputs based on recursion
+  auto copy_and_recurse = [this, &copy_nodes,
+                           &CopyNode](const nnvm::NodePtr& node) {
+    // check if we've copied this node already
+    if (!nodeMap_.count(node.get())) {
+      // if we haven't, make and store a copy
+      nodeMap_[node.get()] = CopyNode(node);
+      // and copy the input nodes
+      copy_nodes(nodeMap_[node.get()]);
+    }
+  };
+
+  // function for copying the inputs of a node
+  copy_nodes = [&copy_and_recurse](const nnvm::NodePtr& node) {
+    // copy all of the input nodes (and their inputs recursively)
+    for (const auto& input : node->inputs) {
+      copy_and_recurse(input.node);
+    }
+    // copy all of the control dependencies
+    for (const auto& input : node->control_deps) {
+      copy_and_recurse(node);
+    }
+  };
+
+  //Loop over the output nodes and the nodes and their inputs.
+  for (const auto& out : graph.outputs) {
+    copy_and_recurse(out.node);
+  }
+}
+
+void Compiler::DeepCopy(const nnvm::Graph& graph) {
+  // make copies of all the graph nodes
+  CopyNodes(graph);
+  // a map for storing information on where the recursion has visited.
+  std::map<const nnvm::NodePtr, bool> visited;
+
+  // forward declare recursive function
+  std::function<void(nnvm::NodePtr&)> set_inputs;
+
+  // function to replace a node with a copy and recurse on it's inputs
+  auto replace_node_and_recurse = [&visited, &set_inputs,
+                                   this](nnvm::NodePtr& node) {
+    // check to see if this is an original node or a copied node
+    if (nodeMap_.count(node.get())){
+      // if it's original make a copy of the node smart pointer
+      nnvm::NodePtr node_copy = node;
+      // replace the input node with the copied node
+      node = nodeMap_[node_copy.get()];
+      // check to see if we've recursed on this node before
+      // if we haven't, replace the inputs with copies
+      if (!visited.count(node_copy)) {
+        visited[node_copy] = true;
+        set_inputs(nodeMap_[node_copy.get()]);
+      }
+    }
+  };
+   
+  // function to replace the inputs of a node with copies
+  set_inputs = [&replace_node_and_recurse](nnvm::NodePtr& node) {
+    // replace the input nodes
+    for (auto& input : node->inputs) {
+      replace_node_and_recurse(input.node);
+    }
+    // replace the control deps
+    for ( auto& input : node->control_deps) {
+      replace_node_and_recurse(input);
+    }
+  };
+
+  // init the copied graph
+  graph_.outputs = graph.outputs;
+  graph_.attrs = graph.attrs;
+
+  // loop over the outputs and replace them
+  // not using const references because we're replacing the smart pointer in 
+  // in the funciton call
+  for (auto& out : graph_.outputs) {
+    replace_node_and_recurse(out.node);
+  }
 }
 
 // Check nodes in NGraph
