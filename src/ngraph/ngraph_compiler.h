@@ -20,7 +20,7 @@ using NodeMap = std::map<const nnvm::Node*, std::shared_ptr<nnvm::Node>>;
 using nnvmNodeVec = std::vector<nnvm::NodePtr>;
 using ngraphShape = std::unordered_map<std::string, nnvm::TShape>;
 using ngraphDtype = std::unordered_map<std::string, int>;
-using state_map = std::unordered_map<const nnvm::Node*, mxnet::OpStatePtr>;
+using StateMap = std::unordered_map<const nnvm::Node*, mxnet::OpStatePtr>;
 
 class Compiler {
  public:
@@ -33,7 +33,7 @@ class Compiler {
   nnvm::Graph Compile();
   // parse the nnvm graph into an intermediate rep
   void ParseNNVMGraph();
-  state_map CopySavedStates(state_map saved_states);
+  StateMap CopySavedStates(StateMap saved_states);
 
   const ngraphShape& GetNgraphShape() { return ngraphShape_; }
   const ngraphDtype& GetNgraphDtype() { return ngraphDtype_; }
