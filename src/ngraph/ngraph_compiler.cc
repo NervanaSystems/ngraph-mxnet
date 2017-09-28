@@ -42,8 +42,8 @@ layerGraphs create_layerGraphs() {
 
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph,
-                   const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict,
-                   const nnvmNodeVec& inputs) {
+                   const NDArrayMap& feed_dict,
+                   const NNVMNodeVec& inputs) {
   DeepCopy(graph);
   makeCopiedInputs(inputs);
   makeCopiedFeedDict(feed_dict);
@@ -127,31 +127,26 @@ nnvm::Graph Compiler::Compile() {
   return std::move(out_graph);
 }
 
-const nnvm::NodeEntryMap<mxnet::NDArray>& Compiler::GetFeedDict() {
-  return feed_dict_;
-}
-const std::vector<nnvm::NodePtr>& Compiler::GetInputs() { return inputs_; }
 
 StateMap  Compiler::CopySavedStates(const StateMap& saved_states) {
   StateMap new_saved_states;
   for (auto kv : saved_states) {
-    new_saved_states[node_map_[kv.first].get()] = kv.second;
+    new_saved_states[nodeMap_[kv.first].get()] = kv.second;
   }
   return new_saved_states;
 }
 
-void Compiler::makeCopiedFeedDict(
-    const nnvm::NodeEntryMap<mxnet::NDArray>& feed_dict) {
+void Compiler::makeCopiedFeedDict(const NDArrayMap& feed_dict) {
   for (auto kv : feed_dict) {
     auto e = kv.first;
-    e.node = node_map_[kv.first.node.get()];
-    feed_dict_[e] = kv.second;
+    e.node = nodeMap_[kv.first.node.get()];
+    feedDict_[e] = kv.second;
   }
 }
 
-void Compiler::makeCopiedInputs(const nnvmNodeVec& inputs) {
+void Compiler::makeCopiedInputs(const NNVMNodeVec& inputs) {
   for (auto node : inputs) {
-    inputs_.push_back(node_map_[node.get()]);
+    inputs_.push_back(nodeMap_[node.get()]);
   }
 }
 
@@ -168,11 +163,11 @@ void Compiler::CopyNodes(const nnvm::Graph& graph) {
   auto copy_and_recurse = [this, &copy_nodes,
                            &CopyNode](const nnvm::NodePtr& node) {
     // check if we've copied this node already
-    if (!node_map_.count(node.get())) {
+    if (!nodeMap_.count(node.get())) {
       // if we haven't, make and store a copy
-      node_map_[node.get()] = CopyNode(node);
+      nodeMap_[node.get()] = CopyNode(node);
       // and copy the input nodes
-      copy_nodes(node_map_[node.get()]);
+      copy_nodes(nodeMap_[node.get()]);
     }
   };
 
@@ -207,16 +202,16 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
   auto replace_node_and_recurse = [&visited, &set_inputs,
                                    this](nnvm::NodePtr& node) {
     // check to see if this is an original node or a copied node
-    if (node_map_.count(node.get())){
+    if (nodeMap_.count(node.get())){
       // if it's original make a copy of the node smart pointer
       nnvm::NodePtr node_copy = node;
       // replace the input node with the copied node
-      node = node_map_[node_copy.get()];
+      node = nodeMap_[node_copy.get()];
       // check to see if we've recursed on this node before
       // if we haven't, replace the inputs with copies
       if (!visited.count(node_copy)) {
         visited[node_copy] = true;
-        set_inputs(node_map_[node_copy.get()]);
+        set_inputs(nodeMap_[node_copy.get()]);
       }
     }
   };
