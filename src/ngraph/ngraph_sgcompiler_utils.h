@@ -1,46 +1,11 @@
 #ifndef NGRAPH_PYCOMPILER_UTILS_H_
 #define NGRAPH_PYCOMPILER_UTILS_H_
 
-#include "ngraph_utils.h"
 #include <sstream>
 #include <iostream>
+#include <vector>
 
-namespace ngraph {
-
-using pyvec = std::vector<py::object>;
-
-// utility to convert iterable object into a python tuple
-// no error checking on the input, can fail miserably if user gives
-// an incorrect input
-template <typename T>
-inline py::tuple createPyTuple(const T items) {
-  py::tuple out = py::make_tuple();
-  for (auto i : items) {
-    out = out.attr("__add__")(py::make_tuple(i));
-  }
-  return out;
-}
-
-// get the number of axes in a ngraph op/placeholder
-inline int num_axes(py::object data) {
-  int i = 0;
-  for (auto ax : data.attr("axes")) i += 1;
-  return i;
-}
-
-// convoluted way to get the Nth axes of an ngraph placeholder/Op
-// is there a better way to do this through the pybind API?
-inline py::object getNthAxis(py::object data, int N) {
-  int i = 0;
-  for (auto ax : data.attr("axes")) {
-    if (i < N) {
-      i += 1;
-      continue;
-    }
-    return ax.cast<py::object>();
-  }
-  throw ("N is larger than the number of axes in data");
-}
+namespace ngraph_bridge {
 
 // parse a list like (1, 2, 3) into a vector of ints [1,2,3]
 inline std::vector<int> getInts(std::string input) {

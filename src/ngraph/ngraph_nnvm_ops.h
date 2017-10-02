@@ -4,7 +4,7 @@
 #include <nnvm/op.h>
 #include "ngraph_graph.h"
 
-namespace ngraph {
+namespace ngraph_bridge {
 // function for returning nnvm::Op corresponding to a subgraph
 nnvm::Op* get_subgraph_op(std::shared_ptr<Graph> graph);
 // function for registering subgraph operation with nnvm

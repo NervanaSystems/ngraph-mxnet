@@ -506,7 +506,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   g = infer_graph(g);
 
 #if MXNET_USE_NGRAPH == 1
-  ngraph::Compiler compiler(g, feed_dict, 
+  ngraph_bridge::Compiler compiler(g, feed_dict, 
     symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs));
   saved_states_ = compiler.CopySavedStates(saved_states_);
   g = compiler.Compile();
@@ -871,7 +871,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
 
 
 #if MXNET_USE_NGRAPH == 1
-  ngraph::Compiler compiler(g, feed_dict, 
+  ngraph_bridge::Compiler compiler(g, feed_dict, 
     symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs));
   saved_states_ = compiler.CopySavedStates(saved_states_);
   g = compiler.Compile();

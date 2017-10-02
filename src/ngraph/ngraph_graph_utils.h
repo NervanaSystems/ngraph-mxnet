@@ -2,8 +2,9 @@
 #define NGRAPH_GRAPH_UTILS_H_
 
 #include <random>
+#include <string>
 
-namespace ngraph {
+namespace ngraph_bridge {
 
 //create a random string to avoid subgraph name collisions
 inline std::string randomString(const int length = 12) {

@@ -2,10 +2,9 @@
 #include <nnvm/node.h>
 #include <nnvm/pass.h>
 #include <algorithm>
-#include "ngraph_compiler_utils.h"
 #include "ngraph_nnvm_ops.h"
 
-namespace ngraph {
+namespace ngraph_bridge {
 
 // Function to create an nnvm node from a ngraph subgraph
 nnvm::NodeEntry CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
@@ -27,8 +26,8 @@ nnvm::NodeEntry CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
 
 // Generator to create functions that convert mxnet layer operations
 // into a series of ngraph operations
-layerGraphs create_layerGraphs() {
-  layerGraphs layer_funcs;
+LayerGraphs create_layerGraphs() {
+  LayerGraphs layer_funcs;
   layer_funcs[std::string("Activation")] = [](const NodePtr node) {
     Graph tmpGraph;
     auto act_type = node->orig_node->attrs.dict["act_type"];
@@ -271,6 +270,13 @@ void Compiler::CheckInNGraph() {
       node->in_ngraph = true;
     }
   }
+}
+
+inline std::string clean_opname(std::string name) {
+  for (std::string str : {"elemwise_", "broadcast_"})
+    if (name.substr(0, str.size()) == str) name = name.substr(str.size());
+  if (name == "_mul") name = "multiply";
+  return name;
 }
 
 // Function that parses an nnvm Graph into an intermediary graph
