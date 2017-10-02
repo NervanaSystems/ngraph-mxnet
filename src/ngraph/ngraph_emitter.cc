@@ -6,9 +6,9 @@ namespace ngraph_bridge {
 // Compiter initialization
 Emitter::Emitter() {
   // Create Operation Maps
-  NgraphUnaryOps_ = create_UnaryOps();
-  NgraphBinaryOps_ = create_BinaryOps();
-  NgraphLayerOps_ = create_LayerOps();
+  create_UnaryOps();
+  create_BinaryOps();
+  create_LayerOps();
 
   // Find all the valid operation names
   for (auto x : NgraphUnaryOps_) NgraphOps_.emplace_back(x.first);
@@ -18,23 +18,14 @@ Emitter::Emitter() {
 
 
 // unary op genrating function generator
-UnaryOps Emitter::create_UnaryOps() {
-  UnaryOps output;
-
-  return output;
+void Emitter::create_UnaryOps() {
 }
 
 // binary op generating function generator
-BinaryOps Emitter::create_BinaryOps() {
-  BinaryOps output;
-
-  return output;
+void Emitter::create_BinaryOps() {
 }
 
 // MXNet high level ops generating function
-LayerOps Emitter::create_LayerOps() {
-  LayerOps output;
-
-  return output;
+void Emitter::create_LayerOps() {
 }
 }  // end namespace ngraph

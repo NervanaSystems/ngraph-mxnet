@@ -8,11 +8,11 @@
 namespace ngraph_bridge {
 
 // Main compilation function
-std::shared_ptr<Graph> SGCompiler::Compile(NodePtr graph) {
+std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
   // clear the op_map and placeholder_order
   ClearOpMap();
   // cast the graph
-  auto sg = std::dynamic_pointer_cast<Graph>(graph);
+  auto sg = std::dynamic_pointer_cast<Graph>(sub_graph);
   // compile the subgraph into a python computation
   CompileSubgraph(sg);
   ClearOpMap();
@@ -20,14 +20,12 @@ std::shared_ptr<Graph> SGCompiler::Compile(NodePtr graph) {
 }
 
 void SGCompiler::ClearOpMap(){
-  std::map<std::string, NgraphNodePtr> tmp_op_map;
-  std::vector<std::string> tmp_placeholder_order;
-  op_map = tmp_op_map;
-  placeholder_order = tmp_placeholder_order;
+  op_map.clear();
+  placeholder_order.clear();
 }
 
 // Compile a Subgraph into ngraph python objects
-void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
+void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // initalize a placeholder order vector for this subgraph
   for (auto i : graph->inputs) placeholder_order.push_back(i->name);
 
@@ -36,7 +34,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> graph) {
 }
 
 // compiling a node
-void SGCompiler::CompileNode(NodePtr node, std::shared_ptr<Graph> graph) {
+void SGCompiler::CompileNode(NodePtr node) {
   // if the node has been compiled, return
   if (op_map.count(node->name) > 0) {
     return;

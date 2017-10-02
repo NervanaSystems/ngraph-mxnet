@@ -13,17 +13,13 @@ namespace ngraph_bridge {
 
 // Utility function for numpy array outputs -> TBlob
 template <typename T>
-inline void result_to_TBlob(T result,
+inline void result_to_TBlob(T result, 
                             const std::vector<mxnet::TBlob>& outputs,
                             int outnum) {
-  //TODO: handle other data types
-  // py::array_t<float> py_array_result(py_result);
-  // void* res_ptr = (void*)py_array_result.request().ptr;
-  // size_t buffer_size = 4; //4 bytes per 32bit float
-  // for (size_t i = 0; i < outputs[outnum].shape_.ndim(); ++i)
-  //   buffer_size *= outputs[outnum].shape_[i];
-  // // Memcpy to output
-  // std::memcpy(outputs[outnum].dptr_, res_ptr, buffer_size);
+  // TODO: Does this properly support all data types?
+  auto buffer_size = result.size(); 
+  // Memcpy to output - TODO::Probably a better way to do this.
+  std::memcpy(outputs[outnum].dptr_, result->get_vector().data(), buffer_size);
 }
 
 // get the OP from nnvm, return a pointer to it.
