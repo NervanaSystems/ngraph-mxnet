@@ -66,9 +66,9 @@ USE_OPENCV = 1
 USE_OPENMP = 1
 
 # whether to use NGRAPH during compile
-# Need to point to a version of python with ngraph installed
-USE_NGRAPH = 1
-NGRAPH_DIR = /home/brookhart/ngraph_dist
+# Need to point to ngraph
+USE_NGRAPH = 0
+NGRAPH_DIR = 
 
 
 # MKL ML Library for Intel CPU/Xeon Phi
