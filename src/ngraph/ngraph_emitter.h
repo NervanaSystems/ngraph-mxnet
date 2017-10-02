@@ -27,11 +27,11 @@ public:
   std::vector<std::string> NgraphOps_;
 protected:
   // create unary operation functions
-  UnaryOps create_UnaryOps();
+  void create_UnaryOps();
   // create binary operation functions
-  BinaryOps create_BinaryOps();
+  void create_BinaryOps();
   // create larger MXNet layer operations
-  LayerOps create_LayerOps();
+  void create_LayerOps();
 
   // maps of ngraph operation generator functions
   UnaryOps NgraphUnaryOps_;

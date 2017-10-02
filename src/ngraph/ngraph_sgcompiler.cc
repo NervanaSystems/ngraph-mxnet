@@ -27,7 +27,7 @@ void SGCompiler::ClearOpMap(){
 // Compile a Subgraph into ngraph python objects
 void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // initalize a placeholder order vector for this subgraph
-  for (auto i : graph->inputs) placeholder_order.push_back(i->name);
+  for (auto i : sub_graph->inputs) placeholder_order.push_back(i->name);
 
   // Not yet Implemented for ngraph++
   

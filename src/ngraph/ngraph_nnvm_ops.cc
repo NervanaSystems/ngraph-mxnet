@@ -10,16 +10,65 @@
 #include "ngraph_nnvm_ops.h"
 
 namespace ngraph_bridge {
+// Utility Function for TBlobs -> vector of ParameterizedTensorView
+// TODO: templatize this for non-float vals
+inline std::vector<std::shared_ptr<ngraph::runtime::Value > > 
+make_placeholder_vals(const std::vector<mxnet::TBlob>& inputs) {
+  std::vector<std::shared_ptr<ngraph::runtime::Value > > out;
+  for (size_t i = 0; i < inputs.size(); ++i) {
+    ngraph::Shape shape;
+    for (size_t j = 0; j < inputs[i].shape_.ndim(); ++j) 
+      shape.push_back(inputs[i].shape_[j]);
+    // TODO: there should be a way to get this froim ParamemeterizeTensorView
+    size_t buffer_size = 4; //4 bytes per 32bit float
+    for (size_t i = 0; i < inputs[i].shape_.ndim(); ++i)
+      buffer_size *= inputs[i].shape_[i];
+    auto TV = std::make_shared<
+        ngraph::runtime::ParameterizedTensorView<ngraph::element::Float32>>(
+        shape);
+    std::memcpy(TV->get_vector().data(), (float*)inputs[i].dptr_, buffer_size);
+    out.emplace_back(std::move(TV));
+  }
+  return out;
+}
+
+// TODO: Code copy with make_placeholder_vals, fix?
+inline std::vector<std::shared_ptr<ngraph::runtime::Value > > 
+make_results(const std::vector<mxnet::TBlob>& outputs) {
+  std::vector<std::shared_ptr<ngraph::runtime::Value > > out;
+  for (size_t i = 0; i < outputs.size(); ++i) {
+    ngraph::Shape shape;
+    for (size_t j = 0; j < outputs[i].shape_.ndim(); ++j) 
+      shape.push_back(outputs[i].shape_[j]);
+
+    auto TV = std::make_shared<
+        ngraph::runtime::ParameterizedTensorView<ngraph::element::Float32>>(
+        shape);
+    out.emplace_back(std::move(TV));
+  }
+  return out;
+}
+
 
 // Utility function for numpy array outputs -> TBlob
 template <typename T>
-inline void result_to_TBlob(T result, 
+inline void result_to_TBlob(T& result, 
                             const std::vector<mxnet::TBlob>& outputs,
                             int outnum) {
-  // TODO: Does this properly support all data types?
-  auto buffer_size = result.size(); 
+  // TODO: there should be a way to get this froim ParamemeterizeTensorView through
+  // the template
+  size_t buffer_size = 4; //4 bytes per 32bit float
+  for (size_t i = 0; i < outputs[outnum].shape_.ndim(); ++i)
+    buffer_size *= outputs[outnum].shape_[i];
   // Memcpy to output - TODO::Probably a better way to do this.
-  std::memcpy(outputs[outnum].dptr_, result->get_vector().data(), buffer_size);
+  std::memcpy(
+      outputs[outnum].dptr_,
+      std::dynamic_pointer_cast<
+          ngraph::runtime::ParameterizedTensorView<ngraph::element::Float32>>(
+          result)
+          ->get_vector()
+          .data(),
+      buffer_size);
 }
 
 // get the OP from nnvm, return a pointer to it.
@@ -144,12 +193,13 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
                           const std::vector<mxnet::TBlob>& inputs,
                           const std::vector<mxnet::OpReqType>& req,
                           const std::vector<mxnet::TBlob>& outputs) -> void {
-        // // get a tuple of numpy arrays that point to the input data
-        // py::tuple py_placeholder_vals = make_placeholder_vals(inputs);
-        // // run the computation
-        // py::object py_result = (*computation)(*py_placeholder_vals);
-        // // get the ouput array
-        // py_result_to_TBlob(py_result, outputs, 0);
+        auto cf = computation->make_call_frame();
+        // get a tuple of numpy arrays that point to the input data
+        auto placeholders = make_placeholder_vals(inputs);
+        // run the computation
+        auto results = make_results(outputs);
+        (*cf)(placeholders, results); 
+        result_to_TBlob(results[0], outputs, 0);
       });
 }
 
@@ -184,13 +234,14 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
                           const std::vector<mxnet::TBlob>& inputs,
                           const std::vector<mxnet::OpReqType>& req,
                           const std::vector<mxnet::TBlob>& outputs) -> void {
-        // // get a tuple of numpy arrays that point to the input data
-        // py::tuple py_placeholder_vals = make_placeholder_vals(inputs);
-        // // run the computation
-        // py::list py_result = (*computation)(*py_placeholder_vals);
-        // for (size_t j = 0; j < py_result.size(); ++j) {
-        //   py_result_to_TBlob(py_result[j], outputs, j);
-        // }
+        auto cf = computation->make_call_frame();
+        // get a tuple of numpy arrays that point to the input data
+        auto placeholders = make_placeholder_vals(inputs);
+        // run the computation
+        auto results = make_results(outputs);
+        (*cf)(placeholders, results);
+        for (size_t j = 0; j < results.size(); ++j) 
+          result_to_TBlob(results[j], outputs, j);
       });
 }
 // register subgraph ops with nnvm.
