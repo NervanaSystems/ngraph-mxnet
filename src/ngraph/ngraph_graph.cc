@@ -4,7 +4,7 @@
 #include <functional>
 #include <stack>
 
-namespace ngraph {
+namespace ngraph_bridge {
 // Type Aliases
 using OpNodePtr = std::shared_ptr<OpNode>;
 

@@ -94,8 +94,8 @@ ifeq ($(USE_NNPACK), 1)
 	LDFLAGS += -lnnpack
 endif
 ifeq ($(USE_NGRAPH),1)
-        CFLAGS += -I$(ROOTDIR)/src/ngraph -I$(PY_INCLUDE) -DMXNET_USE_NGRAPH=1
-        LDFLAGS += -L$(PY_LIB) -lpython2.7
+        CFLAGS += -I$(ROOTDIR)/src/ngraph -I$(NGRAPH_DIR)/include -DMXNET_USE_NGRAPH=1
+        LDFLAGS += -L$(NGRAPH_DIR)/lib -lngraph
 endif
 ifeq ($(USE_MKL2017), 1)
 	CFLAGS += -DMXNET_USE_MKL2017=1

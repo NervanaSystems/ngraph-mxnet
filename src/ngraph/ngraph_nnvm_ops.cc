@@ -8,42 +8,22 @@
 
 #include "../operator/operator_common.h"
 #include "ngraph_nnvm_ops.h"
-#include "ngraph_utils.h"
-#include "pybind11/eval.h"
-#include "pybind11/numpy.h"
 
-namespace ngraph {
-// Utility function for TBlob inputs -> list of numpy arrays
-inline py::tuple make_placeholder_vals(
-    const std::vector<mxnet::TBlob>& inputs) {
-  py::tuple py_placeholder_vals = py::make_tuple();
-  for (size_t i = 0; i < inputs.size(); ++i) {
-    // Create py::array of actual value of placeholder[i]
-    float* value = (float*)inputs[i].dptr_;
-    std::vector<size_t> shape;
-    for (size_t j = 0; j < inputs[i].shape_.ndim(); ++j) {
-      shape.push_back(inputs[i].shape_[j]);
-    }
-    py::array_t<float> py_placeholder_val(shape, value);
-    // push array to placeholder
-    py_placeholder_vals =
-        py_placeholder_vals.attr("__add__")(py::make_tuple(py_placeholder_val));
-  }
-  return py_placeholder_vals;
-}
+namespace ngraph_bridge {
+
 // Utility function for numpy array outputs -> TBlob
 template <typename T>
-inline void py_result_to_TBlob(T py_result,
-                               const std::vector<mxnet::TBlob>& outputs,
-                               int outnum) {
+inline void result_to_TBlob(T result,
+                            const std::vector<mxnet::TBlob>& outputs,
+                            int outnum) {
   //TODO: handle other data types
-  py::array_t<float> py_array_result(py_result);
-  void* res_ptr = (void*)py_array_result.request().ptr;
-  size_t buffer_size = 4; //4 bytes per 32bit float
-  for (size_t i = 0; i < outputs[outnum].shape_.ndim(); ++i)
-    buffer_size *= outputs[outnum].shape_[i];
-  // Memcpy to output
-  std::memcpy(outputs[outnum].dptr_, res_ptr, buffer_size);
+  // py::array_t<float> py_array_result(py_result);
+  // void* res_ptr = (void*)py_array_result.request().ptr;
+  // size_t buffer_size = 4; //4 bytes per 32bit float
+  // for (size_t i = 0; i < outputs[outnum].shape_.ndim(); ++i)
+  //   buffer_size *= outputs[outnum].shape_[i];
+  // // Memcpy to output
+  // std::memcpy(outputs[outnum].dptr_, res_ptr, buffer_size);
 }
 
 // get the OP from nnvm, return a pointer to it.
@@ -157,7 +137,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
         return mxnet::op::type_assign(&((*oattr)[0]), dtype);
       });
 
-  auto computation = graph->py_computation;
+  auto computation = graph->ngraph_forward;
   auto name = graph->name;
 
   // create the compute lambda
@@ -168,14 +148,12 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
                           const std::vector<mxnet::TBlob>& inputs,
                           const std::vector<mxnet::OpReqType>& req,
                           const std::vector<mxnet::TBlob>& outputs) -> void {
-        // Lock the gil
-        gil_state state;
-        // get a tuple of numpy arrays that point to the input data
-        py::tuple py_placeholder_vals = make_placeholder_vals(inputs);
-        // run the computation
-        py::object py_result = (*computation)(*py_placeholder_vals);
-        // get the ouput array
-        py_result_to_TBlob(py_result, outputs, 0);
+        // // get a tuple of numpy arrays that point to the input data
+        // py::tuple py_placeholder_vals = make_placeholder_vals(inputs);
+        // // run the computation
+        // py::object py_result = (*computation)(*py_placeholder_vals);
+        // // get the ouput array
+        // py_result_to_TBlob(py_result, outputs, 0);
       });
 }
 
@@ -199,7 +177,7 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
   // Mark as backward
   op.set_attr<bool>("TIsBackward", true);
 
-  auto computation = graph->py_backward;
+  auto computation = graph->ngraph_backward;
   auto name = graph->name;
   
   // create the compute lambda
@@ -210,16 +188,13 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
                           const std::vector<mxnet::TBlob>& inputs,
                           const std::vector<mxnet::OpReqType>& req,
                           const std::vector<mxnet::TBlob>& outputs) -> void {
-        // Lock the gil
-        gil_state state;
-        // get a tuple of numpy arrays that point to the input data
-
-        py::tuple py_placeholder_vals = make_placeholder_vals(inputs);
-        // run the computation
-        py::list py_result = (*computation)(*py_placeholder_vals);
-        for (size_t j = 0; j < py_result.size(); ++j) {
-          py_result_to_TBlob(py_result[j], outputs, j);
-        }
+        // // get a tuple of numpy arrays that point to the input data
+        // py::tuple py_placeholder_vals = make_placeholder_vals(inputs);
+        // // run the computation
+        // py::list py_result = (*computation)(*py_placeholder_vals);
+        // for (size_t j = 0; j < py_result.size(); ++j) {
+        //   py_result_to_TBlob(py_result[j], outputs, j);
+        // }
       });
 }
 // register subgraph ops with nnvm.

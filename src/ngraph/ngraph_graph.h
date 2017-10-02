@@ -13,9 +13,9 @@
 #include <nnvm/symbolic.h>
 #include <nnvm/tuple.h>
 
-#include "ngraph_utils.h"
+#include <ngraph/ngraph.hpp>
 
-namespace ngraph {
+namespace ngraph_bridge {
 
 // Forward Delcaration for type aliases
 class Node;
@@ -56,7 +56,6 @@ class Node {
   bool in_ngraph = false;
   std::string operation = "";
   int subgraph = 0;
-  py::object ngraph_rep;
 };
 
 // Variable Node
@@ -160,8 +159,8 @@ class Graph : public Node {
   }
   int num_outputs = 1;
   std::vector<NodePtr> nodes_;
-  std::shared_ptr<py::object> py_computation;
-  std::shared_ptr<py::object> py_backward;
+  std::shared_ptr<ngraph::runtime::ExternalFunction> ngraph_forward;
+  std::shared_ptr<ngraph::runtime::ExternalFunction> ngraph_backward;
 };
 
 

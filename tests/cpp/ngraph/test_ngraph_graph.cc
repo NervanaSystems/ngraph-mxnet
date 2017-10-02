@@ -1,7 +1,7 @@
 #include "test_util.h"
 
 #include "../../src/ngraph/ngraph_graph.h"
-namespace ngraph {
+namespace ngraph_bridge {
 
 auto test_node = std::make_shared<nnvm::Node>();
 auto test_input = std::make_shared<nnvm::Node>();
@@ -99,7 +99,6 @@ struct DFS_Test {
     branching_graph.AddNode(std::shared_ptr<OpNode>(
         new OpNode(nullptr, "op3", opnames[3],
                    {branching_graph.nodes_[4]})));
-    branching_graph.IdentifySubgraphs(isop);
     // branching_graph.WriteDot("branching.dot");
   }
   Graph linear_graph;
@@ -159,18 +158,20 @@ TEST(NGRAPH_GRAPH, GRAPH_FIND_SUBGRAPH) {
 }
 
 TEST(NGRAPH_GRAPH, GRAPH_IDENTIFY_SUBGRAPHS) {
+  test_search.branching_graph.IdentifySubgraphs(isop);
   EXPECT_EQ(test_search.branching_graph.nodes_[0]->subgraph, 0);
-  EXPECT_EQ(test_search.branching_graph.nodes_[1]->subgraph, 0);
+  EXPECT_EQ(test_search.branching_graph.nodes_[1]->subgraph, -1);
   EXPECT_EQ(test_search.branching_graph.nodes_[2]->subgraph, 1);
-  EXPECT_EQ(test_search.branching_graph.nodes_[3]->subgraph, 0);
+  EXPECT_EQ(test_search.branching_graph.nodes_[3]->subgraph, -1);
   EXPECT_EQ(test_search.branching_graph.nodes_[4]->subgraph, 1);
   EXPECT_EQ(test_search.branching_graph.nodes_[5]->subgraph, 1);
 }
 
 struct SUBG_test {
   SUBG_test() {
+    test.branching_graph.IdentifySubgraphs(isop);
     test.branching_graph.CollapseSubgraphs();
-    test.branching_graph.WriteSubgraphDots("collapsed_branches.dot");
+    test.branching_graph.WriteSubgraphDots("collapsed_branches");
   }
   DFS_Test test;
 };

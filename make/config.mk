@@ -66,10 +66,10 @@ USE_OPENCV = 1
 USE_OPENMP = 1
 
 # whether to use NGRAPH during compile
-# Need to point to a version of python with ngraph installed
+# Need to point to ngraph
 USE_NGRAPH = 0
-PY_INCLUDE = /usr/include/python2.7
-PY_LIB = /usr/lib
+NGRAPH_DIR = 
+
 
 # MKL ML Library for Intel CPU/Xeon Phi
 # Please refer to MKL_README.md for details
@@ -96,7 +96,7 @@ UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S), Darwin)
 USE_BLAS = apple
 else
-USE_BLAS = atlas
+USE_BLAS = openblas
 endif
 
 # whether use lapack during compilation
