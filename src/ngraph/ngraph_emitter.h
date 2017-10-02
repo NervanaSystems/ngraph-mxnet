@@ -1,5 +1,5 @@
-#ifndef NGRAPH_PYEMITTER_H_
-#define NGRAPH_PYEMITTER_H_
+#ifndef NGRAPH_EMITTER_H_
+#define NGRAPH_EMITTER_H_
 
 #include "ngraph_graph.h"
 

@@ -1,5 +1,5 @@
-#ifndef NGRAPH_PYCOMPILER_H_
-#define NGRAPH_PYCOMPILER_H_
+#ifndef NGRAPH_SGCOMPILER_H_
+#define NGRAPH_SGCOMPILER_H_
 
 #include "ngraph_graph.h"
 #include "ngraph_emitter.h"
