@@ -1,15 +1,37 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 # coding: utf-8
 # pylint: disable=no-member, invalid-name, protected-access, no-self-use
 # pylint: disable=too-many-branches, too-many-arguments, no-self-use
 # pylint: disable=too-many-lines, arguments-differ
 """Definition of various recurrent neural network cells."""
-from __future__ import print_function
+__all__ = ['RecurrentCell', 'HybridRecurrentCell',
+           'RNNCell', 'LSTMCell', 'GRUCell',
+           'SequentialRNNCell', 'DropoutCell',
+           'ModifierCell', 'ZoneoutCell', 'ResidualCell',
+           'BidirectionalCell']
 
 from ... import symbol, ndarray
 from ...base import string_types, numeric_types, _as_list
 from ..block import Block, HybridBlock
 from ..utils import _indent
 from .. import tensor_types
+from ..nn import LeakyReLU
 
 
 def _cells_state_info(cells, batch_size):
@@ -104,6 +126,8 @@ class RecurrentCell(Block):
         """Reset before re-using the cell for another graph."""
         self._init_counter = -1
         self._counter = -1
+        for cell in self._children:
+            cell.reset()
 
     def state_info(self, batch_size=0):
         """shape and layout information of states"""
@@ -212,6 +236,8 @@ class RecurrentCell(Block):
         """Get activation function. Convert if is string"""
         if isinstance(activation, string_types):
             return F.Activation(inputs, act_type=activation, **kwargs)
+        elif isinstance(activation, LeakyReLU):
+            return F.LeakyReLU(inputs, act_type='leaky', slope=activation._alpha, **kwargs)
         else:
             return activation(inputs, **kwargs)
 
@@ -256,7 +282,17 @@ class HybridRecurrentCell(RecurrentCell, HybridBlock):
 
 
 class RNNCell(HybridRecurrentCell):
-    """Simple recurrent neural network cell.
+    r"""Elman RNN recurrent neural network cell.
+
+    Each call computes the following function:
+
+    .. math::
+
+        h_t = \tanh(w_{ih} * x_t + b_{ih}  +  w_{hh} * h_{(t-1)} + b_{hh})
+
+    where :math:`h_t` is the hidden state at time `t`, and :math:`x_t` is the hidden
+    state of the previous layer at time `t` or :math:`input_t` for the first layer.
+    If nonlinearity='relu', then `ReLU` is used instead of `tanh`.
 
     Parameters
     ----------
@@ -324,7 +360,25 @@ class RNNCell(HybridRecurrentCell):
 
 
 class LSTMCell(HybridRecurrentCell):
-    """Long-Short Term Memory (LSTM) network cell.
+    r"""Long-Short Term Memory (LSTM) network cell.
+
+    Each call computes the following function:
+
+    .. math::
+        \begin{array}{ll}
+        i_t = sigmoid(W_{ii} x_t + b_{ii} + W_{hi} h_{(t-1)} + b_{hi}) \\
+        f_t = sigmoid(W_{if} x_t + b_{if} + W_{hf} h_{(t-1)} + b_{hf}) \\
+        g_t = \tanh(W_{ig} x_t + b_{ig} + W_{hc} h_{(t-1)} + b_{hg}) \\
+        o_t = sigmoid(W_{io} x_t + b_{io} + W_{ho} h_{(t-1)} + b_{ho}) \\
+        c_t = f_t * c_{(t-1)} + i_t * g_t \\
+        h_t = o_t * \tanh(c_t)
+        \end{array}
+
+    where :math:`h_t` is the hidden state at time `t`, :math:`c_t` is the
+    cell state at time `t`, :math:`x_t` is the hidden state of the previous
+    layer at time `t` or :math:`input_t` for the first layer, and :math:`i_t`,
+    :math:`f_t`, :math:`g_t`, :math:`o_t` are the input, forget, cell, and
+    out gates, respectively.
 
     Parameters
     ----------
@@ -399,9 +453,23 @@ class LSTMCell(HybridRecurrentCell):
 
 
 class GRUCell(HybridRecurrentCell):
-    """Gated Rectified Unit (GRU) network cell.
+    r"""Gated Rectified Unit (GRU) network cell.
     Note: this is an implementation of the cuDNN version of GRUs
     (slight modification compared to Cho et al. 2014).
+
+    Each call computes the following function:
+
+    .. math::
+        \begin{array}{ll}
+        r_t = sigmoid(W_{ir} x_t + b_{ir} + W_{hr} h_{(t-1)} + b_{hr}) \\
+        i_t = sigmoid(W_{ii} x_t + b_{ii} + W_hi h_{(t-1)} + b_{hi}) \\
+        n_t = \tanh(W_{in} x_t + b_{in} + r_t * (W_{hn} h_{(t-1)}+ b_{hn})) \\
+        h_t = (1 - i_t) * n_t + i_t * h_{(t-1)} \\
+        \end{array}
+
+    where :math:`h_t` is the hidden state at time `t`, :math:`x_t` is the hidden
+    state of the previous layer at time `t` or :math:`input_t` for the first layer,
+    and :math:`r_t`, :math:`i_t`, :math:`n_t` are the reset, input, and new gates, respectively.
 
     Parameters
     ----------
@@ -652,7 +720,7 @@ class ZoneoutCell(ModifierCell):
         super(ZoneoutCell, self).__init__(base_cell)
         self.zoneout_outputs = zoneout_outputs
         self.zoneout_states = zoneout_states
-        self.prev_output = None
+        self._prev_output = None
 
     def __repr__(self):
         s = '{name}(p_out={zoneout_outputs}, p_state={zoneout_states}, {base_cell})'
@@ -664,14 +732,14 @@ class ZoneoutCell(ModifierCell):
 
     def reset(self):
         super(ZoneoutCell, self).reset()
-        self.prev_output = None
+        self._prev_output = None
 
     def hybrid_forward(self, F, inputs, states):
         cell, p_outputs, p_states = self.base_cell, self.zoneout_outputs, self.zoneout_states
         next_output, next_states = cell(inputs, states)
         mask = (lambda p, like: F.Dropout(F.ones_like(like), p=p))
 
-        prev_output = self.prev_output
+        prev_output = self._prev_output
         if prev_output is None:
             prev_output = F.zeros_like(next_output)
 
@@ -680,7 +748,7 @@ class ZoneoutCell(ModifierCell):
         states = ([F.where(mask(p_states, new_s), new_s, old_s) for new_s, old_s in
                    zip(next_states, states)] if p_states != 0. else next_states)
 
-        self.prev_output = output
+        self._prev_output = output
 
         return output, states
 
