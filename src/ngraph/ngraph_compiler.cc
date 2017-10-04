@@ -273,9 +273,25 @@ void Compiler::CheckInNGraph() {
 }
 
 inline std::string clean_opname(std::string name) {
-  for (std::string str : {"elemwise_", "broadcast_"})
-    if (name.substr(0, str.size()) == str) name = name.substr(str.size());
-  if (name == "_mul") name = "multiply";
+  //Binary Basic
+  if (name == "elemwise_add" || name == "_add" || name == "_Plus")
+    name = "_plus";
+  if (name == "_sub" || name == "_Minus") name = "_minus";
+  if (name == "_Mul") name = "_mul";
+  if (name == "_Div") name = "_div";
+  if (name == "_Mod") name = "_mod";
+  //Binary Extended
+  if (name == "_Power") name = "_power";
+  if (name == "_Maximum") name = "_maximum";
+  if (name == "_Minimum") name = "_minimum";
+  if (name == "_Hypot") name = "_hypot";
+  //Binary Logic
+  if (name == "_Equal") name = "_equal";
+  if (name == "_Not_Equal") name = "_not_equal";
+  if (name == "_Greater") name = "_greater";
+  if (name == "_Greater_Equal") name = "_greater_equal";
+  if (name == "_Lesser") name = "_lesser";
+  if (name == "_Lesser_Equal") name = "_lesser_equal";
   return name;
 }
 
