@@ -47,6 +47,7 @@ inline ValueVector make_ngraph_placeholders(
     const std::vector<mxnet::TBlob>& inputs, bool copy_data = false) {
   ValueVector out;
   for (size_t i = 0; i < inputs.size(); ++i) {
+    //TODO:: make this type general
     auto TV = TBlob_to_ParamTensorView<ngraph::element::Float32>(inputs[i], copy_data);
     out.emplace_back(TV);
   }
@@ -64,6 +65,7 @@ inline void result_to_TBlob(T& result,
   // Memcpy to output - TODO::Probably a better way to do this.
   std::memcpy(outputs[outnum].dptr_,
               std::dynamic_pointer_cast<
+                  //TODO:: make this type general
                   ParameterizedTensorView<ngraph::element::Float32>>(result)
                   ->get_vector()
                   .data(),
