@@ -4,7 +4,6 @@
 #include "ngraph_sgcompiler_utils.h"
 #include "ngraph_sgcompiler.h"
 
-
 namespace ngraph_bridge {
 
 // Main compilation function
@@ -42,8 +41,26 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     }
     CompileNode(node);
   }
-  // Not yet Implemented for ngraph++
+
+  auto manager = ngraph::runtime::Manager::get("NGVM");
+  auto backend = manager->allocate_backend();
   
+  ngraph::op::Parameters forward_parameters;
+
+  for (auto input : placeholder_order)
+    forward_parameters.push_back(
+        std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map[input]));
+
+  auto shape = TShape_to_NShape(sub_graph->nodes_.back()->shape);
+  auto return_type = std::make_shared<ngraph::TensorViewType>(
+      getType(sub_graph->nodes_.back()->dtype), shape);
+
+  auto f = std::make_shared<ngraph::Function>(op_map[sub_graph->nodes_.back()],
+                                              return_type, forward_parameters);
+  
+  auto forward_external = manager->compile(f);
+  sub_graph->ngraph_forward = backend->make_call_frame(forward_external);
+      
 }
 
 // compiling a node
@@ -64,7 +81,7 @@ void SGCompiler::CompileNode(NodePtr node) {
   }
 }
 
-// Compile the inputs, need to implement with ngraph++ axes
+// Compile the inputs
 void SGCompiler::CompileInput(NodePtr input) {
   auto shape = TShape_to_NShape(input->shape);
   op_map[input] = std::make_shared<ngraph::op::Parameter>(

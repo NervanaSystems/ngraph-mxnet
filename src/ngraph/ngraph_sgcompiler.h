@@ -8,7 +8,6 @@ namespace ngraph_bridge {
 
 class SGCompiler : public Emitter {
  public:
-  SGCompiler(){};
   std::shared_ptr<Graph> Compile(NodePtr sub_graph);
  private:
   // compile subgraph into ngraph python objects

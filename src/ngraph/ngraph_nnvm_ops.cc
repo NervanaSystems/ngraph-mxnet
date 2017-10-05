@@ -22,17 +22,52 @@ inline size_t get_buffer_size(const T& shape, size_t nbytes) {
 }
 
 using ValueVector = std::vector<std::shared_ptr<ngraph::runtime::Value> >;
-using ngraph::runtime::ParameterizedTensorView;
+using ngraph::runtime::TensorView;
 
+template <typename ET>
+inline void copy_TBlob(std::shared_ptr<ngraph::runtime::Value> input, size_t n,
+                        void* p) {
+  auto PT =
+      std::dynamic_pointer_cast<ngraph::runtime::ParameterizedTensorView<ET>>(
+          input);
+  PT->write(p, 0, n);
+}
 
-template <typename T>
-inline std::shared_ptr<ParameterizedTensorView<T> > 
-TBlob_to_ParamTensorView(const mxnet::TBlob& input, bool copy = false) {
+inline void copy_TBlob(std::shared_ptr<ngraph::runtime::Value> input,
+                         int type_flag, size_t n, void* p) {
+  switch (type_flag){
+    case mshadow::kFloat32: 
+      copy_TBlob<ngraph::element::Float32>(input, n, p);
+      break;
+    // case mshadow::kFloat64:
+    //   copy_TBlob<ngraph::element::Float64>(input, n, p);
+    // case mshadow::kFloat16:
+    //   copy_result<ngraph::element::Float16>(input, n, p);
+    case mshadow::kUint8:
+      copy_TBlob<ngraph::element::UInt8>(input, n, p);
+      break;
+    case mshadow::kInt32:
+      copy_TBlob<ngraph::element::Int32>(input, n, p);
+      break;
+    case mshadow::kInt8:
+      copy_TBlob<ngraph::element::Int8>(input, n, p);
+      break;
+    case mshadow::kInt64:
+      copy_TBlob<ngraph::element::Int64>(input, n, p);
+      break;
+    default:
+      throw ("type not supported");
+  }
+}
+
+inline std::shared_ptr<TensorView> 
+TBlob_to_TensorView(const mxnet::TBlob& input, bool copy = false) {
   auto shape = TShape_to_NShape(input.shape_);
-  auto TV = std::make_shared<ParameterizedTensorView<T> >(shape);
+  const auto& element_type = getType(input.type_flag_);
+  auto TV = element_type.make_primary_tensor_view(shape);
   if (copy){
-    auto buffer_size = get_buffer_size(shape, 4);
-    std::memcpy(TV->get_vector().data(), input.dptr_, buffer_size);
+    auto buffer_size = get_buffer_size(shape, element_type.size());
+    copy_TBlob(TV, input.type_flag_, buffer_size, input.dptr_);
   }
   return TV;
 }
@@ -41,11 +76,46 @@ inline ValueVector make_ngraph_placeholders(
     const std::vector<mxnet::TBlob>& inputs, bool copy_data = false) {
   ValueVector out;
   for (size_t i = 0; i < inputs.size(); ++i) {
-    //TODO:: make this type general
-    auto TV = TBlob_to_ParamTensorView<ngraph::element::Float32>(inputs[i], copy_data);
+    auto TV = TBlob_to_TensorView(inputs[i], copy_data);
     out.emplace_back(TV);
   }
   return out;
+}
+
+template <typename ET>
+inline void copy_result(std::shared_ptr<ngraph::runtime::Value> input, size_t n,
+                        void* p) {
+  auto PT =
+      std::dynamic_pointer_cast<ngraph::runtime::ParameterizedTensorView<ET>>(
+          input);
+  PT->read(p, 0, n);
+}
+
+inline void copy_result(std::shared_ptr<ngraph::runtime::Value> input,
+                         int type_flag, size_t n, void* p) {
+  switch (type_flag){
+    case mshadow::kFloat32: 
+      copy_result<ngraph::element::Float32>(input, n, p);
+      break;
+    // case mshadow::kFloat64:
+    //   copy_result<ngraph::element::Float64>(input, n, p);
+    // case mshadow::kFloat16:
+    //   copy_result<ngraph::element::Float16>(input, n, p);
+    case mshadow::kUint8:
+      copy_result<ngraph::element::UInt8>(input, n, p);
+      break;
+    case mshadow::kInt32:
+      copy_result<ngraph::element::Int32>(input, n, p);
+      break;
+    case mshadow::kInt8:
+      copy_result<ngraph::element::Int8>(input, n, p);
+      break;
+    case mshadow::kInt64:
+      copy_result<ngraph::element::Int64>(input, n, p);
+      break;
+    default:
+      throw ("type not supported");
+  }
 }
 
 // Utility function for numpy array outputs -> TBlob
@@ -53,29 +123,24 @@ template <typename T>
 inline void result_to_TBlob(T& result, 
                             const std::vector<mxnet::TBlob>& outputs,
                             int outnum) {
-  // TODO: there should be a way to get this froim ParamemeterizeTensorView through
-  // the template
-  auto buffer_size = get_buffer_size(outputs[outnum].shape_, 4);
-  // Memcpy to output - TODO::Probably a better way to do this.
-  std::memcpy(outputs[outnum].dptr_,
-              std::dynamic_pointer_cast<
-                  //TODO:: make this type general
-                  ParameterizedTensorView<ngraph::element::Float32>>(result)
-                  ->get_vector()
-                  .data(),
-              buffer_size);
+  void* p = outputs[outnum].dptr_;
+  const auto& element_type = getType(outputs[outnum].type_flag_);
+  auto buffer_size =
+      get_buffer_size(outputs[outnum].shape_, element_type.size());
+  copy_result(result, outputs[outnum].type_flag_, buffer_size,
+              outputs[outnum].dptr_);
 }
 
 // get the OP from nnvm, return a pointer to it.
 nnvm::Op* get_subgraph_op(std::shared_ptr<Graph> graph) {
-  return &(
-      ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__("ngraph_" + graph->name));
+  return &(::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
+      "ngraph_" + graph->name));
 }
 
 void register_forward_op(std::shared_ptr<Graph> graph) {
   // register the op with nnvm
-  auto& op =
-      ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__("ngraph_" + graph->name);
+  auto& op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
+      "ngraph_" + graph->name);
   // setup the inputs and outpus
   int num_inputs = graph->inputs.size();
   op.set_num_inputs(num_inputs);
@@ -188,10 +253,9 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
                           const std::vector<mxnet::TBlob>& inputs,
                           const std::vector<mxnet::OpReqType>& req,
                           const std::vector<mxnet::TBlob>& outputs) -> void {
-        auto cf = computation->make_call_frame();
         auto placeholders = make_ngraph_placeholders(inputs, true);
         auto results = make_ngraph_placeholders(outputs, false);
-        (*cf)(placeholders, results); 
+        (*computation)(placeholders, results); 
         result_to_TBlob(results[0], outputs, 0);
       });
 }
@@ -227,10 +291,9 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
                           const std::vector<mxnet::TBlob>& inputs,
                           const std::vector<mxnet::OpReqType>& req,
                           const std::vector<mxnet::TBlob>& outputs) -> void {
-        auto cf = computation->make_call_frame();
         auto placeholders = make_ngraph_placeholders(inputs, true);
         auto results = make_ngraph_placeholders(outputs, false);
-        (*cf)(placeholders, results);
+        (*computation)(placeholders, results);
         for (size_t j = 0; j < results.size(); ++j) 
           result_to_TBlob(results[j], outputs, j);
       });

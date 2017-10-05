@@ -92,27 +92,31 @@ nnvm::Graph Compiler::Compile() {
       register_subgraph(sg);
       // create nnvm node
       auto sg_node = CreateNNVMNode(sg);
-      // setup nnvm node name
-      auto name = sg->nodes_.back()->name;
+
+      auto matches = [&sg](nnvm::NodeEntry n) -> bool {
+        return (n.node == sg->nodes_.back()->orig_node);
+      };
+
+      // Replace outputs if needed
+      for (auto& output : graph_.outputs)
+        if (matches(output)) output = sg_node;
 
       // use nnvm depth first search to fix node connections in nnvm
       nnvm::DFSVisit(graph_.outputs, [sg_node,
-                                      &name](const nnvm::NodePtr node) {
-        auto matches_name = [&name](nnvm::NodeEntry n) -> bool {
-          return (n.node->attrs.name == name);
-        };
+                                      &matches](const nnvm::NodePtr node) {
 
         for (auto input : node->inputs) {
           auto it = std::find_if(node->inputs.begin(), node->inputs.end(),
-                                 matches_name);
+                                 matches);
 
           if (it != node->inputs.end()) {
             node->inputs.insert(it, sg_node);
             node->inputs.erase(std::remove_if(node->inputs.begin(),
-                                              node->inputs.end(), matches_name),
+                                              node->inputs.end(), matches),
                                node->inputs.end());
           }
         }
+
       });
     }
   }

@@ -16,29 +16,30 @@ Emitter::Emitter() {
   for (auto x : NgraphLayerOps_) NgraphOps_.emplace_back(x.first);
 }
 
-
+// auto zero = std::make_shared<ngraph::op::ScalarConstant>(0);
+// auto one = std::make_shared<ngraph::op::ScalarConstant>(1);
 // unary op genrating function generator
 void Emitter::create_UnaryOps() {
   // NgraphUnaryOps_["relu"] = [](const NgraphNodePtr& data){
-  //   return ;
+  //   return std::make_shared<ngraph::op::Maximum>(data, zero);
   // };
   // NgraphUnaryOps_["sigmoid"] = [](const NgraphNodePtr& data){
-  //   return ;
+  //   return (one / (one + std::make_shared<ngraph::op::Exp>(-data)));
   // };
   // NgraphUnaryOps_["softmax"] = [](const NgraphNodePtr& data){
-  //   return ;
+  //   return std::make_shared<ngraph::op::Divide>(one, data);
   // };
   // NgraphUnaryOps_["log_softmax"] = [](const NgraphNodePtr& data){
   //   return ;
   // };
-  // NgraphUnaryOps_["_copy"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
+  NgraphUnaryOps_["_copy"] = [](const NgraphNodePtr& data){
+    return data; //TODO: Return this as a reference. Does it actually need to be copied?
+  };
   NgraphUnaryOps_["negative"] = [](const NgraphNodePtr& data) {
     return std::make_shared<ngraph::op::Negative>(data);
   };
   // NgraphUnaryOps_["reciprocal"] = [](const NgraphNodePtr& data){
-  //   return ;
+  //   return one / data;
   // };
   NgraphUnaryOps_["abs"] = [](const NgraphNodePtr& data) {
     return std::make_shared<ngraph::op::Abs>(data);

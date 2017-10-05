@@ -159,8 +159,8 @@ class Graph : public Node {
   }
   int num_outputs = 1;
   std::vector<NodePtr> nodes_;
-  std::shared_ptr<ngraph::runtime::ExternalFunction> ngraph_forward;
-  std::shared_ptr<ngraph::runtime::ExternalFunction> ngraph_backward;
+  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward;
+  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward;
 };
 
 
