@@ -13,9 +13,8 @@ class SGCompiler : public Emitter {
  private:
   // compile subgraph into ngraph python objects
   void CompileSubgraph(std::shared_ptr<Graph> sub_graph);
-  // compile inputs to a node
+  // compile input to a node
   void CompileInput(NodePtr input);
-  void CompileInputs(NodePtr node);
   // compile a single node into an ngraph python object
   void CompileNode(NodePtr node);
   void ClearOpMap();

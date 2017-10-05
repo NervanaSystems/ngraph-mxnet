@@ -37,8 +37,8 @@ protected:
   void create_LayerOps();
 
   // information on compiled objects
-  std::map<std::string, NgraphNodePtr> op_map;
-  std::vector<std::string> placeholder_order;
+  std::map<NodePtr, NgraphNodePtr> op_map;
+  std::vector<NodePtr> placeholder_order;
 };
 
 }  // end namespace ngraph

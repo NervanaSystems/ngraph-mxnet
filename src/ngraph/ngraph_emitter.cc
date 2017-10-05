@@ -142,19 +142,19 @@ void Emitter::create_UnaryOps() {
 void Emitter::create_BinaryOps() {
   NgraphBinaryOps_["_plus"] = [](const NgraphNodePtr& lhs,
                                  const NgraphNodePtr& rhs) { 
-    return std::make_shared<ngraph::op::Add>(lhs,rhs);
+    return (lhs + rhs);
   };
   NgraphBinaryOps_["_minus"] = [](const NgraphNodePtr& lhs,
                                   const NgraphNodePtr& rhs) {
-    return std::make_shared<ngraph::op::Subtract>(lhs,rhs);
+    return (lhs - rhs);
   };
   NgraphBinaryOps_["_mul"] = [](const NgraphNodePtr& lhs,
                                 const NgraphNodePtr& rhs) {
-    return std::make_shared<ngraph::op::Multiply>(lhs,rhs);
+    return (lhs * rhs);
   };
   NgraphBinaryOps_["_div"] = [](const NgraphNodePtr& lhs,
                                 const NgraphNodePtr& rhs) {
-    return std::make_shared<ngraph::op::Divide>(lhs, rhs);
+    return (lhs / rhs);
   };
 
   NgraphBinaryOps_["_power"] = [](const NgraphNodePtr& lhs,

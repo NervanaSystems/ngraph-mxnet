@@ -8,6 +8,7 @@
 
 #include "../operator/operator_common.h"
 #include "ngraph_nnvm_ops.h"
+#include "ngraph_sgcompiler_utils.h"
 
 namespace ngraph_bridge {
 
@@ -18,13 +19,6 @@ inline size_t get_buffer_size(const T& shape, size_t nbytes) {
   for (const auto& i : shape)
     out *= i;
   return out;
-}
-
-inline ngraph::Shape TShape_to_NShape(const nnvm::TShape& inshape){
-  ngraph::Shape shape;
-  for (const auto& s : inshape) 
-    shape.push_back(s);
-  return shape;
 }
 
 using ValueVector = std::vector<std::shared_ptr<ngraph::runtime::Value> >;
