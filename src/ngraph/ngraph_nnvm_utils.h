@@ -4,15 +4,14 @@ namespace ngraph_bridge {
 
 using ValueVector = std::vector<std::shared_ptr<ngraph::runtime::Value> >;
 using ngraph::runtime::TensorView;
+using ngraph::runtime::ParameterizedTensorView;
 
 //TODO: The switch statements aren't very good. is there a better way?
 
 template <typename ET>
 inline void copy_TBlob(std::shared_ptr<ngraph::runtime::Value> input, size_t n,
                         void* p) {
-  auto PT =
-      std::dynamic_pointer_cast<ngraph::runtime::ParameterizedTensorView<ET>>(
-          input);
+  auto PT = std::dynamic_pointer_cast<ParameterizedTensorView<ET>>(input);
   PT->write(p, 0, n);
 }
 
@@ -46,9 +45,7 @@ inline void copy_TBlob(std::shared_ptr<ngraph::runtime::Value> input,
 template <typename ET>
 inline void copy_result(std::shared_ptr<ngraph::runtime::Value> input, size_t n,
                         void* p) {
-  auto PT =
-      std::dynamic_pointer_cast<ngraph::runtime::ParameterizedTensorView<ET>>(
-          input);
+  auto PT = std::dynamic_pointer_cast<ParameterizedTensorView<ET>>(input);
   PT->read(p, 0, n);
 }
 
