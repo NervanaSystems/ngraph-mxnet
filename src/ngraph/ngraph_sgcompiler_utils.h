@@ -12,23 +12,23 @@ namespace ngraph_bridge {
 
 inline const ngraph::element::Type& getType(int type_flag){
   switch (type_flag) {
+    // case mshadow::kFloat16:
+    //   return ngraph::element::Float16::element_type();
+    //   break;  
     case mshadow::kFloat32: 
       return ngraph::element::Float32::element_type();
       break;
     // case mshadow::kFloat64:
     //   return ngraph::element::Float64::element_type();
     //   break;  
-    // case mshadow::kFloat16:
-    //   return ngraph::element::Float16::element_type();
-    //   break;  
     case mshadow::kUint8:
       return ngraph::element::UInt8::element_type();
       break;
-    case mshadow::kInt32:
-      return ngraph::element::Int32::element_type();
-      break;
     case mshadow::kInt8:
       return ngraph::element::Int8::element_type();
+      break;
+    case mshadow::kInt32:
+      return ngraph::element::Int32::element_type();
       break;
     case mshadow::kInt64:
       return ngraph::element::Int64::element_type();
@@ -53,10 +53,15 @@ inline std::vector<int> getInts(std::string input) {
   return vect;
 }
 
-inline ngraph::Shape TShape_to_NShape(const nnvm::TShape& inshape){
-  ngraph::Shape shape;
+template <typename Ti, typename To>
+inline To convert_shapes(const Ti& inshape){
+  To shape;
   for (const auto& s : inshape) shape.push_back(s);
   return shape;
+}
+
+inline ngraph::Shape TShape_to_NShape(const nnvm::TShape& inshape){
+  return convert_shapes<nnvm::TShape, ngraph::Shape>(inshape);
 }
 
 }  // namespace ngraph

@@ -57,7 +57,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
   auto f = std::make_shared<ngraph::Function>(op_map[sub_graph->nodes_.back()],
                                               return_type, forward_parameters);
-  
+
   auto forward_external = manager->compile(f);
   sub_graph->ngraph_forward = backend->make_call_frame(forward_external);
       
