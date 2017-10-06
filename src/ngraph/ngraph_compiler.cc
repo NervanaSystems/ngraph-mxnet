@@ -95,10 +95,9 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
   // infer nnvm::Graph shape and type
   auto bind = dynamic_cast<const BindArg*>(&bindbase);
   auto simplebind = dynamic_cast<const SimpleBindArg*>(&bindbase);
-
-  if (bind) {
+  if (bind != nullptr) {
     Infer(bind);
-  } else if (simplebind) {
+  } else if (simplebind != nullptr) {
     Infer(simplebind);
   }
 

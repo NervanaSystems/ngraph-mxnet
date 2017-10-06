@@ -95,7 +95,9 @@ class Compiler {
   nnvm::NodeEntryMap<mxnet::NDArray> feedDict_;
   NNVMNodeVec inputs_;
 
+  // infer nnvm::Graph shape and type for bind case
   void Infer(const BindArg* bind);
+  // infer nnvm::Graph shape and type for simple bind case
   void Infer(const SimpleBindArg* simplebind);
 
   // inferred nnvm::Graph shape
