@@ -533,19 +533,15 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
 
 #if MXNET_USE_NGRAPH == 1
   ngraph_bridge::BindArg bind(num_forward_inputs_, in_args, aux_states);
-  ngraph_bridge::Compiler compiler(g, feed_dict,
-    symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), &bind);
+  ngraph_bridge::Compiler compiler(
+      g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), bind);
   saved_states_ = compiler.CopySavedStates(saved_states_);
   g = compiler.Compile();
 
   // create "device" and "context" attrs for the graph
   g = InitFullGraph(g, compiler.GetInputs(), grad_req_types);
-  g = AssignContext(g, default_ctx, ctx_map,
-    in_arg_ctxes,
-    arg_grad_ctxes,
-    aux_state_ctxes,
-    num_forward_inputs_,
-    num_forward_outputs_);
+  g = AssignContext(g, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
+                    aux_state_ctxes, num_forward_inputs_, num_forward_outputs_);
 #endif
 
   // create arg_shapes and arg_dtypes for shape and type inferences
@@ -555,8 +551,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   num_forward_nodes_ = 0;
   for (size_t i = 0; i < num_forward_outputs_; ++i)
     num_forward_nodes_ = std::max(
-      num_forward_nodes_,
-      static_cast<size_t>(idx.outputs()[i].node_id + 1));
+        num_forward_nodes_, static_cast<size_t>(idx.outputs()[i].node_id + 1));
 #endif
   const auto& mutable_nodes = idx.mutable_input_nodes();
   size_t arg_top = 0, aux_top = 0;
@@ -969,21 +964,19 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   std::unordered_map<std::string, int> arg_dtype_map = arg_dtype_mapRef;
   
 #if MXNET_USE_NGRAPH == 1
-  ngraph_bridge::SimpleBindArg simplebind(num_forward_inputs_, arg_shape_map, arg_dtype_map);
-  ngraph_bridge::Compiler compiler(g, feed_dict, 
-    symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), &simplebind);
+  ngraph_bridge::SimpleBindArg simplebind(num_forward_inputs_, arg_shape_map,
+                                          arg_dtype_map);
+  ngraph_bridge::Compiler compiler(
+      g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), simplebind);
   saved_states_ = compiler.CopySavedStates(saved_states_);
   g = compiler.Compile();
 
   // create "device" and "context" attrs for the graph
   g = InitFullGraph(g, compiler.GetInputs(), grad_req_types);
-  g = AssignContext(g, default_ctx, ctx_map,
-                    in_arg_ctxes,
-                    arg_grad_ctxes,
-                    aux_state_ctxes,
-                    num_forward_inputs_,
-                    num_forward_outputs_);
+  g = AssignContext(g, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
+                    aux_state_ctxes, num_forward_inputs_, num_forward_outputs_);
 
+  // modify shape / dtype with ngraph version
   arg_shape_map = compiler.GetNgraphShape();
   arg_dtype_map = compiler.GetNgraphDtype();
 #endif
@@ -1001,8 +994,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   num_forward_nodes_ = 0;
   for (size_t i = 0; i < num_forward_outputs_; ++i)
     num_forward_nodes_ = std::max(
-      num_forward_nodes_,
-      static_cast<size_t>(idx.outputs()[i].node_id + 1));
+        num_forward_nodes_, static_cast<size_t>(idx.outputs()[i].node_id + 1));
 #endif
 
   nnvm::ShapeVector arg_shapes(idx.input_nodes().size(), TShape());
@@ -1093,15 +1085,11 @@ Graph GraphExecutor::InitGraph(nnvm::Symbol symbol,
   g.outputs = symbol.outputs;
   // setup gradient
 #if MXNET_USE_NGRAPH == 0
-  g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), 
+  g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs),
                     grad_req_types);
   // create "device" and "context" attrs for the graph
-  g = AssignContext(g, default_ctx, ctx_map,
-                    in_arg_ctxes,
-                    arg_grad_ctxes,
-                    aux_state_ctxes,
-                    num_forward_inputs_,
-                    num_forward_outputs_);
+  g = AssignContext(g, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
+                    aux_state_ctxes, num_forward_inputs_, num_forward_outputs_);
 
   const auto& idx = g.indexed_graph();
   // get number of nodes used in forward pass

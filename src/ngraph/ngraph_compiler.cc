@@ -2,9 +2,9 @@
 #include <nnvm/node.h>
 #include <nnvm/pass.h>
 #include <algorithm>
+#include "../executor/exec_pass.h"
 #include "ngraph_nnvm_ops.h"
 #include "nnvm/tuple.h"
-#include "../executor/exec_pass.h"
 
 namespace ngraph_bridge {
 
@@ -42,8 +42,8 @@ LayerGraphs create_layerGraphs() {
 }
 
 // infer nnvm::Graph shape and dtype for bind case
-void Compiler::Infer(const BindArg *bind)
-{
+// reused from GraphExecutor::Init in graph_executor.cc
+void Compiler::Infer(const BindArg* bind) {
   const auto& idx = graph_.indexed_graph();
   const auto& mutable_nodes = idx.mutable_input_nodes();
   size_t arg_top = 0, aux_top = 0;
@@ -53,8 +53,7 @@ void Compiler::Infer(const BindArg *bind)
       shapes_.push_back(bind->auxStates_[aux_top].shape());
       dtypes_.push_back(bind->auxStates_[aux_top].dtype());
       ++aux_top;
-    }
-    else {
+    } else {
       shapes_.push_back(bind->inArgs_[arg_top].shape());
       dtypes_.push_back(bind->inArgs_[arg_top].dtype());
       ++arg_top;
@@ -67,8 +66,8 @@ void Compiler::Infer(const BindArg *bind)
 }
 
 // infer nnvm::Graph shape and dtype for simple bind case
-void Compiler::Infer(const SimpleBindArg *simplebind)
-{
+// reused from GraphExecutor::Init in graph_executor.cc
+void Compiler::Infer(const SimpleBindArg* simplebind) {
   const auto& idx = graph_.indexed_graph();
   shapes_.resize(idx.input_nodes().size(), nnvm::TShape());
   dtypes_.resize(idx.input_nodes().size(), -1);
@@ -89,30 +88,32 @@ void Compiler::Infer(const SimpleBindArg *simplebind)
 }
 
 // Compiler initialization
-Compiler::Compiler(const nnvm::Graph& graph,
-                   const NDArrayMap& feed_dict,
-                   const NNVMNodeVec& inputs,
-                   const BindArgBase *bindbase) {
+Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
+                   const NNVMNodeVec& inputs, const BindArgBase& bindbase) {
   DeepCopy(graph);
 
   // infer nnvm::Graph shape and type
-  if (const BindArg *bind = dynamic_cast<const BindArg*>(bindbase)) {
+  auto bind = dynamic_cast<const BindArg*>(&bindbase);
+  auto simplebind = dynamic_cast<const SimpleBindArg*>(&bindbase);
+
+  if (bind) {
     Infer(bind);
-  }
-  else if (const SimpleBindArg *simplebind = dynamic_cast<const SimpleBindArg*>(bindbase)) {
+  } else if (simplebind) {
     Infer(simplebind);
   }
 
-  graph_ = mxnet::exec::InferShape(std::move(graph_), std::move(shapes_), "__shape__");
-  // TODO: may or may not need error checking 
-  //if (g.GetAttr<size_t>("shape_num_unknown_nodes") != 0U) {
+  graph_ = mxnet::exec::InferShape(std::move(graph_), std::move(shapes_),
+                                   "__shape__");
+  // TODO: may or may not need error checking
+  // if (g.GetAttr<size_t>("shape_num_unknown_nodes") != 0U) {
   //  HandleInferShapeError(num_forward_inputs, g.indexed_graph(),
   //    g.GetAttr<nnvm::ShapeVector>("shape"));
   //}
 
-  graph_ = mxnet::exec::InferType(std::move(graph_), std::move(dtypes_), "__dtype__");
-  // TODO: may or may not need error checking 
-  //if (g.GetAttr<size_t>("dtype_num_unknown_nodes") != 0U) {
+  graph_ = mxnet::exec::InferType(std::move(graph_), std::move(dtypes_),
+                                  "__dtype__");
+  // TODO: may or may not need error checking
+  // if (g.GetAttr<size_t>("dtype_num_unknown_nodes") != 0U) {
   //  HandleInferTypeError(num_forward_inputs, g.indexed_graph(),
   //    g.GetAttr<nnvm::DTypeVector>("dtype"));
   //}
@@ -199,8 +200,7 @@ nnvm::Graph Compiler::Compile() {
   return std::move(out_graph);
 }
 
-
-StateMap  Compiler::CopySavedStates(const StateMap& saved_states) {
+StateMap Compiler::CopySavedStates(const StateMap& saved_states) {
   StateMap new_saved_states;
   for (auto kv : saved_states) {
     new_saved_states[nodeMap_[kv.first].get()] = kv.second;
@@ -225,7 +225,7 @@ void Compiler::makeCopiedInputs(const NNVMNodeVec& inputs) {
 void Compiler::CopyNodes(const nnvm::Graph& graph) {
   // lambda that makes a copy of a node and returns
   // a new smart pointer to that copy
-  auto CopyNode = [](const nnvm::NodePtr& node){
+  auto CopyNode = [](const nnvm::NodePtr& node) {
     return std::make_shared<nnvm::Node>(*(node.get()));
   };
   // forward declaration
@@ -255,7 +255,7 @@ void Compiler::CopyNodes(const nnvm::Graph& graph) {
     }
   };
 
-  //Loop over the output nodes and the nodes and their inputs.
+  // Loop over the output nodes and the nodes and their inputs.
   for (const auto& out : graph.outputs) {
     copy_and_recurse(out.node);
   }
@@ -274,7 +274,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
   auto replace_node_and_recurse = [&visited, &set_inputs,
                                    this](nnvm::NodePtr& node) {
     // check to see if this is an original node or a copied node
-    if (nodeMap_.count(node.get())){
+    if (nodeMap_.count(node.get())) {
       // if it's original make a copy of the node smart pointer
       nnvm::NodePtr node_copy = node;
       // replace the input node with the copied node
@@ -287,7 +287,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
       }
     }
   };
-   
+
   // function to replace the inputs of a node with copies
   set_inputs = [&replace_node_and_recurse](nnvm::NodePtr& node) {
     // replace the input nodes
@@ -295,7 +295,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
       replace_node_and_recurse(input.node);
     }
     // replace the control deps
-    for ( auto& input : node->control_deps) {
+    for (auto& input : node->control_deps) {
       replace_node_and_recurse(input);
     }
   };
@@ -305,7 +305,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
   graph_.attrs = graph.attrs;
 
   // loop over the outputs and replace them
-  // not using const references because we're replacing the smart pointer in 
+  // not using const references because we're replacing the smart pointer in
   // in the funciton call
   for (auto& out : graph_.outputs) {
     replace_node_and_recurse(out.node);

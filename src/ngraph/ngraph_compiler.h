@@ -9,8 +9,8 @@
 #include <mxnet/base.h>
 #include <mxnet/engine.h>
 #include <mxnet/ndarray.h>
-#include <mxnet/resource.h>
 #include <mxnet/op_attr_types.h>
+#include <mxnet/resource.h>
 #include <mxnet/tensor_blob.h>
 #include "nnvm/graph_attr_types.h"
 
@@ -24,12 +24,11 @@ using NgraphDType = std::unordered_map<std::string, int>;
 using NDArrayMap = nnvm::NodeEntryMap<mxnet::NDArray>;
 using StateMap = std::unordered_map<const nnvm::Node*, mxnet::OpStatePtr>;
 
-
 // This struct collects arguments and provides a method for
 // ngraph_bridge::Compiler to infer nnvm::Graph shape and dtype
-// prior to compilation of the ngraph.  There are two flavos to 
+// prior to compilation of the ngraph.  There are two flavos to
 // consider, Bind and SimpleBind, matching the two flavors of
-// GraphExecutor::Init function where ngraph_bridge::Compiler is 
+// GraphExecutor::Init function where ngraph_bridge::Compiler is
 // invoked.  Hence there are two derivations of this base object.
 struct BindArgBase {
   BindArgBase(size_t numforward) : numForwardInputs_(numforward) {}
@@ -41,8 +40,9 @@ struct BindArgBase {
 
 // Bind
 struct BindArg : public BindArgBase {
-  BindArg(size_t numforward, const std::vector<mxnet::NDArray> &inargs, const std::vector<mxnet::NDArray> &auxstates)
-    : BindArgBase(numforward), inArgs_(inargs), auxStates_(auxstates) {}
+  BindArg(size_t numforward, const std::vector<mxnet::NDArray>& inargs,
+          const std::vector<mxnet::NDArray>& auxstates)
+      : BindArgBase(numforward), inArgs_(inargs), auxStates_(auxstates) {}
 
   // bind arguments
   const std::vector<mxnet::NDArray> inArgs_;
@@ -51,8 +51,10 @@ struct BindArg : public BindArgBase {
 
 // SimpleBind
 struct SimpleBindArg : public BindArgBase {
-  SimpleBindArg(size_t numforward, const std::unordered_map<std::string, nnvm::TShape> &shapes, const std::unordered_map<std::string, int> &dtypes)
-    : BindArgBase(numforward), shapeMap_(shapes), dtypeMap_(dtypes) {}
+  SimpleBindArg(size_t numforward,
+                const std::unordered_map<std::string, nnvm::TShape>& shapes,
+                const std::unordered_map<std::string, int>& dtypes)
+      : BindArgBase(numforward), shapeMap_(shapes), dtypeMap_(dtypes) {}
 
   // simple bind arguments
   const NgraphShape shapeMap_;
@@ -61,10 +63,8 @@ struct SimpleBindArg : public BindArgBase {
 
 class Compiler {
  public:
-  Compiler(const nnvm::Graph& graph,
-           const NDArrayMap& feed_dict,
-           const NNVMNodeVec& inputs,
-           const BindArgBase *bindarg);
+  Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
+           const NNVMNodeVec& inputs, const BindArgBase& bindarg);
   // Main interface from MXNet
   // Compile a graph, take an MXNet graph and replace subsections of it
   // with ngraph operations
@@ -95,8 +95,8 @@ class Compiler {
   nnvm::NodeEntryMap<mxnet::NDArray> feedDict_;
   NNVMNodeVec inputs_;
 
-  void Infer(const BindArg *bind);
-  void Infer(const SimpleBindArg *simplebind);
+  void Infer(const BindArg* bind);
+  void Infer(const SimpleBindArg* simplebind);
 
   // inferred nnvm::Graph shape
   nnvm::ShapeVector shapes_;
