@@ -3,6 +3,8 @@
 #include <nnvm/pass.h>
 #include <algorithm>
 #include "ngraph_nnvm_ops.h"
+#include "nnvm/tuple.h"
+#include "../executor/exec_pass.h"
 
 namespace ngraph_bridge {
 
@@ -39,11 +41,82 @@ LayerGraphs create_layerGraphs() {
   return layer_funcs;
 }
 
+// infer nnvm::Graph shape and dtype for bind case
+void Compiler::Infer(const BindArg *bind)
+{
+  const auto& idx = graph_.indexed_graph();
+  const auto& mutable_nodes = idx.mutable_input_nodes();
+  size_t arg_top = 0, aux_top = 0;
+  for (size_t i = 0; i < bind->numForwardInputs_; ++i) {
+    const uint32_t nid = idx.input_nodes().at(i);
+    if (mutable_nodes.count(nid)) {
+      shapes_.push_back(bind->auxStates_[aux_top].shape());
+      dtypes_.push_back(bind->auxStates_[aux_top].dtype());
+      ++aux_top;
+    }
+    else {
+      shapes_.push_back(bind->inArgs_[arg_top].shape());
+      dtypes_.push_back(bind->inArgs_[arg_top].dtype());
+      ++arg_top;
+    }
+  }
+
+  // append default shapes / dtypes so that vector size = graph size
+  shapes_.resize(idx.input_nodes().size(), nnvm::TShape());
+  dtypes_.resize(idx.input_nodes().size(), -1);
+}
+
+// infer nnvm::Graph shape and dtype for simple bind case
+void Compiler::Infer(const SimpleBindArg *simplebind)
+{
+  const auto& idx = graph_.indexed_graph();
+  shapes_.resize(idx.input_nodes().size(), nnvm::TShape());
+  dtypes_.resize(idx.input_nodes().size(), -1);
+
+  size_t arg_top = 0, aux_top = 0;
+  for (size_t i = 0; i < simplebind->numForwardInputs_; ++i) {
+    const uint32_t nid = idx.input_nodes().at(i);
+    const std::string& name = idx[nid].source->attrs.name;
+    auto it1 = simplebind->shapeMap_.find(name);
+    if (simplebind->shapeMap_.end() != it1) {
+      shapes_[i] = it1->second;
+    }
+    auto it2 = simplebind->dtypeMap_.find(name);
+    if (simplebind->dtypeMap_.end() != it2) {
+      dtypes_[i] = it2->second;
+    }
+  }
+}
+
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph,
                    const NDArrayMap& feed_dict,
-                   const NNVMNodeVec& inputs) {
+                   const NNVMNodeVec& inputs,
+                   const BindArgBase *bindbase) {
   DeepCopy(graph);
+
+  // infer nnvm::Graph shape and type
+  if (const BindArg *bind = dynamic_cast<const BindArg*>(bindbase)) {
+    Infer(bind);
+  }
+  else if (const SimpleBindArg *simplebind = dynamic_cast<const SimpleBindArg*>(bindbase)) {
+    Infer(simplebind);
+  }
+
+  graph_ = mxnet::exec::InferShape(std::move(graph_), std::move(shapes_), "__shape__");
+  // TODO: may or may not need error checking 
+  //if (g.GetAttr<size_t>("shape_num_unknown_nodes") != 0U) {
+  //  HandleInferShapeError(num_forward_inputs, g.indexed_graph(),
+  //    g.GetAttr<nnvm::ShapeVector>("shape"));
+  //}
+
+  graph_ = mxnet::exec::InferType(std::move(graph_), std::move(dtypes_), "__dtype__");
+  // TODO: may or may not need error checking 
+  //if (g.GetAttr<size_t>("dtype_num_unknown_nodes") != 0U) {
+  //  HandleInferTypeError(num_forward_inputs, g.indexed_graph(),
+  //    g.GetAttr<nnvm::DTypeVector>("dtype"));
+  //}
+
   makeCopiedInputs(inputs);
   makeCopiedFeedDict(feed_dict);
   ParseNNVMGraph();
