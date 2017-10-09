@@ -10,12 +10,10 @@ namespace ngraph_bridge {
 // pyobject
 
 using UnaryOps =
-    std::map<std::string,
-             std::function<NgraphNodePtr(const NgraphNodePtr&, const std::string&)> >;
+    std::map<std::string, std::function<NgraphNodePtr(const NgraphNodePtr&)> >;
 using BinaryOps =
-    std::map<std::string,
-             std::function<NgraphNodePtr(const NgraphNodePtr&, const NgraphNodePtr&,
-                                      const std::string&)> >;
+    std::map<std::string, std::function<NgraphNodePtr(const NgraphNodePtr&,
+                                                      const NgraphNodePtr&)> >;
 using LayerOps =
     std::map<std::string,
              std::function<NgraphNodePtr(const NodePtr&, NgraphNodePtr)> >;
@@ -25,22 +23,22 @@ public:
   Emitter();
   // vector of available operations
   std::vector<std::string> NgraphOps_;
-protected:
-  // create unary operation functions
-  UnaryOps create_UnaryOps();
-  // create binary operation functions
-  BinaryOps create_BinaryOps();
-  // create larger MXNet layer operations
-  LayerOps create_LayerOps();
 
   // maps of ngraph operation generator functions
   UnaryOps NgraphUnaryOps_;
   BinaryOps NgraphBinaryOps_;
   LayerOps NgraphLayerOps_;
+protected:
+  // create unary operation functions
+  void create_UnaryOps();
+  // create binary operation functions
+  void create_BinaryOps();
+  // create larger MXNet layer operations
+  void create_LayerOps();
 
   // information on compiled objects
-  std::map<std::string, NgraphNodePtr> op_map;
-  std::vector<std::string> placeholder_order;
+  std::map<NodePtr, NgraphNodePtr> op_map;
+  std::vector<NodePtr> placeholder_order;
 };
 
 }  // end namespace ngraph

@@ -171,7 +171,7 @@ struct SUBG_test {
   SUBG_test() {
     test.branching_graph.IdentifySubgraphs(isop);
     test.branching_graph.CollapseSubgraphs();
-    test.branching_graph.WriteSubgraphDots("collapsed_branches");
+    // test.branching_graph.WriteSubgraphDots("collapsed_branches");
   }
   DFS_Test test;
 };
