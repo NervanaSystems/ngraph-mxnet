@@ -5,6 +5,7 @@
 
 TEST_F(CompilerTest, TempValue ) {
 
+ngraph_bridge::Compiler compiler(nnvm_graph,feed_dict,inputs);
 ASSERT_EQ(temp,1);
 }
 

@@ -37,6 +37,12 @@ op_node->inputs.push_back(ne1);
 ne2.node = op_node; 
 nnvm_graph.outputs.push_back(ne2);
 
+//Adding the necessary boilerplate code to get the Compiler object created
+nnvm::TShape shape({2,2});
+std::vector<int> dtypes({1,1,1});
+std::vector<nnvm::TShape> shapes({shape, shape, shape});
+nnvm_graph.attrs["shape"] = std::make_shared<nnvm::any>(std::move(shapes)); 
+nnvm_graph.attrs["dtype"] = std::make_shared<nnvm::any>(std::move(dtypes));
 };
 
 virtual void TearDown(){};
@@ -45,6 +51,8 @@ nnvm::NodePtr in1;
 nnvm::NodePtr in2; 
 nnvm::NodePtr op_node;
 nnvm::Graph nnvm_graph;
+ngraph_bridge::NDArrayMap feed_dict;
+ngraph_bridge::NNVMNodeVec inputs;
 int temp = 1;
 
 
