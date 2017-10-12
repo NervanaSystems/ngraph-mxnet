@@ -34,18 +34,18 @@ void Graph::WriteDot(const std::string& fname) {
 
 // Utility to mark a node as visited and recursive search based on the results
 // of an input function
-void Graph::DFSUtil(NodePtr s, std::map<std::string, bool>& visited,
+void Graph::DFSUtil(NodePtr s, std::unordered_set<NodePtr>& visited,
                     std::vector<NodePtr>& outNodes,
                     std::function<bool(NodePtr)>& func) {
   // Mark the current node as visited
-  visited[s->name] = true;
+  visited.insert(s);
   // if this node matches func condition
   if (func(s)) {
     // add it to the output
     outNodes.push_back(s);
     // visit it's inputs
     for (auto i : s->inputs) {
-      if (!visited[i->name] && i->subgraph == 0) {
+      if (!visited.count(i) && i->subgraph == 0) {
         DFSUtil(i, visited, outNodes, func);
       }
     }
@@ -56,8 +56,7 @@ void Graph::DFSUtil(NodePtr s, std::map<std::string, bool>& visited,
 std::vector<NodePtr> Graph::DFSselect(NodePtr s,
                                       std::function<bool(NodePtr)> func) {
   // init visited vector
-  std::map<std::string, bool> visited;
-  for (auto n : nodes_) visited[n->name] = false;
+  std::unordered_set<NodePtr> visited;
   // init output vector
   std::vector<NodePtr> outNodes;
   // recursiveliy search the graph
@@ -65,13 +64,12 @@ std::vector<NodePtr> Graph::DFSselect(NodePtr s,
   return outNodes;
 }
 
-using edgeRemoveTup = std::tuple<std::string, std::string, bool>;
 // Utility for removing bad branches in a directed, acylic subraph.
 // Will fail for cyclic graphs
 void Graph::RemoveUtil(
     NodePtr s, std::vector<NodePtr>& outNodes,
     std::function<bool(NodePtr)> func,
-    std::vector<edgeRemoveTup>& visited_edges) {
+    std::set<edgeRemoveTup>& visited_edges) {
   // if this node matches func condition
   if (!func(s))
     outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), s),
@@ -79,10 +77,9 @@ void Graph::RemoveUtil(
   // visit it's inputs if they're still in the subgraph
   for (auto i : s->inputs)
     if (std::find(outNodes.begin(), outNodes.end(), i) != outNodes.end()) {
-      auto edge_tup = edgeRemoveTup{s->name, i->name, func(s)};
-      if (std::find(visited_edges.begin(), visited_edges.end(), edge_tup) ==
-          visited_edges.end()) {
-        visited_edges.push_back(edge_tup);
+      auto edge_tup = edgeRemoveTup{s, i, func(s)};
+      if (!visited_edges.count(edge_tup)) {
+        visited_edges.insert(edge_tup);
         RemoveUtil(i, outNodes, func, visited_edges);
       }
     }
@@ -94,7 +91,7 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
   // if this node matches func condition
 
   std::vector<NodePtr> outNodes;
-  std::vector<edgeRemoveTup > visited_edges;
+  std::set<edgeRemoveTup> visited_edges;
 
   std::function<void(NodePtr)> get_inputs;
   get_inputs = [&outNodes, &get_inputs](NodePtr s) {

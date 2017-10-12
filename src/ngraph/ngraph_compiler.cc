@@ -268,7 +268,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
   // make copies of all the graph nodes
   CopyNodes(graph);
   // a map for storing information on where the recursion has visited.
-  std::map<const nnvm::NodePtr, bool> visited;
+  std::unordered_set<nnvm::NodePtr> visited;
 
   // forward declare recursive function
   std::function<void(nnvm::NodePtr&)> set_inputs;
@@ -285,7 +285,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
       // check to see if we've recursed on this node before
       // if we haven't, replace the inputs with copies
       if (!visited.count(node_copy)) {
-        visited[node_copy] = true;
+        visited.insert(node_copy);
         set_inputs(nodeMap_[node_copy.get()]);
       }
     }
