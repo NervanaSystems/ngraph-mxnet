@@ -8,6 +8,9 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <tuple>
+#include <unordered_set>
+#include <set>
 
 #include <nnvm/graph.h>
 #include <nnvm/symbolic.h>
@@ -106,7 +109,7 @@ Graph class
 Graph subclasses Node so that we can embed graphs into other graphs
 This is useful when we take a graph and replace it with an ngraph computation
 */
-using edgeRemoveTup = std::tuple<std::string, std::string, bool>;
+using edgeRemoveTup = std::tuple<NodePtr, NodePtr, bool>;
 
 class Graph : public Node {
  public:
@@ -119,7 +122,7 @@ class Graph : public Node {
   // Function for doing depth first search on the graph and selecting nodes
   std::vector<NodePtr> DFSselect(NodePtr s, std::function<bool(NodePtr)> func);
   // Utility function for graph search
-  void DFSUtil(NodePtr s, std::map<std::string, bool>& visited,
+  void DFSUtil(NodePtr s, std::unordered_set<NodePtr>& visited,
                std::vector<NodePtr>& outNodes,
                std::function<bool(NodePtr)>& func);
   
@@ -132,7 +135,7 @@ class Graph : public Node {
                                     std::function<bool(NodePtr)> func);
   void RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
                   std::function<bool(NodePtr)> func, 
-                  std::vector<edgeRemoveTup>& visited_edges);
+                  std::set<edgeRemoveTup>& visited_edges);
   std::vector<NodePtr> PruneSubgraphOutputs(
       NodePtr s, std::vector<NodePtr>& subgraph_nodes,
       std::function<bool(NodePtr)> func);
