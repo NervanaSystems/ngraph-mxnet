@@ -1,6 +1,6 @@
 TEST_SRC = $(shell find tests/cpp/ -name "*.cc")
 ifneq ($(USE_NGRAPH),1)
-    TEST_SRC := $(foreach f,$(TEST_SRC),$(if $(findstring tests/cpap/ngraph,$f),,$f))
+    TEST_SRC := $(foreach f,$(TEST_SRC),$(if $(findstring tests/cpp/ngraph,$f),,$f))
 else
 	# Remove other tests for faster development
 	# TODO: remove this before release
