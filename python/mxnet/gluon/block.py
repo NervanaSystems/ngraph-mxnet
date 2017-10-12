@@ -1,6 +1,24 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 # coding: utf-8
 # pylint: disable= arguments-differ
 """Base container class for all neural network models."""
+__all__ = ['Block', 'HybridBlock', 'SymbolBlock']
 
 import copy
 
@@ -13,7 +31,7 @@ from .utils import _indent
 
 
 class _BlockScope(object):
-    """Scope for collecting child `Block`s."""
+    """Scope for collecting child `Block` s."""
     _current = None
 
     def __init__(self, block):
@@ -47,6 +65,8 @@ class _BlockScope(object):
         return current._block.prefix+prefix, params
 
     def __enter__(self):
+        if self._block._empty_prefix:
+            return
         self._old_scope = _BlockScope._current
         _BlockScope._current = self
         self._name_scope = _name.Prefix(self._block.prefix)
@@ -54,6 +74,8 @@ class _BlockScope(object):
         return self
 
     def __exit__(self, ptype, value, trace):
+        if self._block._empty_prefix:
+            return
         self._name_scope.__exit__(ptype, value, trace)
         self._name_scope = None
         _BlockScope._current = self._old_scope
@@ -99,8 +121,8 @@ class Block(object):
     """Base class for all neural network layers and models. Your models should
     subclass this class.
 
-    `Block` can be nested recursively in a tree structure. You can create and
-    assign child `Block` as regular attributes::
+    :py:class:`Block` can be nested recursively in a tree structure. You can create and
+    assign child :py:class:`Block` as regular attributes::
 
         from mxnet.gluon import Block, nn
         from mxnet import ndarray as F
@@ -123,23 +145,25 @@ class Block(object):
         model(F.zeros((10, 10), ctx=mx.cpu(0)))
 
 
-    Child `Block` assigned this way will be registered and `collect_params`
+    Child :py:class:`Block` assigned this way will be registered and :py:meth:`collect_params`
     will collect their Parameters recursively.
 
     Parameters
     ----------
     prefix : str
         Prefix acts like a name space. It will be prepended to the names of all
-        Parameters and child `Block`s in this `Block`'s `name_scope`. Prefix
-        should be unique within one model to prevent name collisions.
+        Parameters and child :py:class:`Block` s in this :py:class:`Block` 's
+        :py:meth:`name_scope` .
+        Prefix should be unique within one model to prevent name collisions.
     params : ParameterDict or None
-        `ParameterDict` for sharing weights with the new `Block`. For example,
-        if you want `dense1` to share `dense0`'s weights, you can do::
+        :py:class:`ParameterDict` for sharing weights with the new :py:class:`Block`. For example,
+        if you want ``dense1`` to share ``dense0``'s weights, you can do::
 
             dense0 = nn.Dense(20)
             dense1 = nn.Dense(20, params=dense0.collect_params())
     """
     def __init__(self, prefix=None, params=None):
+        self._empty_prefix = prefix == ''
         self._prefix, self._params = _BlockScope.create(prefix, params, self._alias())
         self._name = self._prefix[:-1] if self._prefix.endswith('_') else self._prefix
         self._scope = _BlockScope(self)
@@ -155,26 +179,40 @@ class Block(object):
 
     def __setattr__(self, name, value):
         """Registers parameters."""
+
+        if hasattr(self, name):
+            existing = getattr(self, name)
+            if isinstance(existing, (Parameter, Block)) and not isinstance(value, type(existing)):
+                raise TypeError('Changing attribute type for {name} from {type1} to {type2}' \
+                                'is not allowed.'.format(name=name,
+                                                         type1=type(existing),
+                                                         type2=type(value)))
+            if isinstance(existing, Block):
+                for i, c in enumerate(self._children):
+                    if c is existing:
+                        self._children[i] = value
+        else:
+            if isinstance(value, Block):
+                self.register_child(value)
+
         super(Block, self).__setattr__(name, value)
-        if isinstance(value, Block):
-            self.register_child(value)
 
     def _alias(self):
         return self.__class__.__name__.lower()
 
     @property
     def prefix(self):
-        """Prefix of this `Block`."""
+        """Prefix of this :py:class:`Block`."""
         return self._prefix
 
     @property
     def name(self):
-        """Name of this `Block`, without '_' in the end."""
+        """Name of this :py:class:`Block`, without '_' in the end."""
         return self._name
 
     def name_scope(self):
-        """Returns a name space object managing a child `Block` and parameter
-        names. Should be used within a `with` statement::
+        """Returns a name space object managing a child :py:class:`Block` and parameter
+        names. Should be used within a ``with`` statement::
 
             with self.name_scope():
                 self.dense = nn.Dense(20)
@@ -183,12 +221,12 @@ class Block(object):
 
     @property
     def params(self):
-        """Returns this `Block`'s parameter dictionary (does not include its
+        """Returns this :py:class:`Block`'s parameter dictionary (does not include its
         children's parameters)."""
         return self._params
 
     def collect_params(self):
-        """Returns a `ParameterDict` containing this `Block` and all of its
+        """Returns a :py:class:`ParameterDict` containing this :py:class:`Block` and all of its
         children's Parameters."""
         ret = ParameterDict(self._params.prefix)
         ret.update(self.params)
@@ -223,19 +261,19 @@ class Block(object):
 
 
     def register_child(self, block):
-        """Registers block as a child of self. `Block`s assigned to self as
+        """Registers block as a child of self. :py:class:`Block` s assigned to self as
         attributes will be registered automatically."""
         self._children.append(block)
 
     def initialize(self, init=initializer.Uniform(), ctx=None, verbose=False):
-        """Initializes `Parameter`s of this `Block` and its children.
+        """Initializes :py:class:`Parameter` s of this :py:class:`Block` and its children.
 
-        Equivalent to `block.collect_params().initialize(...)`
+        Equivalent to ``block.collect_params().initialize(...)``
         """
         self.collect_params().initialize(init, ctx, verbose)
 
     def hybridize(self, active=True):
-        """Activates or deactivates `HybridBlock`s recursively. Has no effect on
+        """Activates or deactivates :py:class:`HybridBlock` s recursively. Has no effect on
         non-hybrid children.
 
         Parameters
@@ -251,7 +289,7 @@ class Block(object):
         return self.forward(*args)
 
     def forward(self, *args):
-        """Overrides to implement forward computation using `NDArray`. Only
+        """Overrides to implement forward computation using :py:class:`NDArray`. Only
         accepts positional arguments.
 
         Parameters
@@ -266,16 +304,17 @@ class Block(object):
 class HybridBlock(Block):
     """`HybridBlock` supports forwarding with both Symbol and NDArray.
 
-    Forward computation in `HybridBlock` must be static to work with `Symbol`s,
-    i.e. you cannot call `.asnumpy()`, `.shape`, `.dtype`, etc on tensors.
+    Forward computation in :py:class:`HybridBlock` must be static to work with :py:class:`Symbol` s,
+    i.e. you cannot call :py:meth:`NDArray.asnumpy`, :py:attr:`NDArray.shape`,
+    :py:attr:`NDArray.dtype`, etc on tensors.
     Also, you cannot use branching or loop logic that bases on non-constant
     expressions like random numbers or intermediate results, since they change
     the graph structure for each iteration.
 
-    Before activating with `hybridize()`, `HybridBlock` works just like normal
-    `Block`. After activation, `HybridBlock` will create a symbolic graph
+    Before activating with :py:meth:`hybridize()`, :py:class:`HybridBlock` works just like normal
+    :py:class:`Block`. After activation, :py:class:`HybridBlock` will create a symbolic graph
     representing the forward computation and cache it. On subsequent forwards,
-    the cached graph will be used instead of `hybrid_forward`.
+    the cached graph will be used instead of :py:meth:`hybrid_forward`.
 
     Refer `Hybrid tutorial <http://mxnet.io/tutorials/gluon/hybrid.html>`_ to see
     the end-to-end usage.
@@ -378,7 +417,7 @@ class HybridBlock(Block):
 
     def forward(self, x, *args):
         """Defines the forward computation. Arguments can be either
-        `NDArray` or `Symbol`."""
+        :py:class:`NDArray` or :py:class:`Symbol`."""
         if isinstance(x, NDArray):
             with x.context as ctx:
                 if self._active:
@@ -442,7 +481,7 @@ class SymbolBlock(HybridBlock):
                    internals['model_dense1_relu_fwd_output']]
     >>> # Create SymbolBlock that shares parameters with alexnet
     >>> feat_model = gluon.SymbolBlock(outputs, inputs, params=alexnet.collect_params())
-    >>> x = mx.nd.random_normal(shape=(16, 3, 224, 224))
+    >>> x = mx.nd.random.normal(shape=(16, 3, 224, 224))
     >>> print(feat_model(x))
     """
     def __init__(self, outputs, inputs, params=None):
@@ -451,8 +490,8 @@ class SymbolBlock(HybridBlock):
         self._params = ParameterDict('', params)
         if isinstance(inputs, symbol.Symbol) and len(inputs.list_outputs()) == 1:
             inputs = [inputs]
-        if isinstance(outputs, symbol.Symbol) and len(outputs.list_outputs()) == 1:
-            outputs = [outputs]
+        if isinstance(outputs, (list, tuple)) and len(outputs) == 1:
+            outputs = outputs[0]
 
         syms, self._in_format = _flatten(inputs)
         out, self._out_format = _flatten(outputs)
@@ -487,7 +526,7 @@ class SymbolBlock(HybridBlock):
         assert in_fmt == self._in_format, "Invalid input format"
         ret = copy.copy(self._cached_graph[1])
         ret._compose(**{k.name: v for k, v in zip(self._cached_graph[0], args)})
-        return _regroup(ret, self._out_format)[0]
+        return _regroup(list(ret), self._out_format)[0]
 
     def hybrid_forward(self, F, x, *args, **kwargs):
         raise NotImplementedError

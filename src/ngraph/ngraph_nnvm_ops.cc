@@ -8,34 +8,20 @@
 
 #include "../operator/operator_common.h"
 #include "ngraph_nnvm_ops.h"
+#include "ngraph_nnvm_utils.h"
 
 namespace ngraph_bridge {
 
-// Utility function for numpy array outputs -> TBlob
-template <typename T>
-inline void result_to_TBlob(T result,
-                            const std::vector<mxnet::TBlob>& outputs,
-                            int outnum) {
-  //TODO: handle other data types
-  // py::array_t<float> py_array_result(py_result);
-  // void* res_ptr = (void*)py_array_result.request().ptr;
-  // size_t buffer_size = 4; //4 bytes per 32bit float
-  // for (size_t i = 0; i < outputs[outnum].shape_.ndim(); ++i)
-  //   buffer_size *= outputs[outnum].shape_[i];
-  // // Memcpy to output
-  // std::memcpy(outputs[outnum].dptr_, res_ptr, buffer_size);
-}
-
 // get the OP from nnvm, return a pointer to it.
 nnvm::Op* get_subgraph_op(std::shared_ptr<Graph> graph) {
-  return &(
-      ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__("ngraph_" + graph->name));
+  return &(::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
+      "ngraph_" + graph->name));
 }
 
 void register_forward_op(std::shared_ptr<Graph> graph) {
   // register the op with nnvm
-  auto& op =
-      ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__("ngraph_" + graph->name);
+  auto& op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
+      "ngraph_" + graph->name);
   // setup the inputs and outpus
   int num_inputs = graph->inputs.size();
   op.set_num_inputs(num_inputs);
@@ -148,12 +134,10 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
                           const std::vector<mxnet::TBlob>& inputs,
                           const std::vector<mxnet::OpReqType>& req,
                           const std::vector<mxnet::TBlob>& outputs) -> void {
-        // // get a tuple of numpy arrays that point to the input data
-        // py::tuple py_placeholder_vals = make_placeholder_vals(inputs);
-        // // run the computation
-        // py::object py_result = (*computation)(*py_placeholder_vals);
-        // // get the ouput array
-        // py_result_to_TBlob(py_result, outputs, 0);
+        auto placeholders = make_ngraph_placeholders(inputs, true);
+        auto results = make_ngraph_placeholders(outputs, false);
+        (*computation)(placeholders, results); 
+        result_to_TBlob(results[0], outputs, 0);
       });
 }
 
@@ -188,13 +172,11 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
                           const std::vector<mxnet::TBlob>& inputs,
                           const std::vector<mxnet::OpReqType>& req,
                           const std::vector<mxnet::TBlob>& outputs) -> void {
-        // // get a tuple of numpy arrays that point to the input data
-        // py::tuple py_placeholder_vals = make_placeholder_vals(inputs);
-        // // run the computation
-        // py::list py_result = (*computation)(*py_placeholder_vals);
-        // for (size_t j = 0; j < py_result.size(); ++j) {
-        //   py_result_to_TBlob(py_result[j], outputs, j);
-        // }
+        auto placeholders = make_ngraph_placeholders(inputs, true);
+        auto results = make_ngraph_placeholders(outputs, false);
+        (*computation)(placeholders, results);
+        for (size_t j = 0; j < results.size(); ++j) 
+          result_to_TBlob(results[j], outputs, j);
       });
 }
 // register subgraph ops with nnvm.

@@ -51,6 +51,7 @@ class Node {
   // mxnet type information
   nnvm::TShape shape;
   int dtype;
+  
   // information to store graph parsing in
   int multioutput_index = -1;
   bool in_ngraph = false;
@@ -102,7 +103,7 @@ class OpNode : public Node {
 
 /*
 Graph class
-Graph subclasses Node to that we can embed graphs into other graphs
+Graph subclasses Node so that we can embed graphs into other graphs
 This is useful when we take a graph and replace it with an ngraph computation
 */
 using edgeRemoveTup = std::tuple<std::string, std::string, bool>;
@@ -157,10 +158,11 @@ class Graph : public Node {
       }
     }
   }
+
   int num_outputs = 1;
   std::vector<NodePtr> nodes_;
-  std::shared_ptr<ngraph::runtime::ExternalFunction> ngraph_forward;
-  std::shared_ptr<ngraph::runtime::ExternalFunction> ngraph_backward;
+  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward;
+  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward;
 };
 
 

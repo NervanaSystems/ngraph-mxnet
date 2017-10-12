@@ -1,5 +1,23 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 /*!
- * Copyright (c) 2015 by Contributors
  * \file threaded_engine.h
  * \brief Implements base class of threaded engine
  *    that tracks the dependency and pushes actions to execute.
@@ -327,7 +345,7 @@ class ThreadedEngine : public Engine {
         if (what.find("driver shutting down") == std::string::npos &&
             !shutdown_phase_) {
           LOG(FATAL) << e.what() << "\n" <<
-            "An fatal error occurred in asynchronous engine operation. "
+            "A fatal error occurred in asynchronous engine operation. "
             "If you do not know what caused this error, "
             "you can try set environment variable MXNET_ENGINE_TYPE "
             "to NaiveEngine and run with debugger (i.e. gdb). "
