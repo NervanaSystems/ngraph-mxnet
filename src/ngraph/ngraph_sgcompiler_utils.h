@@ -64,5 +64,12 @@ inline ngraph::Shape TShape_to_NShape(const nnvm::TShape& inshape){
   return convert_shapes<nnvm::TShape, ngraph::Shape>(inshape);
 }
 
+inline std::shared_ptr<ngraph::Node> makeConstant(const NodePtr& node,
+                                                  std::string num) {
+  const auto& et = getType(node->dtype);
+  auto shape = TShape_to_NShape(node->shape);
+  return std::make_shared<ngraph::op::Constant>(et, shape, num);
+}
+
 }  // namespace ngraph
 #endif  // UTILS_H_

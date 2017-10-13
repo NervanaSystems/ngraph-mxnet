@@ -68,16 +68,8 @@ void SGCompiler::CompileNode(NodePtr node) {
   // if the node has been compiled, return
   if (op_map.count(node) > 0) {
     return;
-  } else if (NgraphLayerOps_.count(node->operation) != 0) {
-
-  } else if (node->inputs.size() == 1) {
-    op_map[node] = NgraphUnaryOps_[node->operation](op_map[node->inputs[0]]);
-  } else if (node->inputs.size() == 2) {
-    op_map[node] = NgraphBinaryOps_[node->operation](op_map[node->inputs[0]],
-                                                     op_map[node->inputs[1]]);
   } else {
-    std::cout << ("operation not yet supported") << std::endl;
-    throw;
+    op_map[node] = NgraphOpFuncs_[node->operation](node);
   }
 }
 
