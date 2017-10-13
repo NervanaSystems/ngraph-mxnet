@@ -89,37 +89,37 @@ void Emitter::create_UnaryOps() {
   // NgraphUnaryOps_["expm1"] = [](const NgraphNodePtr& data){
   //   return ;
   // };
-  // NgraphUnaryOps_["sin"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
-  // NgraphUnaryOps_["cos"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
-  // NgraphUnaryOps_["tan"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
-  // NgraphUnaryOps_["arcin"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
-  // NgraphUnaryOps_["arccos"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
-  // NgraphUnaryOps_["arctan"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
+  NgraphUnaryOps_["sin"] = [](const NgraphNodePtr& data) {
+      return std::make_shared<ngraph::op::Sin>(data);
+  };
+  NgraphUnaryOps_["cos"] = [](const NgraphNodePtr& data) {
+      return std::make_shared<ngraph::op::Cos>(data);
+  };
+  NgraphUnaryOps_["tan"] = [](const NgraphNodePtr& data) {
+      return std::make_shared<ngraph::op::Tan>(data);
+  };
+  NgraphUnaryOps_["arcsin"] = [](const NgraphNodePtr& data) {
+      return std::make_shared<ngraph::op::Asin>(data);
+  };
+  NgraphUnaryOps_["arccos"] = [](const NgraphNodePtr& data) {
+      return std::make_shared<ngraph::op::Acos>(data);
+  };
+  NgraphUnaryOps_["arctan"] = [](const NgraphNodePtr& data) {
+      return std::make_shared<ngraph::op::Atan>(data);
+  };
+  NgraphUnaryOps_["sinh"] = [](const NgraphNodePtr& data) {
+      return std::make_shared<ngraph::op::Sinh>(data);
+  };
+  NgraphUnaryOps_["cosh"] = [](const NgraphNodePtr& data) {
+      return std::make_shared<ngraph::op::Cosh>(data);
+  };
+  NgraphUnaryOps_["tanh"] = [](const NgraphNodePtr& data) {
+      return std::make_shared<ngraph::op::Tanh>(data);
+  };
   // NgraphUnaryOps_["degrees"] = [](const NgraphNodePtr& data){
   //   return ;
   // };
   // NgraphUnaryOps_["radians"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
-  // NgraphUnaryOps_["sinh"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
-  // NgraphUnaryOps_["cosh"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
-  // NgraphUnaryOps_["tanh"] = [](const NgraphNodePtr& data){
   //   return ;
   // };
   // NgraphUnaryOps_["arcsinh"] = [](const NgraphNodePtr& data){

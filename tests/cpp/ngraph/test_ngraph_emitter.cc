@@ -24,6 +24,24 @@ namespace ngraph_bridge {
         test_emitter.NgraphUnaryOps_["exp"](data[0])));
     EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Log>(
         test_emitter.NgraphUnaryOps_["log"](data[0])));
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Sin>(
+        test_emitter.NgraphUnaryOps_["sin"](data[0])));
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Cos>(
+        test_emitter.NgraphUnaryOps_["cos"](data[0])));
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Tan>(
+        test_emitter.NgraphUnaryOps_["tan"](data[0])));
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Asin>(
+        test_emitter.NgraphUnaryOps_["arcsin"](data[0])));
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Acos>(
+        test_emitter.NgraphUnaryOps_["arccos"](data[0])));
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Atan>(
+        test_emitter.NgraphUnaryOps_["arctan"](data[0])));
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Sinh>(
+        test_emitter.NgraphUnaryOps_["sinh"](data[0])));
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Cosh>(
+        test_emitter.NgraphUnaryOps_["cosh"](data[0])));
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Tanh>(
+        test_emitter.NgraphUnaryOps_["tanh"](data[0])));
   }
 
   TEST(NGRAPH_EMITTER, BINARY_OPS) {
