@@ -197,6 +197,40 @@ namespace ngraph_bridge {
         test_emitter.NgraphOpFuncs_["_maximum"](test_emitter.node)));
     EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Minimum>(
         test_emitter.NgraphOpFuncs_["_minimum"](test_emitter.node)));
+
+    auto hypot = test_emitter.NgraphOpFuncs_["_hypot"](test_emitter.node);
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Power>(hypot));
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Divide>(
+        hypot->get_arguments()[1]));
+    EXPECT_EQ(std::dynamic_pointer_cast<ngraph::op::Constant>(
+                  hypot->get_arguments()[1]->get_arguments()[0])
+                  ->get_value_strings()[0],
+              "1");
+    EXPECT_EQ(std::dynamic_pointer_cast<ngraph::op::Constant>(
+                  hypot->get_arguments()[1]->get_arguments()[1])
+                  ->get_value_strings()[0],
+              "2");
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Add>(
+        hypot->get_arguments()[0]));
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Power>(
+        hypot->get_arguments()[0]->get_arguments()[0]));
+    EXPECT_EQ(hypot->get_arguments()[0]->get_arguments()[0]->get_arguments()[0],
+              test_emitter.data1);
+    EXPECT_EQ(std::dynamic_pointer_cast<ngraph::op::Constant>(
+                  hypot->get_arguments()[0]->get_arguments()[0]->get_arguments()[1])
+                  ->get_value_strings()[0],
+              "2");
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Power>(
+        hypot->get_arguments()[0]->get_arguments()[1]));
+
+    EXPECT_EQ(hypot->get_arguments()[0]->get_arguments()[1]->get_arguments()[0],
+              test_emitter.data2);
+    EXPECT_EQ(
+        std::dynamic_pointer_cast<ngraph::op::Constant>(
+            hypot->get_arguments()[0]->get_arguments()[1]->get_arguments()[1])
+            ->get_value_strings()[0],
+        "2");
+
     //Logic
     EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Equal>(
         test_emitter.NgraphOpFuncs_["_equal"](test_emitter.node)));
@@ -210,6 +244,9 @@ namespace ngraph_bridge {
         test_emitter.NgraphOpFuncs_["_lesser"](test_emitter.node)));
     EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::LessEq>(
         test_emitter.NgraphOpFuncs_["_lesser_equal"](test_emitter.node)));
+    //other
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Dot>(
+        test_emitter.NgraphOpFuncs_["dot"](test_emitter.node)));
   }
 
 }

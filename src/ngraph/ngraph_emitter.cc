@@ -193,14 +193,18 @@ void Emitter::create_BinaryOps() {
     return std::make_shared<ngraph::op::Minimum>(op_map[node->inputs[0]],
                                                  op_map[node->inputs[1]]);
   };
-  // NgraphOpFuncs_["_hypot"] = [this](const NodePtr& lhs) {
-  //   return ;
-  // };
+  NgraphOpFuncs_["_hypot"] = [this](const NodePtr& node) {
+    auto one = makeConstant(node, "1");
+    auto two = makeConstant(node, "2");
+    return std::make_shared<ngraph::op::Power>(
+        (std::make_shared<ngraph::op::Power>(op_map[node->inputs[0]], two) +
+         std::make_shared<ngraph::op::Power>(op_map[node->inputs[1]], two)),
+        one / two);
+  };
   NgraphOpFuncs_["_equal"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Equal>(op_map[node->inputs[0]],
                                                op_map[node->inputs[1]]);
   };
-
   NgraphOpFuncs_["_not_equal"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::NotEqual>(op_map[node->inputs[0]],
                                                   op_map[node->inputs[1]]);
@@ -220,6 +224,10 @@ void Emitter::create_BinaryOps() {
   NgraphOpFuncs_["_lesser_equal"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::LessEq>(op_map[node->inputs[0]],
                                                 op_map[node->inputs[1]]);
+  };
+  NgraphOpFuncs_["dot"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Dot>(op_map[node->inputs[0]],
+                                             op_map[node->inputs[1]]);
   };
 }
 
