@@ -12,13 +12,6 @@ namespace ngraph_bridge {
 using OpEmitter =
     std::map<std::string,
              std::function<NgraphNodePtr(const NodePtr&)> >;
-// using BinaryOps =
-//     std::map<std::string, std::function<NgraphNodePtr(
-//                               const NgraphNodePtr&, const NgraphNodePtr&,
-//                               const ngraph::element::Type&)> >;
-// using LayerOps =
-//     std::map<std::string,
-//              std::function<NgraphNodePtr(const NodePtr&)> >;
 
 class Emitter {
 public:
