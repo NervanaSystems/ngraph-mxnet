@@ -126,6 +126,8 @@ namespace ngraph_bridge {
   
   TEST(NGRAPH_SGCOMPILER, COMPILE_SUBGRAPH){
     testSGCompiler test;
+    EXPECT_FALSE(test.subgraph->ngraph_forward);
+    EXPECT_FALSE(test.subgraph->ngraph_backward);
     EXPECT_FALSE(test.count(test.in1));
     EXPECT_FALSE(test.count(test.in2));
     EXPECT_FALSE(test.count(test.in3));
@@ -168,6 +170,8 @@ namespace ngraph_bridge {
                     test[test.node2]->get_value_type())
                     ->get_element_type(),
                 getType(test.node2->dtype));
+    EXPECT_TRUE(test.subgraph->ngraph_forward);
+    // EXPECT_TRUE(test.subgraph->ngraph_backward); //Not yet Implemented
   }
 }
 
