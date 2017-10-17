@@ -53,7 +53,7 @@ class Node {
 
   // mxnet type information
   nnvm::TShape shape;
-  int dtype;
+  int dtype = 0;
   
   // information to store graph parsing in
   int multioutput_index = -1;

@@ -335,12 +335,8 @@ void Compiler::CheckInNGraph() {
       if (multioutput) {
       } else {
         // if it's an operation, check operation name
-        for (auto op : compiler_.NgraphOps_) {
-          if (node->operation == op) {
-            node->in_ngraph = true;
-            break;
-          }
-        }
+        if (compiler_.NgraphOpFuncs_.count(node->operation))
+          node->in_ngraph = true;
       }
     } else {
       node->in_ngraph = true;

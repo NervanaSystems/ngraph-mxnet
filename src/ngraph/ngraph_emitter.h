@@ -9,25 +9,15 @@ namespace ngraph_bridge {
 // map aliases for maps of name, function, where function returns an ngraph
 // pyobject
 
-using UnaryOps =
-    std::map<std::string, std::function<NgraphNodePtr(const NgraphNodePtr&)> >;
-using BinaryOps =
-    std::map<std::string, std::function<NgraphNodePtr(const NgraphNodePtr&,
-                                                      const NgraphNodePtr&)> >;
-using LayerOps =
+using OpEmitter =
     std::map<std::string,
-             std::function<NgraphNodePtr(const NodePtr&, NgraphNodePtr)> >;
+             std::function<NgraphNodePtr(const NodePtr&)> >;
 
 class Emitter {
 public:
   Emitter();
-  // vector of available operations
-  std::vector<std::string> NgraphOps_;
-
   // maps of ngraph operation generator functions
-  UnaryOps NgraphUnaryOps_;
-  BinaryOps NgraphBinaryOps_;
-  LayerOps NgraphLayerOps_;
+  OpEmitter NgraphOpFuncs_;
 protected:
   // create unary operation functions
   void create_UnaryOps();

@@ -14,7 +14,7 @@ std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
   auto sg = std::dynamic_pointer_cast<Graph>(sub_graph);
   // compile the subgraph into a python computation
   CompileSubgraph(sg);
-  ClearOpMap();
+
   return sg;
 }
 
@@ -28,23 +28,12 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // initalize a placeholder order vector for this subgraph
   for (auto i : sub_graph->inputs) placeholder_order.push_back(i);
 
-  for (auto node : sub_graph->nodes_){
-    for (auto input : node->inputs) {
-      if (!op_map.count(input)){
-        if (std::find(sub_graph->nodes_.begin(), sub_graph->nodes_.end(),
-                      input) == sub_graph->nodes_.end()) {
-          CompileInput(input);
-        } else {
-          CompileNode(input);
-        }
-      }
-    }
-    CompileNode(node);
-  }
-
+  for (auto node : sub_graph->nodes_) CompileNode(node, sub_graph);
+  
   auto manager = ngraph::runtime::Manager::get("NGVM");
   auto backend = manager->allocate_backend();
   
+  // Compile the forward Pass
   ngraph::op::Parameters forward_parameters;
 
   for (auto input : placeholder_order)
@@ -60,24 +49,26 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
   auto forward_external = manager->compile(f);
   sub_graph->ngraph_forward = backend->make_call_frame(forward_external);
+
+  //Compile the backward Pass
       
 }
 
-// compiling a node
-void SGCompiler::CompileNode(NodePtr node) {
-  // if the node has been compiled, return
-  if (op_map.count(node) > 0) {
-    return;
-  } else if (NgraphLayerOps_.count(node->operation) != 0) {
-
-  } else if (node->inputs.size() == 1) {
-    op_map[node] = NgraphUnaryOps_[node->operation](op_map[node->inputs[0]]);
-  } else if (node->inputs.size() == 2) {
-    op_map[node] = NgraphBinaryOps_[node->operation](op_map[node->inputs[0]],
-                                                     op_map[node->inputs[1]]);
-  } else {
-    std::cout << ("operation not yet supported") << std::endl;
-    throw;
+// compiling a node, recursively checking it's inputs
+void SGCompiler::CompileNode(NodePtr node,
+                             const std::shared_ptr<Graph> sub_graph) {
+  if (!op_map.count(node)){
+    for (auto input : node->inputs) {
+      if (!op_map.count(input)){
+        if (std::find(sub_graph->nodes_.begin(), sub_graph->nodes_.end(),
+                      input) == sub_graph->nodes_.end()) {
+          CompileInput(input);
+        } else {
+          CompileNode(input, sub_graph);
+        }
+      }
+    }
+    op_map[node] = NgraphOpFuncs_[node->operation](node);
   }
 }
 

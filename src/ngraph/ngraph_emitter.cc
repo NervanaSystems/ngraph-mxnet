@@ -9,196 +9,225 @@ Emitter::Emitter() {
   create_UnaryOps();
   create_BinaryOps();
   create_LayerOps();
-
-  // Find all the valid operation names
-  for (auto x : NgraphUnaryOps_) NgraphOps_.emplace_back(x.first);
-  for (auto x : NgraphBinaryOps_) NgraphOps_.emplace_back(x.first);
-  for (auto x : NgraphLayerOps_) NgraphOps_.emplace_back(x.first);
 }
 
-// auto zero = std::make_shared<ngraph::op::ScalarConstant>(0);
-// auto one = std::make_shared<ngraph::op::ScalarConstant>(1);
 // unary op genrating function generator
 void Emitter::create_UnaryOps() {
-  // NgraphUnaryOps_["relu"] = [](const NgraphNodePtr& data){
-  //   return std::make_shared<ngraph::op::Maximum>(data, zero);
-  // };
-  // NgraphUnaryOps_["sigmoid"] = [](const NgraphNodePtr& data){
-  //   return (one / (one + std::make_shared<ngraph::op::Exp>(-data)));
-  // };
-  // NgraphUnaryOps_["softmax"] = [](const NgraphNodePtr& data){
-  //   return std::make_shared<ngraph::op::Divide>(one, data);
-  // };
-  // NgraphUnaryOps_["log_softmax"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
-  NgraphUnaryOps_["_copy"] = [](const NgraphNodePtr& data){
-    return data; //TODO: Return this as a reference. Does it actually need to be copied?
+  NgraphOpFuncs_["relu"] = [this](const NodePtr& node) {
+    auto zero = makeConstant(node, "0");
+    return std::make_shared<ngraph::op::Maximum>(op_map[node->inputs[0]], zero);
   };
-  NgraphUnaryOps_["negative"] = [](const NgraphNodePtr& data) {
-    return std::make_shared<ngraph::op::Negative>(data);
+  NgraphOpFuncs_["sigmoid"] = [this](const NodePtr& node) {
+    auto one = makeConstant(node, "1");
+    return (one / (one + std::make_shared<ngraph::op::Exp>(
+                             -op_map[node->inputs[0]])));
   };
-  // NgraphUnaryOps_["reciprocal"] = [](const NgraphNodePtr& data){
-  //   return one / data;
+  // NgraphOpFuncs_["softmax"] = [this](const NodePtr& node){
+  //   return ;
   // };
-  NgraphUnaryOps_["abs"] = [](const NgraphNodePtr& data) {
-    return std::make_shared<ngraph::op::Abs>(data);
+  // NgraphOpFuncs_["log_softmax"] = [this](const NodePtr& node){
+  //   return ;
+  // };
+  NgraphOpFuncs_["_copy"] = [this](const NodePtr& node) {
+    return op_map[node->inputs[0]]; //TODO: Return this as a reference. Does it actually need to be copied?
   };
-  // NgraphUnaryOps_["sign"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
-  // NgraphUnaryOps_["round"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
-  // NgraphUnaryOps_["rint"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
-  NgraphUnaryOps_["ceil"] = [](const NgraphNodePtr& data) {
-    return std::make_shared<ngraph::op::Ceiling>(data);
+  NgraphOpFuncs_["negative"] = [this](const NodePtr& node) {
+    return -op_map[node->inputs[0]];
   };
-  NgraphUnaryOps_["floor"] = [](const NgraphNodePtr& data) {
-    return std::make_shared<ngraph::op::Floor>(data);
+  NgraphOpFuncs_["reciprocal"] = [this](const NodePtr& node){
+    auto one = makeConstant(node, "1");
+    return one / op_map[node->inputs[0]];
   };
-  // NgraphUnaryOps_["trunc"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
-  // NgraphUnaryOps_["fix"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
-  // NgraphUnaryOps_["square"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
-  // NgraphUnaryOps_["rsqrt"] = [](const NgraphNodePtr& data){
-  //   return ;
-  // };
-  NgraphUnaryOps_["exp"] = [](const NgraphNodePtr& data) {
-    return std::make_shared<ngraph::op::Exp>(data);
+  NgraphOpFuncs_["abs"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Abs>(op_map[node->inputs[0]]);
   };
-  NgraphUnaryOps_["log"] = [](const NgraphNodePtr& data) {
-    return std::make_shared<ngraph::op::Log>(data);
-  };
-  // NgraphUnaryOps_["log10"] = [](const NgraphNodePtr& data){
+  // NgraphOpFuncs_["sign"] = [this](const NodePtr& node){
   //   return ;
   // };
-  // NgraphUnaryOps_["log2"] = [](const NgraphNodePtr& data){
+  // NgraphOpFuncs_["round"] = [this](const NodePtr& node){
   //   return ;
   // };
-  // NgraphUnaryOps_["log1p"] = [](const NgraphNodePtr& data){
+  // NgraphOpFuncs_["rint"] = [this](const NodePtr& node){
   //   return ;
   // };
-  // NgraphUnaryOps_["expm1"] = [](const NgraphNodePtr& data){
+  NgraphOpFuncs_["ceil"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Ceiling>(op_map[node->inputs[0]]);
+  };
+  NgraphOpFuncs_["floor"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Floor>(op_map[node->inputs[0]]);
+  };
+  // NgraphOpFuncs_["trunc"] = [this](const NodePtr& node){
   //   return ;
   // };
-  NgraphUnaryOps_["sin"] = [](const NgraphNodePtr& data) {
-      return std::make_shared<ngraph::op::Sin>(data);
-  };
-  NgraphUnaryOps_["cos"] = [](const NgraphNodePtr& data) {
-      return std::make_shared<ngraph::op::Cos>(data);
-  };
-  NgraphUnaryOps_["tan"] = [](const NgraphNodePtr& data) {
-      return std::make_shared<ngraph::op::Tan>(data);
-  };
-  NgraphUnaryOps_["arcsin"] = [](const NgraphNodePtr& data) {
-      return std::make_shared<ngraph::op::Asin>(data);
-  };
-  NgraphUnaryOps_["arccos"] = [](const NgraphNodePtr& data) {
-      return std::make_shared<ngraph::op::Acos>(data);
-  };
-  NgraphUnaryOps_["arctan"] = [](const NgraphNodePtr& data) {
-      return std::make_shared<ngraph::op::Atan>(data);
-  };
-  NgraphUnaryOps_["sinh"] = [](const NgraphNodePtr& data) {
-      return std::make_shared<ngraph::op::Sinh>(data);
-  };
-  NgraphUnaryOps_["cosh"] = [](const NgraphNodePtr& data) {
-      return std::make_shared<ngraph::op::Cosh>(data);
-  };
-  NgraphUnaryOps_["tanh"] = [](const NgraphNodePtr& data) {
-      return std::make_shared<ngraph::op::Tanh>(data);
-  };
-  // NgraphUnaryOps_["degrees"] = [](const NgraphNodePtr& data){
+  // NgraphOpFuncs_["fix"] = [this](const NodePtr& node){
   //   return ;
   // };
-  // NgraphUnaryOps_["radians"] = [](const NgraphNodePtr& data){
+  NgraphOpFuncs_["square"] = [this](const NodePtr& node) {
+    auto two = makeConstant(node, "2");
+    return std::make_shared<ngraph::op::Power>(op_map[node->inputs[0]], two);
+  };
+  NgraphOpFuncs_["sqrt"] = [this](const NodePtr& node) {
+    auto one = makeConstant(node, "1");
+    auto two = makeConstant(node, "2");
+    return std::make_shared<ngraph::op::Power>(op_map[node->inputs[0]],
+                                               one / two);
+  };
+  NgraphOpFuncs_["rsqrt"] = [this](const NodePtr& node) {
+    auto one = makeConstant(node, "1");
+    auto two = makeConstant(node, "2");
+    return one / std::make_shared<ngraph::op::Power>(op_map[node->inputs[0]],
+                                                     one / two);
+  };
+  NgraphOpFuncs_["cbrt"] = [this](const NodePtr& node) {
+    auto one = makeConstant(node, "1");
+    auto three = makeConstant(node, "3");
+    return std::make_shared<ngraph::op::Power>(op_map[node->inputs[0]],
+                                               one / three);
+  };
+  NgraphOpFuncs_["rcbrt"] = [this](const NodePtr& node) {
+    auto one = makeConstant(node, "1");
+    auto three = makeConstant(node, "3");
+    return one / std::make_shared<ngraph::op::Power>(op_map[node->inputs[0]],
+                                                     one / three);
+  };
+  NgraphOpFuncs_["exp"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Exp>(op_map[node->inputs[0]]);
+  };
+  NgraphOpFuncs_["log"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Log>(op_map[node->inputs[0]]);
+  };
+  NgraphOpFuncs_["log10"] = [this](const NodePtr& node){
+    auto ten = makeConstant(node, "10");
+    return std::make_shared<ngraph::op::Log>(op_map[node->inputs[0]]) / 
+           std::make_shared<ngraph::op::Log>(ten);
+  };
+  NgraphOpFuncs_["log2"] = [this](const NodePtr& node){
+    auto two = makeConstant(node, "2");
+    return std::make_shared<ngraph::op::Log>(op_map[node->inputs[0]]) / 
+           std::make_shared<ngraph::op::Log>(two);
+  };
+  // NgraphOpFuncs_["log1p"] = [this](const NodePtr& node){
   //   return ;
   // };
-  // NgraphUnaryOps_["arcsinh"] = [](const NgraphNodePtr& data){
+  // NgraphOpFuncs_["expm1"] = [this](const NodePtr& node){
   //   return ;
   // };
-  // NgraphUnaryOps_["arccosh"] = [](const NgraphNodePtr& data){
+  NgraphOpFuncs_["sin"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Sin>(op_map[node->inputs[0]]);
+  };
+  NgraphOpFuncs_["cos"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Cos>(op_map[node->inputs[0]]);
+  };
+  NgraphOpFuncs_["tan"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Tan>(op_map[node->inputs[0]]);
+  };
+  NgraphOpFuncs_["arcsin"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Asin>(op_map[node->inputs[0]]);
+  };
+  NgraphOpFuncs_["arccos"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Acos>(op_map[node->inputs[0]]);
+  };
+  NgraphOpFuncs_["arctan"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Atan>(op_map[node->inputs[0]]);
+  };
+  NgraphOpFuncs_["sinh"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Sinh>(op_map[node->inputs[0]]);
+  };
+  NgraphOpFuncs_["cosh"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Cosh>(op_map[node->inputs[0]]);
+  };
+  NgraphOpFuncs_["tanh"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Tanh>(op_map[node->inputs[0]]);
+  };
+  // NgraphOpFuncs_["arcsinh"] = [this](const NodePtr& node){
   //   return ;
   // };
-  // NgraphUnaryOps_["arctanh"] = [](const NgraphNodePtr& data){
+  // NgraphOpFuncs_["arccosh"] = [this](const NodePtr& node){
   //   return ;
   // };
-  // NgraphUnaryOps_["gamma"] = [](const NgraphNodePtr& data){
+  // NgraphOpFuncs_["arctanh"] = [this](const NodePtr& node){
   //   return ;
   // };
-  // NgraphUnaryOps_["gammaln"] = [](const NgraphNodePtr& data){
+  NgraphOpFuncs_["degrees"] = [this](const NodePtr& node){
+    auto pi = makeConstant(node, "3.14159265359");
+    auto oneeighty = makeConstant(node, "180");
+    return op_map[node->inputs[0]] * (oneeighty / pi);
+  };
+  NgraphOpFuncs_["radians"] = [this](const NodePtr& node){
+    auto pi = makeConstant(node, "3.14159265359");
+    auto oneeighty = makeConstant(node, "180");
+    return op_map[node->inputs[0]] * (pi / oneeighty);
+  };
+  // NgraphOpFuncs_["gamma"] = [this](const NodePtr& node){
+  //   return ;
+  // };
+  // NgraphOpFuncs_["gammaln"] = [this](const NodePtr& node){
   //   return ;
   // };
 }
 
 // binary op generating function generator
 void Emitter::create_BinaryOps() {
-  NgraphBinaryOps_["_plus"] = [](const NgraphNodePtr& lhs,
-                                 const NgraphNodePtr& rhs) { 
-    return (lhs + rhs);
+  NgraphOpFuncs_["_plus"] = [this](const NodePtr& node) { 
+    return (op_map[node->inputs[0]] + op_map[node->inputs[1]]);
   };
-  NgraphBinaryOps_["_minus"] = [](const NgraphNodePtr& lhs,
-                                  const NgraphNodePtr& rhs) {
-    return (lhs - rhs);
+  NgraphOpFuncs_["_minus"] = [this](const NodePtr& node) {
+    return (op_map[node->inputs[0]] - op_map[node->inputs[1]]);
   };
-  NgraphBinaryOps_["_mul"] = [](const NgraphNodePtr& lhs,
-                                const NgraphNodePtr& rhs) {
-    return (lhs * rhs);
+  NgraphOpFuncs_["_mul"] = [this](const NodePtr& node) {
+    return (op_map[node->inputs[0]] * op_map[node->inputs[1]]);
   };
-  NgraphBinaryOps_["_div"] = [](const NgraphNodePtr& lhs,
-                                const NgraphNodePtr& rhs) {
-    return (lhs / rhs);
+  NgraphOpFuncs_["_div"] = [this](const NodePtr& node) {
+    return (op_map[node->inputs[0]] / op_map[node->inputs[1]]);
   };
 
-  NgraphBinaryOps_["_power"] = [](const NgraphNodePtr& lhs,
-                                  const NgraphNodePtr& rhs) {
-    return std::make_shared<ngraph::op::Power>(lhs, rhs);
+  NgraphOpFuncs_["_power"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Power>(op_map[node->inputs[0]],
+                                               op_map[node->inputs[1]]);
   };
-  NgraphBinaryOps_["_maximum"] = [](const NgraphNodePtr& lhs,
-                                    const NgraphNodePtr& rhs) {
-    return std::make_shared<ngraph::op::Maximum>(lhs, rhs);
+  NgraphOpFuncs_["_maximum"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Maximum>(op_map[node->inputs[0]],
+                                                 op_map[node->inputs[1]]);
   };
-  NgraphBinaryOps_["_minimum"] = [](const NgraphNodePtr& lhs,
-                                    const NgraphNodePtr& rhs) {
-    return std::make_shared<ngraph::op::Minimum>(lhs, rhs);
+  NgraphOpFuncs_["_minimum"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Minimum>(op_map[node->inputs[0]],
+                                                 op_map[node->inputs[1]]);
   };
-  // NgraphBinaryOps_["_hypot"] = [](const NgraphNodePtr& lhs,
-  //                               const NgraphNodePtr& rhs,
-  //                               ) {
-  //   return ;
-  // };
-  NgraphBinaryOps_["_equal"] = [](const NgraphNodePtr& lhs,
-                                  const NgraphNodePtr& rhs) {
-    return std::make_shared<ngraph::op::Equal>(lhs, rhs);
+  NgraphOpFuncs_["_hypot"] = [this](const NodePtr& node) {
+    auto one = makeConstant(node, "1");
+    auto two = makeConstant(node, "2");
+    return std::make_shared<ngraph::op::Power>(
+        (std::make_shared<ngraph::op::Power>(op_map[node->inputs[0]], two) +
+         std::make_shared<ngraph::op::Power>(op_map[node->inputs[1]], two)),
+        one / two);
   };
-
-  NgraphBinaryOps_["_not_equal"] = [](const NgraphNodePtr& lhs,
-                                      const NgraphNodePtr& rhs) {
-    return std::make_shared<ngraph::op::NotEqual>(lhs, rhs);
+  NgraphOpFuncs_["_equal"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Equal>(op_map[node->inputs[0]],
+                                               op_map[node->inputs[1]]);
   };
-  NgraphBinaryOps_["_greater"] = [](const NgraphNodePtr& lhs,
-                                    const NgraphNodePtr& rhs) {
-    return std::make_shared<ngraph::op::Greater>(lhs, rhs);
+  NgraphOpFuncs_["_not_equal"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::NotEqual>(op_map[node->inputs[0]],
+                                                  op_map[node->inputs[1]]);
   };
-  NgraphBinaryOps_["_greater_equal"] = [](const NgraphNodePtr& lhs,
-                                          const NgraphNodePtr& rhs) {
-    return std::make_shared<ngraph::op::GreaterEq>(lhs, rhs);
+  NgraphOpFuncs_["_greater"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Greater>(op_map[node->inputs[0]],
+                                                 op_map[node->inputs[1]]);
   };
-  NgraphBinaryOps_["_lesser"] = [](const NgraphNodePtr& lhs,
-                                   const NgraphNodePtr& rhs) {
-    return std::make_shared<ngraph::op::Less>(lhs, rhs);
+  NgraphOpFuncs_["_greater_equal"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::GreaterEq>(op_map[node->inputs[0]],
+                                                   op_map[node->inputs[1]]);
   };
-  NgraphBinaryOps_["_lesser_equal"] = [](const NgraphNodePtr& lhs,
-                                         const NgraphNodePtr& rhs) {
-    return std::make_shared<ngraph::op::LessEq>(lhs, rhs);
+  NgraphOpFuncs_["_lesser"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Less>(op_map[node->inputs[0]],
+                                              op_map[node->inputs[1]]);
+  };
+  NgraphOpFuncs_["_lesser_equal"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::LessEq>(op_map[node->inputs[0]],
+                                                op_map[node->inputs[1]]);
+  };
+  NgraphOpFuncs_["dot"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Dot>(op_map[node->inputs[0]],
+                                             op_map[node->inputs[1]]);
   };
 }
 
