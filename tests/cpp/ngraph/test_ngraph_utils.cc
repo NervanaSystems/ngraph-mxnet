@@ -16,7 +16,7 @@ TEST(NGRAPH_STRING, RANDOMSTRING) {
   EXPECT_EQ(randomString(77).size(), 77);
 }
 
-TEST(NGRAPH_SGCOMPILER, Convert_Shapes){
+TEST(NGRAPH_SGCOMPILER_UTILS, Convert_Shapes){
   auto Tshape = nnvm::TShape{2,3,4,5};
   auto Nshape = TShape_to_NShape(Tshape);
 
@@ -29,7 +29,7 @@ TEST(NGRAPH_SGCOMPILER, Convert_Shapes){
   for (int i = 0; i<4; ++i) EXPECT_EQ(TshapeVec[i], NshapeVec[i]);
 }
 
-TEST(NGRAPH_SGCOMPILER, GetNGraphTypes){
+TEST(NGRAPH_SGCOMPILER_UTILS, GetNGraphTypes){
   EXPECT_EQ(ngraph::element::Float32::element_type(), getType(mshadow::kFloat32));
   EXPECT_EQ(ngraph::element::UInt8::element_type(), getType(mshadow::kUint8));
   EXPECT_EQ(ngraph::element::Int8::element_type(), getType(mshadow::kInt8));
