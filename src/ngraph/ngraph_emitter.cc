@@ -22,7 +22,9 @@ void Emitter::create_UnaryOps() {
     return (one / (one + std::make_shared<ngraph::op::Exp>(
                              -op_map[node->inputs[0]])));
   };
-  // NgraphOpFuncs_["softmax"] = [this](const NodePtr& node){
+  // NgraphOpFuncs_["softmax"] = [this](const NodePtr& node) {
+  //   auto numer = std::make_shared<ngraph::op::Exp>(op_map[node->inputs[0]]);
+  //   auto denom = std::make_shared<ngraph::op::Sum>(numer, ngraph::AxisSet{1});
   //   return ;
   // };
   // NgraphOpFuncs_["log_softmax"] = [this](const NodePtr& node){

@@ -78,7 +78,7 @@ class Compiler {
   const NDArrayMap& GetFeedDict() { return feedDict_; };
   const NNVMNodeVec& GetInputs() { return inputs_; };
 
- private:
+ protected:
   // check nodes against ngraph operations
   void CheckInNGraph();
   void DeepCopy(const nnvm::Graph& graph);
