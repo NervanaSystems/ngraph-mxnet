@@ -2,52 +2,83 @@
 #include "ngraph_compiler.h"
 #include "test_util.h"
 
-class CompilerTest : public ::testing::Test {
+namespace ngraph_bridge{
+
+class NGRAPH_COMPILER : public ::testing::Test {
  protected:
-  virtual void SetUp() {
-    // The idea here is to create a graph for (A*B) dot product
-    // This has 2 inputs and one output
-    // Initialize two input nodes
+  nnvm::NodeEntry createNode(std::string name, std::string op = "") {
     nnvm::NodeAttrs attr;
-    in1 = nnvm::Node::Create();
-    in2 = nnvm::Node::Create();
-    op_node = nnvm::Node::Create();
-    attr.name = "in1";
-    in1->attrs = attr;
-    attr.name = "in2";
-    in2->attrs = attr;
-    // Create op node
-    const nnvm::Op* temp_op = nnvm::Op::Get("dot");
-    attr.op = temp_op;
+    auto node = nnvm::Node::Create();
+    attr.name = name;
+    if (op != "") attr.op = nnvm::Op::Get(op);
+    node->attrs = attr;
+    nodes_[name] = node;
+    return nnvm::NodeEntry{node, 0, 0};
+  }
+  
 
-    op_node->attrs = attr;
+  virtual void SetUp() {
+    auto A = createNode("A");
+    auto B = createNode("B");
+    auto C = createNode("C");
+    auto D = createNode("D");
+    auto add1 = createNode("add1", "_add");
+    auto mul = createNode("mul", "_mul");
+    auto add2 = createNode("add2", "_add");
+    auto relu = createNode("relu", "relu");
 
-    nnvm::NodeEntry ne0;
-    nnvm::NodeEntry ne1;
-    nnvm::NodeEntry ne2;
+    add1.node->inputs.push_back(A);
+    add1.node->inputs.push_back(B);
 
-    ne0.node = in1;
-    ne1.node = in2;
-    op_node->inputs.push_back(ne0);
-    op_node->inputs.push_back(ne1);
-    ne2.node = op_node;
-    nnvm_graph.outputs.push_back(ne2);
+    mul.node->inputs.push_back(add1);
+    mul.node->inputs.push_back(C);
 
-    // Adding the necessary boilerplate code to get the Compiler object created
-    nnvm::TShape shape({2, 2});
-    std::vector<int> dtypes({1, 1, 1});
-    std::vector<nnvm::TShape> shapes({shape, shape, shape});
-    nnvm_graph.attrs["shape"] = std::make_shared<nnvm::any>(std::move(shapes));
-    nnvm_graph.attrs["dtype"] = std::make_shared<nnvm::any>(std::move(dtypes));
+    add2.node->inputs.push_back(mul);
+    add2.node->inputs.push_back(D);
+
+    relu.node->inputs.push_back(add2);
+
+    nnvm_graph.outputs.push_back(relu);
+
+    nnvm::TShape shape{2, 2};
+    std::unordered_map<std::string, int> dtypes;
+    std::unordered_map<std::string, nnvm::TShape> shapes;
+
+    for (auto n : {A, B, C, D}) inputs.push_back(n.node);
+
+    for (auto n : {"A", "B", "C", "D"}) {
+      dtypes[n] = 0;
+      shapes[n] = shape;
+    }
+    feed_dict[A] = mxnet::NDArray(shape, mxnet::Context());
+    bindarg = std::make_shared<ngraph_bridge::SimpleBindArg>(4, shapes, dtypes);
   };
 
   virtual void TearDown(){};
 
-  nnvm::NodePtr in1;
-  nnvm::NodePtr in2;
-  nnvm::NodePtr op_node;
   nnvm::Graph nnvm_graph;
-  ngraph_bridge::NDArrayMap feed_dict;
-  ngraph_bridge::NNVMNodeVec inputs;
-  int temp = 1;
+  std::shared_ptr<ngraph_bridge::SimpleBindArg> bindarg;
+
+  NDArrayMap feed_dict;
+  NNVMNodeVec inputs;
+  std::unordered_map<std::string, nnvm::NodePtr> nodes_;
 };
+
+class testCompiler : public Compiler{
+ public:
+  using Compiler::CheckInNGraph;
+  using Compiler::DeepCopy;
+  using Compiler::CopyNodes;
+  using Compiler::makeCopiedFeedDict;
+  using Compiler::makeCopiedInputs;
+  using Compiler::Infer;
+  using Compiler::nodeMap_;
+  using Compiler::graph_;
+  using Compiler::ngraph_;
+  using Compiler::compiler_;
+  testCompiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
+               const NNVMNodeVec& inputs, const BindArgBase& bindarg)
+      : Compiler(graph, feed_dict, inputs, bindarg){};
+};
+
+}

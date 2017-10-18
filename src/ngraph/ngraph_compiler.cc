@@ -71,7 +71,6 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
   const auto& idx = graph_.indexed_graph();
   shapes_.resize(idx.input_nodes().size(), nnvm::TShape());
   dtypes_.resize(idx.input_nodes().size(), -1);
-
   size_t arg_top = 0, aux_top = 0;
   for (size_t i = 0; i < simplebind->numForwardInputs_; ++i) {
     const uint32_t nid = idx.input_nodes().at(i);
@@ -339,32 +338,9 @@ void Compiler::CheckInNGraph() {
           node->in_ngraph = true;
       }
     } else {
-      node->in_ngraph = true;
+      node->in_ngraph = false;
     }
   }
-}
-
-inline std::string clean_opname(std::string name) {
-  //Binary Basic
-  if (name == "elemwise_add" || name == "_add" || name == "_Plus")
-    name = "_plus";
-  if (name == "_sub" || name == "_Minus") name = "_minus";
-  if (name == "_Mul") name = "_mul";
-  if (name == "_Div") name = "_div";
-  if (name == "_Mod") name = "_mod";
-  //Binary Extended
-  if (name == "_Power") name = "_power";
-  if (name == "_Maximum") name = "_maximum";
-  if (name == "_Minimum") name = "_minimum";
-  if (name == "_Hypot") name = "_hypot";
-  //Binary Logic
-  if (name == "_Equal") name = "_equal";
-  if (name == "_Not_Equal") name = "_not_equal";
-  if (name == "_Greater") name = "_greater";
-  if (name == "_Greater_Equal") name = "_greater_equal";
-  if (name == "_Lesser") name = "_lesser";
-  if (name == "_Lesser_Equal") name = "_lesser_equal";
-  return name;
 }
 
 // Function that parses an nnvm Graph into an intermediary graph

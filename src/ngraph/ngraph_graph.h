@@ -104,13 +104,13 @@ class OpNode : public Node {
   };
 };
 
+using edgeRemoveTup = std::tuple<NodePtr, NodePtr, bool>;
+
 /*
 Graph class
 Graph subclasses Node so that we can embed graphs into other graphs
 This is useful when we take a graph and replace it with an ngraph computation
 */
-using edgeRemoveTup = std::tuple<NodePtr, NodePtr, bool>;
-
 class Graph : public Node {
  public:
   Graph() : Node(NodeType::kGraph, nullptr, ""){};
