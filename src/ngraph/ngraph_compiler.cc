@@ -338,7 +338,7 @@ void Compiler::CheckInNGraph() {
           node->in_ngraph = true;
       }
     } else {
-      node->in_ngraph = true;
+      node->in_ngraph = false;
     }
   }
 }

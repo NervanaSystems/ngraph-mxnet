@@ -62,15 +62,19 @@ struct SimpleBindArg : public BindArgBase {
 };
 
 static std::unordered_map<std::string, std::string> nameswitch({
-  //Binary Basic
+  // elemwise
   {"elemwise_add", "_plus"},
+  {"elemwise_sub", "_minus"},
+  {"elemwise_mul", "_mul"},
+  {"elemwise_div", "_div"},
+  //Binary Basic
   {"_add", "_plus"},
   {"_Plus", "_plus"},
   {"_sub", "_minus"},
   {"_Minus", "_minus"},
   {"_Mul", "_mul"},
   {"_Div", "_div"},
-  {"_Mid", "_mod"},
+  {"_Mod", "_mod"},
   //Binary Extended
   {"_Power","_power"},
   {"_Maximum","_maximum"},

@@ -12,6 +12,7 @@ class NGRAPH_COMPILER : public ::testing::Test {
     attr.name = name;
     if (op != "") attr.op = nnvm::Op::Get(op);
     node->attrs = attr;
+    nodes_[name] = node;
     return nnvm::NodeEntry{node, 0, 0};
   }
   
@@ -49,7 +50,7 @@ class NGRAPH_COMPILER : public ::testing::Test {
       dtypes[n] = 0;
       shapes[n] = shape;
     }
-
+    feed_dict[A] = mxnet::NDArray(shape, mxnet::Context());
     bindarg = std::make_shared<ngraph_bridge::SimpleBindArg>(4, shapes, dtypes);
   };
 
@@ -60,6 +61,7 @@ class NGRAPH_COMPILER : public ::testing::Test {
 
   NDArrayMap feed_dict;
   NNVMNodeVec inputs;
+  std::unordered_map<std::string, nnvm::NodePtr> nodes_;
 };
 
 class testCompiler : public Compiler{
@@ -72,6 +74,8 @@ class testCompiler : public Compiler{
   using Compiler::Infer;
   using Compiler::nodeMap_;
   using Compiler::graph_;
+  using Compiler::ngraph_;
+  using Compiler::compiler_;
   testCompiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                const NNVMNodeVec& inputs, const BindArgBase& bindarg)
       : Compiler(graph, feed_dict, inputs, bindarg){};
