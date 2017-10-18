@@ -71,6 +71,7 @@ class testCompiler : public Compiler{
   using Compiler::makeCopiedInputs;
   using Compiler::Infer;
   using Compiler::nodeMap_;
+  using Compiler::graph_;
   testCompiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                const NNVMNodeVec& inputs, const BindArgBase& bindarg)
       : Compiler(graph, feed_dict, inputs, bindarg){};

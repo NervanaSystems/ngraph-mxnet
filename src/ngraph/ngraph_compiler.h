@@ -61,6 +61,38 @@ struct SimpleBindArg : public BindArgBase {
   const NgraphDType dtypeMap_;
 };
 
+static std::unordered_map<std::string, std::string> nameswitch({
+  //Binary Basic
+  {"elemwise_add", "_plus"},
+  {"_add", "_plus"},
+  {"_Plus", "_plus"},
+  {"_sub", "_minus"},
+  {"_Minus", "_minus"},
+  {"_Mul", "_mul"},
+  {"_Div", "_div"},
+  {"_Mid", "_mod"},
+  //Binary Extended
+  {"_Power","_power"},
+  {"_Maximum","_maximum"},
+  {"_Minimum","_minimum"},
+  {"_Hypot","_hypot"},
+  //Binary Logic
+  {"_Equal", "_equal"},
+  {"_Not_Equal", "_not_equal"},
+  {"_Greater", "_greater"},
+  {"_Greater_Equal", "_greater_equal"},
+  {"_Lesser", "_lesser"},
+  {"_Lesser_Equal", "_lesser_equal"},
+});
+
+inline std::string clean_opname(std::string name) {
+  if (nameswitch.count(name)){
+    return nameswitch[name];
+  } else {
+    return name;
+  }
+}
+
 class Compiler {
  public:
   Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
