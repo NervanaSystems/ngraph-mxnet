@@ -1,7 +1,9 @@
 #ifndef NGRAPH_AUTOBROADCAST_H_
 #define NGRAPH_AUTOBROADCAST_H_
 
-#include "ngraph_emitter.h"
+#include "ngraph_graph.h"
+
+using NgraphNodePtr = std::shared_ptr<ngraph::Node>;
 
 namespace ngraph_bridge {
 

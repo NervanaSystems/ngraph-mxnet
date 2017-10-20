@@ -1,5 +1,6 @@
 #include "ngraph_emitter.h"
 #include "ngraph_sgcompiler_utils.h"
+#include "ngraph_autobroadcast.h"
 
 namespace ngraph_bridge {
 
@@ -231,9 +232,19 @@ void Emitter::create_BinaryOps() {
     return std::make_shared<ngraph::op::Dot>(op_map[node->inputs[0]],
                                              op_map[node->inputs[1]]);
   };
+  NgraphOpFuncs_["broadcast_add"] = [this](const NodePtr& node) {
+    auto lhsNode = op_map[node->inputs[0]];
+    auto lhsShape = TShape_to_NShape(node->inputs[0]->shape);
+    auto rhsNode = op_map[node->inputs[1]];
+    auto rhsShape = TShape_to_NShape(node->inputs[1]->shape);
+
+    AutoBroadcast ab(lhsNode, lhsShape, rhsNode, rhsShape);
+    return ab.lhs() + ab.rhs();
+  };
 }
 
 // MXNet high level ops generating function
 void Emitter::create_LayerOps() {
 }
 }  // end namespace ngraph
+
