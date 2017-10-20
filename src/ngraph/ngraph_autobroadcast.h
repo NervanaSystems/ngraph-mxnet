@@ -41,8 +41,8 @@ class AutoBroadcast {
  public:
   AutoBroadcast(const NgraphNodePtr &lhsNode, const ngraph::Shape &lhsShape,
                 const NgraphNodePtr &rhsNode, const ngraph::Shape &rhsShape);
-  const NgraphNodePtr &lhs() { return lhs_.ptr; }
-  const NgraphNodePtr &rhs() { return rhs_.ptr; }
+  NgraphNodePtr lhs() { return lhs_.ptr; }
+  NgraphNodePtr rhs() { return rhs_.ptr; }
 };
 
 }  // namespace ngraph_bridge

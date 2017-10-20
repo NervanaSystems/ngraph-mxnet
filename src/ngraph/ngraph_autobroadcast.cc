@@ -34,19 +34,16 @@ void AutoBroadcast::SetShapesAndAxes() {
   //  * if they are equal
   //  * if one of them is 1
   while (lhsSize >= 1 || rhsSize >= 1) {
-    // check empty and set dimensions (default 1)
     auto lhsDim = lhsSize ? lhs_.shape[lhsSize - 1] : 1;
     auto rhsDim = rhsSize ? rhs_.shape[rhsSize - 1] : 1;
 
     if (lhsDim == rhsDim) {
-      // dimensions match
       // add dimension to broadcast shape + lhs/rhs reshape
       broadcastshape_.insert(broadcastshape_.begin(), lhsDim);
       lhs_.reshape.insert(lhs_.reshape.begin(), lhsDim);
       rhs_.reshape.insert(rhs_.reshape.begin(), rhsDim);
 
     } else if (rhsDim == 1) {
-      // rhs is empty or 1
       // add lhs dimension to broadcast shape and lhs reshape
       broadcastshape_.insert(broadcastshape_.begin(), lhsDim);
       lhs_.reshape.insert(lhs_.reshape.begin(), lhsDim);
@@ -54,7 +51,6 @@ void AutoBroadcast::SetShapesAndAxes() {
       rhs_.axes.insert(rhs_.axes.begin(), axis);
 
     } else if (lhsDim == 1) {
-      // lhs is empty or 1
       // add rhs dimension to broadcast shape and rhs reshape
       broadcastshape_.insert(broadcastshape_.begin(), rhsDim);
       rhs_.reshape.insert(rhs_.reshape.begin(), rhsDim);
@@ -78,14 +74,11 @@ void AutoBroadcast::ReshapeAndBroadcast(Node &node) {
     // tell reshape to examine input dimensions in order
     ngraph::AxisVector order(node.shape.size());
     std::iota(order.begin(), order.end(), 0);
-
-    // reshape node to macth node reshape
     node.ptr =
         std::make_shared<ngraph::op::Reshape>(node.ptr, order, node.reshape);
   }
 
   if (broadcastshape_ != node.reshape) {
-    // broadcast node to match broadcast shape
     node.ptr = std::make_shared<ngraph::op::Broadcast>(
         node.ptr, broadcastshape_, node.axes);
   }
