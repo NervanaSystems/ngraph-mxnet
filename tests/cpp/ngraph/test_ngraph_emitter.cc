@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
+#include "../../src/operator/slice_channel-inl.h"
 #include "test_ngraph_emitter.h"
 
 namespace ngraph_bridge {
@@ -239,6 +240,55 @@ namespace ngraph_bridge {
     //other
     EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Dot>(
         test_emitter.NgraphOpFuncs_["dot"](test_emitter.node)));
+  }
+
+  TEST(NGRAPH_EMITTER, LAYER_OPS) {
+    // slice no squeeze
+    {
+      testEmitter test;
+      test.in1->shape = nnvm::TShape{2,4,8,16};
+      test.node->shape = nnvm::TShape{2,4,2,16};
+      auto node = nnvm::Node::Create();
+      nnvm::NodeAttrs attr;
+      attr.name = "split_no_squeeze";
+      mxnet::op::SliceChannelParam param;
+      param.num_outputs = 4;
+      param.axis = 2;
+      param.squeeze_axis = 0;
+
+      attr.op = (nnvm::Op*) mxnet::op::CreateOp<mxnet::cpu>(param, 0);
+      attr.dict["num_outputs"] = "4";
+      attr.dict["axis"] = "2";
+      attr.dict["squeeze_axis"] = "0";
+      node->attrs = attr;
+      test.node->orig_node = node;
+      test.node->multioutput_index = 0;
+      EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Slice>(
+          test.NgraphOpFuncs_["split"](test.node)));
+    }
+    // slice with squeeze
+    {
+      testEmitter test;
+      test.in1->shape = nnvm::TShape{2,4,8,16};
+      test.node->shape = nnvm::TShape{2,4,16};
+      auto node = nnvm::Node::Create();
+      nnvm::NodeAttrs attr;
+      attr.name = "split_no_squeeze";
+      mxnet::op::SliceChannelParam param;
+      param.num_outputs = 8;
+      param.axis = 2;
+      param.squeeze_axis = 1;
+
+      attr.op = (nnvm::Op*) mxnet::op::CreateOp<mxnet::cpu>(param, 0);
+      attr.dict["num_outputs"] = "8";
+      attr.dict["axis"] = "2";
+      attr.dict["squeeze_axis"] = "1";
+      node->attrs = attr;
+      test.node->orig_node = node;
+      test.node->multioutput_index = 0;
+      EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Reshape>(
+          test.NgraphOpFuncs_["split"](test.node)));
+    }
   }
 
 }
