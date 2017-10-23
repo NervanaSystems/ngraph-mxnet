@@ -361,6 +361,19 @@ void Emitter::create_LayerOps() {
 
     return op;
   };
+
+  NgraphOpFuncs_["concat"] = [this](const NodePtr& node) {
+    size_t axis = 1;
+    for (auto& kv : node->orig_node->attrs.dict) {
+      if (kv.first == "axis") axis = std::stoi(kv.second);
+    }
+
+    std::vector<NgraphNodePtr> args;
+    for (auto i : node->inputs) args.push_back(op_map[i]);
+
+    return std::make_shared<ngraph::op::Concat>(args, axis);
+  };
 }
+
 }  // end namespace ngraph
 
