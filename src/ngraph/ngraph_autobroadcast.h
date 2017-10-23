@@ -25,6 +25,9 @@ class AutoBroadcast {
   // shape of both nodes after ngraph::op::Broadcast
   ngraph::Shape broadcastshape_;
 
+  // determines whether this class will take any action
+  bool RequiresBroadcast();
+  
   // set reshape and axes (per node) and broadcast shape
   void SetShapesAndAxes();
 

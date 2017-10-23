@@ -53,8 +53,43 @@ TEST(NGRAPH_AUTOBROADCAST, NO_BROADCAST_INCOMPATABLE) {
 }
 
 // basic broadcast test
+// 1D to 2D
+// lhs broadcast to 2,3
+TEST(NGRAPH_AUTOBROADCAST, NORMAL_BROADCAST_2D) {
+  ngraph::Shape s3{3};
+  ngraph::Shape s23{2, 3};
+  auto lhs = getParamFromShape(s3);
+  auto rhs = getParamFromShape(s23);
+  AutoBroadcast ab(lhs, s3, rhs, s23);
+
+  EXPECT_NE(ab.lhs(), lhs);
+  EXPECT_EQ(getShapeFromParam(ab.lhs()), s23);
+
+  EXPECT_EQ(ab.rhs(), rhs);  // no change
+  EXPECT_EQ(getShapeFromParam(ab.rhs()), s23);
+}
+
+// basic broadcast test
+// 2D to 3D
+// lhs broadcast to 2,3,4
+TEST(NGRAPH_AUTOBROADCAST, NORMAL_BROADCAST_3D) {
+  ngraph::Shape s34{3, 4};
+  ngraph::Shape s234{2, 3, 4};
+  auto lhs = getParamFromShape(s34);
+  auto rhs = getParamFromShape(s234);
+  AutoBroadcast ab(lhs, s34, rhs, s234);
+
+  EXPECT_NE(ab.lhs(), lhs);
+  EXPECT_EQ(getShapeFromParam(ab.lhs()), s234);
+
+  EXPECT_EQ(ab.rhs(), rhs);  // no change
+  EXPECT_EQ(getShapeFromParam(ab.rhs()), s234);
+}
+
+// basic broadcast test
+// 3D to 4D
 // lhs broadcast to 2,3,4,5
-TEST(NGRAPH_AUTOBROADCAST, NORMAL_BROADCAST) {
+TEST(NGRAPH_AUTOBROADCAST, NORMAL_BROADCAST_4D) {
   ngraph::Shape s345{3, 4, 5};
   ngraph::Shape s2345{2, 3, 4, 5};
   auto lhs = getParamFromShape(s345);
@@ -64,7 +99,7 @@ TEST(NGRAPH_AUTOBROADCAST, NORMAL_BROADCAST) {
   EXPECT_NE(ab.lhs(), lhs);
   EXPECT_EQ(getShapeFromParam(ab.lhs()), s2345);
 
-  EXPECT_EQ(ab.rhs(), rhs);
+  EXPECT_EQ(ab.rhs(), rhs);  // no change
   EXPECT_EQ(getShapeFromParam(ab.rhs()), s2345);
 }
 
@@ -136,6 +171,37 @@ TEST(NGRAPH_AUTOBROADCAST, BROADCAST_WITH_LEADING_DIM1) {
 
   EXPECT_NE(ab.rhs(), rhs);
   EXPECT_EQ(getShapeFromParam(ab.rhs()), s1345);
+}
+
+// handle edge input case - empty shape
+TEST(NGRAPH_AUTOBROADCAST, EMPTY_SHAPE) {
+  ngraph::Shape sEmpty{};
+  ngraph::Shape s345{ 3, 4, 5 };
+  auto lhs = getParamFromShape(sEmpty);
+  auto rhs = getParamFromShape(s345);
+  AutoBroadcast ab(lhs, sEmpty, rhs, s345);
+
+  EXPECT_EQ(ab.lhs(), lhs);  // no change
+  EXPECT_EQ(getShapeFromParam(ab.lhs()), sEmpty);
+
+  EXPECT_EQ(ab.rhs(), rhs);  // no change
+  EXPECT_EQ(getShapeFromParam(ab.rhs()), s345);
+}
+
+// handle edge input case - zero dimension
+TEST(NGRAPH_AUTOBROADCAST, ZERO_DIMENSION) {
+  ngraph::Shape s204{2, 0, 4};
+  ngraph::Shape s201{2, 0, 1};
+
+  auto lhs = getParamFromShape(s204);
+  auto rhs = getParamFromShape(s201);
+  AutoBroadcast ab(lhs, s204, rhs, s201);
+
+  EXPECT_EQ(ab.lhs(), lhs);  // no change
+  EXPECT_EQ(getShapeFromParam(ab.lhs()), s204);
+
+  EXPECT_EQ(ab.rhs(), rhs);  // no change
+  EXPECT_EQ(getShapeFromParam(ab.rhs()), s201);
 }
 
 }  // namespace ngraph_bridge

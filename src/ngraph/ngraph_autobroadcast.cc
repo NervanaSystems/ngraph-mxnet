@@ -11,8 +11,7 @@ AutoBroadcast::AutoBroadcast(const NgraphNodePtr &lhsNode,
   lhs_.shape = lhsShape;
   rhs_.shape = rhsShape;
 
-  // if auto broadcast is necessary
-  if (lhs_.shape != rhs_.shape) {
+  if (RequiresBroadcast()) {
     SetShapesAndAxes();
 
     // if auto broadcast is possible
@@ -21,6 +20,26 @@ AutoBroadcast::AutoBroadcast(const NgraphNodePtr &lhsNode,
       ReshapeAndBroadcast(rhs_);
     }
   }
+}
+
+bool AutoBroadcast::RequiresBroadcast() {
+  // no action required if shapes already match
+  if (lhs_.shape == rhs_.shape) return false;
+
+  // a zero dimension is invalid
+  // so we should not hit this case "in the wild"
+  // make explicit: no action taken on shapes with zero dimensions
+  if (std::find(lhs_.shape.begin(), lhs_.shape.end(), 0) != lhs_.shape.end())
+    return false;
+  if (std::find(rhs_.shape.begin(), rhs_.shape.end(), 0) != rhs_.shape.end())
+    return false;
+
+  // mxnet scalars are pre-broadcast to requisite shape
+  // so we should not hit this case "in the wild"
+  // make explicit: no action taken on empty shape(s)
+  if (lhs_.shape.size() == 0 || rhs_.shape.size() == 0) return false;
+
+  return true;
 }
 
 void AutoBroadcast::SetShapesAndAxes() {
