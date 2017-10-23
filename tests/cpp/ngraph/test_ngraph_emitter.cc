@@ -17,6 +17,7 @@
 namespace ngraph_bridge {
 
   testEmitter test_emitter;
+  testEmitterBroadcast test_broadcast;
 
   TEST(NGRAPH_EMITTER, COMPOUND_UNARY_OPS) {
     auto relu = test_emitter.NgraphOpFuncs_["relu"](test_emitter.node);
@@ -239,6 +240,14 @@ namespace ngraph_bridge {
     //other
     EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Dot>(
         test_emitter.NgraphOpFuncs_["dot"](test_emitter.node)));
+
+    // broadcast
+    auto broadcast_add = test_broadcast.NgraphOpFuncs_["broadcast_add"](test_broadcast.node);
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Add>(broadcast_add));
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Broadcast>(broadcast_add->get_arguments()[0]));
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Broadcast>(broadcast_add->get_arguments()[1]));
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Reshape>((broadcast_add->get_arguments()[0])->get_arguments()[0]));
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Reshape>((broadcast_add->get_arguments()[1])->get_arguments()[0]));
   }
 
 }

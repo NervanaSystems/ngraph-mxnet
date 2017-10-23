@@ -36,4 +36,30 @@ struct testEmitter : public Emitter {
   };
 };
 
+struct testEmitterBroadcast : public Emitter {
+  std::shared_ptr<VariableNode> in1;
+  std::shared_ptr<VariableNode> in2;
+  std::shared_ptr<OpNode> node;
+  NgraphNodePtr data1;
+  NgraphNodePtr data2;
+  testEmitterBroadcast() {
+    in1 = std::make_shared<VariableNode>(nullptr, "in1");
+    in2 = std::make_shared<VariableNode>(nullptr, "in2");
+    node = std::make_shared<OpNode>(nullptr, "node", "test",
+                                    std::vector<NodePtr>{in1, in2});
+
+    auto s2345 = nnvm::TShape{ 2,3,4,5 };
+    auto s2145 = nnvm::TShape{ 2,1,4,5 };
+    auto s2315 = nnvm::TShape{ 2,3,1,5 };
+
+    in1->shape = s2145;
+    in2->shape = s2315;
+    node->shape = s2345;
+
+    op_map[in1] = std::make_shared<ngraph::op::Parameter>();
+    op_map[in2] = std::make_shared<ngraph::op::Parameter>();
+    data1 = op_map[in1];
+    data2 = op_map[in2];
+  };
+};
 }
