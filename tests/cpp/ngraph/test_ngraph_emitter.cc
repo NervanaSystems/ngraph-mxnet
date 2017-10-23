@@ -13,6 +13,7 @@
 // ----------------------------------------------------------------------------
 
 #include "../../src/operator/slice_channel-inl.h"
+#include "../../src/operator/concat-inl.h"
 #include "test_ngraph_emitter.h"
 
 namespace ngraph_bridge {
@@ -242,7 +243,7 @@ namespace ngraph_bridge {
         test_emitter.NgraphOpFuncs_["dot"](test_emitter.node)));
   }
 
-  TEST(NGRAPH_EMITTER, LAYER_OPS) {
+  TEST(NGRAPH_EMITTER, SPLIT) {
     // slice no squeeze
     {
       testEmitter test;
@@ -290,6 +291,32 @@ namespace ngraph_bridge {
           test.NgraphOpFuncs_["split"](test.node)));
     }
   }
+  
+  TEST(NGRAPH_EMITTER, CONCAT) {
+    // concat
+    {
+      testEmitter test;
+      test.in1->shape = nnvm::TShape{2,2,2};
+      test.in2->shape = nnvm::TShape{2,2,2};
+      test.node->shape = nnvm::TShape{4,2,2};
 
-}
+      mxnet::op::ConcatParam param;
+      param.num_args = 2;
+      param.dim = 0;
+
+      auto node = nnvm::Node::Create();
+      nnvm::NodeAttrs attr;
+      attr.name = "concat";
+      attr.dict["num_args"] = "2";
+      attr.dict["dim"] = "0";
+      attr.op = (nnvm::Op*) mxnet::op::CreateOp<mxnet::cpu>(param, 0);
+      node->attrs = attr;
+      test.node->orig_node = node;
+
+      EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Concat>(
+          test.NgraphOpFuncs_["concat"](test.node)));
+    }
+  }
+
+} //namespace
 
