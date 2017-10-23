@@ -65,6 +65,8 @@ TEST_F(NGRAPH_COMPILER, CLEAN_OPNAME) {
   EXPECT_EQ(clean_opname("elemwise_sub"), "_minus");
   EXPECT_EQ(clean_opname("elemwise_mul"), "_mul");
   EXPECT_EQ(clean_opname("elemwise_div"), "_div");
+  EXPECT_EQ(clean_opname("elemwise_plus"), "broadcast_add");
+  EXPECT_EQ(clean_opname("elemwise_minus"), "broadcast_sub");
   EXPECT_EQ(clean_opname("_add"), "_plus");
   EXPECT_EQ(clean_opname("_Plus"), "_plus");
   EXPECT_EQ(clean_opname("_sub"), "_minus");
