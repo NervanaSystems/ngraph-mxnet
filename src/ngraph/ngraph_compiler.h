@@ -81,6 +81,9 @@ static std::unordered_map<std::string, std::string> nameswitch({
   {"elemwise_sub", "_minus"},
   {"elemwise_mul", "_mul"},
   {"elemwise_div", "_div"},
+  // broadcast
+  {"broadcast_plus", "broadcast_add"},
+  {"broadcast_minus", "broadcast_sub"},
   //Binary Basic
   {"_add", "_plus"},
   {"_Plus", "_plus"},

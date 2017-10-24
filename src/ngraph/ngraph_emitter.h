@@ -16,6 +16,7 @@
 #define NGRAPH_EMITTER_H_
 
 #include "ngraph_graph.h"
+#include "ngraph_autobroadcast.h"
 
 using NgraphNodePtr = std::shared_ptr<ngraph::Node>;
 
@@ -39,6 +40,8 @@ protected:
   void create_BinaryOps();
   // create larger MXNet layer operations
   void create_LayerOps();
+
+  AutoBroadcast createAutoBroadcast(const NodePtr& node);
 
   // information on compiled objects
   std::map<NodePtr, NgraphNodePtr> op_map;

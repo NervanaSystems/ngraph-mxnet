@@ -14,7 +14,6 @@
 
 #include "ngraph_emitter.h"
 #include "ngraph_sgcompiler_utils.h"
-#include "ngraph_autobroadcast.h"
 
 namespace ngraph_bridge {
 
@@ -183,6 +182,14 @@ void Emitter::create_UnaryOps() {
   // };
 }
 
+AutoBroadcast Emitter::createAutoBroadcast(const NodePtr& node) {
+  auto lhsNode = op_map[node->inputs[0]];
+  auto lhsShape = TShape_to_NShape(node->inputs[0]->shape);
+  auto rhsNode = op_map[node->inputs[1]];
+  auto rhsShape = TShape_to_NShape(node->inputs[1]->shape);
+  return AutoBroadcast(lhsNode, lhsShape, rhsNode, rhsShape);
+}
+
 // binary op generating function generator
 void Emitter::create_BinaryOps() {
   NgraphOpFuncs_["_plus"] = [this](const NodePtr& node) { 
@@ -197,7 +204,10 @@ void Emitter::create_BinaryOps() {
   NgraphOpFuncs_["_div"] = [this](const NodePtr& node) {
     return (op_map[node->inputs[0]] / op_map[node->inputs[1]]);
   };
-
+  NgraphOpFuncs_["_mod"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Remainder>(op_map[node->inputs[0]],
+                                                   op_map[node->inputs[1]]);
+  };
   NgraphOpFuncs_["_power"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Power>(op_map[node->inputs[0]],
                                                op_map[node->inputs[1]]);
@@ -247,13 +257,69 @@ void Emitter::create_BinaryOps() {
                                              op_map[node->inputs[1]]);
   };
   NgraphOpFuncs_["broadcast_add"] = [this](const NodePtr& node) {
-    auto lhsNode = op_map[node->inputs[0]];
-    auto lhsShape = TShape_to_NShape(node->inputs[0]->shape);
-    auto rhsNode = op_map[node->inputs[1]];
-    auto rhsShape = TShape_to_NShape(node->inputs[1]->shape);
-
-    AutoBroadcast ab(lhsNode, lhsShape, rhsNode, rhsShape);
+    auto ab = createAutoBroadcast(node);
     return ab.lhs() + ab.rhs();
+  };
+  NgraphOpFuncs_["broadcast_sub"] = [this](const NodePtr& node) {
+    auto ab = createAutoBroadcast(node);
+    return ab.lhs() - ab.rhs();
+  };
+  NgraphOpFuncs_["broadcast_mul"] = [this](const NodePtr& node) {
+    auto ab = createAutoBroadcast(node);
+    return ab.lhs() * ab.rhs();
+  };
+  NgraphOpFuncs_["broadcast_div"] = [this](const NodePtr& node) {
+    auto ab = createAutoBroadcast(node);
+    return ab.lhs() / ab.rhs();
+  };
+  NgraphOpFuncs_["broadcast_mod"] = [this](const NodePtr& node) {
+    auto ab = createAutoBroadcast(node);
+    return std::make_shared<ngraph::op::Remainder>(ab.lhs(), ab.rhs());
+  };
+  NgraphOpFuncs_["broadcast_power"] = [this](const NodePtr& node) {
+    auto ab = createAutoBroadcast(node);
+    return std::make_shared<ngraph::op::Power>(ab.lhs(), ab.rhs());
+  };
+  NgraphOpFuncs_["broadcast_maximum"] = [this](const NodePtr& node) {
+    auto ab = createAutoBroadcast(node);
+    return std::make_shared<ngraph::op::Maximum>(ab.lhs(), ab.rhs());
+  };
+  NgraphOpFuncs_["broadcast_minimum"] = [this](const NodePtr& node) {
+    auto ab = createAutoBroadcast(node);
+    return std::make_shared<ngraph::op::Minimum>(ab.lhs(), ab.rhs());
+  };
+  NgraphOpFuncs_["broadcast_hypot"] = [this](const NodePtr& node) {
+    auto ab = createAutoBroadcast(node);
+    auto one = makeConstant(node, "1");
+    auto two = makeConstant(node, "2");
+    return std::make_shared<ngraph::op::Power>(
+        (std::make_shared<ngraph::op::Power>(ab.lhs(), two) +
+         std::make_shared<ngraph::op::Power>(ab.rhs(), two)),
+        one / two);
+  };
+  NgraphOpFuncs_["broadcast_equal"] = [this](const NodePtr& node) {
+    auto ab = createAutoBroadcast(node);
+    return std::make_shared<ngraph::op::Equal>(ab.lhs(), ab.rhs());
+  };
+  NgraphOpFuncs_["broadcast_not_equal"] = [this](const NodePtr& node) {
+    auto ab = createAutoBroadcast(node);
+    return std::make_shared<ngraph::op::NotEqual>(ab.lhs(), ab.rhs());
+  };
+  NgraphOpFuncs_["broadcast_greater"] = [this](const NodePtr& node) {
+    auto ab = createAutoBroadcast(node);
+    return std::make_shared<ngraph::op::Greater>(ab.lhs(), ab.rhs());
+  };
+  NgraphOpFuncs_["broadcast_greater_equal"] = [this](const NodePtr& node) {
+    auto ab = createAutoBroadcast(node);
+    return std::make_shared<ngraph::op::GreaterEq>(ab.lhs(), ab.rhs());
+  };
+  NgraphOpFuncs_["broadcast_lesser"] = [this](const NodePtr& node) {
+    auto ab = createAutoBroadcast(node);
+    return std::make_shared<ngraph::op::Less>(ab.lhs(), ab.rhs());
+  };
+  NgraphOpFuncs_["broadcast_lesser_equal"] = [this](const NodePtr& node) {
+    auto ab = createAutoBroadcast(node);
+    return std::make_shared<ngraph::op::LessEq>(ab.lhs(), ab.rhs());
   };
 }
 
