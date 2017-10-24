@@ -346,6 +346,7 @@ namespace ngraph_bridge {
             hypot->get_arguments()[0]->get_arguments()[1]->get_arguments()[1])
             ->get_value_strings()[0],
         "2");
+  }
 
   TEST(NGRAPH_EMITTER, SPLIT) {
     // slice no squeeze

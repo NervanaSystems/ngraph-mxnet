@@ -325,6 +325,14 @@ void Emitter::create_BinaryOps() {
 
 // MXNet high level ops generating function
 void Emitter::create_LayerOps() {
+  NgraphOpFuncs_["FullyConnected"] = [this](const NodePtr& node){
+    auto X = op_map[node->inputs[0]];
+    auto Y = op_map[node->inputs[1]];
+    auto b = op_map[node->inputs[2]];
+
+    auto dot = NgraphOpFuncs_["dot"](X,NgraphOpFuncs_["transpose"](W));
+    auto fc = NgraphOpFuncs_[]  
+  }
 
   NgraphOpFuncs_["split"] = [this](const NodePtr& node) {
 
