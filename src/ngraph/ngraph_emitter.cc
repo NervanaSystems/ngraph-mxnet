@@ -364,6 +364,7 @@ void Emitter::create_LayerOps() {
 
   NgraphOpFuncs_["concat"] = [this](const NodePtr& node) {
     size_t axis = 1;
+    
     for (auto& kv : node->orig_node->attrs.dict) 
       if (kv.first == "axis") axis = std::stoi(kv.second);
 
@@ -371,6 +372,24 @@ void Emitter::create_LayerOps() {
     for (auto i : node->inputs) args.push_back(op_map[i]);
 
     return std::make_shared<ngraph::op::Concat>(args, axis);
+  };
+
+  NgraphOpFuncs_["flatten"] = [this](const NodePtr& node) {
+    auto in_shape = TShape_to_NShape(node->inputs[0]->shape);
+    auto out_shape = ngraph::Shape({in_shape[0], 1});
+    for (size_t i = 1; i < in_shape.size(); ++i) out_shape[1] *= in_shape[i];
+    ngraph::AxisVector order(in_shape.size());
+    std::iota(order.begin(), order.end(), 0);
+    return std::make_shared<ngraph::op::Reshape>(op_map[node->inputs[0]], order,
+                                                 out_shape);
+  };
+
+  NgraphOpFuncs_["transpose"] = [this](const NodePtr& node) {
+    auto in_shape = TShape_to_NShape(node->inputs[0]->shape);
+    if (in_shape.size() != 2) throw;
+    auto out_shape = ngraph::Shape({in_shape[1], in_shape[0]});
+    return std::make_shared<ngraph::op::Reshape>(
+        op_map[node->inputs[0]], ngraph::AxisVector{1, 0}, out_shape);
   };
 
   NgraphOpFuncs_["expand_dims"] = [this](const NodePtr& node) {
@@ -389,7 +408,7 @@ void Emitter::create_LayerOps() {
     return std::make_shared<ngraph::op::Reshape>(op_map[node->inputs[0]], order,
                                                  out_shape);
   };
-
+  
 }
 
 }  // end namespace ngraph

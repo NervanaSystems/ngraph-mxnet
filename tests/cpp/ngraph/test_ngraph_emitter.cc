@@ -452,10 +452,49 @@ namespace ngraph_bridge {
       attr.op = nnvm::Op::Get("expand_dims");
       node->attrs = attr;
       test.node->orig_node = node;
-      auto op = std::dynamic_pointer_cast<ngraph::op::Concat>(
-          test.NgraphOpFuncs_["concat"](test.node));
+      auto op = std::dynamic_pointer_cast<ngraph::op::Reshape>(
+          test.NgraphOpFuncs_["expand_dims"](test.node));
       ASSERT_TRUE(op);
-      EXPECT_EQ(op->get_concatenation_axis(), 0);
+      EXPECT_EQ(op->get_input_order(), ngraph::Shape({0,1}));
+      EXPECT_EQ(op->get_output_shape(), TShape_to_NShape(test.node->shape));
+    }
+    // flatten
+    {
+      testEmitter test;
+      test.in1->shape = nnvm::TShape{2,4,8,16};
+      test.node->shape = nnvm::TShape{2,4*8*16};
+
+      auto node = nnvm::Node::Create();
+      nnvm::NodeAttrs attr;
+      attr.name = "flatten_test";
+      
+      attr.op = nnvm::Op::Get("flatten");
+      node->attrs = attr;
+      test.node->orig_node = node;
+      auto op = std::dynamic_pointer_cast<ngraph::op::Reshape>(
+          test.NgraphOpFuncs_["flatten"](test.node));
+      ASSERT_TRUE(op);
+      EXPECT_EQ(op->get_input_order(), ngraph::Shape({0,1,2,3}));
+      EXPECT_EQ(op->get_output_shape(), TShape_to_NShape(test.node->shape));
+    }
+    // transpose
+    {
+      testEmitter test;
+      test.in1->shape = nnvm::TShape{2,4};
+      test.node->shape = nnvm::TShape{4,2};
+
+      auto node = nnvm::Node::Create();
+      nnvm::NodeAttrs attr;
+      attr.name = "transpose_test";
+      
+      attr.op = nnvm::Op::Get("transpose");
+      node->attrs = attr;
+      test.node->orig_node = node;
+      auto op = std::dynamic_pointer_cast<ngraph::op::Reshape>(
+          test.NgraphOpFuncs_["transpose"](test.node));
+      ASSERT_TRUE(op);
+      EXPECT_EQ(op->get_input_order(), ngraph::Shape({1,0}));
+      EXPECT_EQ(op->get_output_shape(), TShape_to_NShape(test.node->shape));
     }
   }
 
