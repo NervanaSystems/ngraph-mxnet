@@ -134,7 +134,7 @@ TEST_F(NGRAPH_SGCOMPILER, COMPILE_SUBGRAPH){
                   ->get_element_type(),
               getType(node2->dtype_));
   EXPECT_TRUE(subgraph->ngraph_forward);
-  // EXPECT_TRUE(subgraph->ngraph_backward); //Not yet Implemented
+  EXPECT_TRUE(subgraph->ngraph_backward);
 }
 
 }

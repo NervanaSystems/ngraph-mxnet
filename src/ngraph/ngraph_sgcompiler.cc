@@ -64,8 +64,26 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   auto forward_external = manager->compile(f);
   sub_graph->ngraph_forward = backend->make_call_frame(forward_external);
 
+
   //Compile the backward Pass
-      
+  auto Y = f->get_result();
+  auto backward_parameters = forward_parameters;
+
+  auto C = std::make_shared<ngraph::op::Parameter>(Y->get_value_type());
+
+  std::vector<NgraphNodePtr> dYdXs(backward_parameters.size());
+  transform(backward_parameters.begin(), backward_parameters.end(),
+            dYdXs.begin(), [C, Y](const NgraphNodePtr& X) {
+              return Y->backprop_node(X, C);
+            });
+
+  auto result = std::make_shared<ngraph::op::Tuple>(dYdXs);
+  backward_parameters.insert(backward_parameters.begin(), C);
+  auto bf = std::make_shared<ngraph::Function>(result, result->get_value_type(),
+                                            backward_parameters);
+
+  auto backward_external = manager->compile(bf);
+  sub_graph->ngraph_backward = backend->make_call_frame(backward_external);
 }
 
 // compiling a node, recursively checking it's inputs
