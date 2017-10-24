@@ -15,6 +15,7 @@
 #include "../../src/operator/slice_channel-inl.h"
 #include "../../src/operator/concat-inl.h"
 #include "../../src/operator/tensor/matrix_op-inl.h"
+#include "../../src/operator/fully_connected-inl.h"
 #include "test_ngraph_emitter.h"
 #include "../../src/ngraph/ngraph_sgcompiler_utils.h"
 
@@ -497,6 +498,45 @@ namespace ngraph_bridge {
       EXPECT_EQ(op->get_input_order(), ngraph::Shape({1,0}));
       EXPECT_EQ(op->get_output_shape(), TShape_to_NShape(test.node->shape));
     }
+  }
+
+  TEST(NGRAPH_EMITTER, FULLYCONNECTED) {
+    testEmitter test;
+    test.in1->shape = nnvm::TShape{2,4};
+    test.in2->shape = nnvm::TShape{8,4};
+    test.in3->shape = nnvm::TShape{8};
+    test.node->shape = nnvm::TShape{2,8};
+
+    mxnet::op::FullyConnectedParam param;
+    param.num_hidden = 8;
+
+    auto node = nnvm::Node::Create();
+    nnvm::NodeAttrs attr;
+    attr.name = "concat";
+    attr.dict["num_hidden"] = "8";
+
+    auto inshape = std::vector<nnvm::TShape>{test.in1->shape};
+    auto outshape = std::vector<nnvm::TShape>{test.node->shape};
+    attr.op = (nnvm::Op*)mxnet::op::CreateOp<mxnet::cpu>(
+        param, 0, &inshape, &outshape, mxnet::Context());
+    node->attrs = attr;
+    test.node->orig_node = node;
+
+    auto op = test.NgraphOpFuncs_["FullyConnected"](test.node);
+    
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Add>(op));
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Dot>(
+        op->get_arguments()[0]));
+
+    EXPECT_EQ(op->get_arguments()[0]->get_arguments()[0], test.data1);
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Reshape>(
+        op->get_arguments()[0]->get_arguments()[1]));
+    EXPECT_EQ(op->get_arguments()[0]->get_arguments()[1]->get_arguments()[0],
+              test.data2);
+
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Broadcast>(
+        op->get_arguments()[1]));
+    EXPECT_EQ(op->get_arguments()[1]->get_arguments()[0], test.data3);
   }
 
 } //namespace

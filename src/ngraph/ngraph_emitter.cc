@@ -325,14 +325,20 @@ void Emitter::create_BinaryOps() {
 
 // MXNet high level ops generating function
 void Emitter::create_LayerOps() {
+  
   NgraphOpFuncs_["FullyConnected"] = [this](const NodePtr& node){
     auto X = op_map[node->inputs[0]];
-    auto Y = op_map[node->inputs[1]];
-    auto b = op_map[node->inputs[2]];
+    auto W = op_map[node->inputs[1]];
+    auto beta = op_map[node->inputs[2]];
+    auto dot = std::make_shared<ngraph::op::Dot>(
+        X, NgraphTranspose(W, TShape_to_NShape(node->inputs[1]->shape)));
 
-    auto dot = NgraphOpFuncs_["dot"](X,NgraphOpFuncs_["transpose"](W));
-    auto fc = NgraphOpFuncs_[]  
-  }
+    auto dotShape = TShape_to_NShape(node->shape);
+    auto betaShape = TShape_to_NShape(node->inputs[2]->shape);
+
+    auto ab = AutoBroadcast(dot, dotShape, beta, betaShape);
+    return ab.lhs() + ab.rhs();
+  };
 
   NgraphOpFuncs_["split"] = [this](const NodePtr& node) {
 
@@ -393,11 +399,8 @@ void Emitter::create_LayerOps() {
   };
 
   NgraphOpFuncs_["transpose"] = [this](const NodePtr& node) {
-    auto in_shape = TShape_to_NShape(node->inputs[0]->shape);
-    if (in_shape.size() != 2) throw;
-    auto out_shape = ngraph::Shape({in_shape[1], in_shape[0]});
-    return std::make_shared<ngraph::op::Reshape>(
-        op_map[node->inputs[0]], ngraph::AxisVector{1, 0}, out_shape);
+    return NgraphTranspose(op_map[node->inputs[0]],
+                           TShape_to_NShape(node->inputs[0]->shape));
   };
 
   NgraphOpFuncs_["expand_dims"] = [this](const NodePtr& node) {
