@@ -14,6 +14,7 @@
 
 #include "../../src/operator/slice_channel-inl.h"
 #include "../../src/operator/concat-inl.h"
+#include "../../src/operator/tensor/matrix_op-inl.h"
 #include "test_ngraph_emitter.h"
 #include "../../src/ngraph/ngraph_sgcompiler_utils.h"
 
@@ -413,22 +414,42 @@ namespace ngraph_bridge {
   
   TEST(NGRAPH_EMITTER, CONCAT) {
     // concat
+    testEmitter test;
+    test.in1->shape = nnvm::TShape{2,2,2};
+    test.in2->shape = nnvm::TShape{2,2,2};
+    test.node->shape = nnvm::TShape{4,2,2};
+
+    mxnet::op::ConcatParam param;
+    param.num_args = 2;
+    param.dim = 0;
+
+    auto node = nnvm::Node::Create();
+    nnvm::NodeAttrs attr;
+    attr.name = "concat";
+    attr.dict["num_args"] = "2";
+    attr.dict["dim"] = "0";
+    attr.op = (nnvm::Op*) mxnet::op::CreateOp<mxnet::cpu>(param, 0);
+    node->attrs = attr;
+    test.node->orig_node = node;
+
+    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Concat>(
+        test.NgraphOpFuncs_["concat"](test.node)));
+  }
+
+  TEST(NGRAPH_EMITTER, MATRIX_OPS) {
+    // expand dims
     {
       testEmitter test;
-      test.in1->shape = nnvm::TShape{2,2,2};
-      test.in2->shape = nnvm::TShape{2,2,2};
-      test.node->shape = nnvm::TShape{4,2,2};
-
-      mxnet::op::ConcatParam param;
-      param.num_args = 2;
-      param.dim = 0;
+      test.in1->shape = nnvm::TShape{2,2};
+      test.in2->shape = nnvm::TShape{2,2};
+      test.node->shape = nnvm::TShape{1,2,2};
 
       auto node = nnvm::Node::Create();
       nnvm::NodeAttrs attr;
-      attr.name = "concat";
-      attr.dict["num_args"] = "2";
-      attr.dict["dim"] = "0";
-      attr.op = (nnvm::Op*) mxnet::op::CreateOp<mxnet::cpu>(param, 0);
+      attr.name = "expanddim_test";
+      attr.dict["axis"] = "0";
+      
+      attr.op = nnvm::Op::Get("expand_dims");
       node->attrs = attr;
       test.node->orig_node = node;
       auto op = std::dynamic_pointer_cast<ngraph::op::Concat>(

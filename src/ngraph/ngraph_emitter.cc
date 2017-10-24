@@ -364,15 +364,32 @@ void Emitter::create_LayerOps() {
 
   NgraphOpFuncs_["concat"] = [this](const NodePtr& node) {
     size_t axis = 1;
-    for (auto& kv : node->orig_node->attrs.dict) {
+    for (auto& kv : node->orig_node->attrs.dict) 
       if (kv.first == "axis") axis = std::stoi(kv.second);
-    }
 
     std::vector<NgraphNodePtr> args;
     for (auto i : node->inputs) args.push_back(op_map[i]);
 
     return std::make_shared<ngraph::op::Concat>(args, axis);
   };
+
+  NgraphOpFuncs_["expand_dims"] = [this](const NodePtr& node) {
+    size_t axis = 1;
+    for (auto& kv : node->orig_node->attrs.dict) 
+      if (kv.first == "axis") axis = std::stoi(kv.second);
+    
+    auto in_shape = TShape_to_NShape(node->inputs[0]->shape);
+
+    ngraph::AxisVector order(in_shape.size());
+    std::iota(order.begin(), order.end(), 0);
+    
+    auto out_shape = in_shape;
+    out_shape.insert(out_shape.begin() + axis, 1);
+
+    return std::make_shared<ngraph::op::Reshape>(op_map[node->inputs[0]], order,
+                                                 out_shape);
+  };
+
 }
 
 }  // end namespace ngraph
