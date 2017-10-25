@@ -61,15 +61,15 @@ void Compiler::Infer(const BindArg* bind) {
   const auto& idx = graph_.indexed_graph();
   const auto& mutable_nodes = idx.mutable_input_nodes();
   size_t arg_top = 0, aux_top = 0;
-  for (size_t i = 0; i < bind->numForwardInputs_; ++i) {
+  for (size_t i = 0; i < bind->kNumForwardInputs; ++i) {
     const uint32_t nid = idx.input_nodes().at(i);
     if (mutable_nodes.count(nid)) {
-      shapes_.push_back(bind->auxStates_[aux_top].shape());
-      dtypes_.push_back(bind->auxStates_[aux_top].dtype());
+      shapes_.push_back(bind->aux_states_[aux_top].shape());
+      dtypes_.push_back(bind->aux_states_[aux_top].dtype());
       ++aux_top;
     } else {
-      shapes_.push_back(bind->inArgs_[arg_top].shape());
-      dtypes_.push_back(bind->inArgs_[arg_top].dtype());
+      shapes_.push_back(bind->in_args_[arg_top].shape());
+      dtypes_.push_back(bind->in_args_[arg_top].dtype());
       ++arg_top;
     }
   }
@@ -86,15 +86,15 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
   shapes_.resize(idx.input_nodes().size(), nnvm::TShape());
   dtypes_.resize(idx.input_nodes().size(), -1);
   size_t arg_top = 0, aux_top = 0;
-  for (size_t i = 0; i < simplebind->numForwardInputs_; ++i) {
+  for (size_t i = 0; i < simplebind->kNumForwardInputs; ++i) {
     const uint32_t nid = idx.input_nodes().at(i);
     const std::string& name = idx[nid].source->attrs.name;
-    auto it1 = simplebind->shapeMap_.find(name);
-    if (simplebind->shapeMap_.end() != it1) {
+    auto it1 = simplebind->shape_map_.find(name);
+    if (simplebind->shape_map_.end() != it1) {
       shapes_[i] = it1->second;
     }
-    auto it2 = simplebind->dtypeMap_.find(name);
-    if (simplebind->dtypeMap_.end() != it2) {
+    auto it2 = simplebind->dtype_map_.find(name);
+    if (simplebind->dtype_map_.end() != it2) {
       dtypes_[i] = it2->second;
     }
   }
@@ -130,10 +130,10 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
   //    g.GetAttr<nnvm::DTypeVector>("dtype"));
   //}
 
-  makeCopiedInputs(inputs);
-  makeCopiedFeedDict(feed_dict);
-  ParseNNVMGraph();
-  CheckInNGraph();
+  MakeCopiedInputs(inputs);
+  MakeCopiedFeedDict(feed_dict);
+  ParseNnvmGraph();
+  CheckInNgraph();
 
   ngraph_.IdentifySubgraphs([&feed_dict](NodePtr s) {
     bool in_feed_dict = false;
@@ -164,8 +164,8 @@ nnvm::Graph Compiler::Compile() {
     // don't get properly inferred. Works, because we're inferring
     // the shapes before doing all of this, but not ideal
     if (node->type == NodeType::kAux || node->type == NodeType::kVariable) {
-      ngraphShape_[node->name] = node->shape;
-      ngraphDtype_[node->name] = node->dtype;
+      ngraph_shape_[node->name] = node->shape;
+      ngraph_dtype_[node->name] = node->dtype;
     }
   }
 
@@ -219,22 +219,22 @@ nnvm::Graph Compiler::Compile() {
 StateMap Compiler::CopySavedStates(const StateMap& saved_states) {
   StateMap new_saved_states;
   for (auto kv : saved_states) {
-    new_saved_states[nodeMap_[kv.first].get()] = kv.second;
+    new_saved_states[node_map_[kv.first].get()] = kv.second;
   }
   return new_saved_states;
 }
 
-void Compiler::makeCopiedFeedDict(const NDArrayMap& feed_dict) {
+void Compiler::MakeCopiedFeedDict(const NDArrayMap& feed_dict) {
   for (auto kv : feed_dict) {
     auto e = kv.first;
-    e.node = nodeMap_[kv.first.node.get()];
-    feedDict_[e] = kv.second;
+    e.node = node_map_[kv.first.node.get()];
+    feed_dict_[e] = kv.second;
   }
 }
 
-void Compiler::makeCopiedInputs(const NNVMNodeVec& inputs) {
+void Compiler::MakeCopiedInputs(const NNVMNodeVec& inputs) {
   for (auto node : inputs) {
-    inputs_.push_back(nodeMap_[node.get()]);
+    inputs_.push_back(node_map_[node.get()]);
   }
 }
 
@@ -251,11 +251,11 @@ void Compiler::CopyNodes(const nnvm::Graph& graph) {
   auto copy_and_recurse = [this, &copy_nodes,
                            &CopyNode](const nnvm::NodePtr& node) {
     // check if we've copied this node already
-    if (!nodeMap_.count(node.get())) {
+    if (!node_map_.count(node.get())) {
       // if we haven't, make and store a copy
-      nodeMap_[node.get()] = CopyNode(node);
+      node_map_[node.get()] = CopyNode(node);
       // and copy the input nodes
-      copy_nodes(nodeMap_[node.get()]);
+      copy_nodes(node_map_[node.get()]);
     }
   };
 
@@ -290,16 +290,16 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
   auto replace_node_and_recurse = [&visited, &set_inputs,
                                    this](nnvm::NodePtr& node) {
     // check to see if this is an original node or a copied node
-    if (nodeMap_.count(node.get())) {
+    if (node_map_.count(node.get())) {
       // if it's original make a copy of the node smart pointer
       nnvm::NodePtr node_copy = node;
       // replace the input node with the copied node
-      node = nodeMap_[node_copy.get()];
+      node = node_map_[node_copy.get()];
       // check to see if we've recursed on this node before
       // if we haven't, replace the inputs with copies
       if (!visited.count(node_copy)) {
         visited.insert(node_copy);
-        set_inputs(nodeMap_[node_copy.get()]);
+        set_inputs(node_map_[node_copy.get()]);
       }
     }
   };
@@ -329,7 +329,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 }
 
 // Check nodes in NGraph
-void Compiler::CheckInNGraph() {
+void Compiler::CheckInNgraph() {
   // loop over nodes
   for (auto node : ngraph_.nodes_) {
     if (node->type == NodeType::kOp) {
@@ -348,7 +348,7 @@ void Compiler::CheckInNGraph() {
       if (multioutput) {
       } else {
         // if it's an operation, check operation name
-        if (compiler_.NgraphOpFuncs_.count(node->operation))
+        if (compiler_.ngraph_op_funcs_.count(node->operation))
           node->in_ngraph = true;
       }
     } else {
@@ -358,7 +358,7 @@ void Compiler::CheckInNGraph() {
 }
 
 // Function that parses an nnvm Graph into an intermediary graph
-void Compiler::ParseNNVMGraph() {
+void Compiler::ParseNnvmGraph() {
   // Create dictionary of layer->ngraph functions
   auto layer_funcs = create_layerGraphs();
   // Use NNVM's depth first search to trace the tree and construct the

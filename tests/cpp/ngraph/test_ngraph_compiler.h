@@ -80,13 +80,13 @@ class NGRAPH_COMPILER : public ::testing::Test {
 
 class testCompiler : public Compiler{
  public:
-  using Compiler::CheckInNGraph;
+  using Compiler::CheckInNgraph;
   using Compiler::DeepCopy;
   using Compiler::CopyNodes;
-  using Compiler::makeCopiedFeedDict;
-  using Compiler::makeCopiedInputs;
+  using Compiler::MakeCopiedFeedDict;
+  using Compiler::MakeCopiedInputs;
   using Compiler::Infer;
-  using Compiler::nodeMap_;
+  using Compiler::node_map_;
   using Compiler::graph_;
   using Compiler::ngraph_;
   using Compiler::compiler_;
