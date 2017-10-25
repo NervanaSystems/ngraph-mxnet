@@ -84,7 +84,6 @@ TEST_F(NGRAPH_COMPILER, CLEAN_OPNAME) {
   EXPECT_EQ(clean_opname("_Greater_Equal"), "_greater_equal");
   EXPECT_EQ(clean_opname("_Lesser"), "_lesser");
   EXPECT_EQ(clean_opname("_Lesser_Equal"), "_lesser_equal");
-  EXPECT_EQ(clean_opname("Concat"), "concat");
   EXPECT_EQ(clean_opname("Flatten"), "flatten");
 }
 

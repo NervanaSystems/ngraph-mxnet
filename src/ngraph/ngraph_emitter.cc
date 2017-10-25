@@ -340,54 +340,6 @@ void Emitter::create_LayerOps() {
     return ab.lhs() + ab.rhs();
   };
 
-  NgraphOpFuncs_["split"] = [this](const NodePtr& node) {
-
-    size_t axis = 1;
-    int num_outputs = 1;
-    int index = node->multioutput_index;
-    bool squeeze_axis = false;
-
-    for (auto& kv : node->orig_node->attrs.dict) {
-      if (kv.first == "num_outputs") num_outputs = std::stoi(kv.second);
-      if (kv.first == "axis") axis = std::stoi(kv.second);
-      if (kv.first == "squeeze_axis") squeeze_axis = std::stoi(kv.second);
-    }
-
-    auto upper = TShape_to_NShape(node->inputs[0]->shape);
-    std::vector<size_t> lower(upper.size(), 0);
-
-    lower[axis] = index * upper[axis] / num_outputs;
-    upper[axis] = (index + 1) * upper[axis] / num_outputs;
-
-    std::shared_ptr<ngraph::Node> op = std::make_shared<ngraph::op::Slice>(
-        op_map[node->inputs[0]], lower, upper);
-
-    if (squeeze_axis && ((upper[axis] - lower[axis]) == 1)) {
-      std::vector<size_t> reshape;
-      for (size_t i = 0; i < upper.size(); ++i)
-        if (i != axis) reshape.push_back(upper[i]);
-
-      ngraph::AxisVector order(upper.size());
-      std::iota(order.begin(), order.end(), 0);
-
-      op = std::make_shared<ngraph::op::Reshape>(op, order, reshape);
-    }
-
-    return op;
-  };
-
-  NgraphOpFuncs_["concat"] = [this](const NodePtr& node) {
-    size_t axis = 1;
-    
-    for (auto& kv : node->orig_node->attrs.dict) 
-      if (kv.first == "axis") axis = std::stoi(kv.second);
-
-    std::vector<NgraphNodePtr> args;
-    for (auto i : node->inputs) args.push_back(op_map[i]);
-
-    return std::make_shared<ngraph::op::Concat>(args, axis);
-  };
-
   NgraphOpFuncs_["flatten"] = [this](const NodePtr& node) {
     auto in_shape = TShape_to_NShape(node->inputs[0]->shape);
     auto out_shape = ngraph::Shape({in_shape[0], 1});

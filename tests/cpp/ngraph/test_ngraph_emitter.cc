@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
-#include "../../src/operator/slice_channel-inl.h"
-#include "../../src/operator/concat-inl.h"
 #include "../../src/operator/tensor/matrix_op-inl.h"
 #include "../../src/operator/fully_connected-inl.h"
 #include "test_ngraph_emitter.h"
@@ -347,95 +345,6 @@ namespace ngraph_bridge {
             hypot->get_arguments()[0]->get_arguments()[1]->get_arguments()[1])
             ->get_value_strings()[0],
         "2");
-  }
-
-  TEST(NGRAPH_EMITTER, SPLIT) {
-    // slice no squeeze
-    {
-      testEmitter test;
-      test.in1->shape = nnvm::TShape{2,4,8,16};
-      test.node->shape = nnvm::TShape{2,4,2,16};
-      auto node = nnvm::Node::Create();
-      nnvm::NodeAttrs attr;
-      attr.name = "split_no_squeeze";
-      mxnet::op::SliceChannelParam param;
-      param.num_outputs = 4;
-      param.axis = 2;
-      param.squeeze_axis = 0;
-
-      attr.op = (nnvm::Op*) mxnet::op::CreateOp<mxnet::cpu>(param, 0);
-      attr.dict["num_outputs"] = "4";
-      attr.dict["axis"] = "2";
-      attr.dict["squeeze_axis"] = "0";
-      node->attrs = attr;
-      test.node->orig_node = node;
-      test.node->multioutput_index = 1;
-
-      auto op = test.NgraphOpFuncs_["split"](test.node);
-
-      ASSERT_TRUE(std::dynamic_pointer_cast<ngraph::op::Slice>(op));
-
-      auto op_cast = std::dynamic_pointer_cast<ngraph::op::Slice>(op);
-      EXPECT_EQ(op_cast->get_lower_bounds(), ngraph::Shape({0,0,2,0}));
-      EXPECT_EQ(op_cast->get_upper_bounds(), ngraph::Shape({2,4,4,16}));
-      EXPECT_EQ(op_cast->get_step(), ngraph::Shape({1,1,1,1}));
-    }
-    // slice with squeeze
-    {
-      testEmitter test;
-      test.in1->shape = nnvm::TShape{2,4,8,16};
-      test.node->shape = nnvm::TShape{2,4,16};
-      auto node = nnvm::Node::Create();
-      nnvm::NodeAttrs attr;
-      attr.name = "split_no_squeeze";
-      mxnet::op::SliceChannelParam param;
-      param.num_outputs = 8;
-      param.axis = 2;
-      param.squeeze_axis = 1;
-
-      attr.op = (nnvm::Op*) mxnet::op::CreateOp<mxnet::cpu>(param, 0);
-      attr.dict["num_outputs"] = "8";
-      attr.dict["axis"] = "2";
-      attr.dict["squeeze_axis"] = "1";
-      node->attrs = attr;
-      test.node->orig_node = node;
-      test.node->multioutput_index = 0;
-
-      auto op = test.NgraphOpFuncs_["split"](test.node);
-
-      ASSERT_TRUE(std::dynamic_pointer_cast<ngraph::op::Reshape>(op));
-
-      auto op_cast = std::dynamic_pointer_cast<ngraph::op::Reshape>(op);
-      ngraph::AxisVector order(TShape_to_NShape(test.in1->shape).size());
-      std::iota(order.begin(), order.end(), 0);
-      EXPECT_EQ(op_cast->get_input_order(), order);
-      EXPECT_EQ(op_cast->get_output_shape(), TShape_to_NShape(test.node->shape));
-
-    }
-  }
-  
-  TEST(NGRAPH_EMITTER, CONCAT) {
-    // concat
-    testEmitter test;
-    test.in1->shape = nnvm::TShape{2,2,2};
-    test.in2->shape = nnvm::TShape{2,2,2};
-    test.node->shape = nnvm::TShape{4,2,2};
-
-    mxnet::op::ConcatParam param;
-    param.num_args = 2;
-    param.dim = 0;
-
-    auto node = nnvm::Node::Create();
-    nnvm::NodeAttrs attr;
-    attr.name = "concat";
-    attr.dict["num_args"] = "2";
-    attr.dict["dim"] = "0";
-    attr.op = (nnvm::Op*) mxnet::op::CreateOp<mxnet::cpu>(param, 0);
-    node->attrs = attr;
-    test.node->orig_node = node;
-
-    EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Concat>(
-        test.NgraphOpFuncs_["concat"](test.node)));
   }
 
   TEST(NGRAPH_EMITTER, MATRIX_OPS) {
