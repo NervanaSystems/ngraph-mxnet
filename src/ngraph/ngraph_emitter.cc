@@ -325,6 +325,59 @@ void Emitter::CreateBinaryOps() {
 
 // MXNet high level ops generating function
 void Emitter::CreateLayerOps() {
+  
+  ngraph_op_funcs_["FullyConnected"] = [this](const NodePtr& node){
+    auto X = op_map_[node->inputs[0]];
+    auto W = op_map_[node->inputs[1]];
+    auto beta = op_map_[node->inputs[2]];
+    auto dot = std::make_shared<ngraph::op::Dot>(
+        X, NgraphTranspose(W, TShape_to_NShape(node->inputs[1]->shape)));
+
+    auto dotShape = TShape_to_NShape(node->shape);
+    auto betaShape = TShape_to_NShape(node->inputs[2]->shape);
+
+    auto ab = AutoBroadcast(dot, dotShape, beta, betaShape);
+    return ab.lhs() + ab.rhs();
+  };
+
+  ngraph_op_funcs_["flatten"] = [this](const NodePtr& node) {
+    auto in_shape = TShape_to_NShape(node->inputs[0]->shape);
+    auto out_shape = ngraph::Shape({in_shape[0], 1});
+    out_shape[1] = std::accumulate(in_shape.begin() + 1, in_shape.end(), 1,
+                                   std::multiplies<int>());
+    // Create a range vector indicating that 
+    // Reshape should take the axes in order
+    ngraph::AxisVector order(in_shape.size());
+    std::iota(order.begin(), order.end(), 0);
+    return std::make_shared<ngraph::op::Reshape>(op_map_[node->inputs[0]],
+                                                 order, out_shape);
+  };
+
+  ngraph_op_funcs_["transpose"] = [this](const NodePtr& node) {
+    return NgraphTranspose(op_map_[node->inputs[0]],
+                           TShape_to_NShape(node->inputs[0]->shape));
+  };
+
+  ngraph_op_funcs_["expand_dims"] = [this](const NodePtr& node) {
+    size_t axis = 1;
+    for (auto& kv : node->orig_node->attrs.dict) 
+      if (kv.first == "axis") axis = std::stoi(kv.second);
+    
+    auto in_shape = TShape_to_NShape(node->inputs[0]->shape);
+
+    // Create a range vector indicating that 
+    // Reshape should take the axes in order
+    ngraph::AxisVector order(in_shape.size());
+    std::iota(order.begin(), order.end(), 0);
+    // copy the shape and insert a 1 at the axis position to expand the dimension
+    auto out_shape = in_shape;
+    out_shape.insert(out_shape.begin() + axis, 1);
+
+    return std::make_shared<ngraph::op::Reshape>(op_map_[node->inputs[0]],
+                                                 order, out_shape);
+  };
+  
 }
+
 }  // end namespace ngraph
 

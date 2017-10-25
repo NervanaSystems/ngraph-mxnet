@@ -104,6 +104,8 @@ static std::unordered_map<std::string, std::string> nameswitch({
   {"_Greater_Equal", "_greater_equal"},
   {"_Lesser", "_lesser"},
   {"_Lesser_Equal", "_lesser_equal"},
+  //Layer Ops
+  {"Flatten", "flatten"},
 });
 
 inline std::string clean_opname(std::string name) {

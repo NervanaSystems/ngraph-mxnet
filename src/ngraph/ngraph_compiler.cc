@@ -42,8 +42,9 @@ nnvm::NodeEntry CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
 
 // Generator to create functions that convert mxnet layer operations
 // into a series of ngraph operations
-LayerGraphs create_layerGraphs() {
+LayerGraphs create_layer_graphs() {
   LayerGraphs layer_funcs;
+
   layer_funcs[std::string("Activation")] = [](const NodePtr node) {
     Graph tmpGraph;
     auto act_type = node->orig_node->attrs.dict["act_type"];
@@ -360,7 +361,7 @@ void Compiler::CheckInNgraph() {
 // Function that parses an nnvm Graph into an intermediary graph
 void Compiler::ParseNnvmGraph() {
   // Create dictionary of layer->ngraph functions
-  auto layer_funcs = create_layerGraphs();
+  auto layer_funcs = create_layer_graphs();
   // Use NNVM's depth first search to trace the tree and construct the
   // intermediary graph
   nnvm::DFSVisit(graph_.outputs, [this,
