@@ -32,20 +32,20 @@ class Emitter {
 public:
   Emitter();
   // maps of ngraph operation generator functions
-  OpEmitter NgraphOpFuncs_;
+  OpEmitter ngraph_op_funcs_;
 protected:
   // create unary operation functions
-  void create_UnaryOps();
+  void CreateUnaryOps();
   // create binary operation functions
-  void create_BinaryOps();
+  void CreateBinaryOps();
   // create larger MXNet layer operations
-  void create_LayerOps();
+  void CreateLayerOps();
 
-  AutoBroadcast createAutoBroadcast(const NodePtr& node);
+  AutoBroadcast CreateAutoBroadcast(const NodePtr& node);
 
   // information on compiled objects
-  std::map<NodePtr, NgraphNodePtr> op_map;
-  std::vector<NodePtr> placeholder_order;
+  std::map<NodePtr, NgraphNodePtr> op_map_;
+  std::vector<NodePtr> placeholder_order_;
 };
 
 }  // end namespace ngraph

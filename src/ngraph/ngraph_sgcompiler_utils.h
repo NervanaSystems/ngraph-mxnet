@@ -89,6 +89,7 @@ using NgraphNodePtr = std::shared_ptr<ngraph::Node>;
 
 inline NgraphNodePtr NgraphTranspose(NgraphNodePtr node,
                                      ngraph::Shape in_shape) {
+  //TODO: Support multidimensional Transpose
   if (in_shape.size() != 2) throw;
   auto out_shape = ngraph::Shape({in_shape[1], in_shape[0]});
   return std::make_shared<ngraph::op::Reshape>(node, ngraph::AxisVector{1, 0},
