@@ -22,7 +22,7 @@ namespace ngraph_bridge {
 
 // Main compilation function
 std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
-  // clear the op_map and placeholder_order
+  // clear the op_map_ and placeholder_order
   ClearOpMap();
   // cast the graph
   auto sg = std::dynamic_pointer_cast<Graph>(sub_graph);
@@ -33,14 +33,14 @@ std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
 }
 
 void SGCompiler::ClearOpMap(){
-  op_map.clear();
-  placeholder_order.clear();
+  op_map_.clear();
+  placeholder_order_.clear();
 }
 
 // Compile a Subgraph into ngraph python objects
 void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // initalize a placeholder order vector for this subgraph
-  for (auto i : sub_graph->inputs) placeholder_order.push_back(i);
+  for (auto i : sub_graph->inputs) placeholder_order_.push_back(i);
 
   for (auto node : sub_graph->nodes_) CompileNode(node, sub_graph);
   
@@ -50,15 +50,15 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // Compile the forward Pass
   ngraph::op::Parameters forward_parameters;
 
-  for (auto input : placeholder_order)
+  for (auto input : placeholder_order_)
     forward_parameters.push_back(
-        std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map[input]));
+        std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_[input]));
 
   auto shape = TShape_to_NShape(sub_graph->nodes_.back()->shape);
   auto return_type = std::make_shared<ngraph::TensorViewType>(
       getType(sub_graph->nodes_.back()->dtype), shape);
 
-  auto f = std::make_shared<ngraph::Function>(op_map[sub_graph->nodes_.back()],
+  auto f = std::make_shared<ngraph::Function>(op_map_[sub_graph->nodes_.back()],
                                               return_type, forward_parameters);
 
   auto forward_external = manager->compile(f);
@@ -71,9 +71,9 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 // compiling a node, recursively checking it's inputs
 void SGCompiler::CompileNode(NodePtr node,
                              const std::shared_ptr<Graph> sub_graph) {
-  if (!op_map.count(node)){
+  if (!op_map_.count(node)){
     for (auto input : node->inputs) {
-      if (!op_map.count(input)){
+      if (!op_map_.count(input)){
         if (std::find(sub_graph->nodes_.begin(), sub_graph->nodes_.end(),
                       input) == sub_graph->nodes_.end()) {
           CompileInput(input);
@@ -82,14 +82,14 @@ void SGCompiler::CompileNode(NodePtr node,
         }
       }
     }
-    op_map[node] = NgraphOpFuncs_[node->operation](node);
+    op_map_[node] = ngraph_op_funcs_[node->operation](node);
   }
 }
 
 // Compile the inputs
 void SGCompiler::CompileInput(NodePtr input) {
   auto shape = TShape_to_NShape(input->shape);
-  op_map[input] = std::make_shared<ngraph::op::Parameter>(
+  op_map_[input] = std::make_shared<ngraph::op::Parameter>(
       getType(input->dtype), shape);
 }
 
