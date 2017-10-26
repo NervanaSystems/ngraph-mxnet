@@ -45,22 +45,22 @@ using StateMap = std::unordered_map<const nnvm::Node*, mxnet::OpStatePtr>;
 // GraphExecutor::Init function where ngraph_bridge::Compiler is
 // invoked.  Hence there are two derivations of this base object.
 struct BindArgBase {
-  BindArgBase(size_t numforward) : numForwardInputs_(numforward) {}
+  BindArgBase(size_t numforward) : kNumForwardInputs(numforward) {}
   virtual ~BindArgBase() {}
 
   // common arguments
-  const size_t numForwardInputs_;
+  const size_t kNumForwardInputs;
 };
 
 // Bind
 struct BindArg : public BindArgBase {
   BindArg(size_t numforward, const std::vector<mxnet::NDArray>& inargs,
           const std::vector<mxnet::NDArray>& auxstates)
-      : BindArgBase(numforward), inArgs_(inargs), auxStates_(auxstates) {}
+      : BindArgBase(numforward), in_args_(inargs), aux_states_(auxstates) {}
 
   // bind arguments
-  const std::vector<mxnet::NDArray> inArgs_;
-  const std::vector<mxnet::NDArray> auxStates_;
+  const std::vector<mxnet::NDArray> in_args_;
+  const std::vector<mxnet::NDArray> aux_states_;
 };
 
 // SimpleBind
@@ -68,11 +68,11 @@ struct SimpleBindArg : public BindArgBase {
   SimpleBindArg(size_t numforward,
                 const std::unordered_map<std::string, nnvm::TShape>& shapes,
                 const std::unordered_map<std::string, int>& dtypes)
-      : BindArgBase(numforward), shapeMap_(shapes), dtypeMap_(dtypes) {}
+      : BindArgBase(numforward), shape_map_(shapes), dtype_map_(dtypes) {}
 
   // simple bind arguments
-  const NgraphShape shapeMap_;
-  const NgraphDType dtypeMap_;
+  const NgraphShape shape_map_;
+  const NgraphDType dtype_map_;
 };
 
 static std::unordered_map<std::string, std::string> nameswitch({
@@ -81,6 +81,9 @@ static std::unordered_map<std::string, std::string> nameswitch({
   {"elemwise_sub", "_minus"},
   {"elemwise_mul", "_mul"},
   {"elemwise_div", "_div"},
+  // broadcast
+  {"broadcast_plus", "broadcast_add"},
+  {"broadcast_minus", "broadcast_sub"},
   //Binary Basic
   {"_add", "_plus"},
   {"_Plus", "_plus"},
@@ -103,6 +106,7 @@ static std::unordered_map<std::string, std::string> nameswitch({
   {"_Lesser_Equal", "_lesser_equal"},
   //Layer Ops
   {"Concat", "concat"},
+  {"Flatten", "flatten"},
 });
 
 inline std::string clean_opname(std::string name) {
@@ -122,29 +126,29 @@ class Compiler {
   // with ngraph operations
   nnvm::Graph Compile();
   // parse the nnvm graph into an intermediate rep
-  void ParseNNVMGraph();
+  void ParseNnvmGraph();
   StateMap CopySavedStates(const StateMap& saved_states);
 
-  const NgraphShape& GetNgraphShape() { return ngraphShape_; }
-  const NgraphDType& GetNgraphDtype() { return ngraphDtype_; }
-  const NDArrayMap& GetFeedDict() { return feedDict_; };
+  const NgraphShape& GetNgraphShape() { return ngraph_shape_; }
+  const NgraphDType& GetNgraphDtype() { return ngraph_dtype_; }
+  const NDArrayMap& GetFeedDict() { return feed_dict_; };
   const NNVMNodeVec& GetInputs() { return inputs_; };
 
  protected:
   // check nodes against ngraph operations
-  void CheckInNGraph();
+  void CheckInNgraph();
   void DeepCopy(const nnvm::Graph& graph);
   void CopyNodes(const nnvm::Graph& graph);
-  void makeCopiedFeedDict(const NDArrayMap& feed_dict);
-  void makeCopiedInputs(const NNVMNodeVec& inputs);
+  void MakeCopiedFeedDict(const NDArrayMap& feed_dict);
+  void MakeCopiedInputs(const NNVMNodeVec& inputs);
 
   SGCompiler compiler_;
-  NodeMap nodeMap_;
+  NodeMap node_map_;
   nnvm::Graph graph_;
   ngraph_bridge::Graph ngraph_;
-  NgraphShape ngraphShape_;
-  NgraphDType ngraphDtype_;
-  nnvm::NodeEntryMap<mxnet::NDArray> feedDict_;
+  NgraphShape ngraph_shape_;
+  NgraphDType ngraph_dtype_;
+  nnvm::NodeEntryMap<mxnet::NDArray> feed_dict_;
   NNVMNodeVec inputs_;
 
   // infer nnvm::Graph shape and type for bind case

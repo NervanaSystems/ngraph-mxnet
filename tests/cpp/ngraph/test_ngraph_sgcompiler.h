@@ -57,18 +57,18 @@ class NGRAPH_SGCOMPILER : public ::testing::Test {
 
 class testSGCompiler : public SGCompiler {
   public:
-    using SGCompiler::op_map;
-    using SGCompiler::NgraphOpFuncs_;
+    using SGCompiler::op_map_;
+    using SGCompiler::ngraph_op_funcs_;
     using SGCompiler::CompileInput;
     using SGCompiler::CompileNode;
     using SGCompiler::Compile;
 
     std::shared_ptr<ngraph::Node> operator[](NodePtr node){
-      return op_map[node];
+      return op_map_[node];
     }
 
     int count(NodePtr node){
-      return op_map.count(node);
+      return op_map_.count(node);
     }
 
 };
