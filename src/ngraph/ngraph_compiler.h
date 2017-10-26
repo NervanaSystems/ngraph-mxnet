@@ -105,6 +105,7 @@ static std::unordered_map<std::string, std::string> nameswitch({
   {"_Lesser", "_lesser"},
   {"_Lesser_Equal", "_lesser_equal"},
   //Layer Ops
+  {"Concat", "concat"},
   {"Flatten", "flatten"},
 });
 

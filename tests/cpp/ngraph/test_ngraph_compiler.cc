@@ -117,11 +117,6 @@ TEST_F(NGRAPH_COMPILER, PARSENNVMGRAPH){
 }
 
 TEST_F(NGRAPH_COMPILER, CHECK_IN_NGRAPH){
-  // this test is ignoring the multi-output check
-  // Two good reasons for this:
-  // 1) ngraph++ can support multiple outputs from a node
-  //    so we'll need to remove that check soon
-  // 2) I can't seem to create a slice operator in base nnvm :(
   testCompiler test(nnvm_graph, feed_dict, inputs, *bindarg);
   for (auto n : test.ngraph_.nodes_) {
     if (n->type == NodeType::kOp) {

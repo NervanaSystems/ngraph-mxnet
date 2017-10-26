@@ -323,9 +323,70 @@ void Emitter::CreateBinaryOps() {
   };
 }
 
+inline int get_default(const NodePtr& node, const std::string& key, int default_val) 
+{
+  return node->orig_node->attrs.dict.count(key)
+             ? std::stoi(node->orig_node->attrs.dict[key])
+             : default_val;
+}
+
 // MXNet high level ops generating function
 void Emitter::CreateLayerOps() {
+
+  // In mxnet, split takes a tensor and creates multiple tensors from
+  // equal slices along 1 axis. The compiler creates a subgraph where 
+  // each of those outputs is a single node.  This function creates
+  // the slice op for making each tensor.
+  ngraph_op_funcs_["split"] = [this](const NodePtr& node) {
+    
+    size_t axis = get_default(node, "axis", 1);
+    int num_outputs = get_default(node, "num_outputs", 1);
+    int index = node->multioutput_index;
+    bool squeeze_axis = get_default(node, "squeeze_axis", 0);
+
+    // create lower and upper bounds for slice
+    auto upper = TShape_to_NShape(node->inputs[0]->shape);
+    std::vector<size_t> lower(upper.size(), 0);
+
+    lower[axis] = index * upper[axis] / num_outputs;
+    upper[axis] = (index + 1) * upper[axis] / num_outputs;
+
+    // perform the slice
+    std::shared_ptr<ngraph::Node> op = std::make_shared<ngraph::op::Slice>(
+        op_map_[node->inputs[0]], lower, upper);
+
+    // remove dimension 1 axis if needed
+    if (squeeze_axis && ((upper[axis] - lower[axis]) == 1)) {
+      std::vector<size_t> reshape;
+      for (size_t i = 0; i < upper.size(); ++i)
+        if (i != axis) reshape.push_back(upper[i]);
+
+      // can this be a reshape default?
+      ngraph::AxisVector order(upper.size());
+      std::iota(order.begin(), order.end(), 0);
+
+      op = std::make_shared<ngraph::op::Reshape>(op, order, reshape);
+    }
+
+    return op;
+  };
+
+  // concat takes a list of tensors of equal shape and 
+  // concatenates them along a given axis
+  ngraph_op_funcs_["concat"] = [this](const NodePtr& node) {
+    // get the concat axis
+    size_t axis = get_default(node, "dim", 1);
+    
+    // grab in input ngraph nodes
+    std::vector<NgraphNodePtr> args;
+    for (auto i : node->inputs) args.push_back(op_map_[i]);
+
+    // run concat
+    return std::make_shared<ngraph::op::Concat>(args, axis);
+  };
   
+  // Fully connected is the main linear transformation layer in MXNet
+  // it implements dot(data, W.T) + b
   ngraph_op_funcs_["FullyConnected"] = [this](const NodePtr& node){
     auto X = op_map_[node->inputs[0]];
     auto W = op_map_[node->inputs[1]];
@@ -340,6 +401,8 @@ void Emitter::CreateLayerOps() {
     return ab.lhs() + ab.rhs();
   };
 
+  // flatten converts an array of shape (x0, x1, x2, ...)
+  // to an array of shape (x0, x1*x2*...)
   ngraph_op_funcs_["flatten"] = [this](const NodePtr& node) {
     auto in_shape = TShape_to_NShape(node->inputs[0]->shape);
     auto out_shape = ngraph::Shape({in_shape[0], 1});
@@ -347,21 +410,24 @@ void Emitter::CreateLayerOps() {
                                    std::multiplies<int>());
     // Create a range vector indicating that 
     // Reshape should take the axes in order
+    // these two lines are use all over the place
     ngraph::AxisVector order(in_shape.size());
     std::iota(order.begin(), order.end(), 0);
+
     return std::make_shared<ngraph::op::Reshape>(op_map_[node->inputs[0]],
                                                  order, out_shape);
   };
 
+  // Implement transpose with a utility function that returns
+  // a reshape op. Not ideal, we should have a ngraph transpose op
   ngraph_op_funcs_["transpose"] = [this](const NodePtr& node) {
     return NgraphTranspose(op_map_[node->inputs[0]],
                            TShape_to_NShape(node->inputs[0]->shape));
   };
 
+  // expand dims inserts an axis of length 1 somewhere in the tensor shape
   ngraph_op_funcs_["expand_dims"] = [this](const NodePtr& node) {
-    size_t axis = 1;
-    for (auto& kv : node->orig_node->attrs.dict) 
-      if (kv.first == "axis") axis = std::stoi(kv.second);
+    size_t axis = get_default(node, "axis", 1);
     
     auto in_shape = TShape_to_NShape(node->inputs[0]->shape);
 
@@ -369,6 +435,7 @@ void Emitter::CreateLayerOps() {
     // Reshape should take the axes in order
     ngraph::AxisVector order(in_shape.size());
     std::iota(order.begin(), order.end(), 0);
+
     // copy the shape and insert a 1 at the axis position to expand the dimension
     auto out_shape = in_shape;
     out_shape.insert(out_shape.begin() + axis, 1);

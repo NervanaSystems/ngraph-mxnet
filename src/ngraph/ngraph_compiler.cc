@@ -45,6 +45,31 @@ nnvm::NodeEntry CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
 LayerGraphs create_layer_graphs() {
   LayerGraphs layer_funcs;
 
+  // Split is an operation with multiple outputs that splits
+  // a tensor into multiple tensors by creating even slices along
+  // one axis. To ease the interface with ngraph, we convert split into 
+  // a slice based subgraph.
+  layer_funcs[std::string("split")] = [](const NodePtr node) {
+    Graph tmpGraph(node->name);
+    int num_outputs = 1;
+    for (auto& kv : node->orig_node->attrs.dict)
+      if (kv.first == "num_outputs") num_outputs = std::stoi(kv.second);
+              
+    tmpGraph.num_outputs = num_outputs;
+    for (int i = 0; i < num_outputs; ++i) {
+      auto tmpslice = std::make_shared<OpNode>(
+          node->orig_node, node->name + "_" + std::to_string(i), "split");
+      tmpslice->inputs.push_back(node->inputs[0]);
+      tmpslice->multioutput_index = i;
+      tmpGraph.AddNode(tmpslice);
+    }
+    
+    return tmpGraph;
+  };
+
+  // Slice channel is an alias for split
+  layer_funcs[std::string("SliceChannel")] =layer_funcs["split"];
+
   layer_funcs[std::string("Activation")] = [](const NodePtr node) {
     Graph tmpGraph;
     auto act_type = node->orig_node->attrs.dict["act_type"];
@@ -331,31 +356,10 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 
 // Check nodes in NGraph
 void Compiler::CheckInNgraph() {
-  // loop over nodes
-  for (auto node : ngraph_.nodes_) {
-    if (node->type == NodeType::kOp) {
-      // check if it's a multi output related node
-      bool multioutput = false;
-      auto is_multi = [](NodePtr node) {
-        for (auto& kv : node->orig_node->attrs.dict)
-          if (kv.first == "num_outputs")
-            if (std::stoi(kv.second) > 1) return true;
-        return false;
-      };
-      if (is_multi(node)) multioutput = true;
-      for (auto& n : node->inputs)
-        if (is_multi(n)) multioutput = true;
-
-      if (multioutput) {
-      } else {
-        // if it's an operation, check operation name
-        if (compiler_.ngraph_op_funcs_.count(node->operation))
-          node->in_ngraph = true;
-      }
-    } else {
-      node->in_ngraph = false;
-    }
-  }
+  for (auto node : ngraph_.nodes_) 
+    if (node->type == NodeType::kOp) 
+      if (compiler_.ngraph_op_funcs_.count(node->operation))
+        node->in_ngraph = true;
 }
 
 // Function that parses an nnvm Graph into an intermediary graph
