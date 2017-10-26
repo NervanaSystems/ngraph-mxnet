@@ -32,14 +32,14 @@ void Graph::WriteDot(const std::string& fname) {
 
   // Loop over inputs, write graph connections
   for (auto n : nodes_) 
-    for (auto i : n->inputs) {
-      if (i->name == "") i->name = randomString(6);
-      if (n->name == "") n->name = randomString(6);
-      dotfile << i->name << " -> " << n->name << ";" << std::endl;
+    for (auto i : n->inputs_) {
+      if (i->name_ == "") i->name_ = randomString(6);
+      if (n->name_ == "") n->name_ = randomString(6);
+      dotfile << i->name_ << " -> " << n->name_ << ";" << std::endl;
     }
   // Loop over nodes and write labels
   for (auto n : nodes_) 
-    if (n->name !="")
+    if (n->name_ !="")
       dotfile << n->createNodeLabel() << std::endl;
   // Finish file.
   dotfile << "}" << std::endl;
@@ -58,7 +58,7 @@ void Graph::DFSUtil(NodePtr s, std::unordered_set<NodePtr>& visited,
     // add it to the output
     outNodes.push_back(s);
     // visit it's inputs
-    for (auto i : s->inputs) {
+    for (auto i : s->inputs_) {
       if (!visited.count(i) && i->subgraph == 0) {
         DFSUtil(i, visited, outNodes, func);
       }
@@ -89,7 +89,7 @@ void Graph::RemoveUtil(
     outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), s),
                    outNodes.end());
   // visit it's inputs if they're still in the subgraph
-  for (auto i : s->inputs)
+  for (auto i : s->inputs_)
     if (std::find(outNodes.begin(), outNodes.end(), i) != outNodes.end()) {
       auto edge_tup = edgeRemoveTup{s, i, func(s)};
       if (!visited_edges.count(edge_tup)) {
@@ -112,7 +112,7 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
     if (std::find(outNodes.begin(), outNodes.end(), s) == outNodes.end()) {
       outNodes.emplace_back(s);
     }
-    for (auto i : s->inputs)
+    for (auto i : s->inputs_)
       if (std::find(outNodes.begin(), outNodes.end(), i) == outNodes.end()) {
         get_inputs(i);
       }
@@ -155,7 +155,7 @@ std::vector<NodePtr> Graph::PruneSubgraphOutputs(
     std::vector<NodePtr> outNodes;
     for (auto n : nodes_)
       if (!in_graphvec(subgraph_nodes, n))
-        for (auto i : n->inputs)
+        for (auto i : n->inputs_)
           if (in_graphvec(subgraph_nodes, i) && !in_graphvec(outNodes, i))
             outNodes.emplace_back(i);
     return outNodes;
@@ -215,7 +215,7 @@ void Graph::IdentifySubgraphs(std::function<bool(NodePtr)> func) {
         for (auto node : subgraph_nodes)
           node->subgraph = sg;
         for (auto node : subgraph_nodes)
-          for (auto i : node->inputs) 
+          for (auto i : node->inputs_) 
             if (i->subgraph != sg)
               i->subgraph = -1;
         sg += 1;
@@ -243,32 +243,32 @@ void Graph::CollapseSubgraphs() {
       tmpGraph->in_ngraph = true;
       tmpGraph->subgraph = i;
       // set node name and shape based on last node in the subgraph
-      auto name = tmpGraph->nodes_.back()->name;
+      auto name = tmpGraph->nodes_.back()->name_;
       auto shape = tmpGraph->nodes_.back()->shape;
-      tmpGraph->name = "subgraph_" + name + "_" + randomString();
+      tmpGraph->name_ = "subgraph_" + name + "_" + randomString();
       tmpGraph->shape = shape;
       tmpGraph->dtype = tmpGraph->nodes_.back()->dtype;
       auto in_tmpGraphInputs = [&tmpGraph](NodePtr n) {
-        if (std::find(tmpGraph->inputs.begin(), tmpGraph->inputs.end(), n) ==
-            tmpGraph->inputs.end()) return false;
+        if (std::find(tmpGraph->inputs_.begin(), tmpGraph->inputs_.end(), n) ==
+            tmpGraph->inputs_.end()) return false;
         return true;
       };
       // setup inputs to this subgraph (as a node)
       for (auto node : tmpGraph->nodes_) {
-        for (auto input : node->inputs) {
+        for (auto input : node->inputs_) {
           if (input->subgraph != i && !in_tmpGraphInputs(input)) 
-            tmpGraph->inputs.emplace_back(input);
+            tmpGraph->inputs_.emplace_back(input);
         }
       }
       // set subgraph as input to all of the nodes downline.
       for (auto n : nodes_)
-        for (size_t i = 0; i < n->inputs.size(); ++i)
-          if (n->inputs[i]->name == name) n->inputs[i] = tmpGraph;
+        for (size_t i = 0; i < n->inputs_.size(); ++i)
+          if (n->inputs_[i]->name_ == name) n->inputs_[i] = tmpGraph;
       
       // find the position we're replacing in the graph
       auto it =
           std::find_if(nodes_.begin(), nodes_.end(),
-                       [name](NodePtr n) -> bool { return (n->name == name); });
+                       [name](NodePtr n) -> bool { return (n->name_ == name); });
       // insert the subgraph as a node
       nodes_.insert(it, tmpGraph);
     }
@@ -280,7 +280,7 @@ void Graph::CollapseSubgraphs() {
       std::remove_if(nodes_.begin(), nodes_.end(),
                      [](NodePtr n) -> bool {
                        return ((n->subgraph > 0) && 
-                               (n->type == NodeType::kOp));
+                               (n->type_ == NodeType::kOp));
                      }),
       nodes_.end());
 

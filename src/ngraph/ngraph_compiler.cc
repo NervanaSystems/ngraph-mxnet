@@ -26,12 +26,12 @@ namespace ngraph_bridge {
 nnvm::NodeEntry CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
   // init node, set name
   auto node = nnvm::Node::Create();
-  node->attrs.name = subgraph->name;
+  node->attrs.name = subgraph->name_;
   // get the registered operation for the node
   node->attrs.op = get_subgraph_op(subgraph);
   // setup the ninputs to the node
-  for (auto input : subgraph->inputs)
-    node->inputs.emplace_back(nnvm::NodeEntry{input->orig_node, 0, 0});
+  for (auto input : subgraph->inputs_)
+    node->inputs.emplace_back(nnvm::NodeEntry{input->orig_node_, 0, 0});
   // create dummy node parameters
   NGraphParam op;
   node->attrs.parsed = std::move(op);
@@ -50,16 +50,16 @@ LayerGraphs create_layer_graphs() {
   // one axis. To ease the interface with ngraph, we convert split into 
   // a slice based subgraph.
   layer_funcs[std::string("split")] = [](const NodePtr node) {
-    Graph tmpGraph(node->name);
+    Graph tmpGraph(node->name_);
     int num_outputs = 1;
-    for (auto& kv : node->orig_node->attrs.dict)
+    for (auto& kv : node->orig_node_->attrs.dict)
       if (kv.first == "num_outputs") num_outputs = std::stoi(kv.second);
               
     tmpGraph.num_outputs = num_outputs;
     for (int i = 0; i < num_outputs; ++i) {
       auto tmpslice = std::make_shared<OpNode>(
-          node->orig_node, node->name + "_" + std::to_string(i), "split");
-      tmpslice->inputs.push_back(node->inputs[0]);
+          node->orig_node_, node->name_ + "_" + std::to_string(i), "split");
+      tmpslice->inputs_.push_back(node->inputs_[0]);
       tmpslice->multioutput_index = i;
       tmpGraph.AddNode(tmpslice);
     }
@@ -72,9 +72,9 @@ LayerGraphs create_layer_graphs() {
 
   layer_funcs[std::string("Activation")] = [](const NodePtr node) {
     Graph tmpGraph;
-    auto act_type = node->orig_node->attrs.dict["act_type"];
-    tmpGraph.AddNode(std::make_shared<OpNode>(node->orig_node, node->name,
-                                              act_type, node->inputs));
+    auto act_type = node->orig_node_->attrs.dict["act_type"];
+    tmpGraph.AddNode(std::make_shared<OpNode>(node->orig_node_, node->name_,
+                                              act_type, node->inputs_));
     return tmpGraph;
   };
 
@@ -164,12 +164,12 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
   ngraph_.IdentifySubgraphs([&feed_dict](NodePtr s) {
     bool in_feed_dict = false;
     for (auto kv : feed_dict) {
-      if (kv.first.node->attrs.name == s->name) {
+      if (kv.first.node->attrs.name == s->name_) {
         in_feed_dict = true;
         break;
       }
     }
-    return (s->in_ngraph && s->type == NodeType::kOp && !in_feed_dict);
+    return (s->in_ngraph && s->type_ == NodeType::kOp && !in_feed_dict);
   });
 }
 
@@ -189,15 +189,15 @@ nnvm::Graph Compiler::Compile() {
     // breaking the infer shape functionality, so shapes of inputs
     // don't get properly inferred. Works, because we're inferring
     // the shapes before doing all of this, but not ideal
-    if (node->type == NodeType::kAux || node->type == NodeType::kVariable) {
-      ngraph_shape_[node->name] = node->shape;
-      ngraph_dtype_[node->name] = node->dtype;
+    if (node->type_ == NodeType::kAux || node->type_ == NodeType::kVariable) {
+      ngraph_shape_[node->name_] = node->shape;
+      ngraph_dtype_[node->name_] = node->dtype;
     }
   }
 
   // find the subgraphs
   for (auto n : ngraph_.nodes_) {
-    if (n->type == NodeType::kGraph) {
+    if (n->type_ == NodeType::kGraph) {
       // extract and compile subgraph
       auto sg = compiler_.Compile(n);
       // register compiled subgraph with nnvm
@@ -206,7 +206,7 @@ nnvm::Graph Compiler::Compile() {
       auto sg_node = CreateNNVMNode(sg);
 
       auto matches = [&sg](nnvm::NodeEntry n) -> bool {
-        return (n.node == sg->nodes_.back()->orig_node);
+        return (n.node == sg->nodes_.back()->orig_node_);
       };
 
       // Replace outputs if needed
@@ -357,7 +357,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 // Check nodes in NGraph
 void Compiler::CheckInNgraph() {
   for (auto node : ngraph_.nodes_) 
-    if (node->type == NodeType::kOp) 
+    if (node->type_ == NodeType::kOp) 
       if (compiler_.ngraph_op_funcs_.count(node->operation))
         node->in_ngraph = true;
 }
@@ -400,7 +400,7 @@ void Compiler::ParseNnvmGraph() {
             this->ngraph_.AddNode(tmpnode);
           }
         }
-        op_node->inputs.emplace_back(tmpnode);
+        op_node->inputs_.emplace_back(tmpnode);
       }
       auto expand_layers = [this,
                             &layer_funcs](std::shared_ptr<OpNode>& op_node) {
@@ -430,7 +430,7 @@ void Compiler::ParseNnvmGraph() {
       graph_.GetAttr<std::vector<nnvm::TShape>>("shape");
   const auto inferred_dtypes = graph_.GetAttr<std::vector<int>>("dtype");
   for (auto node : this->ngraph_.nodes_) {
-    const uint32_t nid = idx.node_id(node->orig_node.get());
+    const uint32_t nid = idx.node_id(node->orig_node_.get());
     const uint32_t eid = idx.entry_id(nid, 0);
     node->shape = inferred_shapes[eid];
     node->dtype = inferred_dtypes[eid];

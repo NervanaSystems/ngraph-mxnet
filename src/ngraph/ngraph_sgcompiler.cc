@@ -40,7 +40,7 @@ void SGCompiler::ClearOpMap(){
 // Compile a Subgraph into ngraph python objects
 void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // initalize a placeholder order vector for this subgraph
-  for (auto i : sub_graph->inputs) placeholder_order_.push_back(i);
+  for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
 
   for (auto node : sub_graph->nodes_) CompileNode(node, sub_graph);
   
@@ -72,7 +72,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 void SGCompiler::CompileNode(NodePtr node,
                              const std::shared_ptr<Graph> sub_graph) {
   if (!op_map_.count(node)){
-    for (auto input : node->inputs) {
+    for (auto input : node->inputs_) {
       if (!op_map_.count(input)){
         if (std::find(sub_graph->nodes_.begin(), sub_graph->nodes_.end(),
                       input) == sub_graph->nodes_.end()) {

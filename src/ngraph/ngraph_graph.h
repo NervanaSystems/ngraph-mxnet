@@ -48,22 +48,22 @@ enum class NodeType {kVariable, kAux, kOp, kGraph};
 class Node {
  public:
   Node(NodeType t, const nnvmNodePtr n, std::string s)
-      : type(t), orig_node(n), name(s){};
+      : type_(t), orig_node_(n), name_(s){};
   Node(NodeType t, const nnvmNodePtr n, std::string s, std::vector<NodePtr> i)
-      : type(t), orig_node(n), name(s), inputs(i){};
+      : type_(t), orig_node_(n), name_(s), inputs_(i){};
 
   // Function to create node label, used to export graph to graphviz for debug
   virtual std::string createNodeLabel() {
     std::ostringstream stream;
     stream << shape << " sg=" << subgraph;
-    return name + " [label = \"" + name + "\n" + stream.str() +
+    return name_ + " [label = \"" + name_ + "\n" + stream.str() +
            "\", fillcolor = red, style = filled];";
   }
   // basic information about node
-  NodeType type;
-  nnvmNodePtr orig_node;
-  std::string name;
-  std::vector<NodePtr> inputs;
+  NodeType type_;
+  nnvmNodePtr orig_node_;
+  std::string name_;
+  std::vector<NodePtr> inputs_;
 
   // mxnet type information
   nnvm::TShape shape;
@@ -102,7 +102,7 @@ class OpNode : public Node {
     std::ostringstream stream;
     stream << shape << " sg=" << subgraph;
     std::string out =
-        name + " [label=\"" + name + "\nOp: " + operation + stream.str() + "\"";
+        name_ + " [label=\"" + name_ + "\nOp: " + operation + stream.str() + "\"";
     if (in_ngraph) out += ", fillcolor = red, style = filled";
     out += "];";
     return out;
@@ -160,14 +160,14 @@ class Graph : public Node {
   // get the node corresponding to a name
   NodePtr operator[](std::string name) {
     for (auto n : nodes_)
-      if (n->name == name) return n;
+      if (n->name_ == name) return n;
     throw std::string{"node not in graph"};
   };
 
   void WriteSubgraphDots(std::string base){
     WriteDot(base + ".dot");
     for (auto n : nodes_) {
-      if (n->type == NodeType::kGraph) {
+      if (n->type_ == NodeType::kGraph) {
         auto sg = std::dynamic_pointer_cast<Graph>(n);
         std::ostringstream stream;
         stream << base << sg->subgraph << ".dot";

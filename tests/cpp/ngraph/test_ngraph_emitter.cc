@@ -267,7 +267,7 @@ namespace ngraph_bridge {
       attr.dict["axis"] = "2";
       attr.dict["squeeze_axis"] = "0";
       node->attrs = attr;
-      test.node->orig_node = node;
+      test.node->orig_node_ = node;
       test.node->multioutput_index = 1;
 
       auto op = test.ngraph_op_funcs_["split"](test.node);
@@ -297,7 +297,7 @@ namespace ngraph_bridge {
       attr.dict["axis"] = "2";
       attr.dict["squeeze_axis"] = "1";
       node->attrs = attr;
-      test.node->orig_node = node;
+      test.node->orig_node_ = node;
       test.node->multioutput_index = 0;
 
       auto op = test.ngraph_op_funcs_["split"](test.node);
@@ -332,7 +332,7 @@ namespace ngraph_bridge {
       attr.dict["dim"] = "0";
       attr.op = (nnvm::Op*) mxnet::op::CreateOp<mxnet::cpu>(param, 0);
       node->attrs = attr;
-      test.node->orig_node = node;
+      test.node->orig_node_ = node;
       auto op = std::dynamic_pointer_cast<ngraph::op::Concat>(
           test.ngraph_op_funcs_["concat"](test.node));
       ASSERT_TRUE(op);
@@ -456,7 +456,7 @@ namespace ngraph_bridge {
       
       attr.op = nnvm::Op::Get("expand_dims");
       node->attrs = attr;
-      test.node->orig_node = node;
+      test.node->orig_node_ = node;
       auto op = std::dynamic_pointer_cast<ngraph::op::Reshape>(
           test.ngraph_op_funcs_["expand_dims"](test.node));
       ASSERT_TRUE(op);
@@ -475,7 +475,7 @@ namespace ngraph_bridge {
       
       attr.op = nnvm::Op::Get("flatten");
       node->attrs = attr;
-      test.node->orig_node = node;
+      test.node->orig_node_ = node;
       auto op = std::dynamic_pointer_cast<ngraph::op::Reshape>(
           test.ngraph_op_funcs_["flatten"](test.node));
       ASSERT_TRUE(op);
@@ -494,7 +494,7 @@ namespace ngraph_bridge {
       
       attr.op = nnvm::Op::Get("transpose");
       node->attrs = attr;
-      test.node->orig_node = node;
+      test.node->orig_node_ = node;
       auto op = std::dynamic_pointer_cast<ngraph::op::Reshape>(
           test.ngraph_op_funcs_["transpose"](test.node));
       ASSERT_TRUE(op);
@@ -523,7 +523,7 @@ namespace ngraph_bridge {
     attr.op = (nnvm::Op*)mxnet::op::CreateOp<mxnet::cpu>(
         param, 0, &inshape, &outshape, mxnet::Context());
     node->attrs = attr;
-    test.node->orig_node = node;
+    test.node->orig_node_ = node;
 
     auto op = test.ngraph_op_funcs_["FullyConnected"](test.node);
     

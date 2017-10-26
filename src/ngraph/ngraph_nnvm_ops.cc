@@ -29,23 +29,23 @@ namespace ngraph_bridge {
 // get the OP from nnvm, return a pointer to it.
 nnvm::Op* get_subgraph_op(std::shared_ptr<Graph> graph) {
   return &(::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
-      "ngraph_" + graph->name));
+      "ngraph_" + graph->name_));
 }
 
 void register_forward_op(std::shared_ptr<Graph> graph) {
   // register the op with nnvm
   auto& op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
-      "ngraph_" + graph->name);
+      "ngraph_" + graph->name_);
   // setup the inputs and outpus
-  int num_inputs = graph->inputs.size();
+  int num_inputs = graph->inputs_.size();
   op.set_num_inputs(num_inputs);
   op.set_num_outputs(1);
 
   // register the inputs with nnvm
   std::vector<std::string> input_names;
-  for (auto n : graph->inputs) {
-      input_names.emplace_back(n->name);
-      op.add_argument(n->name, "NDArray-or-Symbol", "argument " + n->name);
+  for (auto n : graph->inputs_) {
+      input_names.emplace_back(n->name_);
+      op.add_argument(n->name_, "NDArray-or-Symbol", "argument " + n->name_);
   }
 
   // register lambda to list inputs
@@ -55,8 +55,8 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
 
   // // get the auxillary inputs
   std::vector<uint32_t> mutate_vars;
-  for (size_t i = 0; i < graph->inputs.size(); ++i) {
-    if (graph->inputs[i]->type == NodeType::kAux) {
+  for (size_t i = 0; i < graph->inputs_.size(); ++i) {
+    if (graph->inputs_[i]->type_ == NodeType::kAux) {
       mutate_vars.emplace_back(i);//graph->inputs[i]->name);
     }
   }
@@ -93,7 +93,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
       });
 
   // Register Gradient node generation function
-  auto back_op_name = "_backward_" + ("ngraph_" +graph->name);
+  auto back_op_name = "_backward_" + ("ngraph_" +graph->name_);
   op.set_attr<nnvm::FGradient>(
       "FGradient", [back_op_name](const nnvm::NodePtr& n,
                                   const std::vector<nnvm::NodeEntry>& ograds) {
@@ -138,7 +138,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
       });
 
   auto computation = graph->ngraph_forward;
-  auto name = graph->name;
+  auto name = graph->name_;
 
   // create the compute lambda
   op.set_attr<mxnet::FCompute>(
@@ -158,9 +158,9 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
 void register_backward_op(std::shared_ptr<Graph> graph) {
   // register the op with nnvm
   auto& op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
-      "_backward_" + ("ngraph_" + graph->name));
+      "_backward_" + ("ngraph_" + graph->name_));
   // setup the inputs and outpus
-  int num_inputs = graph->inputs.size();
+  int num_inputs = graph->inputs_.size();
   op.set_num_inputs(num_inputs + 1);
   op.set_num_outputs(num_inputs);
 
@@ -176,7 +176,7 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
   op.set_attr<bool>("TIsBackward", true);
 
   auto computation = graph->ngraph_backward;
-  auto name = graph->name;
+  auto name = graph->name_;
   
   // create the compute lambda
   op.set_attr<mxnet::FCompute>(

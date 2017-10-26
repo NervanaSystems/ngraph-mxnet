@@ -45,9 +45,9 @@ class NGRAPH_SGCOMPILER : public ::testing::Test {
     node2->shape = shape;
 
     subgraph = std::make_shared<Graph>();
-    subgraph->inputs.push_back(in1);
-    subgraph->inputs.push_back(in2);
-    subgraph->inputs.push_back(in3);
+    subgraph->inputs_.push_back(in1);
+    subgraph->inputs_.push_back(in2);
+    subgraph->inputs_.push_back(in3);
     subgraph->nodes_.push_back(node1);
     subgraph->nodes_.push_back(node2);
   }
