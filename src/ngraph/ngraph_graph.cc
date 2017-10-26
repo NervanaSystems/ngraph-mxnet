@@ -244,10 +244,10 @@ void Graph::CollapseSubgraphs() {
       tmpGraph->subgraph = i;
       // set node name and shape based on last node in the subgraph
       auto name = tmpGraph->nodes_.back()->name_;
-      auto shape = tmpGraph->nodes_.back()->shape;
+      auto shape = tmpGraph->nodes_.back()->shape_;
       tmpGraph->name_ = "subgraph_" + name + "_" + randomString();
-      tmpGraph->shape = shape;
-      tmpGraph->dtype = tmpGraph->nodes_.back()->dtype;
+      tmpGraph->shape_ = shape;
+      tmpGraph->dtype_ = tmpGraph->nodes_.back()->dtype_;
       auto in_tmpGraphInputs = [&tmpGraph](NodePtr n) {
         if (std::find(tmpGraph->inputs_.begin(), tmpGraph->inputs_.end(), n) ==
             tmpGraph->inputs_.end()) return false;

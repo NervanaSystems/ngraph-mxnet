@@ -111,8 +111,8 @@ TEST_F(NGRAPH_COMPILER, PARSENNVMGRAPH){
   for (auto node : test.ngraph_.nodes_) {
     const uint32_t nid = idx.node_id(node->orig_node_.get());
     const uint32_t eid = idx.entry_id(nid, 0);
-    EXPECT_EQ(node->shape, inferred_shapes[eid]);
-    EXPECT_EQ(node->dtype, inferred_dtypes[eid]);
+    EXPECT_EQ(node->shape_, inferred_shapes[eid]);
+    EXPECT_EQ(node->dtype_, inferred_dtypes[eid]);
   }
 }
 

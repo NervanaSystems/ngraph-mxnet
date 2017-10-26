@@ -38,11 +38,11 @@ class NGRAPH_SGCOMPILER : public ::testing::Test {
     node2 = std::make_shared<OpNode>(nullptr, "node2", "_plus",
                                      std::vector<NodePtr>{node1, in3});
 
-    in1->shape = shape;
-    in2->shape = shape;
-    in3->shape = shape;
-    node1->shape = shape;
-    node2->shape = shape;
+    in1->shape_ = shape;
+    in2->shape_ = shape;
+    in3->shape_ = shape;
+    node1->shape_ = shape;
+    node2->shape_ = shape;
 
     subgraph = std::make_shared<Graph>();
     subgraph->inputs_.push_back(in1);

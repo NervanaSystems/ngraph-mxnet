@@ -119,8 +119,8 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   // this subgraph is replacing that were inferred by mxnet
   // not currently checking with the ngraph operations to see if they
   // return the same shape
-  auto shape = graph->shape;
-  auto dtype = graph->dtype;
+  auto shape = graph->shape_;
+  auto dtype = graph->dtype_;
   op.set_attr<nnvm::FInferShape>(
       "FInferShape",
       [shape](const nnvm::NodeAttrs& attrs, std::vector<nnvm::TShape>* in_attrs,

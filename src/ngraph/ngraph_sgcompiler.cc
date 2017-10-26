@@ -54,9 +54,9 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     forward_parameters.push_back(
         std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_[input]));
 
-  auto shape = TShape_to_NShape(sub_graph->nodes_.back()->shape);
+  auto shape = TShape_to_NShape(sub_graph->nodes_.back()->shape_);
   auto return_type = std::make_shared<ngraph::TensorViewType>(
-      getType(sub_graph->nodes_.back()->dtype), shape);
+      getType(sub_graph->nodes_.back()->dtype_), shape);
 
   auto f = std::make_shared<ngraph::Function>(op_map_[sub_graph->nodes_.back()],
                                               return_type, forward_parameters);
@@ -88,9 +88,9 @@ void SGCompiler::CompileNode(NodePtr node,
 
 // Compile the inputs
 void SGCompiler::CompileInput(NodePtr input) {
-  auto shape = TShape_to_NShape(input->shape);
+  auto shape = TShape_to_NShape(input->shape_);
   op_map_[input] = std::make_shared<ngraph::op::Parameter>(
-      getType(input->dtype), shape);
+      getType(input->dtype_), shape);
 }
 
 }

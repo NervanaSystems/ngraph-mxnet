@@ -252,8 +252,8 @@ namespace ngraph_bridge {
     // slice no squeeze
     {
       testEmitter test;
-      test.in1->shape = nnvm::TShape{2,4,8,16};
-      test.node->shape = nnvm::TShape{2,4,2,16};
+      test.in1->shape_ = nnvm::TShape{2,4,8,16};
+      test.node->shape_ = nnvm::TShape{2,4,2,16};
       auto node = nnvm::Node::Create();
       nnvm::NodeAttrs attr;
       attr.name = "split_no_squeeze";
@@ -282,8 +282,8 @@ namespace ngraph_bridge {
     // slice with squeeze
     {
       testEmitter test;
-      test.in1->shape = nnvm::TShape{2,4,8,16};
-      test.node->shape = nnvm::TShape{2,4,16};
+      test.in1->shape_ = nnvm::TShape{2,4,8,16};
+      test.node->shape_ = nnvm::TShape{2,4,16};
       auto node = nnvm::Node::Create();
       nnvm::NodeAttrs attr;
       attr.name = "split_no_squeeze";
@@ -305,10 +305,10 @@ namespace ngraph_bridge {
       ASSERT_TRUE(std::dynamic_pointer_cast<ngraph::op::Reshape>(op));
 
       auto op_cast = std::dynamic_pointer_cast<ngraph::op::Reshape>(op);
-      ngraph::AxisVector order(TShape_to_NShape(test.in1->shape).size());
+      ngraph::AxisVector order(TShape_to_NShape(test.in1->shape_).size());
       std::iota(order.begin(), order.end(), 0);
       EXPECT_EQ(op_cast->get_input_order(), order);
-      EXPECT_EQ(op_cast->get_output_shape(), TShape_to_NShape(test.node->shape));
+      EXPECT_EQ(op_cast->get_output_shape(), TShape_to_NShape(test.node->shape_));
 
     }
   }
@@ -317,9 +317,9 @@ namespace ngraph_bridge {
     // concat
     {
       testEmitter test;
-      test.in1->shape = nnvm::TShape{2,2,2};
-      test.in2->shape = nnvm::TShape{2,2,2};
-      test.node->shape = nnvm::TShape{4,2,2};
+      test.in1->shape_ = nnvm::TShape{2,2,2};
+      test.in2->shape_ = nnvm::TShape{2,2,2};
+      test.node->shape_ = nnvm::TShape{4,2,2};
 
       mxnet::op::ConcatParam param;
       param.num_args = 2;
@@ -445,9 +445,9 @@ namespace ngraph_bridge {
     // expand dims
     {
       testEmitter test;
-      test.in1->shape = nnvm::TShape{2,2};
-      test.in2->shape = nnvm::TShape{2,2};
-      test.node->shape = nnvm::TShape{1,2,2};
+      test.in1->shape_ = nnvm::TShape{2,2};
+      test.in2->shape_ = nnvm::TShape{2,2};
+      test.node->shape_ = nnvm::TShape{1,2,2};
 
       auto node = nnvm::Node::Create();
       nnvm::NodeAttrs attr;
@@ -461,13 +461,13 @@ namespace ngraph_bridge {
           test.ngraph_op_funcs_["expand_dims"](test.node));
       ASSERT_TRUE(op);
       EXPECT_EQ(op->get_input_order(), ngraph::Shape({0,1}));
-      EXPECT_EQ(op->get_output_shape(), TShape_to_NShape(test.node->shape));
+      EXPECT_EQ(op->get_output_shape(), TShape_to_NShape(test.node->shape_));
     }
     // flatten
     {
       testEmitter test;
-      test.in1->shape = nnvm::TShape{2,4,8,16};
-      test.node->shape = nnvm::TShape{2,4*8*16};
+      test.in1->shape_ = nnvm::TShape{2,4,8,16};
+      test.node->shape_ = nnvm::TShape{2,4*8*16};
 
       auto node = nnvm::Node::Create();
       nnvm::NodeAttrs attr;
@@ -480,13 +480,13 @@ namespace ngraph_bridge {
           test.ngraph_op_funcs_["flatten"](test.node));
       ASSERT_TRUE(op);
       EXPECT_EQ(op->get_input_order(), ngraph::Shape({0,1,2,3}));
-      EXPECT_EQ(op->get_output_shape(), TShape_to_NShape(test.node->shape));
+      EXPECT_EQ(op->get_output_shape(), TShape_to_NShape(test.node->shape_));
     }
     // transpose
     {
       testEmitter test;
-      test.in1->shape = nnvm::TShape{2,4};
-      test.node->shape = nnvm::TShape{4,2};
+      test.in1->shape_ = nnvm::TShape{2,4};
+      test.node->shape_ = nnvm::TShape{4,2};
 
       auto node = nnvm::Node::Create();
       nnvm::NodeAttrs attr;
@@ -499,16 +499,16 @@ namespace ngraph_bridge {
           test.ngraph_op_funcs_["transpose"](test.node));
       ASSERT_TRUE(op);
       EXPECT_EQ(op->get_input_order(), ngraph::Shape({1,0}));
-      EXPECT_EQ(op->get_output_shape(), TShape_to_NShape(test.node->shape));
+      EXPECT_EQ(op->get_output_shape(), TShape_to_NShape(test.node->shape_));
     }
   }
 
   TEST(NGRAPH_EMITTER, FULLYCONNECTED) {
     testEmitter test;
-    test.in1->shape = nnvm::TShape{2,4};
-    test.in2->shape = nnvm::TShape{8,4};
-    test.in3->shape = nnvm::TShape{8};
-    test.node->shape = nnvm::TShape{2,8};
+    test.in1->shape_ = nnvm::TShape{2,4};
+    test.in2->shape_ = nnvm::TShape{8,4};
+    test.in3->shape_ = nnvm::TShape{8};
+    test.node->shape_ = nnvm::TShape{2,8};
 
     mxnet::op::FullyConnectedParam param;
     param.num_hidden = 8;
@@ -518,8 +518,8 @@ namespace ngraph_bridge {
     attr.name = "concat";
     attr.dict["num_hidden"] = "8";
 
-    auto inshape = std::vector<nnvm::TShape>{test.in1->shape};
-    auto outshape = std::vector<nnvm::TShape>{test.node->shape};
+    auto inshape = std::vector<nnvm::TShape>{test.in1->shape_};
+    auto outshape = std::vector<nnvm::TShape>{test.node->shape_};
     attr.op = (nnvm::Op*)mxnet::op::CreateOp<mxnet::cpu>(
         param, 0, &inshape, &outshape, mxnet::Context());
     node->attrs = attr;

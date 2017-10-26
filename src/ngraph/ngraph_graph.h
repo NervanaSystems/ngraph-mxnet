@@ -55,7 +55,7 @@ class Node {
   // Function to create node label, used to export graph to graphviz for debug
   virtual std::string createNodeLabel() {
     std::ostringstream stream;
-    stream << shape << " sg=" << subgraph;
+    stream << shape_ << " sg=" << subgraph;
     return name_ + " [label = \"" + name_ + "\n" + stream.str() +
            "\", fillcolor = red, style = filled];";
   }
@@ -66,8 +66,8 @@ class Node {
   std::vector<NodePtr> inputs_;
 
   // mxnet type information
-  nnvm::TShape shape;
-  int dtype = 0;
+  nnvm::TShape shape_;
+  int dtype_ = 0;
   
   // information to store graph parsing in
   int multioutput_index = -1;
@@ -100,7 +100,7 @@ class OpNode : public Node {
   // Include operation in graphviz
   std::string createNodeLabel() {
     std::ostringstream stream;
-    stream << shape << " sg=" << subgraph;
+    stream << shape_ << " sg=" << subgraph;
     std::string out =
         name_ + " [label=\"" + name_ + "\nOp: " + operation + stream.str() + "\"";
     if (in_ngraph) out += ", fillcolor = red, style = filled";

@@ -184,9 +184,9 @@ void Emitter::CreateUnaryOps() {
 
 AutoBroadcast Emitter::CreateAutoBroadcast(const NodePtr& node) {
   auto lhsNode = op_map_[node->inputs_[0]];
-  auto lhsShape = TShape_to_NShape(node->inputs_[0]->shape);
+  auto lhsShape = TShape_to_NShape(node->inputs_[0]->shape_);
   auto rhsNode = op_map_[node->inputs_[1]];
-  auto rhsShape = TShape_to_NShape(node->inputs_[1]->shape);
+  auto rhsShape = TShape_to_NShape(node->inputs_[1]->shape_);
   return AutoBroadcast(lhsNode, lhsShape, rhsNode, rhsShape);
 }
 
@@ -345,7 +345,7 @@ void Emitter::CreateLayerOps() {
     bool squeeze_axis = get_default(node, "squeeze_axis", 0);
 
     // create lower and upper bounds for slice
-    auto upper = TShape_to_NShape(node->inputs_[0]->shape);
+    auto upper = TShape_to_NShape(node->inputs_[0]->shape_);
     std::vector<size_t> lower(upper.size(), 0);
 
     lower[axis] = index * upper[axis] / num_outputs;
@@ -392,10 +392,10 @@ void Emitter::CreateLayerOps() {
     auto W = op_map_[node->inputs_[1]];
     auto beta = op_map_[node->inputs_[2]];
     auto dot = std::make_shared<ngraph::op::Dot>(
-        X, NgraphTranspose(W, TShape_to_NShape(node->inputs_[1]->shape)));
+        X, NgraphTranspose(W, TShape_to_NShape(node->inputs_[1]->shape_)));
 
-    auto dotShape = TShape_to_NShape(node->shape);
-    auto betaShape = TShape_to_NShape(node->inputs_[2]->shape);
+    auto dotShape = TShape_to_NShape(node->shape_);
+    auto betaShape = TShape_to_NShape(node->inputs_[2]->shape_);
 
     auto ab = AutoBroadcast(dot, dotShape, beta, betaShape);
     return ab.lhs() + ab.rhs();
@@ -404,7 +404,7 @@ void Emitter::CreateLayerOps() {
   // flatten converts an array of shape (x0, x1, x2, ...)
   // to an array of shape (x0, x1*x2*...)
   ngraph_op_funcs_["flatten"] = [this](const NodePtr& node) {
-    auto in_shape = TShape_to_NShape(node->inputs_[0]->shape);
+    auto in_shape = TShape_to_NShape(node->inputs_[0]->shape_);
     auto out_shape = ngraph::Shape({in_shape[0], 1});
     out_shape[1] = std::accumulate(in_shape.begin() + 1, in_shape.end(), 1,
                                    std::multiplies<int>());
@@ -422,14 +422,14 @@ void Emitter::CreateLayerOps() {
   // a reshape op. Not ideal, we should have a ngraph transpose op
   ngraph_op_funcs_["transpose"] = [this](const NodePtr& node) {
     return NgraphTranspose(op_map_[node->inputs_[0]],
-                           TShape_to_NShape(node->inputs_[0]->shape));
+                           TShape_to_NShape(node->inputs_[0]->shape_));
   };
 
   // expand dims inserts an axis of length 1 somewhere in the tensor shape
   ngraph_op_funcs_["expand_dims"] = [this](const NodePtr& node) {
     size_t axis = get_default(node, "axis", 1);
     
-    auto in_shape = TShape_to_NShape(node->inputs_[0]->shape);
+    auto in_shape = TShape_to_NShape(node->inputs_[0]->shape_);
 
     // Create a range vector indicating that 
     // Reshape should take the axes in order

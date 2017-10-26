@@ -190,8 +190,8 @@ nnvm::Graph Compiler::Compile() {
     // don't get properly inferred. Works, because we're inferring
     // the shapes before doing all of this, but not ideal
     if (node->type_ == NodeType::kAux || node->type_ == NodeType::kVariable) {
-      ngraph_shape_[node->name_] = node->shape;
-      ngraph_dtype_[node->name_] = node->dtype;
+      ngraph_shape_[node->name_] = node->shape_;
+      ngraph_dtype_[node->name_] = node->dtype_;
     }
   }
 
@@ -432,8 +432,8 @@ void Compiler::ParseNnvmGraph() {
   for (auto node : this->ngraph_.nodes_) {
     const uint32_t nid = idx.node_id(node->orig_node_.get());
     const uint32_t eid = idx.entry_id(nid, 0);
-    node->shape = inferred_shapes[eid];
-    node->dtype = inferred_dtypes[eid];
+    node->shape_ = inferred_shapes[eid];
+    node->dtype_ = inferred_dtypes[eid];
   }
 }
 
