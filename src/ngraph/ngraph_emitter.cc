@@ -323,6 +323,13 @@ void Emitter::CreateBinaryOps() {
   };
 }
 
+inline int get_default(const NodePtr& node, const std::string& key, int default_val) 
+{
+  return node->orig_node->attrs.dict.count(key)
+             ? std::stoi(node->orig_node->attrs.dict[key])
+             : default_val;
+}
+
 // MXNet high level ops generating function
 void Emitter::CreateLayerOps() {
 
@@ -331,17 +338,11 @@ void Emitter::CreateLayerOps() {
   // each of those outputs is a single node.  This function creates
   // the slice op for making each tensor.
   ngraph_op_funcs_["split"] = [this](const NodePtr& node) {
-    // Ugly code for getting options
-    size_t axis = 1;
-    int num_outputs = 1;
+    
+    size_t axis = get_default(node, "axis", 1);
+    int num_outputs = get_default(node, "num_outputs", 1);
     int index = node->multioutput_index;
-    bool squeeze_axis = false;
-
-    for (auto& kv : node->orig_node->attrs.dict) {
-      if (kv.first == "num_outputs") num_outputs = std::stoi(kv.second);
-      if (kv.first == "axis") axis = std::stoi(kv.second);
-      if (kv.first == "squeeze_axis") squeeze_axis = std::stoi(kv.second);
-    }
+    bool squeeze_axis = get_default(node, "squeeze_axis", 0);
 
     // create lower and upper bounds for slice
     auto upper = TShape_to_NShape(node->inputs[0]->shape);
@@ -374,9 +375,7 @@ void Emitter::CreateLayerOps() {
   // concatenates them along a given axis
   ngraph_op_funcs_["concat"] = [this](const NodePtr& node) {
     // get the concat axis
-    size_t axis = 1;
-    for (auto& kv : node->orig_node->attrs.dict) 
-      if (kv.first == "dim") axis = std::stoi(kv.second);
+    size_t axis = get_default(node, "dim", 1);
     
     // grab in input ngraph nodes
     std::vector<NgraphNodePtr> args;
@@ -428,9 +427,7 @@ void Emitter::CreateLayerOps() {
 
   // expand dims inserts an axis of length 1 somewhere in the tensor shape
   ngraph_op_funcs_["expand_dims"] = [this](const NodePtr& node) {
-    size_t axis = 1;
-    for (auto& kv : node->orig_node->attrs.dict) 
-      if (kv.first == "axis") axis = std::stoi(kv.second);
+    size_t axis = get_default(node, "axis", 1);
     
     auto in_shape = TShape_to_NShape(node->inputs[0]->shape);
 
