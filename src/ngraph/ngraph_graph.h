@@ -210,6 +210,10 @@ class Graph : public Node {
   std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward;
 };
 
+template <typename T>
+inline bool in_vec(const std::vector<T>& vec, const T& s){
+  return (std::find(vec.begin(), vec.end(), s) != vec.end());
+}
 
 }  // end namespace ngraph
 

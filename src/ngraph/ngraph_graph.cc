@@ -92,7 +92,7 @@ void Graph::RemoveUtil(
 
   // visit it's inputs if they're still in the subgraph
   for (auto i : s->inputs_)
-    if (std::find(outNodes.begin(), outNodes.end(), i) != outNodes.end()) {
+    if (in_vec(outNodes, i)) {
       // ask if we've already gone up this branch in this closure state.
       // if so, don't revisit, if not, try it both good and bad.
       auto edge_tup = edgeRemoveTup{s, i, func(s)};
@@ -110,21 +110,33 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
                                          std::function<bool(NodePtr)> func) {
   // create storage for the ouputs and the visited nodes
   std::vector<NodePtr> outNodes;
+  std::unordered_set<NodePtr> visited;
   std::set<edgeRemoveTup> visited_edges;
 
-  // get all the inputs to this subgraph that are either in the subgraph
-  // or dependent on the subgraph
-  std::function<void(NodePtr)> get_inputs;
-  get_inputs = [&outNodes, &get_inputs](NodePtr s) {
-    if (std::find(outNodes.begin(), outNodes.end(), s) == outNodes.end()) {
-      outNodes.emplace_back(s);
-    }
-    for (auto i : s->inputs_)
-      if (std::find(outNodes.begin(), outNodes.end(), i) == outNodes.end()) {
-        get_inputs(i);
+  // This function searches the nodes that are inputs to the final
+  // subgraph output AND outputs of other subgraph nodes
+  // to minimize what needs to be searched for broken loops
+  std::function<bool(NodePtr)> get_nodes;
+  get_nodes = [&outNodes, &visited,  &get_nodes, &func](NodePtr s) {
+    
+    visited.insert(s);
+    bool im_an_output = false;
+    if (func(s)) im_an_output = true;
+
+    for (auto i : s->inputs_) {
+      if (!in_vec(outNodes, i)) {
+        if (!visited.count(i))
+          if (get_nodes(i)) im_an_output = true;
+      } else {
+        im_an_output = true;
       }
+    }
+
+    if (im_an_output) outNodes.push_back(s);
+    return im_an_output;
   };
-  get_inputs(s);
+
+  get_nodes(s);
 
   // This is a mutable closure, copied on each step up the graph,
   // that tells us weather or not this branch of the graph is good or bad
@@ -133,8 +145,7 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
                              found_bad](NodePtr s) mutable {
     if (!func(s)) found_bad = true;
     if (found_bad) return false;
-    if (std::find(subgraph_nodes.begin(), subgraph_nodes.end(), s) !=
-        subgraph_nodes.end()) {
+    if (in_vec(subgraph_nodes, s)) {
       return true;
     } else {
       return false;
@@ -154,24 +165,13 @@ std::vector<NodePtr> Graph::PruneSubgraphOutputs(
     NodePtr s, std::vector<NodePtr>& subgraph_nodes,
     std::function<bool(NodePtr)> func) {
 
-  // utility for checking if a node is in a vector
-  auto in_graphvec = [](std::vector<NodePtr>& subgraph_nodes,
-                        NodePtr s) -> bool {
-    if (std::find(subgraph_nodes.begin(), subgraph_nodes.end(), s) ==
-        subgraph_nodes.end()) {
-      return false;
-    } else {
-      return true;
-    }
-  };
-
   // function to get all the outputs of the subgraph
-  auto get_subgraph_outputs = [this, &subgraph_nodes, &in_graphvec]() {
+  auto get_subgraph_outputs = [this, &subgraph_nodes]() {
     std::vector<NodePtr> outNodes;
     for (auto n : nodes_)
-      if (!in_graphvec(subgraph_nodes, n))
+      if (!in_vec(subgraph_nodes, n))
         for (auto i : n->inputs_)
-          if (in_graphvec(subgraph_nodes, i) && !in_graphvec(outNodes, i))
+          if (in_vec(subgraph_nodes, i) && !in_vec(outNodes, i))
             outNodes.emplace_back(i);
     return outNodes;
   };
@@ -184,8 +184,8 @@ std::vector<NodePtr> Graph::PruneSubgraphOutputs(
             std::remove(subgraph_nodes.begin(), subgraph_nodes.end(), n),
             subgraph_nodes.end());
   };
-  // main pass
 
+  // main pass
   // count is for debugging purposes in case the recursive logic is broken
   std::vector<NodePtr> outNodes;
   bool single_output = false;
@@ -269,8 +269,7 @@ void Graph::CollapseSubgraphs() {
       tmpGraph->shape_ = shape;
       tmpGraph->dtype_ = tmpGraph->nodes_.back()->dtype_;
       auto in_tmpGraphInputs = [&tmpGraph](NodePtr n) {
-        if (std::find(tmpGraph->inputs_.begin(), tmpGraph->inputs_.end(), n) ==
-            tmpGraph->inputs_.end()) return false;
+        if (!in_vec(tmpGraph->inputs_, n)) return false;
         return true;
       };
       // setup inputs to this subgraph (as a node)
