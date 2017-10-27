@@ -90,7 +90,7 @@ void Graph::RemoveUtil(
                    outNodes.end());
   // visit it's inputs if they're still in the subgraph
   for (auto i : s->inputs)
-    if (std::find(outNodes.begin(), outNodes.end(), i) != outNodes.end()) {
+    if (in_vec(outNodes, i)) {
       auto edge_tup = edgeRemoveTup{s, i, func(s)};
       if (!visited_edges.count(edge_tup)) {
         visited_edges.insert(edge_tup);
@@ -99,33 +99,45 @@ void Graph::RemoveUtil(
     }
 }
 
+// I'm not totally sure this is the right approach, but it seems to work.
+// Possibly too slow for more complex graphs like DS2
 std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
                                          std::vector<NodePtr>& subgraph_nodes,
                                          std::function<bool(NodePtr)> func) {
-  // if this node matches func condition
-
   std::vector<NodePtr> outNodes;
+  std::unordered_set<NodePtr> visited;
   std::set<edgeRemoveTup> visited_edges;
 
-  std::function<void(NodePtr)> get_inputs;
-  get_inputs = [&outNodes, &get_inputs](NodePtr s) {
-    if (std::find(outNodes.begin(), outNodes.end(), s) == outNodes.end()) {
-      outNodes.emplace_back(s);
-    }
-    for (auto i : s->inputs)
-      if (std::find(outNodes.begin(), outNodes.end(), i) == outNodes.end()) {
-        get_inputs(i);
+  // This function searches the nodes that are inputs to the final
+  // subgraph output AND outputs of other subgraph nodes
+  // to minimize what needs to be searched for broken loops
+  std::function<bool(NodePtr)> get_nodes;
+  get_nodes = [&outNodes, &visited,  &get_nodes, &func](NodePtr s) {
+    
+    visited.insert(s);
+    bool im_an_output = false;
+    if (func(s)) im_an_output = true;
+    for (auto i : s->inputs) {
+      if (!in_vec(outNodes, i)) {
+        if (!visited.count(i))
+          if (get_nodes(i)) im_an_output = true;
+      } else {
+        im_an_output = true;
       }
+    }
+
+    if (im_an_output) outNodes.push_back(s);
+    return im_an_output;
   };
-  get_inputs(s);
+
+  get_nodes(s);
 
   bool found_bad = false;
   auto good_subgraph_node = [subgraph_nodes, func,
                              found_bad](NodePtr s) mutable {
     if (!func(s)) found_bad = true;
     if (found_bad) return false;
-    if (std::find(subgraph_nodes.begin(), subgraph_nodes.end(), s) !=
-        subgraph_nodes.end()) {
+    if (in_vec(subgraph_nodes, s)) {
       return true;
     } else {
       return false;
@@ -136,15 +148,12 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
   return outNodes;
 }
 
-// I'm not totally sure this is the right approach, but it seems to work.
-// Possibly too slow for more complex graphs like DS2
 std::vector<NodePtr> Graph::PruneSubgraphOutputs(
     NodePtr s, std::vector<NodePtr>& subgraph_nodes,
     std::function<bool(NodePtr)> func) {
   auto in_graphvec = [](std::vector<NodePtr>& subgraph_nodes,
                         NodePtr s) -> bool {
-    if (std::find(subgraph_nodes.begin(), subgraph_nodes.end(), s) ==
-        subgraph_nodes.end()) {
+    if (!in_vec(subgraph_nodes, s)) {
       return false;
     } else {
       return true;
@@ -249,8 +258,7 @@ void Graph::CollapseSubgraphs() {
       tmpGraph->shape = shape;
       tmpGraph->dtype = tmpGraph->nodes_.back()->dtype;
       auto in_tmpGraphInputs = [&tmpGraph](NodePtr n) {
-        if (std::find(tmpGraph->inputs.begin(), tmpGraph->inputs.end(), n) ==
-            tmpGraph->inputs.end()) return false;
+        if (!in_vec(tmpGraph->inputs, n)) return false;
         return true;
       };
       // setup inputs to this subgraph (as a node)
