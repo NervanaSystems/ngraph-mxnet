@@ -29,7 +29,8 @@
 #include "nnvm/graph_attr_types.h"
 
 namespace ngraph_bridge {
-// map aliases for maps of name, function, where function returns an ngraph
+
+// Aliases to simplify code
 using LayerGraphs = std::map<std::string, std::function<Graph(const NodePtr)>>;
 using NodeMap = std::map<const nnvm::Node*, std::shared_ptr<nnvm::Node>>;
 using NNVMNodeVec = std::vector<nnvm::NodePtr>;
@@ -75,6 +76,10 @@ struct SimpleBindArg : public BindArgBase {
   const NgraphDType dtype_map_;
 };
 
+// This is a compile-time hash map that contains information on
+// nnvm alias renaming to simplify the emitter class - 
+// we don't want to emit _Plus, _plus, _add, and elemwise_add
+// for the same op
 static std::unordered_map<std::string, std::string> nameswitch({
   // elemwise
   {"elemwise_add", "_plus"},
@@ -109,6 +114,8 @@ static std::unordered_map<std::string, std::string> nameswitch({
   {"Flatten", "flatten"},
 });
 
+// Utility function for replacing operation names 
+// based on the dict above
 inline std::string clean_opname(std::string name) {
   if (nameswitch.count(name)){
     return nameswitch[name];
@@ -116,38 +123,52 @@ inline std::string clean_opname(std::string name) {
     return name;
   }
 }
-
+// Main compiler class
 class Compiler {
  public:
+  // Construction takes setup from the grad executor and preps the graph
+  // for ngraph compilation
   Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
            const NNVMNodeVec& inputs, const BindArgBase& bindarg);
-  // Main interface from MXNet
-  // Compile a graph, take an MXNet graph and replace subsections of it
-  // with ngraph operations
+  // Compile returns the compiled graph
   nnvm::Graph Compile();
-  // parse the nnvm graph into an intermediate rep
+  // parse the nnvm graph into an intermediate represenation
+  // TODO: Make this protected, it's here for debugging
   void ParseNnvmGraph();
-  StateMap CopySavedStates(const StateMap& saved_states);
 
+  StateMap CopySavedStates(const StateMap& saved_states);
+  // Return maps of the shapes and dtypes for further analysis in graph_executor
   const NgraphShape& GetNgraphShape() { return ngraph_shape_; }
   const NgraphDType& GetNgraphDtype() { return ngraph_dtype_; }
+  // Return copies of the feed_dict and inputs to feed back into the 
+  // graph executor inference engine
   const NDArrayMap& GetFeedDict() { return feed_dict_; };
   const NNVMNodeVec& GetInputs() { return inputs_; };
 
  protected:
   // check nodes against ngraph operations
   void CheckInNgraph();
+  // make a deep copy of the graph and graph nodes
   void DeepCopy(const nnvm::Graph& graph);
+  // copy nodes outside of the graph
   void CopyNodes(const nnvm::Graph& graph);
+  // create a copied representaiton of the feed_dict
   void MakeCopiedFeedDict(const NDArrayMap& feed_dict);
+  // create a copied representation of the inputs
   void MakeCopiedInputs(const NNVMNodeVec& inputs);
 
+  // class to compile subgraphs
   SGCompiler compiler_;
+  // storage for copied nodes
   NodeMap node_map_;
+  // storage for copied graph
   nnvm::Graph graph_;
+  // storage for IR graph
   ngraph_bridge::Graph ngraph_;
+  // shape and type maps to return to the graph executor
   NgraphShape ngraph_shape_;
   NgraphDType ngraph_dtype_;
+  // copied feed dict and inputs
   nnvm::NodeEntryMap<mxnet::NDArray> feed_dict_;
   NNVMNodeVec inputs_;
 

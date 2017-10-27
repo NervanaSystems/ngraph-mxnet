@@ -44,6 +44,7 @@ using NodePtr = std::shared_ptr<Node>;
 // Possible Types of nodes in Current Version
 enum class NodeType {kVariable, kAux, kOp, kGraph};
 
+// TODO: This could probably use a refactor
 // Base class for Nodes in Intermediary Analysis Graph
 class Node {
  public:
@@ -76,25 +77,29 @@ class Node {
   int subgraph_ = 0;
 };
 
-// Variable Node
+// Class to store Variables
+// Effectivly just a wrapper for setting Node Type
 class VariableNode : public Node {
  public:
+  // Overloaded constructors for ease of use
   VariableNode(const nnvmNodePtr n, std::string s)
       : Node(NodeType::kVariable, n, s){};
   VariableNode(const nnvmNodePtr n, std::string s, std::vector<NodePtr> i)
       : Node(NodeType::kVariable, n, s, i){};
 };
 
-// Aux Node
+// Class to store Auxillary Tensors, mostly for Batch Norm
+// Effectivly just a wrapper for setting Node Type
 class AuxNode : public Node {
  public:
+  // Overloaded constructors for ease of use
   AuxNode(const nnvmNodePtr n, std::string s)
       : Node(NodeType::kAux, n, s){};
   AuxNode(const nnvmNodePtr n, std::string s, std::vector<NodePtr> i)
       : Node(NodeType::kAux, n, s, i){};
 };
 
-// Operation node
+// Node for storing operations
 class OpNode : public Node {
  public:
   // Include operation in graphviz
@@ -107,6 +112,8 @@ class OpNode : public Node {
     out += "];";
     return out;
   }
+  
+  // Overloaded constructors for ease of use
   OpNode(const nnvmNodePtr n, std::string s, std::string o)
       : Node(NodeType::kOp, n, s) {
     operation_ = o;
@@ -124,15 +131,19 @@ using edgeRemoveTup = std::tuple<NodePtr, NodePtr, bool>;
 Graph class
 Graph subclasses Node so that we can embed graphs into other graphs
 This is useful when we take a graph and replace it with an ngraph computation
+TODO: Refactor into Graph and subgraph?
 */
 class Graph : public Node {
  public:
   Graph() : Node(NodeType::kGraph, nullptr, ""){};
   Graph(std::string name) : Node(NodeType::kGraph, nullptr, name){};
+
   // Add a node to the graph
   void AddNode(NodePtr node) { nodes_.emplace_back(node); };
+
   // Write the graph to a Graphviz file
   void WriteDot(const std::string& fname);
+
   // Function for doing depth first search on the graph and selecting nodes
   std::vector<NodePtr> DFSselect(NodePtr s, std::function<bool(NodePtr)> func);
   // Utility function for graph search
@@ -140,19 +151,30 @@ class Graph : public Node {
                std::vector<NodePtr>& outNodes,
                std::function<bool(NodePtr)>& func);
   
-  // void findBrokenLoop(std::function<bool(NodePtr)> func);
+  // High level function that does the subgraph identification
   void IdentifySubgraphs(std::function<bool(NodePtr)> func);
+  
+  // Finds simply connected ngraph operations
   std::vector<NodePtr> FindSubgraph(NodePtr s,
+  
                                     std::function<bool(NodePtr)> func);
+
+  // Graph pass find loops in the subgraph where 1 branch of the loop is ngraph
+  // compatible and the other 
   std::vector<NodePtr> RemoveBroken(NodePtr s,
                                     std::vector<NodePtr>& subgraph_nodes,
                                     std::function<bool(NodePtr)> func);
   void RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
                   std::function<bool(NodePtr)> func, 
                   std::set<edgeRemoveTup>& visited_edges);
+
+  // Modified subgraph to only return 1 output.
+  // If we improve the subgraph compiler/nnvm op construction
+  // we might be able to get rid of this pass
   std::vector<NodePtr> PruneSubgraphOutputs(
       NodePtr s, std::vector<NodePtr>& subgraph_nodes,
       std::function<bool(NodePtr)> func);
+
   // convert graph from identified nodes to a network of nodes and graphs,
   // each graph node represented a combined ngraph operation
   void CollapseSubgraphs();
@@ -161,9 +183,12 @@ class Graph : public Node {
   NodePtr operator[](std::string name) {
     for (auto n : nodes_)
       if (n->name_ == name) return n;
+    // This throw is used in constructing multi-output subgraphs
     throw "NGRAPH_BRIDGE: node not in graph";
   };
 
+  // Write the subgraphs in a graph to a dot file 
+  // for graphviz visualization
   void WriteSubgraphDots(std::string base){
     WriteDot(base + ".dot");
     for (auto n : nodes_) {
@@ -176,8 +201,11 @@ class Graph : public Node {
     }
   }
 
+
   int num_outputs = 1;
+  // nodes in this graph
   std::vector<NodePtr> nodes_;
+  // functions to execute this graph in ngraph
   std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward;
   std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward;
 };

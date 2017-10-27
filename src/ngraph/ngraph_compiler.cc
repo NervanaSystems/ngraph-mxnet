@@ -242,6 +242,7 @@ nnvm::Graph Compiler::Compile() {
   return std::move(out_graph);
 }
 
+// create copied saved states
 StateMap Compiler::CopySavedStates(const StateMap& saved_states) {
   StateMap new_saved_states;
   for (auto kv : saved_states) {
@@ -250,6 +251,7 @@ StateMap Compiler::CopySavedStates(const StateMap& saved_states) {
   return new_saved_states;
 }
 
+// create a copied feed dict
 void Compiler::MakeCopiedFeedDict(const NDArrayMap& feed_dict) {
   for (auto kv : feed_dict) {
     auto e = kv.first;
@@ -258,6 +260,7 @@ void Compiler::MakeCopiedFeedDict(const NDArrayMap& feed_dict) {
   }
 }
 
+// create a vector of copied inputs
 void Compiler::MakeCopiedInputs(const NNVMNodeVec& inputs) {
   for (auto node : inputs) {
     inputs_.push_back(node_map_[node.get()]);
@@ -402,6 +405,9 @@ void Compiler::ParseNnvmGraph() {
         }
         op_node->inputs_.emplace_back(tmpnode);
       }
+
+      // function that renames or expands things like activation and
+      // split
       auto expand_layers = [this,
                             &layer_funcs](std::shared_ptr<OpNode>& op_node) {
         auto tmp = layer_funcs[op_node->operation_](op_node);

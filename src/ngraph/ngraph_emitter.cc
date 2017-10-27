@@ -25,7 +25,7 @@ Emitter::Emitter() {
   CreateLayerOps();
 }
 
-// unary op genrating function generator
+// unary op function generator
 void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["relu"] = [this](const NodePtr& node) {
     auto zero = makeConstant(node, "0");
@@ -182,6 +182,7 @@ void Emitter::CreateUnaryOps() {
   // };
 }
 
+// autobroadcast factory function to avoid code copy
 AutoBroadcast Emitter::CreateAutoBroadcast(const NodePtr& node) {
   auto lhsNode = op_map_[node->inputs_[0]];
   auto lhsShape = TShape_to_NShape(node->inputs_[0]->shape_);

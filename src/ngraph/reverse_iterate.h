@@ -9,6 +9,10 @@
     std::vector<int> v = {1, 2, 3, 4, 5};
     for (auto x : reverse_iterate(v))
         std::cout << x << " ";
+
+    M. Brookhart comment:
+      I pulled this off stack-overflow
+      It makes graph traversals easier, but isn't strictly neccesary
  */
 
 template <typename T>

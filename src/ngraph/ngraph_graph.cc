@@ -84,13 +84,17 @@ void Graph::RemoveUtil(
     NodePtr s, std::vector<NodePtr>& outNodes,
     std::function<bool(NodePtr)> func,
     std::set<edgeRemoveTup>& visited_edges) {
-  // if this node matches func condition
+
+  // if this node doesn't match the function condition, delete it
   if (!func(s))
     outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), s),
                    outNodes.end());
+
   // visit it's inputs if they're still in the subgraph
   for (auto i : s->inputs_)
     if (std::find(outNodes.begin(), outNodes.end(), i) != outNodes.end()) {
+      // ask if we've already gone up this branch in this closure state.
+      // if so, don't revisit, if not, try it both good and bad.
       auto edge_tup = edgeRemoveTup{s, i, func(s)};
       if (!visited_edges.count(edge_tup)) {
         visited_edges.insert(edge_tup);
@@ -99,14 +103,17 @@ void Graph::RemoveUtil(
     }
 }
 
+// This function searches for non-local issues that make parts of an
+// ngraph identified subgraph non-computable
 std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
                                          std::vector<NodePtr>& subgraph_nodes,
                                          std::function<bool(NodePtr)> func) {
-  // if this node matches func condition
-
+  // create storage for the ouputs and the visited nodes
   std::vector<NodePtr> outNodes;
   std::set<edgeRemoveTup> visited_edges;
 
+  // get all the inputs to this subgraph that are either in the subgraph
+  // or dependent on the subgraph
   std::function<void(NodePtr)> get_inputs;
   get_inputs = [&outNodes, &get_inputs](NodePtr s) {
     if (std::find(outNodes.begin(), outNodes.end(), s) == outNodes.end()) {
@@ -119,6 +126,8 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
   };
   get_inputs(s);
 
+  // This is a mutable closure, copied on each step up the graph,
+  // that tells us weather or not this branch of the graph is good or bad
   bool found_bad = false;
   auto good_subgraph_node = [subgraph_nodes, func,
                              found_bad](NodePtr s) mutable {
@@ -132,15 +141,20 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
     }
   };
 
+  // recursive search for bad branches
   RemoveUtil(s, outNodes, good_subgraph_node, visited_edges);
   return outNodes;
 }
 
-// I'm not totally sure this is the right approach, but it seems to work.
-// Possibly too slow for more complex graphs like DS2
+// This removes mutiple outputs from a graph, because the subgraph compiler 
+// doesn't currently support multiple outputs
+// TODO: make the subgraph compiler handle multiple outputs and get rid of this
+// graph pass
 std::vector<NodePtr> Graph::PruneSubgraphOutputs(
     NodePtr s, std::vector<NodePtr>& subgraph_nodes,
     std::function<bool(NodePtr)> func) {
+
+  // utility for checking if a node is in a vector
   auto in_graphvec = [](std::vector<NodePtr>& subgraph_nodes,
                         NodePtr s) -> bool {
     if (std::find(subgraph_nodes.begin(), subgraph_nodes.end(), s) ==
@@ -151,6 +165,7 @@ std::vector<NodePtr> Graph::PruneSubgraphOutputs(
     }
   };
 
+  // function to get all the outputs of the subgraph
   auto get_subgraph_outputs = [this, &subgraph_nodes, &in_graphvec]() {
     std::vector<NodePtr> outNodes;
     for (auto n : nodes_)
@@ -161,6 +176,7 @@ std::vector<NodePtr> Graph::PruneSubgraphOutputs(
     return outNodes;
   };
 
+  // function to remove all of the outputs that aren't the last one
   auto prune_subgraph = [&subgraph_nodes](std::vector<NodePtr> outNodes) {
     for (auto n : outNodes)
       if (n != subgraph_nodes[0])
@@ -168,15 +184,19 @@ std::vector<NodePtr> Graph::PruneSubgraphOutputs(
             std::remove(subgraph_nodes.begin(), subgraph_nodes.end(), n),
             subgraph_nodes.end());
   };
+  // main pass
 
+  // count is for debugging purposes in case the recursive logic is broken
   std::vector<NodePtr> outNodes;
   bool single_output = false;
   int count = 0;
-  while (!single_output && count < 10) {
+  while (!single_output && count < 100) {
+    // get the current outputs
     outNodes = get_subgraph_outputs();
     if (outNodes.size() <= 1) {
       single_output = true;
     } else {
+      // we have more than 1 output, remove them and clean any broken loops
       prune_subgraph(outNodes);
       subgraph_nodes = RemoveBroken(s, subgraph_nodes, func);
     }

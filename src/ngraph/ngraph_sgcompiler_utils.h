@@ -24,6 +24,8 @@
 #include "ngraph_graph.h"
 namespace ngraph_bridge {
 
+// Function to turn a runtime type flag from mxnet
+// into a compile time type object from ngraph
 inline const ngraph::element::Type& getType(int type_flag){
   switch (type_flag) {
     // case mshadow::kFloat16:
@@ -54,6 +56,8 @@ inline const ngraph::element::Type& getType(int type_flag){
 }
 
 // parse a list like (1, 2, 3) into a vector of ints [1,2,3]
+// TODO: Is this in the STL? I know it's in boost, but I don't to add
+// a boost dependency for 1 function.
 inline std::vector<int> getInts(std::string input) {
   input = input.substr(1, input.size() - 2);
   std::stringstream ss(input);
@@ -67,6 +71,7 @@ inline std::vector<int> getInts(std::string input) {
   return vect;
 }
 
+// Template for converting shape objects via a range based for loop
 template <typename Ti, typename To>
 inline To convert_shapes(const Ti& inshape){
   To shape;
@@ -74,10 +79,13 @@ inline To convert_shapes(const Ti& inshape){
   return shape;
 }
 
+// Only thing we're currently converting -> TShape to ngraph::Shape
 inline ngraph::Shape TShape_to_NShape(const nnvm::TShape& inshape){
   return convert_shapes<nnvm::TShape, ngraph::Shape>(inshape);
 }
 
+// Create a runtime typed constant from the type and shape of a node
+// along with a string representing the number
 inline std::shared_ptr<ngraph::Node> makeConstant(const NodePtr& node,
                                                   std::string num) {
   const auto& et = getType(node->dtype_);
@@ -87,6 +95,7 @@ inline std::shared_ptr<ngraph::Node> makeConstant(const NodePtr& node,
 
 using NgraphNodePtr = std::shared_ptr<ngraph::Node>;
 
+// Hacky, reshape-based function for transposing a 2D matrix
 inline NgraphNodePtr NgraphTranspose(NgraphNodePtr node,
                                      ngraph::Shape in_shape) {
   // TODO: Support multidimensional Transpose

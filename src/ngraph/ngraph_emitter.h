@@ -21,13 +21,13 @@
 using NgraphNodePtr = std::shared_ptr<ngraph::Node>;
 
 namespace ngraph_bridge {
-// map aliases for maps of name, function, where function returns an ngraph
-// pyobject
 
+// Alias for maps of name, function, where function returns an ngraph node
 using OpEmitter =
     std::map<std::string,
              std::function<NgraphNodePtr(const NodePtr&)> >;
 
+// Emitter primairily serves to create and store ngraph Nodes
 class Emitter {
 public:
   Emitter();
@@ -40,7 +40,7 @@ protected:
   void CreateBinaryOps();
   // create larger MXNet layer operations
   void CreateLayerOps();
-
+  // Factory function for autobroadcasting the inputs of a node
   AutoBroadcast CreateAutoBroadcast(const NodePtr& node);
 
   // information on compiled objects
