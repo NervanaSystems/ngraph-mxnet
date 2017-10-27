@@ -268,7 +268,7 @@ namespace ngraph_bridge {
       attr.dict["squeeze_axis"] = "0";
       node->attrs = attr;
       test.node->orig_node_ = node;
-      test.node->multioutput_index = 1;
+      test.node->multi_output_index_ = 1;
 
       auto op = test.ngraph_op_funcs_["split"](test.node);
 
@@ -298,7 +298,7 @@ namespace ngraph_bridge {
       attr.dict["squeeze_axis"] = "1";
       node->attrs = attr;
       test.node->orig_node_ = node;
-      test.node->multioutput_index = 0;
+      test.node->multi_output_index_ = 0;
 
       auto op = test.ngraph_op_funcs_["split"](test.node);
 

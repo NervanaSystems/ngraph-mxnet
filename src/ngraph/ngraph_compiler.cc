@@ -60,7 +60,7 @@ LayerGraphs create_layer_graphs() {
       auto tmpslice = std::make_shared<OpNode>(
           node->orig_node_, node->name_ + "_" + std::to_string(i), "split");
       tmpslice->inputs_.push_back(node->inputs_[0]);
-      tmpslice->multioutput_index = i;
+      tmpslice->multi_output_index_ = i;
       tmpGraph.AddNode(tmpslice);
     }
     
@@ -169,7 +169,7 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
         break;
       }
     }
-    return (s->in_ngraph && s->type_ == NodeType::kOp && !in_feed_dict);
+    return (s->in_ngraph_ && s->type_ == NodeType::kOp && !in_feed_dict);
   });
 }
 
@@ -358,8 +358,8 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 void Compiler::CheckInNgraph() {
   for (auto node : ngraph_.nodes_) 
     if (node->type_ == NodeType::kOp) 
-      if (compiler_.ngraph_op_funcs_.count(node->operation))
-        node->in_ngraph = true;
+      if (compiler_.ngraph_op_funcs_.count(node->operation_))
+        node->in_ngraph_ = true;
 }
 
 // Function that parses an nnvm Graph into an intermediary graph
@@ -404,7 +404,7 @@ void Compiler::ParseNnvmGraph() {
       }
       auto expand_layers = [this,
                             &layer_funcs](std::shared_ptr<OpNode>& op_node) {
-        auto tmp = layer_funcs[op_node->operation](op_node);
+        auto tmp = layer_funcs[op_node->operation_](op_node);
         if (tmp.num_outputs > 1)
           this->ngraph_.nodes_.erase(
               std::remove(this->ngraph_.nodes_.begin(),
@@ -414,7 +414,7 @@ void Compiler::ParseNnvmGraph() {
         for (auto n : tmp.nodes_) this->ngraph_.AddNode(n);
       };
 
-      if (layer_funcs.count(op_node->operation) != 0) {
+      if (layer_funcs.count(op_node->operation_) != 0) {
         // perform layer expansions
         expand_layers(op_node);
       } else {

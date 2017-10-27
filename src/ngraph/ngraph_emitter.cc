@@ -341,7 +341,7 @@ void Emitter::CreateLayerOps() {
     
     size_t axis = get_default(node, "axis", 1);
     int num_outputs = get_default(node, "num_outputs", 1);
-    int index = node->multioutput_index;
+    int index = node->multi_output_index_;
     bool squeeze_axis = get_default(node, "squeeze_axis", 0);
 
     // create lower and upper bounds for slice

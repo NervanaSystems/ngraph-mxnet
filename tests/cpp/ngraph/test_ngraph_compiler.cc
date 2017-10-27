@@ -96,7 +96,7 @@ TEST_F(NGRAPH_COMPILER, PARSENNVMGRAPH){
     EXPECT_EQ(n->orig_node_, test.node_map_[nodes_[n->name_].get()]);
     EXPECT_EQ(n->name_, nodes_[n->name_]->attrs.name);
     if (n->type_ == NodeType::kOp)
-      EXPECT_EQ(n->operation, clean_opname(nodes_[n->name_]->op()->name));
+      EXPECT_EQ(n->operation_, clean_opname(nodes_[n->name_]->op()->name));
     int c = 0;
     for (auto i : n->inputs_){
       EXPECT_EQ(i->orig_node_, test.node_map_[nodes_[n->name_]->inputs[c].node.get()]);
@@ -120,10 +120,10 @@ TEST_F(NGRAPH_COMPILER, CHECK_IN_NGRAPH){
   testCompiler test(nnvm_graph, feed_dict, inputs, *bindarg);
   for (auto n : test.ngraph_.nodes_) {
     if (n->type_ == NodeType::kOp) {
-      EXPECT_EQ(n->in_ngraph,
-                test.compiler_.ngraph_op_funcs_.count(n->operation));
+      EXPECT_EQ(n->in_ngraph_,
+                test.compiler_.ngraph_op_funcs_.count(n->operation_));
     } else {
-      EXPECT_EQ(n->in_ngraph, false);
+      EXPECT_EQ(n->in_ngraph_, false);
     }
   }
 }

@@ -82,7 +82,7 @@ void SGCompiler::CompileNode(NodePtr node,
         }
       }
     }
-    op_map_[node] = ngraph_op_funcs_[node->operation](node);
+    op_map_[node] = ngraph_op_funcs_[node->operation_](node);
   }
 }
 

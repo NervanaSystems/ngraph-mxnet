@@ -55,7 +55,7 @@ class Node {
   // Function to create node label, used to export graph to graphviz for debug
   virtual std::string createNodeLabel() {
     std::ostringstream stream;
-    stream << shape_ << " sg=" << subgraph;
+    stream << shape_ << " sg=" << subgraph_;
     return name_ + " [label = \"" + name_ + "\n" + stream.str() +
            "\", fillcolor = red, style = filled];";
   }
@@ -70,10 +70,10 @@ class Node {
   int dtype_ = 0;
   
   // information to store graph parsing in
-  int multioutput_index = -1;
-  bool in_ngraph = false;
-  std::string operation = "";
-  int subgraph = 0;
+  int multi_output_index_ = -1;
+  bool in_ngraph_ = false;
+  std::string operation_ = "";
+  int subgraph_ = 0;
 };
 
 // Variable Node
@@ -97,24 +97,24 @@ class AuxNode : public Node {
 // Operation node
 class OpNode : public Node {
  public:
-  // Include operation in graphviz
+  // Include operation_ in graphviz
   std::string createNodeLabel() {
     std::ostringstream stream;
-    stream << shape_ << " sg=" << subgraph;
+    stream << shape_ << " sg=" << subgraph_;
     std::string out =
-        name_ + " [label=\"" + name_ + "\nOp: " + operation + stream.str() + "\"";
-    if (in_ngraph) out += ", fillcolor = red, style = filled";
+        name_ + " [label=\"" + name_ + "\nOp: " + operation_ + stream.str() + "\"";
+    if (in_ngraph_) out += ", fillcolor = red, style = filled";
     out += "];";
     return out;
   }
   OpNode(const nnvmNodePtr n, std::string s, std::string o)
       : Node(NodeType::kOp, n, s) {
-    operation = o;
+    operation_ = o;
   };
   OpNode(const nnvmNodePtr n, std::string s, std::string o,
          std::vector<NodePtr> i)
       : Node(NodeType::kOp, n, s, i) {
-    operation = o;
+    operation_ = o;
   };
 };
 
@@ -154,7 +154,7 @@ class Graph : public Node {
       NodePtr s, std::vector<NodePtr>& subgraph_nodes,
       std::function<bool(NodePtr)> func);
   // convert graph from identified nodes to a network of nodes and graphs,
-  // each graph node represented a combined ngraph operation
+  // each graph node represented a combined ngraph operation_
   void CollapseSubgraphs();
 
   // get the node corresponding to a name
@@ -170,7 +170,7 @@ class Graph : public Node {
       if (n->type_ == NodeType::kGraph) {
         auto sg = std::dynamic_pointer_cast<Graph>(n);
         std::ostringstream stream;
-        stream << base << sg->subgraph << ".dot";
+        stream << base << sg->subgraph_ << ".dot";
         sg->WriteDot(stream.str());
       }
     }

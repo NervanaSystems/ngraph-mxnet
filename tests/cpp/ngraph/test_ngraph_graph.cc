@@ -51,7 +51,7 @@ TEST(NGRAPH_GRAPH, OP_NODE_INIT) {
   EXPECT_EQ(OpNode(test_node, test_name, test_opname).type_, NodeType::kOp);
   EXPECT_EQ(OpNode(test_node, test_name, test_opname).orig_node_, test_node);
   EXPECT_EQ(OpNode(test_node, test_name, test_opname).name_, test_name);
-  EXPECT_EQ(OpNode(test_node, test_name, test_opname).operation, test_opname);
+  EXPECT_EQ(OpNode(test_node, test_name, test_opname).operation_, test_opname);
   EXPECT_EQ(OpNode(test_node, test_name, test_opname, test_inputs).type_,
             NodeType::kOp);
   EXPECT_EQ(OpNode(test_node, test_name, test_opname, test_inputs).orig_node_,
@@ -60,7 +60,7 @@ TEST(NGRAPH_GRAPH, OP_NODE_INIT) {
             test_name);
   EXPECT_EQ(OpNode(test_node, test_name, test_opname, test_inputs).inputs_,
             test_inputs);
-  EXPECT_EQ(OpNode(test_node, test_name, test_opname, test_inputs).operation,
+  EXPECT_EQ(OpNode(test_node, test_name, test_opname, test_inputs).operation_,
             test_opname);
 }
 
@@ -173,12 +173,12 @@ TEST(NGRAPH_GRAPH, GRAPH_FIND_SUBGRAPH) {
 
 TEST(NGRAPH_GRAPH, GRAPH_IDENTIFY_SUBGRAPHS) {
   test_search.branching_graph.IdentifySubgraphs(isop);
-  EXPECT_EQ(test_search.branching_graph.nodes_[0]->subgraph, 0);
-  EXPECT_EQ(test_search.branching_graph.nodes_[1]->subgraph, -1);
-  EXPECT_EQ(test_search.branching_graph.nodes_[2]->subgraph, 1);
-  EXPECT_EQ(test_search.branching_graph.nodes_[3]->subgraph, -1);
-  EXPECT_EQ(test_search.branching_graph.nodes_[4]->subgraph, 1);
-  EXPECT_EQ(test_search.branching_graph.nodes_[5]->subgraph, 1);
+  EXPECT_EQ(test_search.branching_graph.nodes_[0]->subgraph_, 0);
+  EXPECT_EQ(test_search.branching_graph.nodes_[1]->subgraph_, -1);
+  EXPECT_EQ(test_search.branching_graph.nodes_[2]->subgraph_, 1);
+  EXPECT_EQ(test_search.branching_graph.nodes_[3]->subgraph_, -1);
+  EXPECT_EQ(test_search.branching_graph.nodes_[4]->subgraph_, 1);
+  EXPECT_EQ(test_search.branching_graph.nodes_[5]->subgraph_, 1);
 }
 
 struct SUBG_test {

@@ -59,7 +59,7 @@ void Graph::DFSUtil(NodePtr s, std::unordered_set<NodePtr>& visited,
     outNodes.push_back(s);
     // visit it's inputs
     for (auto i : s->inputs_) {
-      if (!visited.count(i) && i->subgraph == 0) {
+      if (!visited.count(i) && i->subgraph_ == 0) {
         DFSUtil(i, visited, outNodes, func);
       }
     }
@@ -207,17 +207,17 @@ void Graph::IdentifySubgraphs(std::function<bool(NodePtr)> func) {
   int sg = 1;
   // loop over the nodes from the back
   for (auto i : reverse_iterate(nodes_)) {
-    if (i->subgraph == 0) {
+    if (i->subgraph_ == 0) {
       // select nodes in the a subgraph starting here and going up the graph
       auto subgraph_nodes = FindSubgraph(i, func);
       // if we found a significantly large subgraph, label it
       if (subgraph_nodes.size() > 2) {
         for (auto node : subgraph_nodes)
-          node->subgraph = sg;
+          node->subgraph_ = sg;
         for (auto node : subgraph_nodes)
           for (auto i : node->inputs_) 
-            if (i->subgraph != sg)
-              i->subgraph = -1;
+            if (i->subgraph_ != sg)
+              i->subgraph_ = -1;
         sg += 1;
       }
     }
@@ -233,15 +233,15 @@ void Graph::CollapseSubgraphs() {
     auto tmpGraph = std::make_shared<Graph>();
     // loop over all nodes and add nodes in the current subgraph to
     for (auto node : nodes_)
-      if (node->subgraph == i) tmpGraph->AddNode(node);
+      if (node->subgraph_ == i) tmpGraph->AddNode(node);
 
     if (tmpGraph->nodes_.size() == 0) {
       // if we don't find any nodes, assume we've run out of subgraphs
       break;
     } else {
       // if we found nodes, setup subgraph
-      tmpGraph->in_ngraph = true;
-      tmpGraph->subgraph = i;
+      tmpGraph->in_ngraph_ = true;
+      tmpGraph->subgraph_ = i;
       // set node name and shape based on last node in the subgraph
       auto name = tmpGraph->nodes_.back()->name_;
       auto shape = tmpGraph->nodes_.back()->shape_;
@@ -256,7 +256,7 @@ void Graph::CollapseSubgraphs() {
       // setup inputs to this subgraph (as a node)
       for (auto node : tmpGraph->nodes_) {
         for (auto input : node->inputs_) {
-          if (input->subgraph != i && !in_tmpGraphInputs(input)) 
+          if (input->subgraph_ != i && !in_tmpGraphInputs(input)) 
             tmpGraph->inputs_.emplace_back(input);
         }
       }
@@ -279,7 +279,7 @@ void Graph::CollapseSubgraphs() {
   nodes_.erase(
       std::remove_if(nodes_.begin(), nodes_.end(),
                      [](NodePtr n) -> bool {
-                       return ((n->subgraph > 0) && 
+                       return ((n->subgraph_ > 0) && 
                                (n->type_ == NodeType::kOp));
                      }),
       nodes_.end());
