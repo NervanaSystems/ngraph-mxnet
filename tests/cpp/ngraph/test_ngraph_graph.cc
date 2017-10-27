@@ -25,52 +25,52 @@ std::vector<NodePtr> test_inputs{
 std::string test_opname = "relu";
 
 TEST(NGRAPH_GRAPH, VAR_NODE_INIT) {
-  EXPECT_EQ(VariableNode(test_node, test_name).type, NodeType::kVariable);
-  EXPECT_EQ(VariableNode(test_node, test_name).orig_node, test_node);
-  EXPECT_EQ(VariableNode(test_node, test_name).name, test_name);
-  EXPECT_EQ(VariableNode(test_node, test_name, test_inputs).type,
+  EXPECT_EQ(VariableNode(test_node, test_name).type_, NodeType::kVariable);
+  EXPECT_EQ(VariableNode(test_node, test_name).orig_node_, test_node);
+  EXPECT_EQ(VariableNode(test_node, test_name).name_, test_name);
+  EXPECT_EQ(VariableNode(test_node, test_name, test_inputs).type_,
             NodeType::kVariable);
-  EXPECT_EQ(VariableNode(test_node, test_name, test_inputs).orig_node,
+  EXPECT_EQ(VariableNode(test_node, test_name, test_inputs).orig_node_,
             test_node);
-  EXPECT_EQ(VariableNode(test_node, test_name, test_inputs).name, test_name);
-  EXPECT_EQ(VariableNode(test_node, test_name, test_inputs).inputs,
+  EXPECT_EQ(VariableNode(test_node, test_name, test_inputs).name_, test_name);
+  EXPECT_EQ(VariableNode(test_node, test_name, test_inputs).inputs_,
             test_inputs);
 }
 
 TEST(NGRAPH_GRAPH, AUX_NODE_INIT) {
-  EXPECT_EQ(AuxNode(test_node, test_name).type, NodeType::kAux);
-  EXPECT_EQ(AuxNode(test_node, test_name).orig_node, test_node);
-  EXPECT_EQ(AuxNode(test_node, test_name).name, test_name);
-  EXPECT_EQ(AuxNode(test_node, test_name, test_inputs).type, NodeType::kAux);
-  EXPECT_EQ(AuxNode(test_node, test_name, test_inputs).orig_node, test_node);
-  EXPECT_EQ(AuxNode(test_node, test_name, test_inputs).name, test_name);
-  EXPECT_EQ(AuxNode(test_node, test_name, test_inputs).inputs, test_inputs);
+  EXPECT_EQ(AuxNode(test_node, test_name).type_, NodeType::kAux);
+  EXPECT_EQ(AuxNode(test_node, test_name).orig_node_, test_node);
+  EXPECT_EQ(AuxNode(test_node, test_name).name_, test_name);
+  EXPECT_EQ(AuxNode(test_node, test_name, test_inputs).type_, NodeType::kAux);
+  EXPECT_EQ(AuxNode(test_node, test_name, test_inputs).orig_node_, test_node);
+  EXPECT_EQ(AuxNode(test_node, test_name, test_inputs).name_, test_name);
+  EXPECT_EQ(AuxNode(test_node, test_name, test_inputs).inputs_, test_inputs);
 }
 
 TEST(NGRAPH_GRAPH, OP_NODE_INIT) {
-  EXPECT_EQ(OpNode(test_node, test_name, test_opname).type, NodeType::kOp);
-  EXPECT_EQ(OpNode(test_node, test_name, test_opname).orig_node, test_node);
-  EXPECT_EQ(OpNode(test_node, test_name, test_opname).name, test_name);
-  EXPECT_EQ(OpNode(test_node, test_name, test_opname).operation, test_opname);
-  EXPECT_EQ(OpNode(test_node, test_name, test_opname, test_inputs).type,
+  EXPECT_EQ(OpNode(test_node, test_name, test_opname).type_, NodeType::kOp);
+  EXPECT_EQ(OpNode(test_node, test_name, test_opname).orig_node_, test_node);
+  EXPECT_EQ(OpNode(test_node, test_name, test_opname).name_, test_name);
+  EXPECT_EQ(OpNode(test_node, test_name, test_opname).operation_, test_opname);
+  EXPECT_EQ(OpNode(test_node, test_name, test_opname, test_inputs).type_,
             NodeType::kOp);
-  EXPECT_EQ(OpNode(test_node, test_name, test_opname, test_inputs).orig_node,
+  EXPECT_EQ(OpNode(test_node, test_name, test_opname, test_inputs).orig_node_,
             test_node);
-  EXPECT_EQ(OpNode(test_node, test_name, test_opname, test_inputs).name,
+  EXPECT_EQ(OpNode(test_node, test_name, test_opname, test_inputs).name_,
             test_name);
-  EXPECT_EQ(OpNode(test_node, test_name, test_opname, test_inputs).inputs,
+  EXPECT_EQ(OpNode(test_node, test_name, test_opname, test_inputs).inputs_,
             test_inputs);
-  EXPECT_EQ(OpNode(test_node, test_name, test_opname, test_inputs).operation,
+  EXPECT_EQ(OpNode(test_node, test_name, test_opname, test_inputs).operation_,
             test_opname);
 }
 
 TEST(NGRAPH_GRAPH, GRAPH_INIT) {
-  EXPECT_EQ(Graph().type, NodeType::kGraph);
-  EXPECT_EQ(Graph().orig_node, nullptr);
-  EXPECT_EQ(Graph().name, "");
-  EXPECT_EQ(Graph(test_name).type, NodeType::kGraph);
-  EXPECT_EQ(Graph(test_name).orig_node, nullptr);
-  EXPECT_EQ(Graph(test_name).name, test_name);
+  EXPECT_EQ(Graph().type_, NodeType::kGraph);
+  EXPECT_EQ(Graph().orig_node_, nullptr);
+  EXPECT_EQ(Graph().name_, "");
+  EXPECT_EQ(Graph(test_name).type_, NodeType::kGraph);
+  EXPECT_EQ(Graph(test_name).orig_node_, nullptr);
+  EXPECT_EQ(Graph(test_name).name_, test_name);
 }
 
 auto test_ngraph_node = std::make_shared<VariableNode>(test_node, test_name);
@@ -86,7 +86,7 @@ TEST(NGRAPH_GRAPH, GRAPH_NODES_) {
   EXPECT_EQ(test_graphs.full_graph[test_name], test_ngraph_node);
 }
 
-auto isop = [](NodePtr s) { return (s->type == NodeType::kOp); };
+auto isop = [](NodePtr s) { return (s->type_ == NodeType::kOp); };
 
 struct DFS_Test {
   DFS_Test() {
@@ -173,12 +173,12 @@ TEST(NGRAPH_GRAPH, GRAPH_FIND_SUBGRAPH) {
 
 TEST(NGRAPH_GRAPH, GRAPH_IDENTIFY_SUBGRAPHS) {
   test_search.branching_graph.IdentifySubgraphs(isop);
-  EXPECT_EQ(test_search.branching_graph.nodes_[0]->subgraph, 0);
-  EXPECT_EQ(test_search.branching_graph.nodes_[1]->subgraph, -1);
-  EXPECT_EQ(test_search.branching_graph.nodes_[2]->subgraph, 1);
-  EXPECT_EQ(test_search.branching_graph.nodes_[3]->subgraph, -1);
-  EXPECT_EQ(test_search.branching_graph.nodes_[4]->subgraph, 1);
-  EXPECT_EQ(test_search.branching_graph.nodes_[5]->subgraph, 1);
+  EXPECT_EQ(test_search.branching_graph.nodes_[0]->subgraph_, 0);
+  EXPECT_EQ(test_search.branching_graph.nodes_[1]->subgraph_, -1);
+  EXPECT_EQ(test_search.branching_graph.nodes_[2]->subgraph_, 1);
+  EXPECT_EQ(test_search.branching_graph.nodes_[3]->subgraph_, -1);
+  EXPECT_EQ(test_search.branching_graph.nodes_[4]->subgraph_, 1);
+  EXPECT_EQ(test_search.branching_graph.nodes_[5]->subgraph_, 1);
 }
 
 struct SUBG_test {

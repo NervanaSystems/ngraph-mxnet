@@ -40,7 +40,7 @@ void SGCompiler::ClearOpMap(){
 // Compile a Subgraph into ngraph python objects
 void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // initalize a placeholder order vector for this subgraph
-  for (auto i : sub_graph->inputs) placeholder_order_.push_back(i);
+  for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
 
   for (auto node : sub_graph->nodes_) CompileNode(node, sub_graph);
   
@@ -54,9 +54,9 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     forward_parameters.push_back(
         std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_[input]));
 
-  auto shape = TShape_to_NShape(sub_graph->nodes_.back()->shape);
+  auto shape = TShape_to_NShape(sub_graph->nodes_.back()->shape_);
   auto return_type = std::make_shared<ngraph::TensorViewType>(
-      getType(sub_graph->nodes_.back()->dtype), shape);
+      getType(sub_graph->nodes_.back()->dtype_), shape);
 
   auto f = std::make_shared<ngraph::Function>(op_map_[sub_graph->nodes_.back()],
                                               return_type, forward_parameters);
@@ -72,7 +72,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 void SGCompiler::CompileNode(NodePtr node,
                              const std::shared_ptr<Graph> sub_graph) {
   if (!op_map_.count(node)){
-    for (auto input : node->inputs) {
+    for (auto input : node->inputs_) {
       if (!op_map_.count(input)){
         if (std::find(sub_graph->nodes_.begin(), sub_graph->nodes_.end(),
                       input) == sub_graph->nodes_.end()) {
@@ -82,15 +82,15 @@ void SGCompiler::CompileNode(NodePtr node,
         }
       }
     }
-    op_map_[node] = ngraph_op_funcs_[node->operation](node);
+    op_map_[node] = ngraph_op_funcs_[node->operation_](node);
   }
 }
 
 // Compile the inputs
 void SGCompiler::CompileInput(NodePtr input) {
-  auto shape = TShape_to_NShape(input->shape);
+  auto shape = TShape_to_NShape(input->shape_);
   op_map_[input] = std::make_shared<ngraph::op::Parameter>(
-      getType(input->dtype), shape);
+      getType(input->dtype_), shape);
 }
 
 }

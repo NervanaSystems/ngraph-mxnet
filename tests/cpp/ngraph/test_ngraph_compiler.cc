@@ -93,13 +93,13 @@ TEST_F(NGRAPH_COMPILER, PARSENNVMGRAPH){
   // and the parsing of mutable nodes right now.
   testCompiler test(nnvm_graph, feed_dict, inputs, *bindarg);
   for (auto n : test.ngraph_.nodes_){
-    EXPECT_EQ(n->orig_node, test.node_map_[nodes_[n->name].get()]);
-    EXPECT_EQ(n->name, nodes_[n->name]->attrs.name);
-    if (n->type == NodeType::kOp)
-      EXPECT_EQ(n->operation, clean_opname(nodes_[n->name]->op()->name));
+    EXPECT_EQ(n->orig_node_, test.node_map_[nodes_[n->name_].get()]);
+    EXPECT_EQ(n->name_, nodes_[n->name_]->attrs.name);
+    if (n->type_ == NodeType::kOp)
+      EXPECT_EQ(n->operation_, clean_opname(nodes_[n->name_]->op()->name));
     int c = 0;
-    for (auto i : n->inputs){
-      EXPECT_EQ(i->orig_node, test.node_map_[nodes_[n->name]->inputs[c].node.get()]);
+    for (auto i : n->inputs_){
+      EXPECT_EQ(i->orig_node_, test.node_map_[nodes_[n->name_]->inputs[c].node.get()]);
       c += 1;
     }
   }
@@ -109,21 +109,21 @@ TEST_F(NGRAPH_COMPILER, PARSENNVMGRAPH){
       test.graph_.GetAttr<std::vector<nnvm::TShape>>("shape");
   const auto inferred_dtypes = test.graph_.GetAttr<std::vector<int>>("dtype");
   for (auto node : test.ngraph_.nodes_) {
-    const uint32_t nid = idx.node_id(node->orig_node.get());
+    const uint32_t nid = idx.node_id(node->orig_node_.get());
     const uint32_t eid = idx.entry_id(nid, 0);
-    EXPECT_EQ(node->shape, inferred_shapes[eid]);
-    EXPECT_EQ(node->dtype, inferred_dtypes[eid]);
+    EXPECT_EQ(node->shape_, inferred_shapes[eid]);
+    EXPECT_EQ(node->dtype_, inferred_dtypes[eid]);
   }
 }
 
 TEST_F(NGRAPH_COMPILER, CHECK_IN_NGRAPH){
   testCompiler test(nnvm_graph, feed_dict, inputs, *bindarg);
   for (auto n : test.ngraph_.nodes_) {
-    if (n->type == NodeType::kOp) {
-      EXPECT_EQ(n->in_ngraph,
-                test.compiler_.ngraph_op_funcs_.count(n->operation));
+    if (n->type_ == NodeType::kOp) {
+      EXPECT_EQ(n->in_ngraph_,
+                test.compiler_.ngraph_op_funcs_.count(n->operation_));
     } else {
-      EXPECT_EQ(n->in_ngraph, false);
+      EXPECT_EQ(n->in_ngraph_, false);
     }
   }
 }

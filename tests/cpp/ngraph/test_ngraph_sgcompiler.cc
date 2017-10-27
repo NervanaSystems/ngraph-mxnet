@@ -26,11 +26,11 @@ TEST_F(NGRAPH_SGCOMPILER, COMPILE_PARAMETER){
   EXPECT_EQ(std::dynamic_pointer_cast<const ngraph::TensorViewType>(
                   test[in1]->get_value_type())
                   ->get_shape(),
-              TShape_to_NShape(in1->shape));
+              TShape_to_NShape(in1->shape_));
   EXPECT_EQ(std::dynamic_pointer_cast<const ngraph::TensorViewType>(
                   test[in1]->get_value_type())
                   ->get_element_type(),
-              getType(in1->dtype));
+              getType(in1->dtype_));
 }
 
 TEST_F(NGRAPH_SGCOMPILER, COMPILE_NODE1){
@@ -117,22 +117,22 @@ TEST_F(NGRAPH_SGCOMPILER, COMPILE_SUBGRAPH){
   EXPECT_EQ(std::dynamic_pointer_cast<const ngraph::TensorViewType>(
                   test[node1]->get_value_type())
                   ->get_shape(),
-              TShape_to_NShape(node1->shape));
+              TShape_to_NShape(node1->shape_));
   EXPECT_EQ(std::dynamic_pointer_cast<const ngraph::TensorViewType>(
                   test[node1]->get_value_type())
                   ->get_element_type(),
-              getType(node1->dtype));
+              getType(node1->dtype_));
 
   EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Add>(
       test[node2]));
   EXPECT_EQ(std::dynamic_pointer_cast<const ngraph::TensorViewType>(
                   test[node2]->get_value_type())
                   ->get_shape(),
-              TShape_to_NShape(node2->shape));
+              TShape_to_NShape(node2->shape_));
   EXPECT_EQ(std::dynamic_pointer_cast<const ngraph::TensorViewType>(
                   test[node2]->get_value_type())
                   ->get_element_type(),
-              getType(node2->dtype));
+              getType(node2->dtype_));
   EXPECT_TRUE(subgraph->ngraph_forward);
   // EXPECT_TRUE(subgraph->ngraph_backward); //Not yet Implemented
 }

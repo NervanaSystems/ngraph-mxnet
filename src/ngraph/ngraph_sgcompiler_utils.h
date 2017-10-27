@@ -80,8 +80,8 @@ inline ngraph::Shape TShape_to_NShape(const nnvm::TShape& inshape){
 
 inline std::shared_ptr<ngraph::Node> makeConstant(const NodePtr& node,
                                                   std::string num) {
-  const auto& et = getType(node->dtype);
-  auto shape = TShape_to_NShape(node->shape);
+  const auto& et = getType(node->dtype_);
+  auto shape = TShape_to_NShape(node->shape_);
   return std::make_shared<ngraph::op::Constant>(et, shape, num);
 }
 
