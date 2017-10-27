@@ -7,6 +7,7 @@ using NgraphNodePtr = std::shared_ptr<ngraph::Node>;
 
 namespace ngraph_bridge {
 
+// broadcasts input ngraph nodes per numpy rules
 class AutoBroadcast {
  private:
   struct Node {
@@ -15,7 +16,7 @@ class AutoBroadcast {
     // conditionally replaced by ReshapeAndBroadcast
     NgraphNodePtr ptr;
     // initial shape of node
-    ngraph::Shape shape;
+    const ngraph::Shape shape;
     // shape of node after ngraph::op::Reshape
     ngraph::Shape reshape;
     // axes (0-based) to broadcast by ngraph::op::Broadcast
@@ -25,9 +26,6 @@ class AutoBroadcast {
   // shape of both nodes after ngraph::op::Broadcast
   ngraph::Shape broadcastshape_;
 
-  // determines whether this class will take any action
-  bool RequiresBroadcast();
-  
   // set reshape and axes (per node) and broadcast shape
   void SetShapesAndAxes();
 
@@ -42,10 +40,10 @@ class AutoBroadcast {
   void ReshapeAndBroadcast(Node &node);
 
  public:
-  AutoBroadcast(const NgraphNodePtr &lhsNode, const ngraph::Shape &lhsShape,
-                const NgraphNodePtr &rhsNode, const ngraph::Shape &rhsShape);
-  NgraphNodePtr lhs() { return lhs_.ptr; }
-  NgraphNodePtr rhs() { return rhs_.ptr; }
+  AutoBroadcast(NgraphNodePtr lhsNode, const ngraph::Shape &lhsShape,
+                NgraphNodePtr rhsNode, const ngraph::Shape &rhsShape);
+  NgraphNodePtr lhs() const { return lhs_.ptr; }
+  NgraphNodePtr rhs() const { return rhs_.ptr; }
 };
 
 }  // namespace ngraph_bridge

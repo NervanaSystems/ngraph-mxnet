@@ -2,16 +2,25 @@
 
 namespace ngraph_bridge {
 
-AutoBroadcast::AutoBroadcast(const NgraphNodePtr &lhsNode,
+AutoBroadcast::AutoBroadcast(NgraphNodePtr lhsNode,
                              const ngraph::Shape &lhsShape,
-                             const NgraphNodePtr &rhsNode,
-                             const ngraph::Shape &rhsShape) {
-  lhs_.ptr = lhsNode;
-  rhs_.ptr = rhsNode;
-  lhs_.shape = lhsShape;
-  rhs_.shape = rhsShape;
+                             NgraphNodePtr rhsNode,
+                             const ngraph::Shape &rhsShape)
+    : lhs_({lhsNode, lhsShape}), rhs_({rhsNode, rhsShape}) {
 
-  if (RequiresBroadcast()) {
+  if (lhsNode == nullptr || rhsNode == nullptr) {
+    throw "NGRAPH_BRIDGE: AutoBroadcast: null input pointer";
+  }
+  if (lhsShape.size() == 0 || rhsShape.size() == 0) {
+    throw "NGRAPH_BRIDGE: AutoBroadcast: empty input shape";
+  }
+  if (std::find(lhsShape.begin(), lhsShape.end(), 0) != lhsShape.end() ||
+      std::find(rhsShape.begin(), rhsShape.end(), 0) != rhsShape.end()) {
+    throw "NGRAPH_BRIDGE: AutoBroadcast: invalid input shape";
+  }
+
+  // if auto broadcast is necessary
+  if (lhs_.shape != rhs_.shape) {
     SetShapesAndAxes();
 
     // if auto broadcast is possible
@@ -20,27 +29,7 @@ AutoBroadcast::AutoBroadcast(const NgraphNodePtr &lhsNode,
       ReshapeAndBroadcast(rhs_);
     }
   }
-}
-
-bool AutoBroadcast::RequiresBroadcast() {
-  // no action required if shapes already match
-  if (lhs_.shape == rhs_.shape) return false;
-
-  // a zero dimension is invalid
-  // so we should not hit this case "in the wild"
-  // make explicit: no action taken on shapes with zero dimensions
-  if (std::find(lhs_.shape.begin(), lhs_.shape.end(), 0) != lhs_.shape.end())
-    return false;
-  if (std::find(rhs_.shape.begin(), rhs_.shape.end(), 0) != rhs_.shape.end())
-    return false;
-
-  // mxnet scalars are pre-broadcast to requisite shape
-  // so we should not hit this case "in the wild"
-  // make explicit: no action taken on empty shape(s)
-  if (lhs_.shape.size() == 0 || rhs_.shape.size() == 0) return false;
-
-  return true;
-}
+}  // namespace ngraph_bridge
 
 void AutoBroadcast::SetShapesAndAxes() {
   auto lhsSize = lhs_.shape.size();

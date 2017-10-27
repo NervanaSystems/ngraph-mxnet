@@ -1,12 +1,12 @@
 #include "test_util.h"
 #include "../../src/ngraph/ngraph_autobroadcast.h"
-#include "../../src/ngraph/ngraph_sgcompiler_utils.h"
 
 namespace ngraph_bridge {
 
 std::shared_ptr<ngraph::op::Parameter> getParamFromShape(
     const ngraph::Shape &shape) {
-  return std::make_shared<ngraph::op::Parameter>(getType(0), shape);
+  return std::make_shared<ngraph::op::Parameter>(
+      ngraph::element::Float32::element_type(), shape);
 }
 
 void propTypes(const NgraphNodePtr &node) {
@@ -173,35 +173,31 @@ TEST(NGRAPH_AUTOBROADCAST, BROADCAST_WITH_LEADING_DIM1) {
   EXPECT_EQ(getShapeFromParam(ab.rhs()), s1345);
 }
 
+// handle edge input case - nullptr
+TEST(NGRAPH_AUTOBROADCAST, NULL_POINTER) {
+  ngraph::Shape s345{3, 4, 5};
+  auto param = getParamFromShape(s345);
+  std::shared_ptr<ngraph::op::Parameter> nullparam = nullptr;
+  EXPECT_THROW(AutoBroadcast ab(nullparam, s345, param, s345), const char *);
+  EXPECT_THROW(AutoBroadcast ab(param, s345, nullparam, s345), const char *);
+}
+
 // handle edge input case - empty shape
 TEST(NGRAPH_AUTOBROADCAST, EMPTY_SHAPE) {
   ngraph::Shape sEmpty{};
-  ngraph::Shape s345{ 3, 4, 5 };
-  auto lhs = getParamFromShape(sEmpty);
-  auto rhs = getParamFromShape(s345);
-  AutoBroadcast ab(lhs, sEmpty, rhs, s345);
-
-  EXPECT_EQ(ab.lhs(), lhs);  // no change
-  EXPECT_EQ(getShapeFromParam(ab.lhs()), sEmpty);
-
-  EXPECT_EQ(ab.rhs(), rhs);  // no change
-  EXPECT_EQ(getShapeFromParam(ab.rhs()), s345);
+  ngraph::Shape s345{3, 4, 5};
+  auto param = getParamFromShape(s345);
+  EXPECT_THROW(AutoBroadcast ab(param, sEmpty, param, s345), const char *);
+  EXPECT_THROW(AutoBroadcast ab(param, s345, param, sEmpty), const char *);
 }
 
-// handle edge input case - zero dimension
+// handle edge input case - invalid shape (zero dimension)
 TEST(NGRAPH_AUTOBROADCAST, ZERO_DIMENSION) {
-  ngraph::Shape s204{2, 0, 4};
-  ngraph::Shape s201{2, 0, 1};
-
-  auto lhs = getParamFromShape(s204);
-  auto rhs = getParamFromShape(s201);
-  AutoBroadcast ab(lhs, s204, rhs, s201);
-
-  EXPECT_EQ(ab.lhs(), lhs);  // no change
-  EXPECT_EQ(getShapeFromParam(ab.lhs()), s204);
-
-  EXPECT_EQ(ab.rhs(), rhs);  // no change
-  EXPECT_EQ(getShapeFromParam(ab.rhs()), s201);
+  ngraph::Shape s305{3, 0, 5};
+  ngraph::Shape s345{3, 4, 5};
+  auto param = getParamFromShape(s345);
+  EXPECT_THROW(AutoBroadcast ab(param, s305, param, s345), const char *);
+  EXPECT_THROW(AutoBroadcast ab(param, s345, param, s305), const char *);
 }
 
 }  // namespace ngraph_bridge

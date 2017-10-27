@@ -52,7 +52,7 @@ inline void copy_TBlob(std::shared_ptr<ngraph::runtime::Value> input,
       copy_TBlob<ngraph::element::Int64>(input, n, p);
       break;
     default:
-      throw ("type not supported");
+      throw "NGRAPH_BRIDGE: type not supported";
   }
 }
 
@@ -86,7 +86,7 @@ inline void copy_result(std::shared_ptr<ngraph::runtime::Value> input,
       copy_result<ngraph::element::Int64>(input, n, p);
       break;
     default:
-      throw ("type not supported");
+      throw "NGRAPH_BRIDGE: type not supported";
   }
 }
 

@@ -161,7 +161,7 @@ class Graph : public Node {
   NodePtr operator[](std::string name) {
     for (auto n : nodes_)
       if (n->name_ == name) return n;
-    throw std::string{"node not in graph"};
+    throw "NGRAPH_BRIDGE: node not in graph";
   };
 
   void WriteSubgraphDots(std::string base){
