@@ -97,7 +97,7 @@ class AuxNode : public Node {
 // Operation node
 class OpNode : public Node {
  public:
-  // Include operation_ in graphviz
+  // Include operation in graphviz
   std::string createNodeLabel() {
     std::ostringstream stream;
     stream << shape_ << " sg=" << subgraph_;
@@ -154,7 +154,7 @@ class Graph : public Node {
       NodePtr s, std::vector<NodePtr>& subgraph_nodes,
       std::function<bool(NodePtr)> func);
   // convert graph from identified nodes to a network of nodes and graphs,
-  // each graph node represented a combined ngraph operation_
+  // each graph node represented a combined ngraph operation
   void CollapseSubgraphs();
 
   // get the node corresponding to a name

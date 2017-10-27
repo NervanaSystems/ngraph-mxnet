@@ -39,7 +39,7 @@ void Graph::WriteDot(const std::string& fname) {
     }
   // Loop over nodes and write labels
   for (auto n : nodes_) 
-    if (n->name_ !="")
+    if (!n->name_.empty() )
       dotfile << n->createNodeLabel() << std::endl;
   // Finish file.
   dotfile << "}" << std::endl;
