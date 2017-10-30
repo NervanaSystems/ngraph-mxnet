@@ -188,7 +188,8 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
                           const std::vector<mxnet::TBlob>& outputs) -> void {
         auto placeholders = make_ngraph_placeholders(inputs, true);
         auto results = make_ngraph_placeholders(outputs, false);
-        (*computation)(placeholders, results);
+        (*computation)(placeholders,
+                       {ngraph::runtime::make_tuple(results)});
         for (size_t j = 0; j < results.size(); ++j) 
           result_to_TBlob(results[j], outputs, j);
       });

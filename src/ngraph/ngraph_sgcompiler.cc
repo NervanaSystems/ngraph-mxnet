@@ -73,8 +73,49 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   auto forward_external = manager->compile(f);
   sub_graph->ngraph_forward = backend->make_call_frame(forward_external);
 
+  // rebuild the graph and forward function for the backprop calculation
+  // this is due to a current limitation in ngraph autodiff
+  // TODO: remove these lines when ngraph autodiff matures.
+  //////////////////////////////////////////////////////////////////////////////
+  ClearOpMap();
+
+  for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
+
+  for (auto node : sub_graph->nodes_) CompileNode(node, sub_graph);
+
+  ngraph::op::Parameters backward_parameters;
+
+  for (auto input : placeholder_order_)
+    backward_parameters.push_back(
+        std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_[input]));
+
+  shape = TShape_to_NShape(sub_graph->nodes_.back()->shape_);
+  return_type = std::make_shared<ngraph::TensorViewType>(
+      getType(sub_graph->nodes_.back()->dtype_), shape);
+
+  f = std::make_shared<ngraph::Function>(op_map_[sub_graph->nodes_.back()],
+                                         return_type, backward_parameters);
+  //////////////////////////////////////////////////////////////////////////////
+  
   //Compile the backward Pass
-      
+  auto Y = f->get_result();
+
+  auto C = std::make_shared<ngraph::op::Parameter>(Y->get_value_type());
+
+  std::vector<NgraphNodePtr> dYdXs(backward_parameters.size());
+  transform(backward_parameters.begin(), backward_parameters.end(),
+            dYdXs.begin(), [C, Y](const NgraphNodePtr& X) {
+              return Y->backprop_node(X, C);
+            });
+
+  auto result = std::make_shared<ngraph::op::Tuple>(dYdXs);
+  backward_parameters.insert(backward_parameters.begin(), C);
+  auto bf = std::make_shared<ngraph::Function>(result, result->get_value_type(),
+                                            backward_parameters);
+
+  auto backward_external = manager->compile(bf);
+  sub_graph->ngraph_backward = backend->make_call_frame(backward_external);
+
 }
 
 // compiling a node, recursively checking it's inputs
