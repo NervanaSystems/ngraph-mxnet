@@ -33,34 +33,43 @@ std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
 }
 
 void SGCompiler::ClearOpMap(){
+  // delete the temporary storage
   op_map_.clear();
   placeholder_order_.clear();
 }
 
-// Compile a Subgraph into ngraph python objects
+// Compile a Subgraph into ngraph forward and backward call frames
 void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
+
   // initalize a placeholder order vector for this subgraph
   for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
 
+  // compile all the ndoes in the graph
   for (auto node : sub_graph->nodes_) CompileNode(node, sub_graph);
-  
+
+  // initialize the runtime manager and backend
+  // TODO: add a frontend flag for switching between ngraph backends
   auto manager = ngraph::runtime::Manager::get("NGVM");
   auto backend = manager->allocate_backend();
   
-  // Compile the forward Pass
+  // map the inputs into a parameter list
+  // TODO: std::transform?
   ngraph::op::Parameters forward_parameters;
-
   for (auto input : placeholder_order_)
     forward_parameters.push_back(
         std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_[input]));
 
+  // calcuate the shape and return type of the subgraph
   auto shape = TShape_to_NShape(sub_graph->nodes_.back()->shape_);
   auto return_type = std::make_shared<ngraph::TensorViewType>(
       getType(sub_graph->nodes_.back()->dtype_), shape);
 
+  // create the Function object representing the graph
   auto f = std::make_shared<ngraph::Function>(op_map_[sub_graph->nodes_.back()],
                                               return_type, forward_parameters);
 
+  // compile it into a call frame with the backend, and save 
+  // the compile frame into the subgraph
   auto forward_external = manager->compile(f);
   sub_graph->ngraph_forward = backend->make_call_frame(forward_external);
 
@@ -71,9 +80,11 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 // compiling a node, recursively checking it's inputs
 void SGCompiler::CompileNode(NodePtr node,
                              const std::shared_ptr<Graph> sub_graph) {
-  if (!op_map_.count(node)){
+  if (!op_map_.count(node)) {
+    // Loop over the inputs and ensure they've been compile3d
     for (auto input : node->inputs_) {
       if (!op_map_.count(input)){
+        // if it's not in the graph, it's an input, compile it as an input
         if (std::find(sub_graph->nodes_.begin(), sub_graph->nodes_.end(),
                       input) == sub_graph->nodes_.end()) {
           CompileInput(input);
@@ -82,6 +93,7 @@ void SGCompiler::CompileNode(NodePtr node,
         }
       }
     }
+    // use the emitter to compile this node and store it
     op_map_[node] = ngraph_op_funcs_[node->operation_](node);
   }
 }
@@ -89,6 +101,8 @@ void SGCompiler::CompileNode(NodePtr node,
 // Compile the inputs
 void SGCompiler::CompileInput(NodePtr input) {
   auto shape = TShape_to_NShape(input->shape_);
+  // make a shaped and typed parameter based on the input node
+  // store it in the op_map_
   op_map_[input] = std::make_shared<ngraph::op::Parameter>(
       getType(input->dtype_), shape);
 }
