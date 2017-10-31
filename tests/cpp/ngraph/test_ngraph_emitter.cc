@@ -330,7 +330,8 @@ namespace ngraph_bridge {
       attr.name = "concat";
       attr.dict["num_args"] = "2";
       attr.dict["dim"] = "0";
-      attr.op = (nnvm::Op*) mxnet::op::CreateOp<mxnet::cpu>(param, 0);
+      auto svec = std::vector<nnvm::TShape>{test.in1->shape_, test.in2->shape_};
+      attr.op = (nnvm::Op*)mxnet::op::CreateOp<mxnet::cpu>(param, 0, &svec);
       node->attrs = attr;
       test.node->orig_node_ = node;
       auto op = std::dynamic_pointer_cast<ngraph::op::Concat>(
