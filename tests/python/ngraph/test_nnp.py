@@ -5,7 +5,7 @@ import mxnet as mx
 def test_device_lcr_enabled():
     with mx.nnp(0):
     	A = mx.symbol.Variable('A')
-        B = mx.symbol.Variable('B')
+    	B = mx.symbol.Variable('B')
     	C = mx.symbol.Variable('C')
     	Avals = mx.nd.array([[1,2],[3,4]])
     	Bvals = mx.nd.array([[5,6],[7,8]])
