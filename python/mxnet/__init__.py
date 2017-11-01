@@ -21,7 +21,7 @@
 """MXNet: a concise, fast and flexible framework for deep learning."""
 from __future__ import absolute_import
 
-from .context import Context, current_context, cpu, gpu, lcr
+from .context import Context, current_context, cpu, gpu, nnp
 from .base import MXNetError
 from . import base
 from . import contrib

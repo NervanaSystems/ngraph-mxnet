@@ -34,7 +34,7 @@ class Context(object):
 
     Parameters
     ----------
-    device_type : {'cpu', 'gpu', 'lcr'} or Context.
+    device_type : {'cpu', 'gpu', 'nnp'} or Context.
         String representing the device type.
 
     device_id : int (default=0)
@@ -62,8 +62,8 @@ class Context(object):
     """
     # static class variable
     default_ctx = None
-    devtype2str = {1: 'cpu', 2: 'gpu', 3: 'cpu_pinned', 4: 'lcr'}
-    devstr2type = {'cpu': 1, 'gpu': 2, 'cpu_pinned': 3, 'lcr': 4}
+    devtype2str = {1: 'cpu', 2: 'gpu', 3: 'cpu_pinned', 4: 'nnp'}
+    devstr2type = {'cpu': 1, 'gpu': 2, 'cpu_pinned': 3, 'nnp': 4}
     def __init__(self, device_type, device_id=0):
         if isinstance(device_type, Context):
             self.device_typeid = device_type.device_typeid
@@ -180,23 +180,23 @@ def gpu(device_id=0):
     """
     return Context('gpu', device_id)
 
-def lcr(device_id=0):
+def nnp(device_id=0):
     """Returns a LakeCrest context.
 
-    This function is a short cut for Context('lcr', device_id).
+    This function is a short cut for Context('nnp', device_id).
     Currently unsure if we have the flexibility to choose specific
     nodes through LakeCrest.
 
     Examples
     ----------
-    >>> with mx.Context('lcr', 1):
-    ...     lcr_array = mx.nd.ones((2, 3))
-    >>> lcr_array.context
-    lcr(1)
-    >>> with mx.lcr(1):
-    ...    lcr_array = mx.nd.ones((2, 3))
-    >>> lcr_array.context
-    lcr(1)
+    >>> with mx.Context('nnp', 1):
+    ...     nnp_array = mx.nd.ones((2, 3))
+    >>> nnp_array.context
+    nnp(1)
+    >>> with mx.nnp(1):
+    ...    nnp_array = mx.nd.ones((2, 3))
+    >>> nnp_array.context
+    nnp(1)
 
     Parameters
     ----------
@@ -206,9 +206,9 @@ def lcr(device_id=0):
     Returns
     -------
     context : Context
-        The corresponding LCR context.
+        The corresponding NNP context.
     """
-    return Context('lcr', device_id)
+    return Context('nnp', device_id)
 
 
 
@@ -217,7 +217,7 @@ def current_context():
 
     By default, `mx.cpu()` is used for all the computations
     and it can be overridden by using `with mx.Context(x)` statement where
-    x can be cpu(device_id) or gpu(device_id) or lcr(device_id).
+    x can be cpu(device_id) or gpu(device_id) or nnp(device_id).
 
     Examples
     -------

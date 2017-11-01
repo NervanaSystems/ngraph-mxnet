@@ -52,7 +52,7 @@ class StorageImpl : public Storage {
   static void ActivateDevice(Context ctx) {
     switch (ctx.dev_type) {
       case Context::kCPU: break;
-      case Context::kLCR: break;
+      case Context::kNNP: break;
       case Context::kGPU:
       case Context::kCPUPinned: {
 #if MXNET_USE_CUDA
@@ -115,7 +115,7 @@ Storage::Handle StorageImpl::Alloc(size_t size, Context ctx) {
 #endif  // MXNET_USE_CUDA
             break;
           }
-          case Context::kLCR: {
+          case Context::kNNP: {
             ptr = new storage::NaiveStorageManager<storage::CPUDeviceStorage>();
             break;
           }
