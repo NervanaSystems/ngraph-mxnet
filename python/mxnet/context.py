@@ -181,7 +181,7 @@ def gpu(device_id=0):
     return Context('gpu', device_id)
 
 def nnp(device_id=0):
-    """Returns a LakeCrest context.
+    """Returns a Neural Network Processor context.
 
     This function is a short cut for Context('nnp', device_id).
     Currently unsure if we have the flexibility to choose specific

@@ -2,7 +2,7 @@ from __future__ import print_function
 import numpy as np
 import mxnet as mx
 
-def test_device_lcr_enabled():
+def test_device_nnp_enabled():
     with mx.nnp(0):
     	A = mx.symbol.Variable('A')
     	B = mx.symbol.Variable('B')
