@@ -34,7 +34,7 @@ class Context(object):
 
     Parameters
     ----------
-    device_type : {'cpu', 'gpu'} or Context.
+    device_type : {'cpu', 'gpu', 'nnp'} or Context.
         String representing the device type.
 
     device_id : int (default=0)
@@ -62,8 +62,8 @@ class Context(object):
     """
     # static class variable
     default_ctx = None
-    devtype2str = {1: 'cpu', 2: 'gpu', 3: 'cpu_pinned'}
-    devstr2type = {'cpu': 1, 'gpu': 2, 'cpu_pinned': 3}
+    devtype2str = {1: 'cpu', 2: 'gpu', 3: 'cpu_pinned', 4: 'nnp'}
+    devstr2type = {'cpu': 1, 'gpu': 2, 'cpu_pinned': 3, 'nnp': 4}
     def __init__(self, device_type, device_id=0):
         if isinstance(device_type, Context):
             self.device_typeid = device_type.device_typeid
@@ -180,13 +180,44 @@ def gpu(device_id=0):
     """
     return Context('gpu', device_id)
 
+def nnp(device_id=0):
+    """Returns a Neural Network Processor context.
+
+    This function is a short cut for Context('nnp', device_id).
+    Currently unsure if we have the flexibility to choose specific
+    nodes through LakeCrest.
+
+    Examples
+    ----------
+    >>> with mx.Context('nnp', 1):
+    ...     nnp_array = mx.nd.ones((2, 3))
+    >>> nnp_array.context
+    nnp(1)
+    >>> with mx.nnp(1):
+    ...    nnp_array = mx.nd.ones((2, 3))
+    >>> nnp_array.context
+    nnp(1)
+
+    Parameters
+    ----------
+    device_id : int, optional
+        The device id of the device, currently needed to match GPU function signature.
+
+    Returns
+    -------
+    context : Context
+        The corresponding NNP context.
+    """
+    return Context('nnp', device_id)
+
+
 
 def current_context():
     """Returns the current context.
 
     By default, `mx.cpu()` is used for all the computations
     and it can be overridden by using `with mx.Context(x)` statement where
-    x can be cpu(device_id) or gpu(device_id).
+    x can be cpu(device_id) or gpu(device_id) or nnp(device_id).
 
     Examples
     -------

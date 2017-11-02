@@ -52,6 +52,7 @@ class StorageImpl : public Storage {
   static void ActivateDevice(Context ctx) {
     switch (ctx.dev_type) {
       case Context::kCPU: break;
+      case Context::kNNP: break;
       case Context::kGPU:
       case Context::kCPUPinned: {
 #if MXNET_USE_CUDA
@@ -112,6 +113,10 @@ Storage::Handle StorageImpl::Alloc(size_t size, Context ctx) {
 #else
             LOG(FATAL) << "Compile with USE_CUDA=1 to enable GPU usage";
 #endif  // MXNET_USE_CUDA
+            break;
+          }
+          case Context::kNNP: {
+            ptr = new storage::NaiveStorageManager<storage::CPUDeviceStorage>();
             break;
           }
           default: LOG(FATAL) <<  "Unimplemented device " << ctx.dev_type;
