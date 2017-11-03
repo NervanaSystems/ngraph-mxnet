@@ -1,7 +1,16 @@
 cmake_minimum_required(VERSION 3.0.2)
 
+SET(CMAKE_CXX_COMPILER /usr/local/bin/g++-7)
 project(mxnet C CXX)
-
+###########################
+# louis clion
+include_directories(~/mkldnn/include)
+add_definitions(-DMXNET_USE_MKLDNN=1)
+add_definitions(-DMXNET_USE_MKL2017=0)
+include_directories(../private-ngraph-cpp/src)
+set(USE_CUDA FALSE)
+set(USE_OPENMP FALSE)
+###########################
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/build/private/local_config.cmake)
   include(${CMAKE_CURRENT_SOURCE_DIR}/build/private/local_config.cmake)
 endif()
@@ -10,9 +19,9 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules;${CMAKE_MODULE_PATH}"
 
 include(cmake/Utils.cmake)
 mxnet_option(USE_OPENCV           "Build with OpenCV support" ON)
-mxnet_option(USE_OPENMP           "Build with Openmp support" ON)
-mxnet_option(USE_CUDA             "Build with CUDA support"   ON)
-mxnet_option(USE_CUDNN            "Build with cudnn support"  ON) # one could set CUDNN_ROOT for search path
+mxnet_option(USE_OPENMP           "Build with Openmp support" OFF)
+mxnet_option(USE_CUDA             "Build with CUDA support"   OFF)
+mxnet_option(USE_CUDNN            "Build with cudnn support"  OFF) # one could set CUDNN_ROOT for search path
 mxnet_option(USE_LAPACK           "Build with lapack support" ON IF NOT MSVC)
 mxnet_option(USE_MKL_IF_AVAILABLE "Use MKL if found" ON)
 mxnet_option(USE_MKLML_MKL        "Use MKLML variant of MKL (if MKL found)" ON IF USE_MKL_IF_AVAILABLE AND UNIX AND (NOT APPLE))
@@ -29,6 +38,9 @@ mxnet_option(USE_GPROF            "Compile with gprof (profiling) flag" OFF)
 mxnet_option(USE_VTUNE            "Enable use of Intel Amplifier XE (VTune)" OFF) # one could set VTUNE_ROOT for search path
 mxnet_option(INSTALL_EXAMPLES     "Install the example source files." OFF)
 
+if(USE_CUDA)
+  message(STATUS "Using CUDA")
+endif(USE_CUDA)
 SET(EXTRA_OPERATORS "" CACHE PATH "EXTRA OPERATORS PATH")
 
 if("$ENV{VERBOSE}" STREQUAL "1")

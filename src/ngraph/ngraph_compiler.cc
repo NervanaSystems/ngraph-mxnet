@@ -161,7 +161,7 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
   ParseNnvmGraph();
   CheckInNgraph();
 
-  ngraph_.IdentifySubgraphs([&feed_dict](NodePtr s) {
+  ngraph_.IdentifySubgraphs([&feed_dict](NodePtr s) -> bool {
     bool in_feed_dict = false;
     for (auto kv : feed_dict) {
       if (kv.first.node->attrs.name == s->name_) {
