@@ -16,6 +16,8 @@
 #include <nnvm/node.h>
 #include <nnvm/pass.h>
 #include <algorithm>
+#include <iterator>
+#include <vector>
 #include "ngraph_sgcompiler_utils.h"
 
 namespace ngraph_bridge {
@@ -49,19 +51,24 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
   // map the inputs into a parameter list
   // TODO: std::transform?
-  ngraph::op::Parameters parameters;
+  ngraph::op::Parameters forward_parameters;
   for (auto input : placeholder_order_)
-    parameters.push_back(
+    forward_parameters.push_back(
         std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_[input]));
 
   // calcuate the shape and return type of the subgraph
-  auto shape = TShape_to_NShape(sub_graph->nodes_.back()->shape_);
-  auto return_type = std::make_shared<ngraph::TensorViewType>(
-      getType(sub_graph->nodes_.back()->dtype_), shape);
+
+  std::vector<NgraphNodePtr> results(sub_graph->subgraph_outputs_.size());
+
+  transform(sub_graph->subgraph_outputs_.begin(),
+            sub_graph->subgraph_outputs_.end(), results.begin(),
+            [this](const NodePtr X) { return this->op_map_[X]; });
+
+  auto result = std::make_shared<ngraph::op::Tuple>(results);
 
   // create the Function object representing the graph
-  auto f = std::make_shared<ngraph::Function>(op_map_[sub_graph->nodes_.back()],
-                                              return_type, parameters);
+  auto f = std::make_shared<ngraph::Function>(result, result->get_value_type(),
+                                              forward_parameters);
 
   // compile it into a call frame with the backend, and save
   // the compile frame into the subgraph
@@ -69,19 +76,57 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   sub_graph->ngraph_forward =
       sub_graph->backend_->make_call_frame(forward_external);
 
+  // rebuild the graph and forward function for the backprop calculation
+  // this is due to a current limitation in ngraph autodiff
+  // TODO: remove these lines when ngraph autodiff matures.
+  //////////////////////////////////////////////////////////////////////////////
+  ClearOpMap();
+
+  for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
+
+  for (auto node : sub_graph->nodes_) CompileNode(node, sub_graph);
+
+  ngraph::op::Parameters backward_parameters;
+
+  for (auto input : placeholder_order_)
+    backward_parameters.push_back(
+        std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_[input]));
+
+  results.clear();
+  transform(sub_graph->subgraph_outputs_.begin(),
+            sub_graph->subgraph_outputs_
+                .end(),  // TODO: [nikolayk] why can't we reuse the same list?
+            results.begin(),
+            [this](const NodePtr X) { return this->op_map_[X]; });
+  result = std::make_shared<ngraph::op::Tuple>(results);
+
+  f = std::make_shared<ngraph::Function>(result, result->get_value_type(),
+                                         backward_parameters);
+  //////////////////////////////////////////////////////////////////////////////
   // Compile the backward Pass
   auto Y = f->get_result();
 
-  auto C = std::make_shared<ngraph::op::Parameter>(Y->get_value_type());
+  std::vector<std::shared_ptr<ngraph::op::Parameter>> result_parameters;
 
-  std::vector<NgraphNodePtr> dYdXs(parameters.size());
-  transform(parameters.begin(), parameters.end(), dYdXs.begin(),
-            [C, Y](const NgraphNodePtr& X) { return Y->backprop_node(X, C); });
+  std::vector<NgraphNodePtr> dYdXs;
+  for (auto rarg : Y->get_arguments()) {
+    auto C = std::make_shared<ngraph::op::Parameter>(rarg->get_value_type());
+    result_parameters.push_back(C);
+    for (auto X : backward_parameters)
+      dYdXs.push_back(rarg->backprop_node(X, C));
+  }
+  result = std::make_shared<ngraph::op::Tuple>(dYdXs);
 
-  auto result = std::make_shared<ngraph::op::Tuple>(dYdXs);
-  parameters.insert(parameters.begin(), C);
+  std::copy(result_parameters.rbegin(), result_parameters.rend(),
+            std::inserter(backward_parameters,
+                          begin(backward_parameters)));  // this puts output
+                                                         // parameters in front
+                                                         // of input ones in the
+                                                         // same order as
+                                                         // output_nodes_
+
   auto bf = std::make_shared<ngraph::Function>(result, result->get_value_type(),
-                                               parameters);
+                                               result_parameters);
 
   auto backward_external = sub_graph->manager_->compile(bf);
   sub_graph->ngraph_backward =

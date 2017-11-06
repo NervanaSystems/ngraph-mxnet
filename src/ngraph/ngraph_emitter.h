@@ -29,6 +29,7 @@ class Emitter {
   Emitter();
   // maps of ngraph operation generator functions
   OpEmitter ngraph_op_funcs_;
+  std::map<NodePtr, NgraphNodePtr> op_map_;
 
  protected:
   // create unary operation functions
@@ -42,7 +43,7 @@ class Emitter {
   std::shared_ptr<ngraph::Node> CreateAutoBroadcast(const NodePtr& node);
 
   // information on compiled objects
-  std::map<NodePtr, NgraphNodePtr> op_map_;
+
   std::vector<NodePtr> placeholder_order_;
 };
 

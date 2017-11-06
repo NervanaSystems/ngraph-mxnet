@@ -16,6 +16,7 @@
 #include <nnvm/node.h>
 #include <nnvm/pass.h>
 #include <algorithm>
+#include <cstdlib>
 #include "../executor/exec_pass.h"
 #include "ngraph_nnvm_ops.h"
 #include "nnvm/tuple.h"
@@ -23,21 +24,33 @@
 namespace ngraph_bridge {
 
 // Function to create an nnvm node from a ngraph subgraph
-nnvm::NodeEntry CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
+std::vector<nnvm::NodeEntry> CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
   // init node, set name
   auto node = nnvm::Node::Create();
   node->attrs.name = subgraph->name_;
   // get the registered operation for the node
   node->attrs.op = get_subgraph_op(subgraph);
   // setup the ninputs to the node
-  for (auto input : subgraph->inputs_)
+  for (auto input : subgraph->inputs_) {
+    // node->inputs.emplace_back(nnvm::NodeEntry{input->orig_node_,
+    // input->input_index_, 0});
+    if (input->input_index_) {
+      throw "NGRAPH_BRIDGE: no arcs from ngraph subgraphs to ngraph subgraphs";
+    }
     node->inputs.emplace_back(nnvm::NodeEntry{input->orig_node_, 0, 0});
+  }
   // create dummy node parameters
   NGraphParam op;
   node->attrs.parsed = std::move(op);
 
   // init and return NodeEntry
-  return nnvm::NodeEntry{node, 0, 0};
+
+  std::vector<nnvm::NodeEntry> nes;
+  for (size_t i = 0; i < subgraph->subgraph_outputs_.size(); i++) {
+    nes.push_back(nnvm::NodeEntry{node, i, 0});
+  }
+
+  return nes;
 }
 
 // Generator to create functions that convert mxnet layer operations
@@ -205,31 +218,41 @@ nnvm::Graph Compiler::Compile() {
       // register compiled subgraph with nnvm
       register_subgraph(sg);
       // create nnvm node
-      auto sg_node = CreateNNVMNode(sg);
+      auto sg_nodes = CreateNNVMNode(sg);
 
-      auto matches = [&sg](nnvm::NodeEntry n) -> bool {
-        return (n.node == sg->nodes_.back()->orig_node_);
+      auto osg = std::dynamic_pointer_cast<Graph>(n);
+      auto index_of =
+          [osg](nnvm::NodeEntry ne) -> int /*note, this returns an int*/ {
+
+        for (int i = 0; i < osg->subgraph_outputs_.size(); i++) {
+          if (osg->subgraph_outputs_.at(i)->orig_node_ == ne.node) {
+            return i;
+          }
+        }
+
+        return -1;
       };
 
       // Replace outputs if needed
-      for (auto& output : graph_.outputs)
-        if (matches(output)) output = sg_node;
+      for (auto& output : graph_.outputs) {
+        int index = index_of(output);
+        if (index != -1) {
+          output = sg_nodes.at(index);
+        }
+      }
 
-      // use nnvm depth first search to fix node connections in nnvm
-      nnvm::DFSVisit(
-          graph_.outputs, [sg_node, &matches](const nnvm::NodePtr node) {
-            for (auto input : node->inputs) {
-              auto it = std::find_if(node->inputs.begin(), node->inputs.end(),
-                                     matches);
+      // TODO: [nikolayk] why don't we just walk
+      // subgraph_outputs_[...]->orig_nodes_ and be done w/ the whole thing?
+      nnvm::DFSVisit(graph_.outputs,
+                     [sg_nodes, &index_of](const nnvm::NodePtr node) {
 
-              if (it != node->inputs.end()) {
-                node->inputs.insert(it, sg_node);
-                node->inputs.erase(std::remove_if(node->inputs.begin(),
-                                                  node->inputs.end(), matches),
-                                   node->inputs.end());
-              }
-            }
-          });
+                       for (auto& input : node->inputs) {
+                         int index = index_of(input);
+                         if (index != -1) {
+                           input = sg_nodes.at(index);
+                         }
+                       }
+                     });
     }
   }
 
