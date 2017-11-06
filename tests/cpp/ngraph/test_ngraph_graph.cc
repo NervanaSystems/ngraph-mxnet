@@ -67,7 +67,6 @@ TEST(NGRAPH_GRAPH, OP_NODE_INIT) {
 TEST(NGRAPH_GRAPH, GRAPH_INIT) {
   EXPECT_EQ(Graph().type_, NodeType::kGraph);
   EXPECT_EQ(Graph().orig_node_, nullptr);
-  EXPECT_EQ(Graph().name_, "");
   EXPECT_EQ(Graph(test_name).type_, NodeType::kGraph);
   EXPECT_EQ(Graph(test_name).orig_node_, nullptr);
   EXPECT_EQ(Graph(test_name).name_, test_name);
