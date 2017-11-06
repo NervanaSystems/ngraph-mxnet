@@ -13,7 +13,6 @@
 // ----------------------------------------------------------------------------
 
 #include "ngraph_graph.h"
-#include "ngraph_graph_utils.h"
 #include "reverse_iterate.h"
 #include <functional>
 #include <stack>
@@ -31,16 +30,13 @@ void Graph::WriteDot(const std::string& fname) {
   dotfile << "size=\"8,10.5\"" << std::endl;
 
   // Loop over inputs, write graph connections
-  for (auto n : nodes_) 
+  for (auto n : nodes_)
     for (auto i : n->inputs_) {
-      if (i->name_ == "") i->name_ = randomString(6);
-      if (n->name_ == "") n->name_ = randomString(6);
       dotfile << i->name_ << " -> " << n->name_ << ";" << std::endl;
     }
   // Loop over nodes and write labels
-  for (auto n : nodes_) 
-    if (!n->name_.empty() )
-      dotfile << n->createNodeLabel() << std::endl;
+  for (auto n : nodes_)
+    if (!n->name_.empty()) dotfile << n->createNodeLabel() << std::endl;
   // Finish file.
   dotfile << "}" << std::endl;
   dotfile.close();
@@ -80,11 +76,9 @@ std::vector<NodePtr> Graph::DFSselect(NodePtr s,
 
 // Utility for removing bad branches in a directed, acylic subraph.
 // Will fail for cyclic graphs
-void Graph::RemoveUtil(
-    NodePtr s, std::vector<NodePtr>& outNodes,
-    std::function<bool(NodePtr)> func,
-    std::set<edgeRemoveTup>& visited_edges) {
-
+void Graph::RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
+                       std::function<bool(NodePtr)> func,
+                       std::set<edgeRemoveTup>& visited_edges) {
   // if this node doesn't match the function condition, delete it
   if (!func(s))
     outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), s),
@@ -117,8 +111,8 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
   // subgraph output AND outputs of other subgraph nodes
   // to minimize what needs to be searched for broken loops
   std::function<bool(NodePtr)> get_nodes;
-  get_nodes = [&outNodes, &visited,  &get_nodes, &func](NodePtr s) {
-    
+  get_nodes = [&outNodes, &visited, &get_nodes, &func](NodePtr s) {
+
     visited.insert(s);
     bool im_an_output = false;
     if (func(s)) im_an_output = true;
@@ -157,14 +151,13 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
   return outNodes;
 }
 
-// This removes mutiple outputs from a graph, because the subgraph compiler 
+// This removes mutiple outputs from a graph, because the subgraph compiler
 // doesn't currently support multiple outputs
 // TODO: make the subgraph compiler handle multiple outputs and get rid of this
 // graph pass
 std::vector<NodePtr> Graph::PruneSubgraphOutputs(
     NodePtr s, std::vector<NodePtr>& subgraph_nodes,
     std::function<bool(NodePtr)> func) {
-
   // function to get all the outputs of the subgraph
   auto get_subgraph_outputs = [this, &subgraph_nodes]() {
     std::vector<NodePtr> outNodes;
@@ -206,7 +199,6 @@ std::vector<NodePtr> Graph::PruneSubgraphOutputs(
   return subgraph_nodes;
 }
 
-
 // Find a subgraph, check it for bad branches
 std::vector<NodePtr> Graph::FindSubgraph(NodePtr s,
                                          std::function<bool(NodePtr)> func) {
@@ -218,7 +210,7 @@ std::vector<NodePtr> Graph::FindSubgraph(NodePtr s,
     // remove nodes on broken loops
     outNodes = RemoveBroken(s, outNodes, func);
     outNodes = PruneSubgraphOutputs(s, outNodes, func);
-  } 
+  }
   return outNodes;
 }
 
@@ -232,12 +224,10 @@ void Graph::IdentifySubgraphs(std::function<bool(NodePtr)> func) {
       auto subgraph_nodes = FindSubgraph(i, func);
       // if we found a significantly large subgraph, label it
       if (subgraph_nodes.size() > 2) {
+        for (auto node : subgraph_nodes) node->subgraph_ = sg;
         for (auto node : subgraph_nodes)
-          node->subgraph_ = sg;
-        for (auto node : subgraph_nodes)
-          for (auto i : node->inputs_) 
-            if (i->subgraph_ != sg)
-              i->subgraph_ = -1;
+          for (auto i : node->inputs_)
+            if (i->subgraph_ != sg) i->subgraph_ = -1;
         sg += 1;
       }
     }
@@ -250,7 +240,7 @@ void Graph::CollapseSubgraphs() {
   // loop variable for undefined number of subgraphs
   int i = 1;
   while (true) {
-    auto tmpGraph = std::make_shared<Graph>();
+    auto tmpGraph = std::make_shared<Graph>("subgraph_" + std::to_string(i));
     // loop over all nodes and add nodes in the current subgraph to
     for (auto node : nodes_)
       if (node->subgraph_ == i) tmpGraph->AddNode(node);
@@ -265,7 +255,6 @@ void Graph::CollapseSubgraphs() {
       // set node name and shape based on last node in the subgraph
       auto name = tmpGraph->nodes_.back()->name_;
       auto shape = tmpGraph->nodes_.back()->shape_;
-      tmpGraph->name_ = "subgraph_" + name + "_" + randomString();
       tmpGraph->shape_ = shape;
       tmpGraph->dtype_ = tmpGraph->nodes_.back()->dtype_;
       auto in_tmpGraphInputs = [&tmpGraph](NodePtr n) {
@@ -275,7 +264,7 @@ void Graph::CollapseSubgraphs() {
       // setup inputs to this subgraph (as a node)
       for (auto node : tmpGraph->nodes_) {
         for (auto input : node->inputs_) {
-          if (input->subgraph_ != i && !in_tmpGraphInputs(input)) 
+          if (input->subgraph_ != i && !in_tmpGraphInputs(input))
             tmpGraph->inputs_.emplace_back(input);
         }
       }
@@ -283,11 +272,11 @@ void Graph::CollapseSubgraphs() {
       for (auto n : nodes_)
         for (size_t i = 0; i < n->inputs_.size(); ++i)
           if (n->inputs_[i]->name_ == name) n->inputs_[i] = tmpGraph;
-      
+
       // find the position we're replacing in the graph
-      auto it =
-          std::find_if(nodes_.begin(), nodes_.end(),
-                       [name](NodePtr n) -> bool { return (n->name_ == name); });
+      auto it = std::find_if(
+          nodes_.begin(), nodes_.end(),
+          [name](NodePtr n) -> bool { return (n->name_ == name); });
       // insert the subgraph as a node
       nodes_.insert(it, tmpGraph);
     }
@@ -295,14 +284,12 @@ void Graph::CollapseSubgraphs() {
   }
 
   // delete all the nodes we're replacing with the subgraph
-  nodes_.erase(
-      std::remove_if(nodes_.begin(), nodes_.end(),
-                     [](NodePtr n) -> bool {
-                       return ((n->subgraph_ > 0) && 
-                               (n->type_ == NodeType::kOp));
-                     }),
-      nodes_.end());
-
+  nodes_.erase(std::remove_if(nodes_.begin(), nodes_.end(),
+                              [](NodePtr n) -> bool {
+                                return ((n->subgraph_ > 0) &&
+                                        (n->type_ == NodeType::kOp));
+                              }),
+               nodes_.end());
 }
 
-}  // namespace ngraph
+}  // namespace ngraph_bridge
