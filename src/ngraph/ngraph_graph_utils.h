@@ -20,7 +20,7 @@
 
 namespace ngraph_bridge {
 
-//create a random string to avoid subgraph name collisions
+// create a random string to avoid subgraph name collisions
 inline std::string randomString(const int length = 12) {
   static const char alphabet[] =
       "abcdefghijklmnopqrstuvwxyz"
@@ -39,5 +39,5 @@ inline std::string randomString(const int length = 12) {
   return str;
 }
 
-}  // namespace ngraph
+}  // namespace ngraph_bridge
 #endif  // UTILS_H_

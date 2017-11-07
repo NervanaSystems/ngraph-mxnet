@@ -16,16 +16,15 @@
 
 namespace ngraph_bridge {
 
-using ValueVector = std::vector<std::shared_ptr<ngraph::runtime::Value> >;
-using ngraph::runtime::TensorView;
+using ValueVector = std::vector<std::shared_ptr<ngraph::runtime::Value>>;
 using ngraph::runtime::ParameterizedTensorView;
+using ngraph::runtime::TensorView;
 
-
-// This function copies the data in an ngraph tensor into a void* 
+// This function copies the data in an ngraph tensor into a void*
 // (that presumably came from a TBlob)
 template <typename ET>
 inline void copy_TBlob(std::shared_ptr<ngraph::runtime::Value> input, size_t n,
-                        void* p) {
+                       void* p) {
   auto PT = std::dynamic_pointer_cast<ParameterizedTensorView<ET>>(input);
   PT->write(p, 0, n);
 }
@@ -33,11 +32,11 @@ inline void copy_TBlob(std::shared_ptr<ngraph::runtime::Value> input, size_t n,
 // functions to execute copy_TBlob properly
 // TODO: The switch statements aren't very good. is there a better way?
 inline void copy_TBlob(std::shared_ptr<ngraph::runtime::Value> input,
-                         int type_flag, size_t n, void* p) {
-  switch (type_flag){
+                       int type_flag, size_t n, void* p) {
+  switch (type_flag) {
     // case mshadow::kFloat16:
     //   copy_result<ngraph::element::Float16>(input, n, p);
-    case mshadow::kFloat32: 
+    case mshadow::kFloat32:
       copy_TBlob<ngraph::element::Float32>(input, n, p);
       break;
     // case mshadow::kFloat64:
@@ -71,11 +70,11 @@ inline void copy_result(std::shared_ptr<ngraph::runtime::Value> input, size_t n,
 // Runtime type identification and switching of compile-time templated
 // functions to execute copy_result properly
 inline void copy_result(std::shared_ptr<ngraph::runtime::Value> input,
-                         int type_flag, size_t n, void* p) {
-  switch (type_flag){
+                        int type_flag, size_t n, void* p) {
+  switch (type_flag) {
     // case mshadow::kFloat16:
     //   copy_result<ngraph::element::Float16>(input, n, p);
-    case mshadow::kFloat32: 
+    case mshadow::kFloat32:
       copy_result<ngraph::element::Float32>(input, n, p);
       break;
     // case mshadow::kFloat64:
@@ -97,23 +96,21 @@ inline void copy_result(std::shared_ptr<ngraph::runtime::Value> input,
   }
 }
 
-// Simple utility for getting the total number of bytes in a 
+// Simple utility for getting the total number of bytes in a
 // buffer, either from an mxnet tensor or an ngraph tensor
 // TODO: Would std::accumulate work for mxnet TShapes?
 template <typename T>
 inline size_t get_buffer_size(const T& shape, size_t nbytes) {
   size_t out = nbytes;
-  for (const auto& i : shape)
-    out *= i;
+  for (const auto& i : shape) out *= i;
   return out;
 }
 
 // This function creates an ngraph Tensor from the shape and type
 // of an input mxnet TBlob. It optionally copies the data
 // from the TBlob to the ngraph tensor.
-inline std::shared_ptr<TensorView> 
-TBlob_to_TensorView(const mxnet::TBlob& input, bool copy = false) {
-
+inline std::shared_ptr<TensorView> TBlob_to_TensorView(
+    const mxnet::TBlob& input, bool copy = false) {
   auto shape = TShape_to_NShape(input.shape_);
   const auto& element_type = getType(input.type_flag_);
 
@@ -127,15 +124,13 @@ TBlob_to_TensorView(const mxnet::TBlob& input, bool copy = false) {
   return TV;
 }
 
-
 // Main utility funciton for creating NNVM ops
 // This function takes a vector of TBlobs and creates a vector of
-// equialently shaped and typed ngraph tensors, optionally 
+// equialently shaped and typed ngraph tensors, optionally
 // copied the data from the TBlobs to ngraph
 // TODO:: std::transform?
 inline ValueVector make_ngraph_placeholders(
     const std::vector<mxnet::TBlob>& inputs, bool copy_data = false) {
-
   ValueVector out;
 
   for (size_t i = 0; i < inputs.size(); ++i) {
@@ -146,12 +141,11 @@ inline ValueVector make_ngraph_placeholders(
   return out;
 }
 
-// Utility function that copies the outnum'th result from an 
+// Utility function that copies the outnum'th result from an
 // ngraph computation into the outnum'th output TBlob in mxnet
 // TODO: Make this loop over the outputs to copy all results at once?
 template <typename T>
-inline void result_to_TBlob(T& result, 
-                            const std::vector<mxnet::TBlob>& outputs,
+inline void result_to_TBlob(T& result, const std::vector<mxnet::TBlob>& outputs,
                             int outnum) {
   void* p = outputs[outnum].dptr_;
   const auto& element_type = getType(outputs[outnum].type_flag_);
@@ -161,4 +155,4 @@ inline void result_to_TBlob(T& result,
               outputs[outnum].dptr_);
 }
 
-}
+}  // namespace ngraph_bridge

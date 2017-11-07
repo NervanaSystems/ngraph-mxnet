@@ -1,4 +1,5 @@
 #include "test_util.h"
+
 #include "../../src/ngraph/ngraph_autobroadcast.h"
 
 namespace ngraph_bridge {

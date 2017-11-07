@@ -13,9 +13,9 @@
 // ----------------------------------------------------------------------------
 
 #include "ngraph_graph.h"
-#include "reverse_iterate.h"
 #include <functional>
 #include <stack>
+#include "reverse_iterate.h"
 
 namespace ngraph_bridge {
 // Type Aliases

@@ -7,7 +7,6 @@ AutoBroadcast::AutoBroadcast(NgraphNodePtr lhsNode,
                              NgraphNodePtr rhsNode,
                              const ngraph::Shape &rhsShape)
     : lhs_({lhsNode, lhsShape}), rhs_({rhsNode, rhsShape}) {
-
   if (lhsNode == nullptr || rhsNode == nullptr) {
     throw "NGRAPH_BRIDGE: AutoBroadcast: null input pointer";
   }

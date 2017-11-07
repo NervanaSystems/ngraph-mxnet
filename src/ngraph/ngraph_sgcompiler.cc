@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
+#include "ngraph_sgcompiler.h"
 #include <nnvm/node.h>
 #include <nnvm/pass.h>
 #include <algorithm>
 #include "ngraph_sgcompiler_utils.h"
-#include "ngraph_sgcompiler.h"
 
 namespace ngraph_bridge {
 
@@ -32,7 +32,7 @@ std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
   return sg;
 }
 
-void SGCompiler::ClearOpMap(){
+void SGCompiler::ClearOpMap() {
   // delete the temporary storage
   op_map_.clear();
   placeholder_order_.clear();
@@ -40,7 +40,6 @@ void SGCompiler::ClearOpMap(){
 
 // Compile a Subgraph into ngraph forward and backward call frames
 void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
-
   // initalize a placeholder order vector for this subgraph
   for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
 
@@ -51,7 +50,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // TODO: add a frontend flag for switching between ngraph backends
   auto manager = ngraph::runtime::Manager::get("NGVM");
   auto backend = manager->allocate_backend();
-  
+
   // map the inputs into a parameter list
   // TODO: std::transform?
   ngraph::op::Parameters forward_parameters;
@@ -68,7 +67,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   auto f = std::make_shared<ngraph::Function>(op_map_[sub_graph->nodes_.back()],
                                               return_type, forward_parameters);
 
-  // compile it into a call frame with the backend, and save 
+  // compile it into a call frame with the backend, and save
   // the compile frame into the subgraph
   auto forward_external = manager->compile(f);
   sub_graph->ngraph_forward = backend->make_call_frame(forward_external);
@@ -96,26 +95,24 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   f = std::make_shared<ngraph::Function>(op_map_[sub_graph->nodes_.back()],
                                          return_type, backward_parameters);
   //////////////////////////////////////////////////////////////////////////////
-  
-  //Compile the backward Pass
+
+  // Compile the backward Pass
   auto Y = f->get_result();
 
   auto C = std::make_shared<ngraph::op::Parameter>(Y->get_value_type());
 
   std::vector<NgraphNodePtr> dYdXs(backward_parameters.size());
   transform(backward_parameters.begin(), backward_parameters.end(),
-            dYdXs.begin(), [C, Y](const NgraphNodePtr& X) {
-              return Y->backprop_node(X, C);
-            });
+            dYdXs.begin(),
+            [C, Y](const NgraphNodePtr& X) { return Y->backprop_node(X, C); });
 
   auto result = std::make_shared<ngraph::op::Tuple>(dYdXs);
   backward_parameters.insert(backward_parameters.begin(), C);
   auto bf = std::make_shared<ngraph::Function>(result, result->get_value_type(),
-                                            backward_parameters);
+                                               backward_parameters);
 
   auto backward_external = manager->compile(bf);
   sub_graph->ngraph_backward = backend->make_call_frame(backward_external);
-
 }
 
 // compiling a node, recursively checking it's inputs
@@ -124,7 +121,7 @@ void SGCompiler::CompileNode(NodePtr node,
   if (!op_map_.count(node)) {
     // Loop over the inputs and ensure they've been compile3d
     for (auto input : node->inputs_) {
-      if (!op_map_.count(input)){
+      if (!op_map_.count(input)) {
         // if it's not in the graph, it's an input, compile it as an input
         if (std::find(sub_graph->nodes_.begin(), sub_graph->nodes_.end(),
                       input) == sub_graph->nodes_.end()) {
@@ -144,9 +141,8 @@ void SGCompiler::CompileInput(NodePtr input) {
   auto shape = TShape_to_NShape(input->shape_);
   // make a shaped and typed parameter based on the input node
   // store it in the op_map_
-  op_map_[input] = std::make_shared<ngraph::op::Parameter>(
-      getType(input->dtype_), shape);
+  op_map_[input] =
+      std::make_shared<ngraph::op::Parameter>(getType(input->dtype_), shape);
 }
 
-}
-
+}  // namespace ngraph_bridge

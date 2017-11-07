@@ -29,7 +29,8 @@ Emitter::Emitter() {
 void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["relu"] = [this](const NodePtr& node) {
     auto zero = makeConstant(node, "0");
-    return std::make_shared<ngraph::op::Maximum>(op_map_[node->inputs_[0]], zero);
+    return std::make_shared<ngraph::op::Maximum>(op_map_[node->inputs_[0]],
+                                                 zero);
   };
   ngraph_op_funcs_["sigmoid"] = [this](const NodePtr& node) {
     auto one = makeConstant(node, "1");
@@ -37,20 +38,21 @@ void Emitter::CreateUnaryOps() {
                              -op_map_[node->inputs_[0]])));
   };
   // ngraph_op_funcs_["softmax"] = [this](const NodePtr& node) {
-  //   auto numer = std::make_shared<ngraph::op::Exp>(op_map_[node->inputs_[0]]);
-  //   auto denom = std::make_shared<ngraph::op::Sum>(numer, ngraph::AxisSet{1});
-  //   return ;
+  //   auto numer =
+  //   std::make_shared<ngraph::op::Exp>(op_map_[node->inputs_[0]]); auto denom
+  //   = std::make_shared<ngraph::op::Sum>(numer, ngraph::AxisSet{1}); return ;
   // };
   // ngraph_op_funcs_["log_softmax"] = [this](const NodePtr& node){
   //   return ;
   // };
   ngraph_op_funcs_["_copy"] = [this](const NodePtr& node) {
-    return op_map_[node->inputs_[0]]; //TODO: Return this as a reference. Does it actually need to be copied?
+    return op_map_[node->inputs_[0]];  // TODO: Return this as a reference. Does
+                                       // it actually need to be copied?
   };
   ngraph_op_funcs_["negative"] = [this](const NodePtr& node) {
     return -op_map_[node->inputs_[0]];
   };
-  ngraph_op_funcs_["reciprocal"] = [this](const NodePtr& node){
+  ngraph_op_funcs_["reciprocal"] = [this](const NodePtr& node) {
     auto one = makeConstant(node, "1");
     return one / op_map_[node->inputs_[0]];
   };
@@ -112,14 +114,14 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["log"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Log>(op_map_[node->inputs_[0]]);
   };
-  ngraph_op_funcs_["log10"] = [this](const NodePtr& node){
+  ngraph_op_funcs_["log10"] = [this](const NodePtr& node) {
     auto ten = makeConstant(node, "10");
-    return std::make_shared<ngraph::op::Log>(op_map_[node->inputs_[0]]) / 
+    return std::make_shared<ngraph::op::Log>(op_map_[node->inputs_[0]]) /
            std::make_shared<ngraph::op::Log>(ten);
   };
-  ngraph_op_funcs_["log2"] = [this](const NodePtr& node){
+  ngraph_op_funcs_["log2"] = [this](const NodePtr& node) {
     auto two = makeConstant(node, "2");
-    return std::make_shared<ngraph::op::Log>(op_map_[node->inputs_[0]]) / 
+    return std::make_shared<ngraph::op::Log>(op_map_[node->inputs_[0]]) /
            std::make_shared<ngraph::op::Log>(two);
   };
   // ngraph_op_funcs_["log1p"] = [this](const NodePtr& node){
@@ -164,12 +166,12 @@ void Emitter::CreateUnaryOps() {
   // ngraph_op_funcs_["arctanh"] = [this](const NodePtr& node){
   //   return ;
   // };
-  ngraph_op_funcs_["degrees"] = [this](const NodePtr& node){
+  ngraph_op_funcs_["degrees"] = [this](const NodePtr& node) {
     auto pi = makeConstant(node, "3.14159265359");
     auto oneeighty = makeConstant(node, "180");
     return op_map_[node->inputs_[0]] * (oneeighty / pi);
   };
-  ngraph_op_funcs_["radians"] = [this](const NodePtr& node){
+  ngraph_op_funcs_["radians"] = [this](const NodePtr& node) {
     auto pi = makeConstant(node, "3.14159265359");
     auto oneeighty = makeConstant(node, "180");
     return op_map_[node->inputs_[0]] * (pi / oneeighty);
@@ -193,7 +195,7 @@ AutoBroadcast Emitter::CreateAutoBroadcast(const NodePtr& node) {
 
 // binary op generating function generator
 void Emitter::CreateBinaryOps() {
-  ngraph_op_funcs_["_plus"] = [this](const NodePtr& node) { 
+  ngraph_op_funcs_["_plus"] = [this](const NodePtr& node) {
     return (op_map_[node->inputs_[0]] + op_map_[node->inputs_[1]]);
   };
   ngraph_op_funcs_["_minus"] = [this](const NodePtr& node) {
@@ -324,8 +326,8 @@ void Emitter::CreateBinaryOps() {
   };
 }
 
-inline int get_default(const NodePtr& node, const std::string& key, int default_val) 
-{
+inline int get_default(const NodePtr& node, const std::string& key,
+                       int default_val) {
   return node->orig_node_->attrs.dict.count(key)
              ? std::stoi(node->orig_node_->attrs.dict[key])
              : default_val;
@@ -333,13 +335,12 @@ inline int get_default(const NodePtr& node, const std::string& key, int default_
 
 // MXNet high level ops generating function
 void Emitter::CreateLayerOps() {
-
   // In mxnet, split takes a tensor and creates multiple tensors from
-  // equal slices along 1 axis. The compiler creates a subgraph where 
+  // equal slices along 1 axis. The compiler creates a subgraph where
   // each of those outputs is a single node.  This function creates
   // the slice op for making each tensor.
   ngraph_op_funcs_["split"] = [this](const NodePtr& node) {
-    
+
     size_t axis = get_default(node, "axis", 1);
     int num_outputs = get_default(node, "num_outputs", 1);
     int index = node->multi_output_index_;
@@ -372,12 +373,12 @@ void Emitter::CreateLayerOps() {
     return op;
   };
 
-  // concat takes a list of tensors of equal shape and 
+  // concat takes a list of tensors of equal shape and
   // concatenates them along a given axis
   ngraph_op_funcs_["concat"] = [this](const NodePtr& node) {
     // get the concat axis
     size_t axis = get_default(node, "dim", 1);
-    
+
     // grab in input ngraph nodes
     std::vector<NgraphNodePtr> args;
     for (auto i : node->inputs_) args.push_back(op_map_[i]);
@@ -385,10 +386,10 @@ void Emitter::CreateLayerOps() {
     // run concat
     return std::make_shared<ngraph::op::Concat>(args, axis);
   };
-  
+
   // Fully connected is the main linear transformation layer in MXNet
   // it implements dot(data, W.T) + b
-  ngraph_op_funcs_["FullyConnected"] = [this](const NodePtr& node){
+  ngraph_op_funcs_["FullyConnected"] = [this](const NodePtr& node) {
     auto X = op_map_[node->inputs_[0]];
     auto W = op_map_[node->inputs_[1]];
     auto beta = op_map_[node->inputs_[2]];
@@ -409,7 +410,7 @@ void Emitter::CreateLayerOps() {
     auto out_shape = ngraph::Shape({in_shape[0], 1});
     out_shape[1] = std::accumulate(in_shape.begin() + 1, in_shape.end(), 1,
                                    std::multiplies<int>());
-    // Create a range vector indicating that 
+    // Create a range vector indicating that
     // Reshape should take the axes in order
     // these two lines are use all over the place
     ngraph::AxisVector order(in_shape.size());
@@ -429,23 +430,22 @@ void Emitter::CreateLayerOps() {
   // expand dims inserts an axis of length 1 somewhere in the tensor shape
   ngraph_op_funcs_["expand_dims"] = [this](const NodePtr& node) {
     size_t axis = get_default(node, "axis", 1);
-    
+
     auto in_shape = TShape_to_NShape(node->inputs_[0]->shape_);
 
-    // Create a range vector indicating that 
+    // Create a range vector indicating that
     // Reshape should take the axes in order
     ngraph::AxisVector order(in_shape.size());
     std::iota(order.begin(), order.end(), 0);
 
-    // copy the shape and insert a 1 at the axis position to expand the dimension
+    // copy the shape and insert a 1 at the axis position to expand the
+    // dimension
     auto out_shape = in_shape;
     out_shape.insert(out_shape.begin() + axis, 1);
 
     return std::make_shared<ngraph::op::Reshape>(op_map_[node->inputs_[0]],
                                                  order, out_shape);
   };
-  
 }
 
-}  // end namespace ngraph
-
+}  // namespace ngraph_bridge

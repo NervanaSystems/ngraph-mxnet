@@ -17,12 +17,12 @@ namespace ngraph_bridge {
 
 TEST_F(NGRAPH_COMPILER, DEEPCOPY) {
   testCompiler test(nnvm_graph, feed_dict, inputs, *bindarg);
-  for (auto kv : test.node_map_){
+  for (auto kv : test.node_map_) {
     EXPECT_NE(kv.first, kv.second.get());
     EXPECT_EQ(kv.first->attrs.name, kv.second->attrs.name);
     EXPECT_EQ(kv.first->attrs.op, kv.second->attrs.op);
     ASSERT_EQ(kv.first->inputs.size(), kv.second->inputs.size());
-    if (kv.first->inputs.size()>0)
+    if (kv.first->inputs.size() > 0)
       for (size_t i = 0; i < kv.first->inputs.size(); ++i) {
         EXPECT_NE(kv.first->inputs[i].node.get(),
                   kv.second->inputs[i].node.get());
@@ -38,7 +38,7 @@ TEST_F(NGRAPH_COMPILER, COPIED_INPUTS) {
   testCompiler test(nnvm_graph, feed_dict, inputs, *bindarg);
   auto out_inputs = test.GetInputs();
   int i = 0;
-  for (auto n : inputs){
+  for (auto n : inputs) {
     EXPECT_NE(n, out_inputs[i]);
     EXPECT_EQ(test.node_map_[n.get()], out_inputs[i]);
     i += 1;
@@ -50,7 +50,7 @@ TEST_F(NGRAPH_COMPILER, COPIED_FEED_DICT) {
   const auto& idx = test.graph_.indexed_graph();
 
   auto out_feed_dict = test.GetFeedDict();
-  for (auto kv : feed_dict){
+  for (auto kv : feed_dict) {
     EXPECT_NE(kv.first.node, test.node_map_[kv.first.node.get()]);
     // I can't find a way to compare equality of ndarry objects
     // so we're skipping this for now
@@ -74,10 +74,10 @@ TEST_F(NGRAPH_COMPILER, CLEAN_OPNAME) {
   EXPECT_EQ(clean_opname("_Mul"), "_mul");
   EXPECT_EQ(clean_opname("_Div"), "_div");
   EXPECT_EQ(clean_opname("_Mod"), "_mod");
-  EXPECT_EQ(clean_opname("_Power"),"_power");
-  EXPECT_EQ(clean_opname("_Maximum"),"_maximum");
+  EXPECT_EQ(clean_opname("_Power"), "_power");
+  EXPECT_EQ(clean_opname("_Maximum"), "_maximum");
   EXPECT_EQ(clean_opname("_Minimum"), "_minimum");
-  EXPECT_EQ(clean_opname("_Hypot"),"_hypot");
+  EXPECT_EQ(clean_opname("_Hypot"), "_hypot");
   EXPECT_EQ(clean_opname("_Equal"), "_equal");
   EXPECT_EQ(clean_opname("_Not_Equal"), "_not_equal");
   EXPECT_EQ(clean_opname("_Greater"), "_greater");
@@ -87,19 +87,20 @@ TEST_F(NGRAPH_COMPILER, CLEAN_OPNAME) {
   EXPECT_EQ(clean_opname("Flatten"), "flatten");
 }
 
-TEST_F(NGRAPH_COMPILER, PARSENNVMGRAPH){
+TEST_F(NGRAPH_COMPILER, PARSENNVMGRAPH) {
   // I haven't figured out how to create an Activation or Batchnorm Operation
   // In core NNVM. This test misses the conversion of Activation->relu
   // and the parsing of mutable nodes right now.
   testCompiler test(nnvm_graph, feed_dict, inputs, *bindarg);
-  for (auto n : test.ngraph_.nodes_){
+  for (auto n : test.ngraph_.nodes_) {
     EXPECT_EQ(n->orig_node_, test.node_map_[nodes_[n->name_].get()]);
     EXPECT_EQ(n->name_, nodes_[n->name_]->attrs.name);
     if (n->type_ == NodeType::kOp)
       EXPECT_EQ(n->operation_, clean_opname(nodes_[n->name_]->op()->name));
     int c = 0;
-    for (auto i : n->inputs_){
-      EXPECT_EQ(i->orig_node_, test.node_map_[nodes_[n->name_]->inputs[c].node.get()]);
+    for (auto i : n->inputs_) {
+      EXPECT_EQ(i->orig_node_,
+                test.node_map_[nodes_[n->name_]->inputs[c].node.get()]);
       c += 1;
     }
   }
@@ -116,7 +117,7 @@ TEST_F(NGRAPH_COMPILER, PARSENNVMGRAPH){
   }
 }
 
-TEST_F(NGRAPH_COMPILER, CHECK_IN_NGRAPH){
+TEST_F(NGRAPH_COMPILER, CHECK_IN_NGRAPH) {
   testCompiler test(nnvm_graph, feed_dict, inputs, *bindarg);
   for (auto n : test.ngraph_.nodes_) {
     if (n->type_ == NodeType::kOp) {
@@ -132,11 +133,11 @@ TEST_F(NGRAPH_COMPILER, COMPILE) {
   testCompiler test(nnvm_graph, feed_dict, inputs, *bindarg);
   auto out_graph = test.Compile();
   const auto& idx = out_graph.indexed_graph();
-  EXPECT_EQ(idx.num_nodes(), inputs.size()+1);
+  EXPECT_EQ(idx.num_nodes(), inputs.size() + 1);
   EXPECT_TRUE(out_graph.outputs[0].node->attrs.name.find("subgraph") !=
               std::string::npos);
   EXPECT_TRUE(out_graph.outputs[0].node->op()->name.find("subgraph") !=
               std::string::npos);
 }
 
-}
+}  // namespace ngraph_bridge
