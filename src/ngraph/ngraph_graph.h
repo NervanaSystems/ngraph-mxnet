@@ -18,13 +18,13 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
-#include <memory>
-#include <string>
-#include <vector>
 #include <map>
+#include <memory>
+#include <set>
+#include <string>
 #include <tuple>
 #include <unordered_set>
-#include <set>
+#include <vector>
 
 #include <nnvm/graph.h>
 #include <nnvm/symbolic.h>

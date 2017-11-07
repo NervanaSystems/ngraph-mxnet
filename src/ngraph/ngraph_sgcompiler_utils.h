@@ -17,26 +17,26 @@
 
 #include <mshadow/base.h>
 #include <mshadow/tensor.h>
-#include <sstream>
 #include <iostream>
-#include <vector>
 #include <ngraph/ngraph.hpp>
+#include <sstream>
+#include <vector>
 #include "ngraph_graph.h"
 namespace ngraph_bridge {
 
 // Function to turn a runtime type flag from mxnet
 // into a compile time type object from ngraph
-inline const ngraph::element::Type& getType(int type_flag){
+inline const ngraph::element::Type& getType(int type_flag) {
   switch (type_flag) {
     // case mshadow::kFloat16:
     //   return ngraph::element::Float16::element_type();
-    //   break;  
-    case mshadow::kFloat32: 
+    //   break;
+    case mshadow::kFloat32:
       return ngraph::element::Float32::element_type();
       break;
     // case mshadow::kFloat64:
     //   return ngraph::element::Float64::element_type();
-    //   break;  
+    //   break;
     case mshadow::kUint8:
       return ngraph::element::UInt8::element_type();
       break;
@@ -51,7 +51,7 @@ inline const ngraph::element::Type& getType(int type_flag){
       break;
     default:
       throw "NGRAPH_BRIDGE: type not supported";
-  } 
+  }
   return ngraph::element::Float32::element_type();
 }
 
@@ -73,14 +73,14 @@ inline std::vector<int> getInts(std::string input) {
 
 // Template for converting shape objects via a range based for loop
 template <typename Ti, typename To>
-inline To convert_shapes(const Ti& inshape){
+inline To convert_shapes(const Ti& inshape) {
   To shape;
   for (const auto& s : inshape) shape.push_back(s);
   return shape;
 }
 
 // Only thing we're currently converting -> TShape to ngraph::Shape
-inline ngraph::Shape TShape_to_NShape(const nnvm::TShape& inshape){
+inline ngraph::Shape TShape_to_NShape(const nnvm::TShape& inshape) {
   return convert_shapes<nnvm::TShape, ngraph::Shape>(inshape);
 }
 
@@ -106,5 +106,5 @@ inline NgraphNodePtr NgraphTranspose(NgraphNodePtr node,
                                                out_shape);
 }
 
-}  // namespace ngraph
+}  // namespace ngraph_bridge
 #endif  // UTILS_H_
