@@ -62,15 +62,48 @@ inline std::shared_ptr<ngraph::Node> makeConstant(const NodePtr& node,
   return std::make_shared<ngraph::op::Constant>(et, shape, num);
 }
 
-// Hacky, reshape-based function for transposing a 2D matrix
+inline std::vector<int> GetInts(std::string input) {
+  input = input.substr(1, input.size() - 2);
+  std::stringstream ss(input);
+  std::vector<int> vect;
+  int i;
+  while (ss >> i) {
+    vect.push_back(i);
+    if (ss.peek() == ',' || ss.peek() == ' ') ss.ignore();
+  }
+  return vect;
+}
+
 inline NgraphNodePtr NgraphTranspose(NgraphNodePtr node,
-                                     const ngraph::Shape& in_shape) {
-  // TODO: Support multidimensional Transpose
-  if (in_shape.size() != 2)
-    throw "NGRAPH_BRIDGE: no support for multidimensional transpose";
-  auto out_shape = ngraph::Shape({in_shape[1], in_shape[0]});
-  return std::make_shared<ngraph::op::Reshape>(node, ngraph::AxisVector{1, 0},
-                                               out_shape);
+                                     ngraph::Shape in_shape,
+                                     ngraph::AxisVector order = {}) {
+  // default, reverse the order of the axes
+  if (order.size() == 0){
+    auto n = in_shape.size();
+    order = ngraph::AxisVector(n);
+    
+    std::generate(order.begin(), order.end(), [&n](){return --n;});
+  } else if (order.size() == in_shape.size()) {
+    // validate that the axes order is valid, i.e., unique and the right size
+    std::set<size_t> axes;
+    for (auto o : order) {
+      if (o >= 0 && o < in_shape.size() && !axes.count(o)) {
+        axes.insert(o);
+      } else {
+        throw "Invalid axes order";
+      }
+    }
+  } else {
+    throw "Invalid axes order";
+  }
+
+  // create output shape
+  auto out_shape = ngraph::Shape();
+  for (size_t i = 0; i < in_shape.size(); ++i)
+    out_shape.push_back(in_shape[order[i]]);
+
+  // do the reshaping with the order
+  return std::make_shared<ngraph::op::Reshape>(node, order, out_shape);
 }
 
 }  // namespace ngraph_bridge

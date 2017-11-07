@@ -19,6 +19,13 @@
 #include "../../src/ngraph/ngraph_sgcompiler_utils.h"
 namespace ngraph_bridge {
 
+TEST(NGRAPH_STRING, GETINTS) {
+  EXPECT_EQ(GetInts("(1, 2, 3)"), std::vector<int>({1, 2, 3}));
+  EXPECT_EQ(GetInts("(1,2,3)"), std::vector<int>({1, 2, 3}));
+  EXPECT_EQ(GetInts("(1, 2,3, 9,12, 17)"),
+            std::vector<int>({1, 2, 3, 9, 12, 17}));
+}
+
 TEST(NGRAPH_STRING, RANDOMSTRING) {
   EXPECT_EQ(randomString(12).size(), 12);
   EXPECT_EQ(randomString(4).size(), 4);
@@ -100,6 +107,9 @@ TEST(NGRAPH_NNVM, copy_TBlobs) {
   result_to_TBlob(placeholders[1], outblobs, 1);
   EXPECT_EQ(vec1, vec3);
   EXPECT_EQ(vec2, vec4);
+}
+
+TEST(NGRAPH_TRANSPOSE, STANDARD_TRANSPOSE) {
 }
 
 }  // namespace ngraph_bridge
