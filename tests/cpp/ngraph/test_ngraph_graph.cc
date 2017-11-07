@@ -97,21 +97,19 @@ struct DFS_Test {
           new OpNode(nullptr, "op" + std::to_string(i), opnames[i],
                      {linear_graph.nodes_[i]})));
 
-
     branching_graph.AddNode(
         std::make_shared<VariableNode>(nullptr, "variable"));
     branching_graph.AddNode(std::shared_ptr<OpNode>(
         new OpNode(nullptr, "op0", opnames[0], {branching_graph.nodes_[0]})));
     branching_graph.AddNode(std::shared_ptr<OpNode>(
         new OpNode(nullptr, "op1", opnames[1], {branching_graph.nodes_[1]})));
-    branching_graph.AddNode(std::shared_ptr<VariableNode>(new VariableNode(
-        nullptr, "variable1", {branching_graph.nodes_[1]})));
+    branching_graph.AddNode(std::shared_ptr<VariableNode>(
+        new VariableNode(nullptr, "variable1", {branching_graph.nodes_[1]})));
     branching_graph.AddNode(std::shared_ptr<OpNode>(
         new OpNode(nullptr, "op2", opnames[2],
                    {branching_graph.nodes_[2], branching_graph.nodes_[3]})));
     branching_graph.AddNode(std::shared_ptr<OpNode>(
-        new OpNode(nullptr, "op3", opnames[3],
-                   {branching_graph.nodes_[4]})));
+        new OpNode(nullptr, "op3", opnames[3], {branching_graph.nodes_[4]})));
     // branching_graph.WriteDot("branching.dot");
   }
   Graph linear_graph;
@@ -204,4 +202,4 @@ TEST(NGRAPH_GRAPH, GRAPH_COLLAPSE_SUBGRAPHS) {
 //   EXPECT_EQ(0,1);
 // }
 
-}  // namespace ngraph
+}  // namespace ngraph_bridge
