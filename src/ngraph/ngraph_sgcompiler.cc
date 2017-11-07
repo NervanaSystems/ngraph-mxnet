@@ -49,6 +49,11 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
   // initialize the runtime manager and backend
   // TODO: add a frontend flag for switching between ngraph backends
+  // if (mxnet::Context::kNNP){
+  // 	  std::cout<< "sandeep :: context is NNP :::>>>>>>>>> "<< std::endl;
+  // 	  std::cout<< sub_graph->attrs['context'] <<std::endl;
+  // }
+  // auto manager = ngraph::runtime::Manager::get("ARGON");
   auto manager = ngraph::runtime::Manager::get("NGVM");
   auto backend = manager->allocate_backend();
   

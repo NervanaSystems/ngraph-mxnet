@@ -128,9 +128,11 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
 
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
-                   const NNVMNodeVec& inputs, const BindArgBase& bindbase) {
+                   const NNVMNodeVec& inputs, const BindArgBase& bindbase,
+				   const mxnet::Context& default_ctx) {
   DeepCopy(graph);
 
+  std::cout<< "sandeep Entered into Compiler::Compiler of ngraph "<< default_ctx << std::endl;
   // infer nnvm::Graph shape and type
   auto bind = dynamic_cast<const BindArg*>(&bindbase);
   auto simplebind = dynamic_cast<const SimpleBindArg*>(&bindbase);

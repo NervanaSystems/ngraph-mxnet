@@ -129,7 +129,8 @@ class Compiler {
   // Construction takes setup from the grad executor and preps the graph
   // for ngraph compilation
   Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
-           const NNVMNodeVec& inputs, const BindArgBase& bindarg);
+           const NNVMNodeVec& inputs, const BindArgBase& bindarg,
+		   const mxnet::Context& default_ctx);
   // Compile returns the compiled graph
   nnvm::Graph Compile();
   // parse the nnvm graph into an intermediate represenation

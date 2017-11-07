@@ -324,6 +324,7 @@ Graph AssignContext(Graph g,
                     const std::vector<Context>& aux_state_ctxes,
                     size_t num_forward_inputs,
                     size_t num_forward_outputs) {
+		std::cout<< "sandeep Entered into AssignContext "<< std::endl;
   const auto& idx = g.indexed_graph();
   const auto& mutable_nodes = idx.mutable_input_nodes();
   // default use default context.
@@ -331,6 +332,9 @@ Graph AssignContext(Graph g,
     g.attrs["context"] = std::make_shared<nnvm::any>(
         ContextVector(idx.num_nodes(), default_ctx));
     for (const auto& x : in_arg_ctxes) {
+    	std::cout<< "sandeep current context is "<< x
+    			<< "where as default context is "<< default_ctx<<
+		std::endl;
       CHECK(x == default_ctx)
         << "Input array is in " << x << " while binding with ctx=" << default_ctx
         << ". All arguments must be in global context (" << default_ctx
@@ -354,6 +358,7 @@ Graph AssignContext(Graph g,
   // loop through the user input ctx_map and
   // populate maps and lists
   for (auto &kv : ctx_map) {
+	  std::cout<< "sandeep Entered intial for loop 1 "<< std::endl;
     if (ctx2id.count(kv.second) == 0) {  // if context has no device id, create one
       ctx2id[kv.second] = static_cast<int>(ctx_list.size());  // assign device id to ctx
       ctx_list.push_back(kv.second);  // save ctx to the list
@@ -528,13 +533,15 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   std::vector<Context> aux_state_ctxes(aux_states.size());
   std::transform(aux_states.begin(), aux_states.end(), aux_state_ctxes.begin(), get_ctx1);
 
+  std::cout<< "sandeep Entered into GraphExecutor::Init "<< std::endl;
+
   nnvm::Graph g = InitGraph(symbol, default_ctx, ctx_map, in_arg_ctxes,
                             arg_grad_ctxes, aux_state_ctxes, grad_req_types);
 
 #if MXNET_USE_NGRAPH == 1
   ngraph_bridge::BindArg bind(num_forward_inputs_, in_args, aux_states);
   ngraph_bridge::Compiler compiler(
-      g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), bind);
+      g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), bind, default_ctx);
   saved_states_ = compiler.CopySavedStates(saved_states_);
   g = compiler.Compile();
 
@@ -967,7 +974,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   ngraph_bridge::SimpleBindArg simplebind(num_forward_inputs_, arg_shape_map,
                                           arg_dtype_map);
   ngraph_bridge::Compiler compiler(
-      g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), simplebind);
+      g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), simplebind, default_ctx);
   saved_states_ = compiler.CopySavedStates(saved_states_);
   g = compiler.Compile();
 

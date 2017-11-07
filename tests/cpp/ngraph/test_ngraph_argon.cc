@@ -30,8 +30,7 @@ namespace ngraph
         auto rt = std::make_shared<TensorViewType>(element::Float32::element_type(), shape);
         auto f = std::make_shared<Function>((A + B) * C, rt, op::Parameters{A, B, C});
 
-        auto manager = runtime::Manager::get("ARGON");
-        // auto manager = runtime::Manager::get("NGVM");
+        auto manager = runtime::Manager::get("NGVM");
         auto external = manager->compile(f);
         auto backend = manager->allocate_backend();
         auto cf = backend->make_call_frame(external);
