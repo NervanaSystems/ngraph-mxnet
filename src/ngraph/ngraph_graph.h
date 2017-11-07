@@ -31,6 +31,7 @@
 #include <nnvm/tuple.h>
 
 #include <ngraph/ngraph.hpp>
+#include "ngraph_graph_utils.h"
 
 namespace ngraph_bridge {
 
@@ -42,17 +43,23 @@ using nnvmNodePtr = std::shared_ptr<nnvm::Node>;
 using NodePtr = std::shared_ptr<Node>;
 
 // Possible Types of nodes in Current Version
-enum class NodeType {kVariable, kAux, kOp, kGraph};
+enum class NodeType { kVariable, kAux, kOp, kGraph };
 
-// TODO: This could probably use a refactor
 // Base class for Nodes in Intermediary Analysis Graph
 class Node {
- public:
-  Node(NodeType t, const nnvmNodePtr n, std::string s)
-      : type_(t), orig_node_(n), name_(s){};
-  Node(NodeType t, const nnvmNodePtr n, std::string s, std::vector<NodePtr> i)
-      : type_(t), orig_node_(n), name_(s), inputs_(i){};
+ protected:
+  Node(NodeType type, nnvmNodePtr node, const std::string& name)
+      : type_(type),
+        orig_node_(node),
+        name_(name == "" ? randomString(6) : name) {}
+  Node(NodeType type, nnvmNodePtr node, const std::string& name,
+       const std::vector<NodePtr>& inputs)
+      : type_(type),
+        orig_node_(node),
+        name_(name == "" ? randomString(6) : name),
+        inputs_(inputs) {}
 
+ public:
   // Function to create node label, used to export graph to graphviz for debug
   virtual std::string createNodeLabel() {
     std::ostringstream stream;
@@ -61,15 +68,15 @@ class Node {
            "\", fillcolor = red, style = filled];";
   }
   // basic information about node
-  NodeType type_;
-  nnvmNodePtr orig_node_;
-  std::string name_;
+  const NodeType type_;
+  const nnvmNodePtr orig_node_;
+  const std::string name_;
   std::vector<NodePtr> inputs_;
 
   // mxnet type information
   nnvm::TShape shape_;
   int dtype_ = 0;
-  
+
   // information to store graph parsing in
   int multi_output_index_ = -1;
   bool in_ngraph_ = false;
@@ -82,10 +89,11 @@ class Node {
 class VariableNode : public Node {
  public:
   // Overloaded constructors for ease of use
-  VariableNode(const nnvmNodePtr n, std::string s)
-      : Node(NodeType::kVariable, n, s){};
-  VariableNode(const nnvmNodePtr n, std::string s, std::vector<NodePtr> i)
-      : Node(NodeType::kVariable, n, s, i){};
+  VariableNode(nnvmNodePtr node, const std::string& name)
+      : Node(NodeType::kVariable, node, name) {}
+  VariableNode(nnvmNodePtr node, const std::string& name,
+               const std::vector<NodePtr>& inputs)
+      : Node(NodeType::kVariable, node, name, inputs) {}
 };
 
 // Class to store Auxillary Tensors, mostly for Batch Norm
@@ -93,36 +101,38 @@ class VariableNode : public Node {
 class AuxNode : public Node {
  public:
   // Overloaded constructors for ease of use
-  AuxNode(const nnvmNodePtr n, std::string s)
-      : Node(NodeType::kAux, n, s){};
-  AuxNode(const nnvmNodePtr n, std::string s, std::vector<NodePtr> i)
-      : Node(NodeType::kAux, n, s, i){};
+  AuxNode(nnvmNodePtr node, const std::string& name)
+      : Node(NodeType::kAux, node, name) {}
+  AuxNode(nnvmNodePtr node, const std::string& name,
+          const std::vector<NodePtr>& inputs)
+      : Node(NodeType::kAux, node, name, inputs) {}
 };
 
 // Node for storing operations
 class OpNode : public Node {
  public:
   // Include operation in graphviz
-  std::string createNodeLabel() {
+  std::string createNodeLabel() override {
     std::ostringstream stream;
     stream << shape_ << " sg=" << subgraph_;
-    std::string out =
-        name_ + " [label=\"" + name_ + "\nOp: " + operation_ + stream.str() + "\"";
+    std::string out = name_ + " [label=\"" + name_ + "\nOp: " + operation_ +
+                      stream.str() + "\"";
     if (in_ngraph_) out += ", fillcolor = red, style = filled";
     out += "];";
     return out;
   }
-  
+
   // Overloaded constructors for ease of use
-  OpNode(const nnvmNodePtr n, std::string s, std::string o)
-      : Node(NodeType::kOp, n, s) {
-    operation_ = o;
-  };
-  OpNode(const nnvmNodePtr n, std::string s, std::string o,
-         std::vector<NodePtr> i)
-      : Node(NodeType::kOp, n, s, i) {
-    operation_ = o;
-  };
+  OpNode(nnvmNodePtr node, const std::string& name,
+         const std::string& operation)
+      : Node(NodeType::kOp, node, name) {
+    operation_ = operation;
+  }
+  OpNode(nnvmNodePtr node, const std::string& name,
+         const std::string& operation, const std::vector<NodePtr>& inputs)
+      : Node(NodeType::kOp, node, name, inputs) {
+    operation_ = operation;
+  }
 };
 
 using edgeRemoveTup = std::tuple<NodePtr, NodePtr, bool>;
@@ -135,11 +145,11 @@ TODO: Refactor into Graph and subgraph?
 */
 class Graph : public Node {
  public:
-  Graph() : Node(NodeType::kGraph, nullptr, ""){};
-  Graph(std::string name) : Node(NodeType::kGraph, nullptr, name){};
+  Graph() : Node(NodeType::kGraph, nullptr, "") {}
+  Graph(const std::string& name) : Node(NodeType::kGraph, nullptr, name) {}
 
   // Add a node to the graph
-  void AddNode(NodePtr node) { nodes_.emplace_back(node); };
+  void AddNode(NodePtr node) { nodes_.emplace_back(node); }
 
   // Write the graph to a Graphviz file
   void WriteDot(const std::string& fname);
@@ -150,22 +160,22 @@ class Graph : public Node {
   void DFSUtil(NodePtr s, std::unordered_set<NodePtr>& visited,
                std::vector<NodePtr>& outNodes,
                std::function<bool(NodePtr)>& func);
-  
+
   // High level function that does the subgraph identification
   void IdentifySubgraphs(std::function<bool(NodePtr)> func);
-  
+
   // Finds simply connected ngraph operations
   std::vector<NodePtr> FindSubgraph(NodePtr s,
-  
+
                                     std::function<bool(NodePtr)> func);
 
   // Graph pass find loops in the subgraph where 1 branch of the loop is ngraph
-  // compatible and the other 
+  // compatible and the other
   std::vector<NodePtr> RemoveBroken(NodePtr s,
                                     std::vector<NodePtr>& subgraph_nodes,
                                     std::function<bool(NodePtr)> func);
   void RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
-                  std::function<bool(NodePtr)> func, 
+                  std::function<bool(NodePtr)> func,
                   std::set<edgeRemoveTup>& visited_edges);
 
   // Modified subgraph to only return 1 output.
@@ -185,11 +195,11 @@ class Graph : public Node {
       if (n->name_ == name) return n;
     // This throw is used in constructing multi-output subgraphs
     throw "NGRAPH_BRIDGE: node not in graph";
-  };
+  }
 
-  // Write the subgraphs in a graph to a dot file 
+  // Write the subgraphs in a graph to a dot file
   // for graphviz visualization
-  void WriteSubgraphDots(std::string base){
+  void WriteSubgraphDots(std::string base) {
     WriteDot(base + ".dot");
     for (auto n : nodes_) {
       if (n->type_ == NodeType::kGraph) {
@@ -201,7 +211,6 @@ class Graph : public Node {
     }
   }
 
-
   int num_outputs = 1;
   // nodes in this graph
   std::vector<NodePtr> nodes_;
@@ -211,10 +220,10 @@ class Graph : public Node {
 };
 
 template <typename T>
-inline bool in_vec(const std::vector<T>& vec, const T& s){
+inline bool in_vec(const std::vector<T>& vec, const T& s) {
   return (std::find(vec.begin(), vec.end(), s) != vec.end());
 }
 
-}  // end namespace ngraph
+}  // namespace ngraph_bridge
 
 #endif
