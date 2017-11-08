@@ -21,32 +21,10 @@ namespace ngraph_bridge {
 // Type Aliases
 using OpNodePtr = std::shared_ptr<OpNode>;
 
-// Utility for writing a graph to a file for graphviz visualization
-void Graph::WriteDot(const std::string& fname) {
-  // open file stream, write graphviz header
-  std::ofstream dotfile;
-  dotfile.open(fname);
-  dotfile << "digraph G { " << std::endl;
-  dotfile << "size=\"8,10.5\"" << std::endl;
-
-  // Loop over inputs, write graph connections
-  for (auto n : nodes_)
-    for (auto i : n->inputs_) {
-      dotfile << i->name_ << " -> " << n->name_ << ";" << std::endl;
-    }
-  // Loop over nodes and write labels
-  for (auto n : nodes_)
-    if (!n->name_.empty()) dotfile << n->createNodeLabel() << std::endl;
-  // Finish file.
-  dotfile << "}" << std::endl;
-  dotfile.close();
-}
-
-// Utility to mark a node as visited and recursive search based on the results
-// of an input function
-void Graph::DFSUtil(NodePtr s, std::unordered_set<NodePtr>& visited,
-                    std::vector<NodePtr>& outNodes,
-                    std::function<bool(NodePtr)>& func) {
+void DFSUtil(NodePtr s,
+             std::unordered_set<NodePtr>& visited,
+             std::vector<NodePtr>& outNodes,
+             std::function<bool(NodePtr)>& func) {
   // Mark the current node as visited
   visited.insert(s);
   // if this node matches func condition
@@ -62,9 +40,8 @@ void Graph::DFSUtil(NodePtr s, std::unordered_set<NodePtr>& visited,
   }
 }
 
-// Depth first selection of nodes based on function criterion
-std::vector<NodePtr> Graph::DFSselect(NodePtr s,
-                                      std::function<bool(NodePtr)> func) {
+std::vector<NodePtr> SelectNodes(NodePtr s,
+                                 std::function<bool(NodePtr)> func) {
   // init visited vector
   std::unordered_set<NodePtr> visited;
   // init output vector
@@ -76,7 +53,7 @@ std::vector<NodePtr> Graph::DFSselect(NodePtr s,
 
 // Utility for removing bad branches in a directed, acylic subraph.
 // Will fail for cyclic graphs
-void Graph::RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
+void RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
                        std::function<bool(NodePtr)> func,
                        std::set<edgeRemoveTup>& visited_edges) {
   // if this node doesn't match the function condition, delete it
@@ -99,7 +76,7 @@ void Graph::RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
 
 // This function searches for non-local issues that make parts of an
 // ngraph identified subgraph non-computable
-std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
+std::vector<NodePtr> RemoveBroken(NodePtr s,
                                          std::vector<NodePtr>& subgraph_nodes,
                                          std::function<bool(NodePtr)> func) {
   // create storage for the ouputs and the visited nodes
@@ -155,7 +132,7 @@ std::vector<NodePtr> Graph::RemoveBroken(NodePtr s,
 // doesn't currently support multiple outputs
 // TODO: make the subgraph compiler handle multiple outputs and get rid of this
 // graph pass
-std::vector<NodePtr> Graph::PruneSubgraphOutputs(
+std::vector<NodePtr> PruneSubgraphOutputs(
     NodePtr s, std::vector<NodePtr>& subgraph_nodes,
     std::function<bool(NodePtr)> func) {
   // function to get all the outputs of the subgraph
@@ -202,7 +179,7 @@ std::vector<NodePtr> Graph::PruneSubgraphOutputs(
 // Find a subgraph, check it for bad branches
 std::vector<NodePtr> Graph::FindSubgraph(NodePtr s,
                                          std::function<bool(NodePtr)> func) {
-  auto subgraph_nodes = DFSselect(s, func);
+  auto subgraph_nodes = SelectNodes(s, func);
   std::vector<NodePtr> outNodes;
   outNodes = subgraph_nodes;
   if (subgraph_nodes.size() > 2) {
@@ -234,8 +211,10 @@ void Graph::IdentifySubgraphs(std::function<bool(NodePtr)> func) {
   }
 }
 
-// Function to collapse the intermediary graph into a graph
-// with subgraphs for nodes
+/**
+ * Function to collapse the intermediary graph into a graph
+ * with subgraphs for nodes
+ */
 void Graph::CollapseSubgraphs() {
   // loop variable for undefined number of subgraphs
   int i = 1;
@@ -287,7 +266,7 @@ void Graph::CollapseSubgraphs() {
   nodes_.erase(std::remove_if(nodes_.begin(), nodes_.end(),
                               [](NodePtr n) -> bool {
                                 return ((n->subgraph_ > 0) &&
-                                        (n->type_ == NodeType::kOp));
+                                    (n->type_ == NodeType::kOp));
                               }),
                nodes_.end());
 }

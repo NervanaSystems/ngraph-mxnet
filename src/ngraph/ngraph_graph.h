@@ -137,59 +137,66 @@ class OpNode : public Node {
 
 using edgeRemoveTup = std::tuple<NodePtr, NodePtr, bool>;
 
-/*
-Graph class
-Graph subclasses Node so that we can embed graphs into other graphs
-This is useful when we take a graph and replace it with an ngraph computation
-TODO: Refactor into Graph and subgraph?
-*/
+/**
+ * Graph class
+ * Graph subclasses Node so that we can embed graphs into other graphs
+ * This is useful when we take a graph and replace it with an ngraph computation
+ * TODO: Refactor into Graph and subgraph?
+ */
 class Graph : public Node {
  public:
-  Graph() : Node(NodeType::kGraph, nullptr, "") {}
-  Graph(const std::string& name) : Node(NodeType::kGraph, nullptr, name) {}
+  Graph() : Graph("") {}
+  Graph(const std::string &name) :
+      Node(NodeType::kGraph, nullptr, name),
+      num_outputs_(1) {}
 
-  // Add a node to the graph
+  /**
+   * Add a node to the graph
+   * @param node
+   */
   void AddNode(NodePtr node) { nodes_.emplace_back(node); }
 
-  // Write the graph to a Graphviz file
-  void WriteDot(const std::string& fname);
+  /**
+   * Constant accessor for nodes
+   * @return the nodes in the graph
+   */
+  const std::vector<NodePtr>& Graph::GetNodes() const { return nodes_; }
 
-  // Function for doing depth first search on the graph and selecting nodes
-  std::vector<NodePtr> DFSselect(NodePtr s, std::function<bool(NodePtr)> func);
-  // Utility function for graph search
-  void DFSUtil(NodePtr s, std::unordered_set<NodePtr>& visited,
-               std::vector<NodePtr>& outNodes,
-               std::function<bool(NodePtr)>& func);
+  /**
+   * Non-const accessor for nodes
+   * @return the nodes in the graph
+   */
+  std::vector<NodePtr>& Graph::GetNodes() { return nodes_; }
 
-  // High level function that does the subgraph identification
+  /**
+   * Accessor for number of outputs
+   * @return number of outputs of this graph
+   */
+  int Graph::GetNumOutputs() const { return num_outputs_; }
+
+  /**
+   * Sets the number of outputs for this graph
+   * @param num_outputs
+   */
+  void Graph::SetNumOutputs(int num_outputs) { num_outputs_ = num_outputs; }
+
+  /**
+   * High level function that does the subgraph identification
+   * @param func
+   */
   void IdentifySubgraphs(std::function<bool(NodePtr)> func);
 
-  // Finds simply connected ngraph operations
-  std::vector<NodePtr> FindSubgraph(NodePtr s,
-
-                                    std::function<bool(NodePtr)> func);
-
-  // Graph pass find loops in the subgraph where 1 branch of the loop is ngraph
-  // compatible and the other
-  std::vector<NodePtr> RemoveBroken(NodePtr s,
-                                    std::vector<NodePtr>& subgraph_nodes,
-                                    std::function<bool(NodePtr)> func);
-  void RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
-                  std::function<bool(NodePtr)> func,
-                  std::set<edgeRemoveTup>& visited_edges);
-
-  // Modified subgraph to only return 1 output.
-  // If we improve the subgraph compiler/nnvm op construction
-  // we might be able to get rid of this pass
-  std::vector<NodePtr> PruneSubgraphOutputs(
-      NodePtr s, std::vector<NodePtr>& subgraph_nodes,
-      std::function<bool(NodePtr)> func);
-
-  // convert graph from identified nodes to a network of nodes and graphs,
-  // each graph node represented a combined ngraph operation
+  /**
+   * convert graph from identified nodes to a network of nodes and graphs,
+   * each graph node represented a combined ngraph operation
+   */
   void CollapseSubgraphs();
 
-  // get the node corresponding to a name
+  /**
+   * get the node corresponding to a name
+   * @param name
+   * @return
+   */
   NodePtr operator[](std::string name) {
     for (auto n : nodes_)
       if (n->name_ == name) return n;
@@ -197,21 +204,8 @@ class Graph : public Node {
     throw "NGRAPH_BRIDGE: node not in graph";
   }
 
-  // Write the subgraphs in a graph to a dot file
-  // for graphviz visualization
-  void WriteSubgraphDots(std::string base) {
-    WriteDot(base + ".dot");
-    for (auto n : nodes_) {
-      if (n->type_ == NodeType::kGraph) {
-        auto sg = std::dynamic_pointer_cast<Graph>(n);
-        std::ostringstream stream;
-        stream << base << sg->subgraph_ << ".dot";
-        sg->WriteDot(stream.str());
-      }
-    }
-  }
-
-  int num_outputs = 1;
+ private:
+  int num_outputs_;
   // nodes in this graph
   std::vector<NodePtr> nodes_;
   // functions to execute this graph in ngraph
@@ -224,6 +218,77 @@ inline bool in_vec(const std::vector<T>& vec, const T& s) {
   return (std::find(vec.begin(), vec.end(), s) != vec.end());
 }
 
+/**
+ * Selection of nodes based on function criterion.
+ * Note: uses DFSUtil().
+ * @param s
+ * @param func
+ * @return
+ */
+std::vector<NodePtr> SelectNodes(NodePtr s, std::function<bool(NodePtr)> func);
+
+/**
+ * Utility to mark a node as visited and recursive search based on the results
+ * of an input function
+ * @param s
+ * @param visited
+ * @param outNodes
+ * @param func
+ */
+void DFSUtil(NodePtr s,
+             std::unordered_set<NodePtr>& visited,
+             std::vector<NodePtr>& outNodes,
+             std::function<bool(NodePtr)>& func);
+
+/**
+ * Graph pass find loops in the subgraph where 1 branch of the loop is ngraph
+ * compatible and the other
+ * @param s
+ * @param subgraph_nodes
+ * @param func
+ * @return
+ */
+std::vector<NodePtr> RemoveBroken(NodePtr s,
+                                  std::vector<NodePtr>& subgraph_nodes,
+                                  std::function<bool(NodePtr)> func);
+
+/**
+ *
+ * @param s
+ * @param outNodes
+ * @param func
+ * @param visited_edges
+ */
+void RemoveUtil(NodePtr s,
+                std::vector<NodePtr>& outNodes,
+                std::function<bool(NodePtr)> func,
+                std::set<edgeRemoveTup>& visited_edges);
+
+/**
+ * Modified subgraph to only return 1 output.
+ * If we improve the subgraph compiler/nnvm op construction
+ * we might be able to get rid of this pass
+ * @param s
+ * @param subgraph_nodes
+ * @param func
+ * @return
+ */
+std::vector<NodePtr> PruneSubgraphOutputs(NodePtr s,
+                                          std::vector<NodePtr>& subgraph_nodes,
+                                          std::function<bool(NodePtr)> func);
+
+
+
+/**
+ * Finds simply connected ngraph operations
+ * @param s
+ * @param func
+ * @return
+ */
+std::vector<NodePtr> FindSubgraph(NodePtr s,
+                                  std::function<bool(NodePtr)> func);
+
 }  // namespace ngraph_bridge
+
 
 #endif

@@ -15,10 +15,14 @@
 #ifndef NGRAPH_GRAPH_UTILS_H_
 #define NGRAPH_GRAPH_UTILS_H_
 
+#include <algorithm>
 #include <random>
 #include <string>
 
 namespace ngraph_bridge {
+
+class Graph;
+using GraphPtr = std::shared_ptr<Graph>;
 
 //create a random string to avoid subgraph name collisions
 inline std::string randomString(const int length = 12) {
@@ -38,6 +42,18 @@ inline std::string randomString(const int length = 12) {
                   [&]() { return alphabet[dist(rng)]; });
   return str;
 }
+
+/**
+ * Utility for writing a graph to a file for graphviz visualization
+ */
+void WriteDot(const GraphPtr& graph, const std::string& fname);
+
+/**
+ * Write the subgraphs in a graph to a dot file for graphviz visualization
+ */
+void WriteSubgraphDots(const GraphPtr& graph, const std::string &base);
+
+
 
 }  // namespace ngraph
 #endif  // UTILS_H_

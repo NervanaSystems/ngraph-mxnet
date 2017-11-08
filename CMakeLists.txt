@@ -10,6 +10,7 @@ add_definitions(-DMXNET_USE_MKL2017=0)
 include_directories(../private-ngraph-cpp/src)
 set(USE_CUDA FALSE)
 set(USE_OPENMP FALSE)
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 ###########################
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/build/private/local_config.cmake)
   include(${CMAKE_CURRENT_SOURCE_DIR}/build/private/local_config.cmake)
