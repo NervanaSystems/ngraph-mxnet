@@ -21,13 +21,14 @@
 namespace ngraph_bridge {
 
 // Main compilation function
-std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
+std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph, std::shared_ptr<mxnet::Context> contxt_) {
   // clear the op_map_ and placeholder_order
   ClearOpMap();
   // cast the graph
   auto sg = std::dynamic_pointer_cast<Graph>(sub_graph);
+
   // compile the subgraph into a python computation
-  CompileSubgraph(sg);
+  CompileSubgraph(sg, contxt_);
 
   return sg;
 }
@@ -39,7 +40,7 @@ void SGCompiler::ClearOpMap(){
 }
 
 // Compile a Subgraph into ngraph forward and backward call frames
-void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
+void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph, std::shared_ptr<mxnet::Context> contxt_) {
 
   // initalize a placeholder order vector for this subgraph
   for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
@@ -49,12 +50,12 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
   // initialize the runtime manager and backend
   // TODO: add a frontend flag for switching between ngraph backends
-  // if (mxnet::Context::kNNP){
-  // 	  std::cout<< "sandeep :: context is NNP :::>>>>>>>>> "<< std::endl;
-  // 	  std::cout<< sub_graph->attrs['context'] <<std::endl;
-  // }
-  // auto manager = ngraph::runtime::Manager::get("ARGON");
+  auto nnp_ctx =mxnet::Context::NNP(0) ;
   auto manager = ngraph::runtime::Manager::get("NGVM");
+  if ( (*contxt_)==nnp_ctx ){
+	  manager = manager->get("ARGON");
+  }
+
   auto backend = manager->allocate_backend();
   
   // map the inputs into a parameter list

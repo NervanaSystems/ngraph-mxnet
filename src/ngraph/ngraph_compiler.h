@@ -172,6 +172,8 @@ class Compiler {
   // copied feed dict and inputs
   nnvm::NodeEntryMap<mxnet::NDArray> feed_dict_;
   NNVMNodeVec inputs_;
+  // storage for copied context
+  mxnet::Context default_ctx_;
 
   // infer nnvm::Graph shape and type for bind case
   void Infer(const BindArg* bind);
