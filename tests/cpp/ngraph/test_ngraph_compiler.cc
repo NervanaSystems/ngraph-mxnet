@@ -92,7 +92,7 @@ TEST_F(NGRAPH_COMPILER, PARSENNVMGRAPH) {
   // In core NNVM. This test misses the conversion of Activation->relu
   // and the parsing of mutable nodes right now.
   testCompiler test(nnvm_graph, feed_dict, inputs, *bindarg);
-  for (auto n : test.ngraph_->GetNodes()){
+  for (auto n : test.ngraph_->GetNodes()) {
     EXPECT_EQ(n->orig_node_, test.node_map_[nodes_[n->name_].get()]);
     EXPECT_EQ(n->name_, nodes_[n->name_]->attrs.name);
     if (n->type_ == NodeType::kOp)

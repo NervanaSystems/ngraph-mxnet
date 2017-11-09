@@ -101,7 +101,7 @@ void NgraphBuilder::CollapseSubgraphs() {
   nodes.erase(std::remove_if(nodes.begin(), nodes.end(),
                              [](NodePtr n) -> bool {
                                return ((n->subgraph_ > 0) &&
-                                   (n->type_ == NodeType::kOp));
+                                       (n->type_ == NodeType::kOp));
                              }),
               nodes.end());
 }
@@ -112,8 +112,8 @@ void NgraphBuilder::CollapseSubgraphs() {
  * @param func
  * @return
  */
-std::vector<NodePtr> NgraphBuilder::FindSubgraph(NodePtr s,
-                                                std::function<bool(NodePtr)> func) {
+std::vector<NodePtr> NgraphBuilder::FindSubgraph(
+    NodePtr s, std::function<bool(NodePtr)> func) {
   auto subgraph_nodes = SelectNodes(s, func);
   std::vector<NodePtr> outNodes;
   outNodes = subgraph_nodes;
@@ -126,8 +126,8 @@ std::vector<NodePtr> NgraphBuilder::FindSubgraph(NodePtr s,
   return outNodes;
 }
 
-std::vector<NodePtr> NgraphBuilder::SelectNodes(NodePtr s,
-                                               std::function<bool(NodePtr)> func) {
+std::vector<NodePtr> NgraphBuilder::SelectNodes(
+    NodePtr s, std::function<bool(NodePtr)> func) {
   // init visited vector
   std::unordered_set<NodePtr> visited;
   // init output vector
@@ -137,10 +137,9 @@ std::vector<NodePtr> NgraphBuilder::SelectNodes(NodePtr s,
   return outNodes;
 }
 
-void NgraphBuilder::DFSUtil(NodePtr s,
-                           std::unordered_set<NodePtr> &visited,
-                           std::vector<NodePtr> &outNodes,
-                           std::function<bool(NodePtr)> &func) {
+void NgraphBuilder::DFSUtil(NodePtr s, std::unordered_set<NodePtr> &visited,
+                            std::vector<NodePtr> &outNodes,
+                            std::function<bool(NodePtr)> &func) {
   // Mark the current node as visited
   visited.insert(s);
   // if this node matches func condition
@@ -164,10 +163,9 @@ void NgraphBuilder::DFSUtil(NodePtr s,
  * @param func
  * @param visited_edges
  */
-void NgraphBuilder::RemoveUtil(NodePtr s,
-                              std::vector<NodePtr> &outNodes,
-                              std::function<bool(NodePtr)> func,
-                              std::set<edgeRemoveTup> &visited_edges) {
+void NgraphBuilder::RemoveUtil(NodePtr s, std::vector<NodePtr> &outNodes,
+                               std::function<bool(NodePtr)> func,
+                               std::set<edgeRemoveTup> &visited_edges) {
   // if this node doesn't match the function condition, delete it
   if (!func(s))
     outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), s),
@@ -194,9 +192,9 @@ void NgraphBuilder::RemoveUtil(NodePtr s,
  * @param func
  * @return
  */
-std::vector<NodePtr> NgraphBuilder::RemoveBroken(NodePtr s,
-                                                std::vector<NodePtr> &subgraph_nodes,
-                                                std::function<bool(NodePtr)> func) {
+std::vector<NodePtr> NgraphBuilder::RemoveBroken(
+    NodePtr s, std::vector<NodePtr> &subgraph_nodes,
+    std::function<bool(NodePtr)> func) {
   // create storage for the ouputs and the visited nodes
   std::vector<NodePtr> outNodes;
   std::unordered_set<NodePtr> visited;
@@ -230,7 +228,7 @@ std::vector<NodePtr> NgraphBuilder::RemoveBroken(NodePtr s,
   // that tells us weather or not this branch of the graph is good or bad
   bool found_bad = false;
   auto good_subgraph_node = [subgraph_nodes, func,
-      found_bad](NodePtr s) mutable {
+                             found_bad](NodePtr s) mutable {
     if (!func(s)) found_bad = true;
     if (found_bad) return false;
     if (in_vec(subgraph_nodes, s)) {
@@ -249,10 +247,9 @@ std::vector<NodePtr> NgraphBuilder::RemoveBroken(NodePtr s,
 // doesn't currently support multiple outputs
 // TODO: make the subgraph compiler handle multiple outputs and get rid of this
 // graph pass
-std::vector<NodePtr> NgraphBuilder::PruneSubgraphOutputs(NodePtr s,
-                                                        std::vector<NodePtr> &subgraph_nodes,
-                                                        std::function<bool(
-                                                            NodePtr)> func) {
+std::vector<NodePtr> NgraphBuilder::PruneSubgraphOutputs(
+    NodePtr s, std::vector<NodePtr> &subgraph_nodes,
+    std::function<bool(NodePtr)> func) {
   // function to get all the outputs of the subgraph
   auto get_subgraph_outputs = [this, &subgraph_nodes]() {
     std::vector<NodePtr> outNodes;

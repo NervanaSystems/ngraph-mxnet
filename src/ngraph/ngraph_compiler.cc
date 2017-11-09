@@ -129,8 +129,7 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                    const NNVMNodeVec& inputs, const BindArgBase& bindbase)
-    :ngraph_{new ngraph_bridge::Graph},
-     ngraph_builder_{ngraph_} {
+    : ngraph_{new ngraph_bridge::Graph}, ngraph_builder_{ngraph_} {
   DeepCopy(graph);
 
   // infer nnvm::Graph shape and type
@@ -162,7 +161,6 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
   MakeCopiedFeedDict(feed_dict);
   ParseNnvmGraph();
   CheckInNgraph();
-
 
   ngraph_builder_.IdentifySubgraphs([&feed_dict](NodePtr s) -> bool {
     bool in_feed_dict = false;

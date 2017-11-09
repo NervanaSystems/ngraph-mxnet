@@ -101,27 +101,25 @@ struct DFS_Test {
           new OpNode(nullptr, "op" + std::to_string(i), opnames[i],
                      {linear_graph->GetNodes()[i]})));
 
-
     branching_graph->AddNode(
         std::make_shared<VariableNode>(nullptr, "variable"));
-    branching_graph->AddNode(std::shared_ptr<OpNode>(
-        new OpNode(nullptr, "op0", opnames[0], {branching_graph->GetNodes()[0]})));
-    branching_graph->AddNode(std::shared_ptr<OpNode>(
-        new OpNode(nullptr, "op1", opnames[1], {branching_graph->GetNodes()[1]})));
-    branching_graph->AddNode(std::shared_ptr<VariableNode>(
-		new VariableNode(nullptr, "variable1", {branching_graph->GetNodes()[1]})));
-    branching_graph->AddNode(std::shared_ptr<OpNode>(
-        new OpNode(nullptr, "op2", opnames[2],
-                   {branching_graph->GetNodes()[2], branching_graph->GetNodes()[3]})));
-    branching_graph->AddNode(std::shared_ptr<OpNode>(
-        new OpNode(nullptr, "op3", opnames[3], {branching_graph->GetNodes()[4]})));
+    branching_graph->AddNode(std::shared_ptr<OpNode>(new OpNode(
+        nullptr, "op0", opnames[0], {branching_graph->GetNodes()[0]})));
+    branching_graph->AddNode(std::shared_ptr<OpNode>(new OpNode(
+        nullptr, "op1", opnames[1], {branching_graph->GetNodes()[1]})));
+    branching_graph->AddNode(std::shared_ptr<VariableNode>(new VariableNode(
+        nullptr, "variable1", {branching_graph->GetNodes()[1]})));
+    branching_graph->AddNode(std::shared_ptr<OpNode>(new OpNode(
+        nullptr, "op2", opnames[2],
+        {branching_graph->GetNodes()[2], branching_graph->GetNodes()[3]})));
+    branching_graph->AddNode(std::shared_ptr<OpNode>(new OpNode(
+        nullptr, "op3", opnames[3], {branching_graph->GetNodes()[4]})));
     // branching_graph.WriteDot("branching.dot");
   }
   std::shared_ptr<Graph> linear_graph;
   std::shared_ptr<Graph> branching_graph;
   NgraphBuilder linear_builder;
   NgraphBuilder branching_builder;
-
 };
 
 DFS_Test test_search;
@@ -201,7 +199,8 @@ TEST(NGRAPH_GRAPH, GRAPH_COLLAPSE_SUBGRAPHS) {
   EXPECT_EQ(subgraph_test.test.branching_graph->GetNodes().size(), 4);
   EXPECT_EQ(std::dynamic_pointer_cast<Graph>(
                 subgraph_test.test.branching_graph->GetNodes().back())
-                ->GetNodes().size(),
+                ->GetNodes()
+                .size(),
             3);
 }
 

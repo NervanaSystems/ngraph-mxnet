@@ -145,8 +145,7 @@ class Graph : public Node {
 
  public:
   Graph() : Graph("") {}
-  Graph(const std::string &name) :
-      Node(NodeType::kGraph, nullptr, name) {}
+  Graph(const std::string& name) : Node(NodeType::kGraph, nullptr, name) {}
 
   /**
    * Add a node to the graph
@@ -235,11 +234,9 @@ class Graph : public Node {
  * NgraphBuilder identifies subgraph in a Graph which can be represented using
  * NGraph and process these subgraphs to use NGraph operations.
  */
-class NgraphBuilder
-{
+class NgraphBuilder {
  public:
-  explicit NgraphBuilder(const std::shared_ptr<Graph>& g)
-      : graph_(g) {}
+  explicit NgraphBuilder(const std::shared_ptr<Graph>& g) : graph_(g) {}
   /**
    * High level function that does the subgraph identification
    * @param func
@@ -259,7 +256,8 @@ class NgraphBuilder
    * @param func
    * @return
    */
-  std::vector<NodePtr> SelectNodes(NodePtr s, std::function<bool(NodePtr)> func);
+  std::vector<NodePtr> SelectNodes(NodePtr s,
+                                   std::function<bool(NodePtr)> func);
 
   /**
    * Finds simply connected ngraph operations
@@ -279,8 +277,7 @@ class NgraphBuilder
    * @param outNodes
    * @param func
    */
-  void DFSUtil(NodePtr s,
-               std::unordered_set<NodePtr>& visited,
+  void DFSUtil(NodePtr s, std::unordered_set<NodePtr>& visited,
                std::vector<NodePtr>& outNodes,
                std::function<bool(NodePtr)>& func);
 
@@ -304,8 +301,7 @@ class NgraphBuilder
    * @param func
    * @param visited_edges
    */
-  void RemoveUtil(NodePtr s,
-                  std::vector<NodePtr>& outNodes,
+  void RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
                   std::function<bool(NodePtr)> func,
                   std::set<edgeRemoveTup>& visited_edges);
 
@@ -318,16 +314,14 @@ class NgraphBuilder
    * @param func
    * @return
    */
-  std::vector<NodePtr> PruneSubgraphOutputs(NodePtr s,
-                                            std::vector<NodePtr>& subgraph_nodes,
-                                            std::function<bool(NodePtr)> func);
-
+  std::vector<NodePtr> PruneSubgraphOutputs(
+      NodePtr s, std::vector<NodePtr>& subgraph_nodes,
+      std::function<bool(NodePtr)> func);
 
  private:
   std::shared_ptr<Graph> graph_;
 };
 
 }  // namespace ngraph_bridge
-
 
 #endif

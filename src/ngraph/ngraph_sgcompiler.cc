@@ -65,8 +65,8 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
       getType(sub_graph->GetNodes().back()->dtype_), shape);
 
   // create the Function object representing the graph
-  auto f = std::make_shared<ngraph::Function>(op_map_[sub_graph->GetNodes().back()],
-                                              return_type, forward_parameters);
+  auto f = std::make_shared<ngraph::Function>(
+      op_map_[sub_graph->GetNodes().back()], return_type, forward_parameters);
 
   // compile it into a call frame with the backend, and save
   // the compile frame into the subgraph
@@ -124,7 +124,8 @@ void SGCompiler::CompileNode(NodePtr node,
     for (auto input : node->inputs_) {
       if (!op_map_.count(input)) {
         // if it's not in the graph, it's an input, compile it as an input
-        if (std::find(sub_graph->GetNodes().begin(), sub_graph->GetNodes().end(),
+        if (std::find(sub_graph->GetNodes().begin(),
+                      sub_graph->GetNodes().end(),
                       input) == sub_graph->GetNodes().end()) {
           CompileInput(input);
         } else {

@@ -2,8 +2,8 @@
 // Created by Louis Feng on 11/6/17.
 //
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
 #include "ngraph_graph.h"
 #include "ngraph_graph_utils.h"
@@ -30,7 +30,7 @@ void WriteDot(const GraphPtr& graph, const std::string& fname) {
   dotfile.close();
 }
 
-void WriteSubgraphDots(const GraphPtr& graph, const std::string &base) {
+void WriteSubgraphDots(const GraphPtr& graph, const std::string& base) {
   WriteDot(graph, base + ".dot");
   for (auto n : graph->GetNodes()) {
     if (n->type_ == NodeType::kGraph) {
@@ -41,4 +41,4 @@ void WriteSubgraphDots(const GraphPtr& graph, const std::string &base) {
     }
   }
 }
-} // namespace
+}  // namespace
