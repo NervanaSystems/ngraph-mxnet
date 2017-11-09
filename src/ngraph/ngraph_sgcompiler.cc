@@ -22,7 +22,7 @@
 namespace ngraph_bridge {
 
 // Main compilation function
-std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
+GraphPtr SGCompiler::Compile(NodePtr sub_graph) {
   // clear the op_map_ and placeholder_order
   ClearOpMap();
   // cast the graph
@@ -40,7 +40,7 @@ void SGCompiler::ClearOpMap() {
 }
 
 // Compile a Subgraph into ngraph forward and backward call frames
-void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
+void SGCompiler::CompileSubgraph(GraphPtr sub_graph) {
   // initalize a placeholder order vector for this subgraph
   for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
 
@@ -118,7 +118,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
 // compiling a node, recursively checking it's inputs
 void SGCompiler::CompileNode(NodePtr node,
-                             const std::shared_ptr<Graph> sub_graph) {
+                             const GraphPtr sub_graph) {
   if (!op_map_.count(node)) {
     // Loop over the inputs and ensure they've been compile3d
     for (auto input : node->inputs_) {

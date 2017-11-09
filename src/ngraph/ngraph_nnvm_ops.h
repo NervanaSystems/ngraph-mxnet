@@ -20,9 +20,9 @@
 
 namespace ngraph_bridge {
 // function for returning nnvm::Op corresponding to a subgraph
-nnvm::Op* get_subgraph_op(std::shared_ptr<Graph> graph);
+nnvm::Op* get_subgraph_op(GraphPtr graph);
 // function for registering subgraph operation with nnvm
-void register_subgraph(std::shared_ptr<Graph> graph);
+void register_subgraph(GraphPtr graph);
 
 // dummy parameter struct to match mxnet API
 struct NGraphParam {

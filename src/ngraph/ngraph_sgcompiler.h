@@ -22,15 +22,15 @@ namespace ngraph_bridge {
 
 class SGCompiler : public Emitter {
  public:
-  std::shared_ptr<Graph> Compile(NodePtr sub_graph);
+  GraphPtr Compile(NodePtr sub_graph);
 
  protected:
   // compile subgraph into ngraph python objects
-  void CompileSubgraph(std::shared_ptr<Graph> sub_graph);
+  void CompileSubgraph(GraphPtr sub_graph);
   // compile input to a node
   void CompileInput(NodePtr input);
   // compile a single node into an ngraph python object
-  void CompileNode(NodePtr node, const std::shared_ptr<Graph> sub_graph);
+  void CompileNode(NodePtr node, const GraphPtr sub_graph);
   void ClearOpMap();
 };
 

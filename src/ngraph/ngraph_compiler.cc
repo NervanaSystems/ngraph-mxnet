@@ -23,7 +23,7 @@
 namespace ngraph_bridge {
 
 // Function to create an nnvm node from a ngraph subgraph
-nnvm::NodeEntry CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
+nnvm::NodeEntry CreateNNVMNode(GraphPtr subgraph) {
   // init node, set name
   auto node = nnvm::Node::Create();
   node->attrs.name = subgraph->name_;

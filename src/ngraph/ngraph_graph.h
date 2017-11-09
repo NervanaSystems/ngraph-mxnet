@@ -236,7 +236,7 @@ class Graph : public Node {
  */
 class NgraphBuilder {
  public:
-  explicit NgraphBuilder(const std::shared_ptr<Graph>& g) : graph_(g) {}
+  explicit NgraphBuilder(const GraphPtr& g) : graph_(g) {}
   /**
    * High level function that does the subgraph identification
    * @param func
@@ -319,7 +319,7 @@ class NgraphBuilder {
       std::function<bool(NodePtr)> func);
 
  private:
-  std::shared_ptr<Graph> graph_;
+  GraphPtr graph_;
 };
 
 }  // namespace ngraph_bridge

@@ -27,12 +27,12 @@
 namespace ngraph_bridge {
 
 // get the OP from nnvm, return a pointer to it.
-nnvm::Op* get_subgraph_op(std::shared_ptr<Graph> graph) {
+nnvm::Op* get_subgraph_op(GraphPtr graph) {
   return &(::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
       "ngraph_" + graph->name_));
 }
 
-void register_forward_op(std::shared_ptr<Graph> graph) {
+void register_forward_op(GraphPtr graph) {
   // register the op with nnvm
   auto& op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
       "ngraph_" + graph->name_);
@@ -155,7 +155,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
       });
 }
 
-void register_backward_op(std::shared_ptr<Graph> graph) {
+void register_backward_op(GraphPtr graph) {
   // register the op with nnvm
   auto& op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
       "_backward_" + ("ngraph_" + graph->name_));
@@ -194,7 +194,7 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
       });
 }
 // register subgraph ops with nnvm.
-void register_subgraph(std::shared_ptr<Graph> graph) {
+void register_subgraph(GraphPtr graph) {
   register_forward_op(graph);
   register_backward_op(graph);
 }
