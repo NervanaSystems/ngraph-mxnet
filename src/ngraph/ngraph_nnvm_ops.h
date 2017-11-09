@@ -33,5 +33,5 @@ struct NGraphParam {
   void Init(const nnvm::NodeAttrs& attrs){};
 };
 
-}  // namespace ngraph
+}  // namespace ngraph_bridge
 #endif  // NGRAPH_NNVM_OP_H

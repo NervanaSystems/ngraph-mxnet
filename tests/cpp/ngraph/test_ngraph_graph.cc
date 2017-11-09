@@ -67,9 +67,6 @@ TEST(NGRAPH_GRAPH, OP_NODE_INIT) {
 TEST(NGRAPH_GRAPH, GRAPH_INIT) {
   EXPECT_EQ(Graph().type_, NodeType::kGraph);
   EXPECT_EQ(Graph().orig_node_, nullptr);
-  // this test is not valid because node generates random name when name is
-  // empty string
-  // EXPECT_EQ(Graph().name_, "");
   EXPECT_EQ(Graph(test_name).type_, NodeType::kGraph);
   EXPECT_EQ(Graph(test_name).orig_node_, nullptr);
   EXPECT_EQ(Graph(test_name).name_, test_name);
@@ -111,14 +108,13 @@ struct DFS_Test {
         new OpNode(nullptr, "op0", opnames[0], {branching_graph->GetNodes()[0]})));
     branching_graph->AddNode(std::shared_ptr<OpNode>(
         new OpNode(nullptr, "op1", opnames[1], {branching_graph->GetNodes()[1]})));
-    branching_graph->AddNode(std::shared_ptr<VariableNode>(new VariableNode(
-        nullptr, "variable1", {branching_graph->GetNodes()[1]})));
+    branching_graph->AddNode(std::shared_ptr<VariableNode>(
+		new VariableNode(nullptr, "variable1", {branching_graph->GetNodes()[1]})));
     branching_graph->AddNode(std::shared_ptr<OpNode>(
         new OpNode(nullptr, "op2", opnames[2],
                    {branching_graph->GetNodes()[2], branching_graph->GetNodes()[3]})));
     branching_graph->AddNode(std::shared_ptr<OpNode>(
-        new OpNode(nullptr, "op3", opnames[3],
-                   {branching_graph->GetNodes()[4]})));
+        new OpNode(nullptr, "op3", opnames[3], {branching_graph->GetNodes()[4]})));
     // branching_graph.WriteDot("branching.dot");
   }
   std::shared_ptr<Graph> linear_graph;
@@ -214,4 +210,4 @@ TEST(NGRAPH_GRAPH, GRAPH_COLLAPSE_SUBGRAPHS) {
 //   EXPECT_EQ(0,1);
 // }
 
-}  // namespace ngraph
+}  // namespace ngraph_bridge

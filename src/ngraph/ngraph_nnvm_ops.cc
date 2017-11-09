@@ -44,8 +44,8 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   // register the inputs with nnvm
   std::vector<std::string> input_names;
   for (auto n : graph->inputs_) {
-      input_names.emplace_back(n->name_);
-      op.add_argument(n->name_, "NDArray-or-Symbol", "argument " + n->name_);
+    input_names.emplace_back(n->name_);
+    op.add_argument(n->name_, "NDArray-or-Symbol", "argument " + n->name_);
   }
 
   // register lambda to list inputs
@@ -57,7 +57,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   std::vector<uint32_t> mutate_vars;
   for (size_t i = 0; i < graph->inputs_.size(); ++i) {
     if (graph->inputs_[i]->type_ == NodeType::kAux) {
-      mutate_vars.emplace_back(i);//graph->inputs[i]->name);
+      mutate_vars.emplace_back(i);  // graph->inputs[i]->name);
     }
   }
 
@@ -93,7 +93,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
       });
 
   // Register Gradient node generation function
-  auto back_op_name = "_backward_" + ("ngraph_" +graph->name_);
+  auto back_op_name = "_backward_" + ("ngraph_" + graph->name_);
   op.set_attr<nnvm::FGradient>(
       "FGradient", [back_op_name](const nnvm::NodePtr& n,
                                   const std::vector<nnvm::NodeEntry>& ograds) {
@@ -150,7 +150,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
                           const std::vector<mxnet::TBlob>& outputs) -> void {
         auto placeholders = make_ngraph_placeholders(inputs, true);
         auto results = make_ngraph_placeholders(outputs, false);
-        (*computation)(placeholders, results); 
+        (*computation)(placeholders, results);
         result_to_TBlob(results[0], outputs, 0);
       });
 }
@@ -177,7 +177,7 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
 
   auto computation = graph->GetNgraphBackward();
   auto name = graph->name_;
-  
+
   // create the compute lambda
   op.set_attr<mxnet::FCompute>(
       "FCompute<cpu>",
@@ -188,9 +188,8 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
                           const std::vector<mxnet::TBlob>& outputs) -> void {
         auto placeholders = make_ngraph_placeholders(inputs, true);
         auto results = make_ngraph_placeholders(outputs, false);
-        (*computation)(placeholders,
-                       {ngraph::runtime::make_tuple(results)});
-        for (size_t j = 0; j < results.size(); ++j) 
+        (*computation)(placeholders, {ngraph::runtime::make_tuple(results)});
+        for (size_t j = 0; j < results.size(); ++j)
           result_to_TBlob(results[j], outputs, j);
       });
 }
@@ -200,4 +199,4 @@ void register_subgraph(std::shared_ptr<Graph> graph) {
   register_backward_op(graph);
 }
 
-}  // namespace ngraph
+}  // namespace ngraph_bridge

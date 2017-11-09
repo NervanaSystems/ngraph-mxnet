@@ -47,7 +47,7 @@ LayerGraphs create_layer_graphs() {
 
   // Split is an operation with multiple outputs that splits
   // a tensor into multiple tensors by creating even slices along
-  // one axis. To ease the interface with ngraph, we convert split into 
+  // one axis. To ease the interface with ngraph, we convert split into
   // a slice based subgraph.
   layer_funcs[std::string("split")] = [](const NodePtr node) {
     Graph tmpGraph(node->name_);
@@ -63,12 +63,12 @@ LayerGraphs create_layer_graphs() {
       tmpslice->multi_output_index_ = i;
       tmpGraph.AddNode(tmpslice);
     }
-    
+
     return tmpGraph;
   };
 
   // Slice channel is an alias for split
-  layer_funcs[std::string("SliceChannel")] =layer_funcs["split"];
+  layer_funcs[std::string("SliceChannel")] = layer_funcs["split"];
 
   layer_funcs[std::string("Activation")] = [](const NodePtr node) {
     Graph tmpGraph;
@@ -217,22 +217,22 @@ nnvm::Graph Compiler::Compile() {
         if (matches(output)) output = sg_node;
 
       // use nnvm depth first search to fix node connections in nnvm
-      nnvm::DFSVisit(graph_.outputs, [sg_node,
-                                      &matches](const nnvm::NodePtr node) {
+      nnvm::DFSVisit(
+          graph_.outputs, [sg_node, &matches](const nnvm::NodePtr node) {
 
-        for (auto input : node->inputs) {
-          auto it = std::find_if(node->inputs.begin(), node->inputs.end(),
-                                 matches);
+            for (auto input : node->inputs) {
+              auto it = std::find_if(node->inputs.begin(), node->inputs.end(),
+                                     matches);
 
-          if (it != node->inputs.end()) {
-            node->inputs.insert(it, sg_node);
-            node->inputs.erase(std::remove_if(node->inputs.begin(),
-                                              node->inputs.end(), matches),
-                               node->inputs.end());
-          }
-        }
+              if (it != node->inputs.end()) {
+                node->inputs.insert(it, sg_node);
+                node->inputs.erase(std::remove_if(node->inputs.begin(),
+                                                  node->inputs.end(), matches),
+                                   node->inputs.end());
+              }
+            }
 
-      });
+          });
     }
   }
 
@@ -363,7 +363,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 // Check nodes in NGraph
 void Compiler::CheckInNgraph() {
   for (auto node : ngraph_->GetNodes())
-    if (node->type_ == NodeType::kOp) 
+    if (node->type_ == NodeType::kOp)
       if (compiler_.ngraph_op_funcs_.count(node->operation_))
         node->in_ngraph_ = true;
 }
@@ -446,4 +446,4 @@ void Compiler::ParseNnvmGraph() {
   }
 }
 
-}  // end namespace ngraph
+}  // namespace ngraph_bridge

@@ -77,47 +77,47 @@ struct SimpleBindArg : public BindArgBase {
 };
 
 // This is a compile-time hash map that contains information on
-// nnvm alias renaming to simplify the emitter class - 
+// nnvm alias renaming to simplify the emitter class -
 // we don't want to emit _Plus, _plus, _add, and elemwise_add
 // for the same op
 static std::unordered_map<std::string, std::string> nameswitch({
-  // elemwise
-  {"elemwise_add", "_plus"},
-  {"elemwise_sub", "_minus"},
-  {"elemwise_mul", "_mul"},
-  {"elemwise_div", "_div"},
-  // broadcast
-  {"broadcast_plus", "broadcast_add"},
-  {"broadcast_minus", "broadcast_sub"},
-  //Binary Basic
-  {"_add", "_plus"},
-  {"_Plus", "_plus"},
-  {"_sub", "_minus"},
-  {"_Minus", "_minus"},
-  {"_Mul", "_mul"},
-  {"_Div", "_div"},
-  {"_Mod", "_mod"},
-  //Binary Extended
-  {"_Power","_power"},
-  {"_Maximum","_maximum"},
-  {"_Minimum","_minimum"},
-  {"_Hypot","_hypot"},
-  //Binary Logic
-  {"_Equal", "_equal"},
-  {"_Not_Equal", "_not_equal"},
-  {"_Greater", "_greater"},
-  {"_Greater_Equal", "_greater_equal"},
-  {"_Lesser", "_lesser"},
-  {"_Lesser_Equal", "_lesser_equal"},
-  //Layer Ops
-  {"Concat", "concat"},
-  {"Flatten", "flatten"},
+    // elemwise
+    {"elemwise_add", "_plus"},
+    {"elemwise_sub", "_minus"},
+    {"elemwise_mul", "_mul"},
+    {"elemwise_div", "_div"},
+    // broadcast
+    {"broadcast_plus", "broadcast_add"},
+    {"broadcast_minus", "broadcast_sub"},
+    // Binary Basic
+    {"_add", "_plus"},
+    {"_Plus", "_plus"},
+    {"_sub", "_minus"},
+    {"_Minus", "_minus"},
+    {"_Mul", "_mul"},
+    {"_Div", "_div"},
+    {"_Mod", "_mod"},
+    // Binary Extended
+    {"_Power", "_power"},
+    {"_Maximum", "_maximum"},
+    {"_Minimum", "_minimum"},
+    {"_Hypot", "_hypot"},
+    // Binary Logic
+    {"_Equal", "_equal"},
+    {"_Not_Equal", "_not_equal"},
+    {"_Greater", "_greater"},
+    {"_Greater_Equal", "_greater_equal"},
+    {"_Lesser", "_lesser"},
+    {"_Lesser_Equal", "_lesser_equal"},
+    // Layer Ops
+    {"Concat", "concat"},
+    {"Flatten", "flatten"},
 });
 
-// Utility function for replacing operation names 
+// Utility function for replacing operation names
 // based on the dict above
 inline std::string clean_opname(std::string name) {
-  if (nameswitch.count(name)){
+  if (nameswitch.count(name)) {
     return nameswitch[name];
   } else {
     return name;
@@ -140,7 +140,7 @@ class Compiler {
   // Return maps of the shapes and dtypes for further analysis in graph_executor
   const NgraphShape& GetNgraphShape() { return ngraph_shape_; }
   const NgraphDType& GetNgraphDtype() { return ngraph_dtype_; }
-  // Return copies of the feed_dict and inputs to feed back into the 
+  // Return copies of the feed_dict and inputs to feed back into the
   // graph executor inference engine
   const NDArrayMap& GetFeedDict() { return feed_dict_; };
   const NNVMNodeVec& GetInputs() { return inputs_; };
@@ -185,5 +185,5 @@ class Compiler {
   nnvm::DTypeVector dtypes_;
 };
 
-}  // end namespace ngraph
+}  // namespace ngraph_bridge
 #endif

@@ -27,7 +27,7 @@ class Graph;
 using NodePtr = std::shared_ptr<Node>;
 using GraphPtr = std::shared_ptr<Graph>;
 
-//create a random string to avoid subgraph name collisions
+// create a random string to avoid subgraph name collisions
 inline std::string randomString(const int length = 12) {
   static const char alphabet[] =
       "abcdefghijklmnopqrstuvwxyz"
@@ -63,5 +63,5 @@ void WriteSubgraphDots(const GraphPtr& graph, const std::string &base);
 
 
 
-}  // namespace ngraph
+}  // namespace ngraph_bridge
 #endif  // UTILS_H_

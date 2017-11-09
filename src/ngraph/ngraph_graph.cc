@@ -78,14 +78,14 @@ void NgraphBuilder::CollapseSubgraphs() {
       // setup inputs to this subgraph (as a node)
       for (auto node : tmp_nodes) {
         for (auto input : node->inputs_) {
-          if (input->subgraph_ != i && !in_tmpGraphInputs(input))
-            tmpGraph->inputs_.emplace_back(input);
+      if (i->name_ == "") i->name_ = randomString(6);
+      if (n->name_ == "") n->name_ = randomString(6);
         }
       }
       // set subgraph as input to all of the nodes downline.
       for (auto n : nodes)
-        for (size_t i = 0; i < n->inputs_.size(); ++i)
-          if (n->inputs_[i]->name_ == name) n->inputs_[i] = tmpGraph;
+    if (!n->name_.empty() )
+      dotfile << n->createNodeLabel() << std::endl;
 
       // find the position we're replacing in the graph
       auto it = std::find_if(
@@ -164,10 +164,10 @@ void NgraphBuilder::DFSUtil(NodePtr s,
  * @param func
  * @param visited_edges
  */
-void NgraphBuilder::RemoveUtil(NodePtr s,
-                              std::vector<NodePtr> &outNodes,
-                              std::function<bool(NodePtr)> func,
-                              std::set<edgeRemoveTup> &visited_edges) {
+void Graph::RemoveUtil(
+    NodePtr s, std::vector<NodePtr>& outNodes,
+    std::function<bool(NodePtr)> func,
+    std::set<edgeRemoveTup>& visited_edges) {
   // if this node doesn't match the function condition, delete it
   if (!func(s))
     outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), s),
