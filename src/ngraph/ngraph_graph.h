@@ -147,7 +147,10 @@ class Graph : public Node {
   Graph() : Graph("") {}
   Graph(const std::string &name) :
       Node(NodeType::kGraph, nullptr, name),
-      num_outputs_(1) {}
+      num_outputs_(1),
+      nodes_(),
+      ngraph_forward_(nullptr),
+      ngraph_backward_(nullptr){}
 
   /**
    * Add a node to the graph
@@ -232,10 +235,14 @@ class Graph : public Node {
   std::shared_ptr<CallFrame> ngraph_backward_;
 };
 
-class GraphBuilder
+/**
+ * NgraphBuilder identifies subgraph in a Graph which can be represented using
+ * NGraph and process these subgraphs to use NGraph operations.
+ */
+class NgraphBuilder
 {
  public:
-  explicit GraphBuilder(const std::shared_ptr<Graph>& g)
+  explicit NgraphBuilder(const std::shared_ptr<Graph>& g)
       : graph_(g) {}
   /**
    * High level function that does the subgraph identification
@@ -249,7 +256,7 @@ class GraphBuilder
    */
   void CollapseSubgraphs();
 
- private:
+ //private:
   /**
    * Selection of nodes based on function criterion.
    * Note: uses DFSUtil().
@@ -285,7 +292,8 @@ class GraphBuilder
                                     std::function<bool(NodePtr)> func);
 
   /**
-   *
+   * Utility for removing bad branches in a directed, acylic subraph.
+   * Will fail for cyclic graphs
    * @param s
    * @param outNodes
    * @param func

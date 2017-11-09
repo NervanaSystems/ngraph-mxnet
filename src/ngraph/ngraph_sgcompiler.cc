@@ -45,7 +45,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
 
   // compile all the ndoes in the graph
-  for (auto node : sub_graph->nodes_) CompileNode(node, sub_graph);
+  for (auto node : sub_graph->GetNodes()) CompileNode(node, sub_graph);
 
   // initialize the runtime manager and backend
   // TODO: add a frontend flag for switching between ngraph backends
@@ -60,12 +60,12 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
         std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_[input]));
 
   // calcuate the shape and return type of the subgraph
-  auto shape = TShape_to_NShape(sub_graph->nodes_.back()->shape_);
+  auto shape = TShape_to_NShape(sub_graph->GetNodes().back()->shape_);
   auto return_type = std::make_shared<ngraph::TensorViewType>(
-      getType(sub_graph->nodes_.back()->dtype_), shape);
+      getType(sub_graph->GetNodes().back()->dtype_), shape);
 
   // create the Function object representing the graph
-  auto f = std::make_shared<ngraph::Function>(op_map_[sub_graph->nodes_.back()],
+  auto f = std::make_shared<ngraph::Function>(op_map_[sub_graph->GetNodes().back()],
                                               return_type, forward_parameters);
 
   // compile it into a call frame with the backend, and save 
@@ -81,7 +81,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
   for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
 
-  for (auto node : sub_graph->nodes_) CompileNode(node, sub_graph);
+  for (auto node : sub_graph->GetNodes()) CompileNode(node, sub_graph);
 
   ngraph::op::Parameters backward_parameters;
 
@@ -89,11 +89,11 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     backward_parameters.push_back(
         std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_[input]));
 
-  shape = TShape_to_NShape(sub_graph->nodes_.back()->shape_);
+  shape = TShape_to_NShape(sub_graph->GetNodes().back()->shape_);
   return_type = std::make_shared<ngraph::TensorViewType>(
-      getType(sub_graph->nodes_.back()->dtype_), shape);
+      getType(sub_graph->GetNodes().back()->dtype_), shape);
 
-  f = std::make_shared<ngraph::Function>(op_map_[sub_graph->nodes_.back()],
+  f = std::make_shared<ngraph::Function>(op_map_[sub_graph->GetNodes().back()],
                                          return_type, backward_parameters);
   //////////////////////////////////////////////////////////////////////////////
   
@@ -114,7 +114,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
                                             backward_parameters);
 
   auto backward_external = manager->compile(bf);
-  sub_graph->ngraph_backward = backend->make_call_frame(backward_external);
+  sub_graph->SetNgraphBackward(backend->make_call_frame(backward_external));
 
 }
 
@@ -126,8 +126,8 @@ void SGCompiler::CompileNode(NodePtr node,
     for (auto input : node->inputs_) {
       if (!op_map_.count(input)){
         // if it's not in the graph, it's an input, compile it as an input
-        if (std::find(sub_graph->nodes_.begin(), sub_graph->nodes_.end(),
-                      input) == sub_graph->nodes_.end()) {
+        if (std::find(sub_graph->GetNodes().begin(), sub_graph->GetNodes().end(),
+                      input) == sub_graph->GetNodes().end()) {
           CompileInput(input);
         } else {
           CompileNode(input, sub_graph);

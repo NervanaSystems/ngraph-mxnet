@@ -10,7 +10,7 @@
 
 namespace ngraph_bridge {
 
-void WriteDot(GraphPtr& graph, const std::string& fname) {
+void WriteDot(const GraphPtr& graph, const std::string& fname) {
   // open file stream, write graphviz header
   std::ofstream dotfile;
   dotfile.open(fname);

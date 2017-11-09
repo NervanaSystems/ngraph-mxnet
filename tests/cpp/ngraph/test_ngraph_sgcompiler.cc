@@ -89,8 +89,8 @@ TEST_F(NGRAPH_SGCOMPILER, COMPILE_NODE2){
 
 TEST_F(NGRAPH_SGCOMPILER, COMPILE_SUBGRAPH){
   testSGCompiler test;
-  EXPECT_FALSE(subgraph->ngraph_forward);
-  EXPECT_FALSE(subgraph->ngraph_backward);
+  EXPECT_FALSE(subgraph->GetNgraphForward());
+  EXPECT_FALSE(subgraph->GetNgraphBackward());
   EXPECT_FALSE(test.count(in1));
   EXPECT_FALSE(test.count(in2));
   EXPECT_FALSE(test.count(in3));
@@ -133,8 +133,8 @@ TEST_F(NGRAPH_SGCOMPILER, COMPILE_SUBGRAPH){
                   test[node2]->get_value_type())
                   ->get_element_type(),
               getType(node2->dtype_));
-  EXPECT_TRUE(subgraph->ngraph_forward);
-  EXPECT_TRUE(subgraph->ngraph_backward);
+  EXPECT_TRUE(subgraph->GetNgraphForward());
+  EXPECT_TRUE(subgraph->GetNgraphBackward());
 }
 
 }

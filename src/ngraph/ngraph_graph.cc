@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
-#include "ngraph_graph.h"
-#include "reverse_iterate.h"
 #include <functional>
 #include <stack>
+
+#include "ngraph_graph.h"
+#include "reverse_iterate.h"
 
 namespace ngraph_bridge {
 // Type Aliases
@@ -25,10 +26,10 @@ using OpNodePtr = std::shared_ptr<OpNode>;
  * Function to identify and label connected ngraph ops as subgraphs
  * @param func
  */
-void IdentifySubgraphs(Graph* g, std::function<bool(NodePtr)> func) {
+void NgraphBuilder::IdentifySubgraphs(std::function<bool(NodePtr)> func) {
   int sg = 1;
   // loop over the nodes from the back
-  for (auto i : reverse_iterate(g->GetNodes())) {
+  for (auto i : reverse_iterate(graph_->GetNodes())) {
     if (i->subgraph_ == 0) {
       // select nodes in the a subgraph starting here and going up the graph
       auto subgraph_nodes = FindSubgraph(i, func);
@@ -45,69 +46,19 @@ void IdentifySubgraphs(Graph* g, std::function<bool(NodePtr)> func) {
 }
 
 /**
- * Find a subgraph, check it for bad branches
- * @param s
- * @param func
- * @return
- */
-std::vector<NodePtr> FindSubgraph(NodePtr s,
-                                  std::function<bool(NodePtr)> func) {
-  auto subgraph_nodes = SelectNodes(s, func);
-  std::vector<NodePtr> outNodes;
-  outNodes = subgraph_nodes;
-  if (subgraph_nodes.size() > 2) {
-    // search for broken loops
-    // remove nodes on broken loops
-    outNodes = RemoveBroken(s, outNodes, func);
-    outNodes = PruneSubgraphOutputs(s, outNodes, func);
-  }
-  return outNodes;
-}
-
-std::vector<NodePtr> SelectNodes(NodePtr s,
-                                 std::function<bool(NodePtr)> func) {
-  // init visited vector
-  std::unordered_set<NodePtr> visited;
-  // init output vector
-  std::vector<NodePtr> outNodes;
-  // recursiveliy search the graph
-  DFSUtil(s, visited, outNodes, func);
-  return outNodes;
-}
-
-void DFSUtil(NodePtr s,
-             std::unordered_set<NodePtr> &visited,
-             std::vector<NodePtr> &outNodes,
-             std::function<bool(NodePtr)> &func) {
-  // Mark the current node as visited
-  visited.insert(s);
-  // if this node matches func condition
-  if (func(s)) {
-    // add it to the output
-    outNodes.push_back(s);
-    // visit it's inputs
-    for (auto i : s->inputs_) {
-      if (!visited.count(i) && i->subgraph_ == 0) {
-        DFSUtil(i, visited, outNodes, func);
-      }
-    }
-  }
-}
-
-/**
  * Function to collapse the intermediary graph into a graph
  * with subgraphs for nodes
  */
-void CollapseSubgraphs(Graph* g) {
+void NgraphBuilder::CollapseSubgraphs() {
   // loop variable for undefined number of subgraphs
   int i = 1;
-  auto& nodes = g->GetNodes();
+  auto &nodes = graph_->GetNodes();
   while (true) {
     auto tmpGraph = std::make_shared<Graph>("subgraph_" + std::to_string(i));
     // loop over all nodes and add nodes in the current subgraph to
     for (auto node : nodes)
       if (node->subgraph_ == i) tmpGraph->AddNode(node);
-    auto& tmp_nodes = tmpGraph->GetNodes();
+    auto &tmp_nodes = tmpGraph->GetNodes();
     if (tmp_nodes.size() == 0) {
       // if we don't find any nodes, assume we've run out of subgraphs
       break;
@@ -148,14 +99,62 @@ void CollapseSubgraphs(Graph* g) {
 
   // delete all the nodes we're replacing with the subgraph
   nodes.erase(std::remove_if(nodes.begin(), nodes.end(),
-                              [](NodePtr n) -> bool {
-                                return ((n->subgraph_ > 0) &&
-                                    (n->type_ == NodeType::kOp));
-                              }),
-               nodes.end());
+                             [](NodePtr n) -> bool {
+                               return ((n->subgraph_ > 0) &&
+                                   (n->type_ == NodeType::kOp));
+                             }),
+              nodes.end());
 }
 
+/**
+ * Find a subgraph, check it for bad branches
+ * @param s
+ * @param func
+ * @return
+ */
+std::vector<NodePtr> NgraphBuilder::FindSubgraph(NodePtr s,
+                                                std::function<bool(NodePtr)> func) {
+  auto subgraph_nodes = SelectNodes(s, func);
+  std::vector<NodePtr> outNodes;
+  outNodes = subgraph_nodes;
+  if (subgraph_nodes.size() > 2) {
+    // search for broken loops
+    // remove nodes on broken loops
+    outNodes = RemoveBroken(s, outNodes, func);
+    outNodes = PruneSubgraphOutputs(s, outNodes, func);
+  }
+  return outNodes;
+}
 
+std::vector<NodePtr> NgraphBuilder::SelectNodes(NodePtr s,
+                                               std::function<bool(NodePtr)> func) {
+  // init visited vector
+  std::unordered_set<NodePtr> visited;
+  // init output vector
+  std::vector<NodePtr> outNodes;
+  // recursiveliy search the graph
+  DFSUtil(s, visited, outNodes, func);
+  return outNodes;
+}
+
+void NgraphBuilder::DFSUtil(NodePtr s,
+                           std::unordered_set<NodePtr> &visited,
+                           std::vector<NodePtr> &outNodes,
+                           std::function<bool(NodePtr)> &func) {
+  // Mark the current node as visited
+  visited.insert(s);
+  // if this node matches func condition
+  if (func(s)) {
+    // add it to the output
+    outNodes.push_back(s);
+    // visit it's inputs
+    for (auto i : s->inputs_) {
+      if (!visited.count(i) && i->subgraph_ == 0) {
+        DFSUtil(i, visited, outNodes, func);
+      }
+    }
+  }
+}
 
 /**
  * Utility for removing bad branches in a directed, acylic subraph.
@@ -165,10 +164,10 @@ void CollapseSubgraphs(Graph* g) {
  * @param func
  * @param visited_edges
  */
-void RemoveUtil(NodePtr s,
-                std::vector<NodePtr> &outNodes,
-                std::function<bool(NodePtr)> func,
-                std::set<edgeRemoveTup> &visited_edges) {
+void NgraphBuilder::RemoveUtil(NodePtr s,
+                              std::vector<NodePtr> &outNodes,
+                              std::function<bool(NodePtr)> func,
+                              std::set<edgeRemoveTup> &visited_edges) {
   // if this node doesn't match the function condition, delete it
   if (!func(s))
     outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), s),
@@ -195,9 +194,9 @@ void RemoveUtil(NodePtr s,
  * @param func
  * @return
  */
-std::vector<NodePtr> RemoveBroken(NodePtr s,
-                                  std::vector<NodePtr> &subgraph_nodes,
-                                  std::function<bool(NodePtr)> func) {
+std::vector<NodePtr> NgraphBuilder::RemoveBroken(NodePtr s,
+                                                std::vector<NodePtr> &subgraph_nodes,
+                                                std::function<bool(NodePtr)> func) {
   // create storage for the ouputs and the visited nodes
   std::vector<NodePtr> outNodes;
   std::unordered_set<NodePtr> visited;
@@ -250,13 +249,14 @@ std::vector<NodePtr> RemoveBroken(NodePtr s,
 // doesn't currently support multiple outputs
 // TODO: make the subgraph compiler handle multiple outputs and get rid of this
 // graph pass
-std::vector<NodePtr> PruneSubgraphOutputs(NodePtr s,
-                                          std::vector<NodePtr> &subgraph_nodes,
-                                          std::function<bool(NodePtr)> func) {
+std::vector<NodePtr> NgraphBuilder::PruneSubgraphOutputs(NodePtr s,
+                                                        std::vector<NodePtr> &subgraph_nodes,
+                                                        std::function<bool(
+                                                            NodePtr)> func) {
   // function to get all the outputs of the subgraph
   auto get_subgraph_outputs = [this, &subgraph_nodes]() {
     std::vector<NodePtr> outNodes;
-    for (auto n : nodes_)
+    for (auto n : graph_->GetNodes())
       if (!in_vec(subgraph_nodes, n))
         for (auto i : n->inputs_)
           if (in_vec(subgraph_nodes, i) && !in_vec(outNodes, i))
@@ -293,7 +293,5 @@ std::vector<NodePtr> PruneSubgraphOutputs(NodePtr s,
 
   return subgraph_nodes;
 }
-
-
 
 }  // namespace ngraph_bridge

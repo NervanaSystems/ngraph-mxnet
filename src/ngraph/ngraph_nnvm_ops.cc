@@ -137,7 +137,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
         return mxnet::op::type_assign(&((*oattr)[0]), dtype);
       });
 
-  auto computation = graph->ngraph_forward;
+  auto computation = graph->GetNgraphForward();
   auto name = graph->name_;
 
   // create the compute lambda
@@ -175,7 +175,7 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
   // Mark as backward
   op.set_attr<bool>("TIsBackward", true);
 
-  auto computation = graph->ngraph_backward;
+  auto computation = graph->GetNgraphBackward();
   auto name = graph->name_;
   
   // create the compute lambda
