@@ -252,7 +252,6 @@ class NgraphBuilder
    */
   void CollapseSubgraphs();
 
- //private:
   /**
    * Selection of nodes based on function criterion.
    * Note: uses DFSUtil().
@@ -262,6 +261,16 @@ class NgraphBuilder
    */
   std::vector<NodePtr> SelectNodes(NodePtr s, std::function<bool(NodePtr)> func);
 
+  /**
+   * Finds simply connected ngraph operations
+   * @param s
+   * @param func
+   * @return
+   */
+  std::vector<NodePtr> FindSubgraph(NodePtr s,
+                                    std::function<bool(NodePtr)> func);
+
+ private:
   /**
    * Utility to mark a node as visited and recursive search based on the results
    * of an input function
@@ -313,14 +322,6 @@ class NgraphBuilder
                                             std::vector<NodePtr>& subgraph_nodes,
                                             std::function<bool(NodePtr)> func);
 
-  /**
-   * Finds simply connected ngraph operations
-   * @param s
-   * @param func
-   * @return
-   */
-  std::vector<NodePtr> FindSubgraph(NodePtr s,
-                                    std::function<bool(NodePtr)> func);
 
  private:
   std::shared_ptr<Graph> graph_;
