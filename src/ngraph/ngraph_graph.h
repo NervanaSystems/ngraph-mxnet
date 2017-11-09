@@ -146,11 +146,7 @@ class Graph : public Node {
  public:
   Graph() : Graph("") {}
   Graph(const std::string &name) :
-      Node(NodeType::kGraph, nullptr, name),
-      num_outputs_(1),
-      nodes_(),
-      ngraph_forward_(nullptr),
-      ngraph_backward_(nullptr){}
+      Node(NodeType::kGraph, nullptr, name) {}
 
   /**
    * Add a node to the graph
@@ -227,12 +223,12 @@ class Graph : public Node {
   }
 
  private:
-  int num_outputs_;
+  int num_outputs_ = 1;
   /// nodes in this graph
-  std::vector<NodePtr> nodes_;
+  std::vector<NodePtr> nodes_{};
   // functions to execute this graph in ngraph
-  std::shared_ptr<CallFrame> ngraph_forward_;
-  std::shared_ptr<CallFrame> ngraph_backward_;
+  std::shared_ptr<CallFrame> ngraph_forward_{nullptr};
+  std::shared_ptr<CallFrame> ngraph_backward_{nullptr};
 };
 
 /**
