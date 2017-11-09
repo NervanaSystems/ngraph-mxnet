@@ -71,7 +71,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // compile it into a call frame with the backend, and save 
   // the compile frame into the subgraph
   auto forward_external = manager->compile(f);
-  sub_graph->ngraph_forward = backend->make_call_frame(forward_external);
+  sub_graph->SetNgraphForward(backend->make_call_frame(forward_external));
 
   // rebuild the graph and forward function for the backprop calculation
   // this is due to a current limitation in ngraph autodiff

@@ -164,7 +164,9 @@ class Compiler {
   // storage for copied graph
   nnvm::Graph graph_;
   // storage for IR graph
-  ngraph_bridge::Graph ngraph_;
+  std::shared_ptr<ngraph_bridge::Graph> ngraph_;
+  ngraph_bridge::GraphBuilder ngraph_builder_;
+
   // shape and type maps to return to the graph executor
   NgraphShape ngraph_shape_;
   NgraphDType ngraph_dtype_;

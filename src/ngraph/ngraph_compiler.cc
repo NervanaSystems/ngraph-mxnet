@@ -128,7 +128,9 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
 
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
-                   const NNVMNodeVec& inputs, const BindArgBase& bindbase) {
+                   const NNVMNodeVec& inputs, const BindArgBase& bindbase)
+    :ngraph_{new ngraph_bridge::Graph},
+     ngraph_builder_{ngraph_} {
   DeepCopy(graph);
 
   // infer nnvm::Graph shape and type
@@ -161,7 +163,8 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
   ParseNnvmGraph();
   CheckInNgraph();
 
-  ngraph_.IdentifySubgraphs([&feed_dict](NodePtr s) -> bool {
+
+  ngraph_builder_.IdentifySubgraphs([&feed_dict](NodePtr s) -> bool {
     bool in_feed_dict = false;
     for (auto kv : feed_dict) {
       if (kv.first.node->attrs.name == s->name_) {
@@ -176,14 +179,14 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
 // Main compilation function
 nnvm::Graph Compiler::Compile() {
   // Output Graphviz dot files (pre collapse) for vizualization
-  if (false) ngraph_.WriteSubgraphDots("pre_collapse");
+  if (false) WriteSubgraphDots(ngraph_, "pre_collapse");
 
-  ngraph_.CollapseSubgraphs();
+  ngraph_builder_.CollapseSubgraphs();
 
   // Output Graphviz dot files (post collapse) for vizualization
-  if (false) ngraph_.WriteSubgraphDots("post_collapse");
+  if (false) WriteSubgraphDots(ngraph_, "post_collapse");
 
-  for (auto node : ngraph_.GetNodes()) {
+  for (auto node : ngraph_->GetNodes()) {
     // store the input variable shape for use by nnvm
     // This is happening because my nnvm graph manipulations are
     // breaking the infer shape functionality, so shapes of inputs
@@ -196,7 +199,7 @@ nnvm::Graph Compiler::Compile() {
   }
 
   // find the subgraphs
-  for (auto n : ngraph_.GetNodes()) {
+  for (auto n : ngraph_->GetNodes()) {
     if (n->type_ == NodeType::kGraph) {
       // extract and compile subgraph
       auto sg = compiler_.Compile(n);
@@ -359,7 +362,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 
 // Check nodes in NGraph
 void Compiler::CheckInNgraph() {
-  for (auto node : ngraph_.GetNodes())
+  for (auto node : ngraph_->GetNodes())
     if (node->type_ == NodeType::kOp) 
       if (compiler_.ngraph_op_funcs_.count(node->operation_))
         node->in_ngraph_ = true;
@@ -379,10 +382,10 @@ void Compiler::ParseNnvmGraph() {
     const uint32_t nid = idx.node_id(node.get());
     if (mutable_nodes.count(nid) != 0) {
       // add an auxillary node to the graph
-      this->ngraph_.AddNode(std::make_shared<AuxNode>(node, node->attrs.name));
+      this->ngraph_->AddNode(std::make_shared<AuxNode>(node, node->attrs.name));
     } else if (node->is_variable()) {
       // add variable to the graph
-      this->ngraph_.AddNode(
+      this->ngraph_->AddNode(
           std::make_shared<VariableNode>(node, node->attrs.name));
     } else {
       // create operation node
@@ -393,14 +396,14 @@ void Compiler::ParseNnvmGraph() {
         const nnvm::NodeEntry& e = node->inputs[i];
         std::shared_ptr<Node> tmpnode;
         try {
-          tmpnode = this->ngraph_[e.node->attrs.name];
+          tmpnode = (*this->ngraph_)[e.node->attrs.name];
         } catch (std::string& error) {
           try {
             auto name = e.node->attrs.name + "_" + std::to_string(e.index);
-            tmpnode = this->ngraph_[name];
+            tmpnode = (*this->ngraph_)[name];
           } catch (std::string& error) {
             tmpnode = std::make_shared<VariableNode>(node, e.node->attrs.name);
-            this->ngraph_.AddNode(tmpnode);
+            this->ngraph_->AddNode(tmpnode);
           }
         }
         op_node->inputs_.emplace_back(tmpnode);
@@ -412,12 +415,12 @@ void Compiler::ParseNnvmGraph() {
                             &layer_funcs](std::shared_ptr<OpNode>& op_node) {
         auto tmp = layer_funcs[op_node->operation_](op_node);
         if (tmp.GetNumOutputs() > 1)
-          this->ngraph_.GetNodes().erase(
-              std::remove(this->ngraph_.GetNodes().begin(),
-                          this->ngraph_.GetNodes().end(), op_node),
-              this->ngraph_.GetNodes().end());
+          this->ngraph_->GetNodes().erase(
+              std::remove(this->ngraph_->GetNodes().begin(),
+                          this->ngraph_->GetNodes().end(), op_node),
+              this->ngraph_->GetNodes().end());
 
-        for (auto n : tmp.GetNodes()) this->ngraph_.AddNode(n);
+        for (auto n : tmp.GetNodes()) this->ngraph_->AddNode(n);
       };
 
       if (layer_funcs.count(op_node->operation_) != 0) {
@@ -425,7 +428,7 @@ void Compiler::ParseNnvmGraph() {
         expand_layers(op_node);
       } else {
         // add operation
-        this->ngraph_.AddNode(op_node);
+        this->ngraph_->AddNode(op_node);
       }
     }
   });
@@ -435,7 +438,7 @@ void Compiler::ParseNnvmGraph() {
   const auto inferred_shapes =
       graph_.GetAttr<std::vector<nnvm::TShape>>("shape");
   const auto inferred_dtypes = graph_.GetAttr<std::vector<int>>("dtype");
-  for (auto node : this->ngraph_.GetNodes()) {
+  for (auto node : this->ngraph_->GetNodes()) {
     const uint32_t nid = idx.node_id(node->orig_node_.get());
     const uint32_t eid = idx.entry_id(nid, 0);
     node->shape_ = inferred_shapes[eid];

@@ -35,12 +35,8 @@
 
 namespace ngraph_bridge {
 
-// Forward Delcaration for type aliases
-class Node;
-
 // Useful type aliases
 using nnvmNodePtr = std::shared_ptr<nnvm::Node>;
-using NodePtr = std::shared_ptr<Node>;
 
 // Possible Types of nodes in Current Version
 enum class NodeType { kVariable, kAux, kOp, kGraph };
@@ -144,6 +140,9 @@ using edgeRemoveTup = std::tuple<NodePtr, NodePtr, bool>;
  * TODO: Refactor into Graph and subgraph?
  */
 class Graph : public Node {
+ private:
+  typedef ngraph::runtime::CallFrame CallFrame;
+
  public:
   Graph() : Graph("") {}
   Graph(const std::string &name) :
@@ -160,44 +159,64 @@ class Graph : public Node {
    * Constant accessor for nodes
    * @return the nodes in the graph
    */
-  const std::vector<NodePtr>& Graph::GetNodes() const { return nodes_; }
+  const std::vector<NodePtr>& GetNodes() const { return nodes_; }
 
   /**
    * Non-const accessor for nodes
    * @return the nodes in the graph
    */
-  std::vector<NodePtr>& Graph::GetNodes() { return nodes_; }
+  std::vector<NodePtr>& GetNodes() { return nodes_; }
 
   /**
    * Accessor for number of outputs
    * @return number of outputs of this graph
    */
-  int Graph::GetNumOutputs() const { return num_outputs_; }
+  int GetNumOutputs() const { return num_outputs_; }
 
   /**
    * Sets the number of outputs for this graph
    * @param num_outputs
    */
-  void Graph::SetNumOutputs(int num_outputs) { num_outputs_ = num_outputs; }
+  void SetNumOutputs(int num_outputs) { num_outputs_ = num_outputs; }
 
   /**
-   * High level function that does the subgraph identification
-   * @param func
+   * NGraph forward operation
+   * @return CallFrame for the forward operation
    */
-  void IdentifySubgraphs(std::function<bool(NodePtr)> func);
+  const std::shared_ptr<CallFrame>& GetNgraphForward() const {
+    return ngraph_forward_;
+  }
 
   /**
-   * convert graph from identified nodes to a network of nodes and graphs,
-   * each graph node represented a combined ngraph operation
+   * Set NGraph forward operation
+   * @param forward forward CallFrame
    */
-  void CollapseSubgraphs();
+  void SetNgraphForward(const std::shared_ptr<CallFrame>& forward) {
+    ngraph_forward_ = forward;
+  }
+
+  /**
+   * NGraph backward operation
+   * @return CallFrame for the backward operation
+   */
+  const std::shared_ptr<CallFrame>& GetNgraphBackward() const {
+    return ngraph_backward_;
+  }
+
+  /**
+   * Set NGraph backward operation
+   * @param backward backward CallFrame
+   */
+  void SetNgraphBackward(const std::shared_ptr<CallFrame>& backward) {
+    ngraph_backward_ = backward;
+  }
 
   /**
    * get the node corresponding to a name
    * @param name
-   * @return
+   * @return matching node
    */
-  NodePtr operator[](std::string name) {
+  NodePtr operator[](std::string name) const {
     for (auto n : nodes_)
       if (n->name_ == name) return n;
     // This throw is used in constructing multi-output subgraphs
@@ -206,87 +225,102 @@ class Graph : public Node {
 
  private:
   int num_outputs_;
-  // nodes in this graph
+  /// nodes in this graph
   std::vector<NodePtr> nodes_;
   // functions to execute this graph in ngraph
-  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward;
-  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward;
+  std::shared_ptr<CallFrame> ngraph_forward_;
+  std::shared_ptr<CallFrame> ngraph_backward_;
 };
 
-template <typename T>
-inline bool in_vec(const std::vector<T>& vec, const T& s) {
-  return (std::find(vec.begin(), vec.end(), s) != vec.end());
-}
+class GraphBuilder
+{
+ public:
+  explicit GraphBuilder(const std::shared_ptr<Graph>& g)
+      : graph_(g) {}
+  /**
+   * High level function that does the subgraph identification
+   * @param func
+   */
+  void IdentifySubgraphs(std::function<bool(NodePtr)> func);
 
-/**
- * Selection of nodes based on function criterion.
- * Note: uses DFSUtil().
- * @param s
- * @param func
- * @return
- */
-std::vector<NodePtr> SelectNodes(NodePtr s, std::function<bool(NodePtr)> func);
+  /**
+   * Convert graph from identified nodes to a network of nodes and graphs,
+   * each graph node represented a combined ngraph operation
+   */
+  void CollapseSubgraphs();
 
-/**
- * Utility to mark a node as visited and recursive search based on the results
- * of an input function
- * @param s
- * @param visited
- * @param outNodes
- * @param func
- */
-void DFSUtil(NodePtr s,
-             std::unordered_set<NodePtr>& visited,
-             std::vector<NodePtr>& outNodes,
-             std::function<bool(NodePtr)>& func);
+ private:
+  /**
+   * Selection of nodes based on function criterion.
+   * Note: uses DFSUtil().
+   * @param s
+   * @param func
+   * @return
+   */
+  std::vector<NodePtr> SelectNodes(NodePtr s, std::function<bool(NodePtr)> func);
 
-/**
- * Graph pass find loops in the subgraph where 1 branch of the loop is ngraph
- * compatible and the other
- * @param s
- * @param subgraph_nodes
- * @param func
- * @return
- */
-std::vector<NodePtr> RemoveBroken(NodePtr s,
-                                  std::vector<NodePtr>& subgraph_nodes,
-                                  std::function<bool(NodePtr)> func);
+  /**
+   * Utility to mark a node as visited and recursive search based on the results
+   * of an input function
+   * @param s
+   * @param visited
+   * @param outNodes
+   * @param func
+   */
+  void DFSUtil(NodePtr s,
+               std::unordered_set<NodePtr>& visited,
+               std::vector<NodePtr>& outNodes,
+               std::function<bool(NodePtr)>& func);
 
-/**
- *
- * @param s
- * @param outNodes
- * @param func
- * @param visited_edges
- */
-void RemoveUtil(NodePtr s,
-                std::vector<NodePtr>& outNodes,
-                std::function<bool(NodePtr)> func,
-                std::set<edgeRemoveTup>& visited_edges);
+  /**
+   * Graph pass find loops in the subgraph where 1 branch of the loop is ngraph
+   * compatible and the other
+   * @param s
+   * @param subgraph_nodes
+   * @param func
+   * @return
+   */
+  std::vector<NodePtr> RemoveBroken(NodePtr s,
+                                    std::vector<NodePtr>& subgraph_nodes,
+                                    std::function<bool(NodePtr)> func);
 
-/**
- * Modified subgraph to only return 1 output.
- * If we improve the subgraph compiler/nnvm op construction
- * we might be able to get rid of this pass
- * @param s
- * @param subgraph_nodes
- * @param func
- * @return
- */
-std::vector<NodePtr> PruneSubgraphOutputs(NodePtr s,
-                                          std::vector<NodePtr>& subgraph_nodes,
-                                          std::function<bool(NodePtr)> func);
+  /**
+   *
+   * @param s
+   * @param outNodes
+   * @param func
+   * @param visited_edges
+   */
+  void RemoveUtil(NodePtr s,
+                  std::vector<NodePtr>& outNodes,
+                  std::function<bool(NodePtr)> func,
+                  std::set<edgeRemoveTup>& visited_edges);
 
+  /**
+   * Modified subgraph to only return 1 output.
+   * If we improve the subgraph compiler/nnvm op construction
+   * we might be able to get rid of this pass
+   * @param s
+   * @param subgraph_nodes
+   * @param func
+   * @return
+   */
+  std::vector<NodePtr> PruneSubgraphOutputs(NodePtr s,
+                                            std::vector<NodePtr>& subgraph_nodes,
+                                            std::function<bool(NodePtr)> func);
 
+  /**
+   * Finds simply connected ngraph operations
+   * @param s
+   * @param func
+   * @return
+   */
+  std::vector<NodePtr> FindSubgraph(NodePtr s,
+                                    std::function<bool(NodePtr)> func);
 
-/**
- * Finds simply connected ngraph operations
- * @param s
- * @param func
- * @return
- */
-std::vector<NodePtr> FindSubgraph(NodePtr s,
-                                  std::function<bool(NodePtr)> func);
+ private:
+  std::shared_ptr<Graph> graph_;
+};
 
 }  // namespace ngraph_bridge
 

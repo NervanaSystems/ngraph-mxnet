@@ -21,7 +21,10 @@
 
 namespace ngraph_bridge {
 
+// Forward Delcaration for type aliases
+class Node;
 class Graph;
+using NodePtr = std::shared_ptr<Node>;
 using GraphPtr = std::shared_ptr<Graph>;
 
 //create a random string to avoid subgraph name collisions
@@ -41,6 +44,11 @@ inline std::string randomString(const int length = 12) {
   std::generate_n(std::back_inserter(str), length,
                   [&]() { return alphabet[dist(rng)]; });
   return str;
+}
+
+template <typename T>
+inline bool in_vec(const std::vector<T>& vec, const T& s) {
+  return (std::find(vec.begin(), vec.end(), s) != vec.end());
 }
 
 /**
