@@ -131,8 +131,6 @@ class OpNode : public Node {
   }
 };
 
-using edgeRemoveTup = std::tuple<NodePtr, NodePtr, bool>;
-
 /**
  * Graph class
  * Graph subclasses Node so that we can embed graphs into other graphs
@@ -235,6 +233,8 @@ class Graph : public Node {
  * NGraph and process these subgraphs to use NGraph operations.
  */
 class NgraphBuilder {
+ private:
+  typedef std::tuple<NodePtr, NodePtr, bool> edgeRemoveTup;
  public:
   explicit NgraphBuilder(const GraphPtr& g) : graph_(g) {}
   /**
