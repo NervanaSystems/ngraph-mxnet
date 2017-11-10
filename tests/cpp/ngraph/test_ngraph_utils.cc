@@ -63,7 +63,6 @@ TEST(NGRAPH_NNVM, GetBufferSize) {
   EXPECT_EQ(get_buffer_size(Tshape, 8), 960);
 }
 
-
 TEST(NGRAPH_NNVM, copy_TBlobs) {
   nnvm::TShape shape{10};
   std::vector<float> vec1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};

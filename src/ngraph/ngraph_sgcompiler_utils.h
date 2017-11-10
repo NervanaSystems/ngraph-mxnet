@@ -26,18 +26,18 @@
 namespace ngraph_bridge {
 
 inline const ngraph::element::Type& getType(int type) {
-  static std::map<int, const ngraph::element::Type*>
-      typemap = {
-          {mshadow::kFloat32, &ngraph::element::Float32::element_type()},
-          {mshadow::kUint8, &ngraph::element::UInt8::element_type()},
-          {mshadow::kInt8, &ngraph::element::Int8::element_type()},
-          {mshadow::kInt32, &ngraph::element::Int32::element_type()},
-          {mshadow::kInt64, &ngraph::element::Int64::element_type()}};
+  static const std::map<int, const ngraph::element::Type*> typemap = {
+      {mshadow::kFloat32, &ngraph::element::Float32::element_type()},
+      {mshadow::kUint8, &ngraph::element::UInt8::element_type()},
+      {mshadow::kInt8, &ngraph::element::Int8::element_type()},
+      {mshadow::kInt32, &ngraph::element::Int32::element_type()},
+      {mshadow::kInt64, &ngraph::element::Int64::element_type()}};
 
-  if (typemap.find(type) == typemap.end()) {
+  auto ngraphType = typemap.find(type);
+  if (ngraphType == typemap.end()) {
     throw "NGRAPH_BRIDGE: type not supported";
   }
-  return *typemap[type];
+  return *ngraphType->second;
 }
 
 // Template for converting shape objects via a range based for loop
