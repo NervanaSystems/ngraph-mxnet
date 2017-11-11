@@ -187,8 +187,8 @@ class Graph : public Node {
    * Set NGraph forward operation
    * @param forward forward CallFrame
    */
-  void SetNgraphForward(const std::shared_ptr<CallFrame>& forward) {
-    ngraph_forward_ = forward;
+  void SetNgraphForward(std::shared_ptr<CallFrame> forward) {
+    ngraph_forward_ = std::move(forward);
   }
 
   /**
@@ -203,8 +203,8 @@ class Graph : public Node {
    * Set NGraph backward operation
    * @param backward backward CallFrame
    */
-  void SetNgraphBackward(const std::shared_ptr<CallFrame>& backward) {
-    ngraph_backward_ = backward;
+  void SetNgraphBackward(std::shared_ptr<CallFrame> backward) {
+    ngraph_backward_ = std::move(backward);
   }
 
   /**
@@ -236,7 +236,7 @@ class NgraphBuilder {
  private:
   typedef std::tuple<NodePtr, NodePtr, bool> edgeRemoveTup;
  public:
-  explicit NgraphBuilder(const GraphPtr& g) : graph_(g) {}
+  explicit NgraphBuilder(Graph& g) : graph_(g) {}
   /**
    * High level function that does the subgraph identification
    * @param func
@@ -319,7 +319,7 @@ class NgraphBuilder {
       std::function<bool(NodePtr)> func);
 
  private:
-  GraphPtr graph_;
+  Graph& graph_;
 };
 
 }  // namespace ngraph_bridge

@@ -29,7 +29,7 @@ using OpNodePtr = std::shared_ptr<OpNode>;
 void NgraphBuilder::IdentifySubgraphs(std::function<bool(NodePtr)> func) {
   int sg = 1;
   // loop over the nodes from the back
-  for (auto i : reverse_iterate(graph_->GetNodes())) {
+  for (auto i : reverse_iterate(graph_.GetNodes())) {
     if (i->subgraph_ == 0) {
       // select nodes in the a subgraph starting here and going up the graph
       auto subgraph_nodes = FindSubgraph(i, func);
@@ -52,7 +52,7 @@ void NgraphBuilder::IdentifySubgraphs(std::function<bool(NodePtr)> func) {
 void NgraphBuilder::CollapseSubgraphs() {
   // loop variable for undefined number of subgraphs
   int i = 1;
-  auto &nodes = graph_->GetNodes();
+  auto &nodes = graph_.GetNodes();
   while (true) {
     auto tmpGraph = std::make_shared<Graph>("subgraph_" + std::to_string(i));
     // loop over all nodes and add nodes in the current subgraph to
@@ -253,7 +253,7 @@ std::vector<NodePtr> NgraphBuilder::PruneSubgraphOutputs(
   // function to get all the outputs of the subgraph
   auto get_subgraph_outputs = [this, &subgraph_nodes]() {
     std::vector<NodePtr> outNodes;
-    for (auto n : graph_->GetNodes())
+    for (auto n : graph_.GetNodes())
       if (!in_vec(subgraph_nodes, n))
         for (auto i : n->inputs_)
           if (in_vec(subgraph_nodes, i) && !in_vec(outNodes, i))

@@ -54,12 +54,12 @@ inline bool in_vec(const std::vector<T>& vec, const T& s) {
 /**
  * Utility for writing a graph to a file for graphviz visualization
  */
-void WriteDot(const GraphPtr& graph, const std::string& fname);
+void WriteDot(const Graph& graph, const std::string& fname);
 
 /**
  * Write the subgraphs in a graph to a dot file for graphviz visualization
  */
-void WriteSubgraphDots(const GraphPtr& graph, const std::string& base);
+void WriteSubgraphDots(const Graph& graph, const std::string& base);
 
 }  // namespace ngraph_bridge
 #endif  // UTILS_H_

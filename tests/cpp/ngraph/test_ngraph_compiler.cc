@@ -92,7 +92,7 @@ TEST_F(NGRAPH_COMPILER, PARSENNVMGRAPH) {
   // In core NNVM. This test misses the conversion of Activation->relu
   // and the parsing of mutable nodes right now.
   testCompiler test(nnvm_graph, feed_dict, inputs, *bindarg);
-  for (auto n : test.ngraph_->GetNodes()) {
+  for (auto n : test.ngraph_.GetNodes()) {
     EXPECT_EQ(n->orig_node_, test.node_map_[nodes_[n->name_].get()]);
     EXPECT_EQ(n->name_, nodes_[n->name_]->attrs.name);
     if (n->type_ == NodeType::kOp)
@@ -109,7 +109,7 @@ TEST_F(NGRAPH_COMPILER, PARSENNVMGRAPH) {
   const auto inferred_shapes =
       test.graph_.GetAttr<std::vector<nnvm::TShape>>("shape");
   const auto inferred_dtypes = test.graph_.GetAttr<std::vector<int>>("dtype");
-  for (auto node : test.ngraph_->GetNodes()) {
+  for (auto node : test.ngraph_.GetNodes()) {
     const uint32_t nid = idx.node_id(node->orig_node_.get());
     const uint32_t eid = idx.entry_id(nid, 0);
     EXPECT_EQ(node->shape_, inferred_shapes[eid]);
@@ -119,7 +119,7 @@ TEST_F(NGRAPH_COMPILER, PARSENNVMGRAPH) {
 
 TEST_F(NGRAPH_COMPILER, CHECK_IN_NGRAPH) {
   testCompiler test(nnvm_graph, feed_dict, inputs, *bindarg);
-  for (auto n : test.ngraph_->GetNodes()) {
+  for (auto n : test.ngraph_.GetNodes()) {
     if (n->type_ == NodeType::kOp) {
       EXPECT_EQ(n->in_ngraph_,
                 test.compiler_.ngraph_op_funcs_.count(n->operation_));
