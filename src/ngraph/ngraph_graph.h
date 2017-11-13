@@ -234,7 +234,7 @@ class Graph : public Node {
  */
 class NgraphBuilder {
  private:
-  typedef std::tuple<NodePtr, NodePtr, bool> edgeRemoveTup;
+  typedef std::tuple<NodePtr, NodePtr, bool> EdgeRemoveTup;
  public:
   explicit NgraphBuilder(Graph& g) : graph_(g) {}
   /**
@@ -303,7 +303,7 @@ class NgraphBuilder {
    */
   void RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
                   std::function<bool(NodePtr)> func,
-                  std::set<edgeRemoveTup>& visited_edges);
+                  std::set<EdgeRemoveTup>& visited_edges);
 
   /**
    * Modified subgraph to only return 1 output.

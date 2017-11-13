@@ -165,7 +165,7 @@ void NgraphBuilder::DFSUtil(NodePtr s, std::unordered_set<NodePtr> &visited,
  */
 void NgraphBuilder::RemoveUtil(NodePtr s, std::vector<NodePtr> &outNodes,
                                std::function<bool(NodePtr)> func,
-                               std::set<edgeRemoveTup> &visited_edges) {
+                               std::set<EdgeRemoveTup> &visited_edges) {
   // if this node doesn't match the function condition, delete it
   if (!func(s))
     outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), s),
@@ -176,7 +176,7 @@ void NgraphBuilder::RemoveUtil(NodePtr s, std::vector<NodePtr> &outNodes,
     if (in_vec(outNodes, i)) {
       // ask if we've already gone up this branch in this closure state.
       // if so, don't revisit, if not, try it both good and bad.
-      auto edge_tup = edgeRemoveTup{s, i, func(s)};
+      auto edge_tup = EdgeRemoveTup{s, i, func(s)};
       if (!visited_edges.count(edge_tup)) {
         visited_edges.insert(edge_tup);
         RemoveUtil(i, outNodes, func, visited_edges);
@@ -198,7 +198,7 @@ std::vector<NodePtr> NgraphBuilder::RemoveBroken(
   // create storage for the ouputs and the visited nodes
   std::vector<NodePtr> outNodes;
   std::unordered_set<NodePtr> visited;
-  std::set<edgeRemoveTup> visited_edges;
+  std::set<EdgeRemoveTup> visited_edges;
 
   // This function searches the nodes that are inputs to the final
   // subgraph output AND outputs of other subgraph nodes
