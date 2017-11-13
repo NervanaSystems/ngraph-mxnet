@@ -18,8 +18,6 @@
 #include "ngraph_autobroadcast.h"
 #include "ngraph_graph.h"
 
-using NgraphNodePtr = std::shared_ptr<ngraph::Node>;
-
 namespace ngraph_bridge {
 
 // Alias for maps of name, function, where function returns an ngraph node

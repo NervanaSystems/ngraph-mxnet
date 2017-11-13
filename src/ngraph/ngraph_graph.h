@@ -39,6 +39,7 @@ namespace ngraph_bridge {
 class Node;
 
 // Useful type aliases
+using NgraphNodePtr = std::shared_ptr<ngraph::Node>;
 using nnvmNodePtr = std::shared_ptr<nnvm::Node>;
 using NodePtr = std::shared_ptr<Node>;
 
