@@ -88,11 +88,7 @@ TEST(NGRAPH_GRAPH, GRAPH_NODES_) {
 auto isop = [](NodePtr s) { return (s->type_ == NodeType::kOp); };
 
 struct DFS_Test {
-  DFS_Test()
-      : linear_graph(),
-        branching_graph(),
-        linear_builder(linear_graph),
-        branching_builder(branching_graph) {
+  DFS_Test() : linear_graph(), branching_graph() {
     std::vector<std::string> opnames{"Flatten", "Convolution", "relu", "add",
                                      "FullyConnected"};
     linear_graph.AddNode(std::make_shared<VariableNode>(nullptr, "variable"));
@@ -118,64 +114,48 @@ struct DFS_Test {
   }
   Graph linear_graph;
   Graph branching_graph;
-  NgraphBuilder linear_builder;
-  NgraphBuilder branching_builder;
 };
 
 DFS_Test test_search;
 
 TEST(NGRAPH_GRAPH, GRAPH_DFS_LINEAR) {
   // TODO
-  EXPECT_EQ(test_search.linear_builder
-                .SelectNodes(test_search.linear_graph.GetNodes()[4], isop)
-                .size(),
+  EXPECT_EQ(SelectNodes(test_search.linear_graph.GetNodes()[4], isop).size(),
             4);
-  EXPECT_EQ(test_search.linear_builder
-                .SelectNodes(test_search.linear_graph.GetNodes()[3], isop)
-                .size(),
+  EXPECT_EQ(SelectNodes(test_search.linear_graph.GetNodes()[3], isop).size(),
             3);
-  EXPECT_EQ(test_search.linear_builder
-                .SelectNodes(test_search.linear_graph.GetNodes()[0], isop)
-                .size(),
+  EXPECT_EQ(SelectNodes(test_search.linear_graph.GetNodes()[0], isop).size(),
             0);
 }
 
 TEST(NGRAPH_GRAPH, GRAPH_DFS_BRANCHING) {
-  EXPECT_EQ(test_search.branching_builder
-                .SelectNodes(test_search.branching_graph.GetNodes()[1], isop)
-                .size(),
+  EXPECT_EQ(SelectNodes(test_search.branching_graph.GetNodes()[1], isop).size(),
             1);
-  EXPECT_EQ(test_search.branching_builder
-                .SelectNodes(test_search.branching_graph.GetNodes()[2], isop)
-                .size(),
+  EXPECT_EQ(SelectNodes(test_search.branching_graph.GetNodes()[2], isop).size(),
             2);
-  EXPECT_EQ(test_search.branching_builder
-                .SelectNodes(test_search.branching_graph.GetNodes()[4], isop)
-                .size(),
+  EXPECT_EQ(SelectNodes(test_search.branching_graph.GetNodes()[4], isop).size(),
             3);
-  EXPECT_EQ(test_search.branching_builder
-                .SelectNodes(test_search.branching_graph.GetNodes()[5], isop)
-                .size(),
+  EXPECT_EQ(SelectNodes(test_search.branching_graph.GetNodes()[5], isop).size(),
             4);
 }
 
 TEST(NGRAPH_GRAPH, GRAPH_FIND_SUBGRAPH) {
-  EXPECT_EQ(test_search.branching_builder
-                .FindSubgraph(test_search.branching_graph.GetNodes()[2], isop)
+  EXPECT_EQ(FindSubgraph(test_search.branching_graph,
+                         test_search.branching_graph.GetNodes()[2], isop)
                 .size(),
             2);
-  EXPECT_EQ(test_search.branching_builder
-                .FindSubgraph(test_search.branching_graph.GetNodes()[4], isop)
+  EXPECT_EQ(FindSubgraph(test_search.branching_graph,
+                         test_search.branching_graph.GetNodes()[4], isop)
                 .size(),
             2);
-  EXPECT_EQ(test_search.branching_builder
-                .FindSubgraph(test_search.branching_graph.GetNodes()[5], isop)
+  EXPECT_EQ(FindSubgraph(test_search.branching_graph,
+                         test_search.branching_graph.GetNodes()[5], isop)
                 .size(),
             3);
 }
 
 TEST(NGRAPH_GRAPH, GRAPH_IDENTIFY_SUBGRAPHS) {
-  test_search.branching_builder.IdentifySubgraphs(isop);
+  IdentifySubgraphs(test_search.branching_graph, isop);
   EXPECT_EQ(test_search.branching_graph.GetNodes()[0]->subgraph_, 0);
   EXPECT_EQ(test_search.branching_graph.GetNodes()[1]->subgraph_, -1);
   EXPECT_EQ(test_search.branching_graph.GetNodes()[2]->subgraph_, 1);
@@ -186,8 +166,8 @@ TEST(NGRAPH_GRAPH, GRAPH_IDENTIFY_SUBGRAPHS) {
 
 struct SUBG_test {
   SUBG_test() {
-    test.branching_builder.IdentifySubgraphs(isop);
-    test.branching_builder.CollapseSubgraphs();
+    IdentifySubgraphs(test.branching_graph, isop);
+    CollapseSubgraphs(test.branching_graph);
     // test.branching_graph.WriteSubgraphDots("collapsed_branches");
   }
   DFS_Test test;

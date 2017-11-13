@@ -129,7 +129,7 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                    const NNVMNodeVec& inputs, const BindArgBase& bindbase)
-    : ngraph_{}, ngraph_builder_{ngraph_} {
+    : ngraph_{} {
   DeepCopy(graph);
 
   // infer nnvm::Graph shape and type
@@ -162,7 +162,7 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
   ParseNnvmGraph();
   CheckInNgraph();
 
-  ngraph_builder_.IdentifySubgraphs([&feed_dict](NodePtr s) -> bool {
+  IdentifySubgraphs(ngraph_, [&feed_dict](NodePtr s) -> bool {
     bool in_feed_dict = false;
     for (auto kv : feed_dict) {
       if (kv.first.node->attrs.name == s->name_) {
@@ -179,7 +179,7 @@ nnvm::Graph Compiler::Compile() {
   // Output Graphviz dot files (pre collapse) for vizualization
   if (false) WriteSubgraphDots(ngraph_, "pre_collapse");
 
-  ngraph_builder_.CollapseSubgraphs();
+  CollapseSubgraphs(ngraph_);
 
   // Output Graphviz dot files (post collapse) for vizualization
   if (false) WriteSubgraphDots(ngraph_, "post_collapse");

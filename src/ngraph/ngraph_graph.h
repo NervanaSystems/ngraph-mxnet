@@ -229,98 +229,37 @@ class Graph : public Node {
 };
 
 /**
- * NgraphBuilder identifies subgraph in a Graph which can be represented using
- * NGraph and process these subgraphs to use NGraph operations.
+ * High level function that does the subgraph identification
+ * @param graph input graph
+ * @param func selection criteria
  */
-class NgraphBuilder {
- private:
-  typedef std::tuple<NodePtr, NodePtr, bool> EdgeRemoveTup;
- public:
-  explicit NgraphBuilder(Graph& g) : graph_(g) {}
-  /**
-   * High level function that does the subgraph identification
-   * @param func
-   */
-  void IdentifySubgraphs(std::function<bool(NodePtr)> func);
+void IdentifySubgraphs(Graph& graph, std::function<bool(NodePtr)> func);
 
-  /**
-   * Convert graph from identified nodes to a network of nodes and graphs,
-   * each graph node represented a combined ngraph operation
-   */
-  void CollapseSubgraphs();
+/**
+ * Convert graph from identified nodes to a network of nodes and graphs,
+ * each graph node represented a combined ngraph operation
+ * @param graph input graph
+ */
+void CollapseSubgraphs(Graph& graph);
 
-  /**
-   * Selection of nodes based on function criterion.
-   * Note: uses DFSUtil().
-   * @param s
-   * @param func
-   * @return
-   */
-  std::vector<NodePtr> SelectNodes(NodePtr s,
-                                   std::function<bool(NodePtr)> func);
+/**
+ * Selection of nodes based on function criterion.
+ * Note: uses DFSUtil().
+ * @param s reference to input graph
+ * @param func selection criteria
+ * @return nodes found
+ */
+std::vector<NodePtr> SelectNodes(NodePtr s, std::function<bool(NodePtr)> func);
 
-  /**
-   * Finds simply connected ngraph operations
-   * @param s
-   * @param func
-   * @return
-   */
-  std::vector<NodePtr> FindSubgraph(NodePtr s,
-                                    std::function<bool(NodePtr)> func);
-
- private:
-  /**
-   * Utility to mark a node as visited and recursive search based on the results
-   * of an input function
-   * @param s
-   * @param visited
-   * @param outNodes
-   * @param func
-   */
-  void DFSUtil(NodePtr s, std::unordered_set<NodePtr>& visited,
-               std::vector<NodePtr>& outNodes,
-               std::function<bool(NodePtr)>& func);
-
-  /**
-   * Graph pass find loops in the subgraph where 1 branch of the loop is ngraph
-   * compatible and the other
-   * @param s
-   * @param subgraph_nodes
-   * @param func
-   * @return
-   */
-  std::vector<NodePtr> RemoveBroken(NodePtr s,
-                                    std::vector<NodePtr>& subgraph_nodes,
-                                    std::function<bool(NodePtr)> func);
-
-  /**
-   * Utility for removing bad branches in a directed, acylic subraph.
-   * Will fail for cyclic graphs
-   * @param s
-   * @param outNodes
-   * @param func
-   * @param visited_edges
-   */
-  void RemoveUtil(NodePtr s, std::vector<NodePtr>& outNodes,
-                  std::function<bool(NodePtr)> func,
-                  std::set<EdgeRemoveTup>& visited_edges);
-
-  /**
-   * Modified subgraph to only return 1 output.
-   * If we improve the subgraph compiler/nnvm op construction
-   * we might be able to get rid of this pass
-   * @param s
-   * @param subgraph_nodes
-   * @param func
-   * @return
-   */
-  std::vector<NodePtr> PruneSubgraphOutputs(
-      NodePtr s, std::vector<NodePtr>& subgraph_nodes,
-      std::function<bool(NodePtr)> func);
-
- private:
-  Graph& graph_;
-};
+/**
+ * Finds simply connected ngraph operations
+ * @param graph input graph
+ * @param s
+ * @param func selection criteria
+ * @return
+ */
+std::vector<NodePtr> FindSubgraph(Graph& graph, NodePtr s,
+                                  std::function<bool(NodePtr)> func);
 
 }  // namespace ngraph_bridge
 

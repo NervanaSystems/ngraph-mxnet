@@ -117,8 +117,7 @@ void SGCompiler::CompileSubgraph(GraphPtr sub_graph) {
 }
 
 // compiling a node, recursively checking it's inputs
-void SGCompiler::CompileNode(NodePtr node,
-                             const GraphPtr sub_graph) {
+void SGCompiler::CompileNode(NodePtr node, const GraphPtr sub_graph) {
   if (!op_map_.count(node)) {
     // Loop over the inputs and ensure they've been compile3d
     for (auto input : node->inputs_) {

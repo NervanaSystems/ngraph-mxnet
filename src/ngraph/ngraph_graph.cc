@@ -20,19 +20,187 @@
 
 namespace ngraph_bridge {
 // Type Aliases
-using OpNodePtr = std::shared_ptr<OpNode>;
+using EdgeRemoveTup = std::tuple<NodePtr, NodePtr, bool>;
 
 /**
- * Function to identify and label connected ngraph ops as subgraphs
+ * Utility to mark a node as visited and recursive search based on the results
+ * of an input function
+ * @param s
+ * @param visited
+ * @param outNodes
  * @param func
  */
-void NgraphBuilder::IdentifySubgraphs(std::function<bool(NodePtr)> func) {
+void DFSUtil(NodePtr s, std::unordered_set<NodePtr> &visited,
+             std::vector<NodePtr> &outNodes,
+             std::function<bool(NodePtr)> &func) {
+  // Mark the current node as visited
+  visited.insert(s);
+  // if this node matches func condition
+  if (func(s)) {
+    // add it to the output
+    outNodes.push_back(s);
+    // visit it's inputs
+    for (auto i : s->inputs_) {
+      if (!visited.count(i) && i->subgraph_ == 0) {
+        DFSUtil(i, visited, outNodes, func);
+      }
+    }
+  }
+}
+
+/**
+ * Utility for removing bad branches in a directed, acylic subraph.
+ * Will fail for cyclic graphs
+ * @param s
+ * @param outNodes
+ * @param func
+ * @param visited_edges
+ */
+void RemoveUtil(NodePtr s, std::vector<NodePtr> &outNodes,
+                std::function<bool(NodePtr)> func,
+                std::set<EdgeRemoveTup> &visited_edges) {
+  // if this node doesn't match the function condition, delete it
+  if (!func(s))
+    outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), s),
+                   outNodes.end());
+
+  // visit it's inputs if they're still in the subgraph
+  for (auto i : s->inputs_)
+    if (in_vec(outNodes, i)) {
+      // ask if we've already gone up this branch in this closure state.
+      // if so, don't revisit, if not, try it both good and bad.
+      auto edge_tup = EdgeRemoveTup{s, i, func(s)};
+      if (!visited_edges.count(edge_tup)) {
+        visited_edges.insert(edge_tup);
+        RemoveUtil(i, outNodes, func, visited_edges);
+      }
+    }
+}
+
+/**
+ * This function searches for non-local issues that make parts of an
+ * ngraph identified subgraph non-computable
+ * @param s
+ * @param subgraph_nodes
+ * @param func
+ * @return
+ */
+std::vector<NodePtr> RemoveBroken(NodePtr s,
+                                  std::vector<NodePtr> &subgraph_nodes,
+                                  std::function<bool(NodePtr)> func) {
+  // create storage for the ouputs and the visited nodes
+  std::vector<NodePtr> outNodes;
+  std::unordered_set<NodePtr> visited;
+  std::set<EdgeRemoveTup> visited_edges;
+
+  // This function searches the nodes that are inputs to the final
+  // subgraph output AND outputs of other subgraph nodes
+  // to minimize what needs to be searched for broken loops
+  std::function<bool(NodePtr)> get_nodes;
+  get_nodes = [&outNodes, &visited, &get_nodes, &func](NodePtr s) {
+    visited.insert(s);
+    bool im_an_output = false;
+    if (func(s)) im_an_output = true;
+
+    for (auto i : s->inputs_) {
+      if (!in_vec(outNodes, i)) {
+        if (!visited.count(i))
+          if (get_nodes(i)) im_an_output = true;
+      } else {
+        im_an_output = true;
+      }
+    }
+
+    if (im_an_output) outNodes.push_back(s);
+    return im_an_output;
+  };
+
+  get_nodes(s);
+
+  // This is a mutable closure, copied on each step up the graph,
+  // that tells us weather or not this branch of the graph is good or bad
+  bool found_bad = false;
+  auto good_subgraph_node = [subgraph_nodes, func,
+                             found_bad](NodePtr s) mutable {
+    if (!func(s)) found_bad = true;
+    if (found_bad) return false;
+    if (in_vec(subgraph_nodes, s)) {
+      return true;
+    } else {
+      return false;
+    }
+  };
+
+  // recursive search for bad branches
+  RemoveUtil(s, outNodes, good_subgraph_node, visited_edges);
+  return outNodes;
+}
+
+/**
+ * Modified subgraph to only return 1 output.
+ * If we improve the subgraph compiler/nnvm op construction
+ * we might be able to get rid of this pass
+ * This removes mutiple outputs from a graph, because the subgraph compiler
+ * doesn't currently support multiple outputs
+ * TODO: make the subgraph compiler handle multiple outputs and get rid of this
+ * graph pass
+ * @param graph input graph
+ * @param s
+ * @param subgraph_nodes
+ * @param func
+ * @return
+ */
+std::vector<NodePtr> PruneSubgraphOutputs(Graph &graph, NodePtr s,
+                                          std::vector<NodePtr> &subgraph_nodes,
+                                          std::function<bool(NodePtr)> func) {
+  // function to get all the outputs of the subgraph
+  auto get_subgraph_outputs = [&graph, &subgraph_nodes]() {
+    std::vector<NodePtr> outNodes;
+    for (auto n : graph.GetNodes())
+      if (!in_vec(subgraph_nodes, n))
+        for (auto i : n->inputs_)
+          if (in_vec(subgraph_nodes, i) && !in_vec(outNodes, i))
+            outNodes.emplace_back(i);
+    return outNodes;
+  };
+
+  // function to remove all of the outputs that aren't the last one
+  auto prune_subgraph = [&subgraph_nodes](std::vector<NodePtr> outNodes) {
+    for (auto n : outNodes)
+      if (n != subgraph_nodes[0])
+        subgraph_nodes.erase(
+            std::remove(subgraph_nodes.begin(), subgraph_nodes.end(), n),
+            subgraph_nodes.end());
+  };
+
+  // main pass
+  // count is for debugging purposes in case the recursive logic is broken
+  std::vector<NodePtr> outNodes;
+  bool single_output = false;
+  int count = 0;
+  while (!single_output && count < 100) {
+    // get the current outputs
+    outNodes = get_subgraph_outputs();
+    if (outNodes.size() <= 1) {
+      single_output = true;
+    } else {
+      // we have more than 1 output, remove them and clean any broken loops
+      prune_subgraph(outNodes);
+      subgraph_nodes = RemoveBroken(s, subgraph_nodes, func);
+    }
+    count += 1;
+  }
+
+  return subgraph_nodes;
+}
+
+void IdentifySubgraphs(Graph &graph, std::function<bool(NodePtr)> func) {
   int sg = 1;
   // loop over the nodes from the back
-  for (auto i : reverse_iterate(graph_.GetNodes())) {
+  for (auto i : reverse_iterate(graph.GetNodes())) {
     if (i->subgraph_ == 0) {
       // select nodes in the a subgraph starting here and going up the graph
-      auto subgraph_nodes = FindSubgraph(i, func);
+      auto subgraph_nodes = FindSubgraph(graph, i, func);
       // if we found a significantly large subgraph, label it
       if (subgraph_nodes.size() > 2) {
         for (auto node : subgraph_nodes) node->subgraph_ = sg;
@@ -45,14 +213,10 @@ void NgraphBuilder::IdentifySubgraphs(std::function<bool(NodePtr)> func) {
   }
 }
 
-/**
- * Function to collapse the intermediary graph into a graph
- * with subgraphs for nodes
- */
-void NgraphBuilder::CollapseSubgraphs() {
+void CollapseSubgraphs(Graph &graph) {
   // loop variable for undefined number of subgraphs
   int i = 1;
-  auto &nodes = graph_.GetNodes();
+  auto &nodes = graph.GetNodes();
   while (true) {
     auto tmpGraph = std::make_shared<Graph>("subgraph_" + std::to_string(i));
     // loop over all nodes and add nodes in the current subgraph to
@@ -106,14 +270,8 @@ void NgraphBuilder::CollapseSubgraphs() {
               nodes.end());
 }
 
-/**
- * Find a subgraph, check it for bad branches
- * @param s
- * @param func
- * @return
- */
-std::vector<NodePtr> NgraphBuilder::FindSubgraph(
-    NodePtr s, std::function<bool(NodePtr)> func) {
+std::vector<NodePtr> FindSubgraph(Graph &graph, NodePtr s,
+                                  std::function<bool(NodePtr)> func) {
   auto subgraph_nodes = SelectNodes(s, func);
   std::vector<NodePtr> outNodes;
   outNodes = subgraph_nodes;
@@ -121,13 +279,12 @@ std::vector<NodePtr> NgraphBuilder::FindSubgraph(
     // search for broken loops
     // remove nodes on broken loops
     outNodes = RemoveBroken(s, outNodes, func);
-    outNodes = PruneSubgraphOutputs(s, outNodes, func);
+    outNodes = PruneSubgraphOutputs(graph, s, outNodes, func);
   }
   return outNodes;
 }
 
-std::vector<NodePtr> NgraphBuilder::SelectNodes(
-    NodePtr s, std::function<bool(NodePtr)> func) {
+std::vector<NodePtr> SelectNodes(NodePtr s, std::function<bool(NodePtr)> func) {
   // init visited vector
   std::unordered_set<NodePtr> visited;
   // init output vector
@@ -135,160 +292,6 @@ std::vector<NodePtr> NgraphBuilder::SelectNodes(
   // recursiveliy search the graph
   DFSUtil(s, visited, outNodes, func);
   return outNodes;
-}
-
-void NgraphBuilder::DFSUtil(NodePtr s, std::unordered_set<NodePtr> &visited,
-                            std::vector<NodePtr> &outNodes,
-                            std::function<bool(NodePtr)> &func) {
-  // Mark the current node as visited
-  visited.insert(s);
-  // if this node matches func condition
-  if (func(s)) {
-    // add it to the output
-    outNodes.push_back(s);
-    // visit it's inputs
-    for (auto i : s->inputs_) {
-      if (!visited.count(i) && i->subgraph_ == 0) {
-        DFSUtil(i, visited, outNodes, func);
-      }
-    }
-  }
-}
-
-/**
- * Utility for removing bad branches in a directed, acylic subraph.
- * Will fail for cyclic graphs
- * @param s
- * @param outNodes
- * @param func
- * @param visited_edges
- */
-void NgraphBuilder::RemoveUtil(NodePtr s, std::vector<NodePtr> &outNodes,
-                               std::function<bool(NodePtr)> func,
-                               std::set<EdgeRemoveTup> &visited_edges) {
-  // if this node doesn't match the function condition, delete it
-  if (!func(s))
-    outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), s),
-                   outNodes.end());
-
-  // visit it's inputs if they're still in the subgraph
-  for (auto i : s->inputs_)
-    if (in_vec(outNodes, i)) {
-      // ask if we've already gone up this branch in this closure state.
-      // if so, don't revisit, if not, try it both good and bad.
-      auto edge_tup = EdgeRemoveTup{s, i, func(s)};
-      if (!visited_edges.count(edge_tup)) {
-        visited_edges.insert(edge_tup);
-        RemoveUtil(i, outNodes, func, visited_edges);
-      }
-    }
-}
-
-/**
- * This function searches for non-local issues that make parts of an
- * ngraph identified subgraph non-computable
- * @param s
- * @param subgraph_nodes
- * @param func
- * @return
- */
-std::vector<NodePtr> NgraphBuilder::RemoveBroken(
-    NodePtr s, std::vector<NodePtr> &subgraph_nodes,
-    std::function<bool(NodePtr)> func) {
-  // create storage for the ouputs and the visited nodes
-  std::vector<NodePtr> outNodes;
-  std::unordered_set<NodePtr> visited;
-  std::set<EdgeRemoveTup> visited_edges;
-
-  // This function searches the nodes that are inputs to the final
-  // subgraph output AND outputs of other subgraph nodes
-  // to minimize what needs to be searched for broken loops
-  std::function<bool(NodePtr)> get_nodes;
-  get_nodes = [&outNodes, &visited, &get_nodes, &func](NodePtr s) {
-    visited.insert(s);
-    bool im_an_output = false;
-    if (func(s)) im_an_output = true;
-
-    for (auto i : s->inputs_) {
-      if (!in_vec(outNodes, i)) {
-        if (!visited.count(i))
-          if (get_nodes(i)) im_an_output = true;
-      } else {
-        im_an_output = true;
-      }
-    }
-
-    if (im_an_output) outNodes.push_back(s);
-    return im_an_output;
-  };
-
-  get_nodes(s);
-
-  // This is a mutable closure, copied on each step up the graph,
-  // that tells us weather or not this branch of the graph is good or bad
-  bool found_bad = false;
-  auto good_subgraph_node = [subgraph_nodes, func,
-                             found_bad](NodePtr s) mutable {
-    if (!func(s)) found_bad = true;
-    if (found_bad) return false;
-    if (in_vec(subgraph_nodes, s)) {
-      return true;
-    } else {
-      return false;
-    }
-  };
-
-  // recursive search for bad branches
-  RemoveUtil(s, outNodes, good_subgraph_node, visited_edges);
-  return outNodes;
-}
-
-// This removes mutiple outputs from a graph, because the subgraph compiler
-// doesn't currently support multiple outputs
-// TODO: make the subgraph compiler handle multiple outputs and get rid of this
-// graph pass
-std::vector<NodePtr> NgraphBuilder::PruneSubgraphOutputs(
-    NodePtr s, std::vector<NodePtr> &subgraph_nodes,
-    std::function<bool(NodePtr)> func) {
-  // function to get all the outputs of the subgraph
-  auto get_subgraph_outputs = [this, &subgraph_nodes]() {
-    std::vector<NodePtr> outNodes;
-    for (auto n : graph_.GetNodes())
-      if (!in_vec(subgraph_nodes, n))
-        for (auto i : n->inputs_)
-          if (in_vec(subgraph_nodes, i) && !in_vec(outNodes, i))
-            outNodes.emplace_back(i);
-    return outNodes;
-  };
-
-  // function to remove all of the outputs that aren't the last one
-  auto prune_subgraph = [&subgraph_nodes](std::vector<NodePtr> outNodes) {
-    for (auto n : outNodes)
-      if (n != subgraph_nodes[0])
-        subgraph_nodes.erase(
-            std::remove(subgraph_nodes.begin(), subgraph_nodes.end(), n),
-            subgraph_nodes.end());
-  };
-
-  // main pass
-  // count is for debugging purposes in case the recursive logic is broken
-  std::vector<NodePtr> outNodes;
-  bool single_output = false;
-  int count = 0;
-  while (!single_output && count < 100) {
-    // get the current outputs
-    outNodes = get_subgraph_outputs();
-    if (outNodes.size() <= 1) {
-      single_output = true;
-    } else {
-      // we have more than 1 output, remove them and clean any broken loops
-      prune_subgraph(outNodes);
-      subgraph_nodes = RemoveBroken(s, subgraph_nodes, func);
-    }
-    count += 1;
-  }
-
-  return subgraph_nodes;
 }
 
 }  // namespace ngraph_bridge
