@@ -142,42 +142,35 @@ class Graph : public Node {
   typedef ngraph::runtime::CallFrame CallFrame;
 
  public:
-  Graph() : Graph("") {}
-  Graph(const std::string& name) : Node(NodeType::kGraph, nullptr, name) {}
+  Graph(const std::string& name = "") : Node(NodeType::kGraph, nullptr, name) {}
 
   /**
    * Add a node to the graph
-   * @param node
    */
   void AddNode(NodePtr node) { nodes_.emplace_back(node); }
 
   /**
    * Constant accessor for nodes
-   * @return the nodes in the graph
    */
   const std::vector<NodePtr>& GetNodes() const { return nodes_; }
 
   /**
    * Non-const accessor for nodes
-   * @return the nodes in the graph
    */
   std::vector<NodePtr>& GetNodes() { return nodes_; }
 
   /**
    * Accessor for number of outputs
-   * @return number of outputs of this graph
    */
   int GetNumOutputs() const { return num_outputs_; }
 
   /**
    * Sets the number of outputs for this graph
-   * @param num_outputs
    */
   void SetNumOutputs(int num_outputs) { num_outputs_ = num_outputs; }
 
   /**
    * NGraph forward operation
-   * @return CallFrame for the forward operation
    */
   const std::shared_ptr<CallFrame>& GetNgraphForward() const {
     return ngraph_forward_;
@@ -185,7 +178,6 @@ class Graph : public Node {
 
   /**
    * Set NGraph forward operation
-   * @param forward forward CallFrame
    */
   void SetNgraphForward(std::shared_ptr<CallFrame> forward) {
     ngraph_forward_ = std::move(forward);
@@ -193,7 +185,6 @@ class Graph : public Node {
 
   /**
    * NGraph backward operation
-   * @return CallFrame for the backward operation
    */
   const std::shared_ptr<CallFrame>& GetNgraphBackward() const {
     return ngraph_backward_;
@@ -201,7 +192,6 @@ class Graph : public Node {
 
   /**
    * Set NGraph backward operation
-   * @param backward backward CallFrame
    */
   void SetNgraphBackward(std::shared_ptr<CallFrame> backward) {
     ngraph_backward_ = std::move(backward);
@@ -209,8 +199,6 @@ class Graph : public Node {
 
   /**
    * get the node corresponding to a name
-   * @param name
-   * @return matching node
    */
   NodePtr operator[](std::string name) const {
     for (auto n : nodes_)
@@ -230,35 +218,25 @@ class Graph : public Node {
 
 /**
  * High level function that does the subgraph identification
- * @param graph input graph
- * @param func selection criteria
  */
 void IdentifySubgraphs(Graph& graph, std::function<bool(NodePtr)> func);
 
 /**
  * Convert graph from identified nodes to a network of nodes and graphs,
  * each graph node represented a combined ngraph operation
- * @param graph input graph
  */
 void CollapseSubgraphs(Graph& graph);
 
 /**
  * Selection of nodes based on function criterion.
  * Note: uses DFSUtil().
- * @param s reference to input graph
- * @param func selection criteria
- * @return nodes found
  */
-std::vector<NodePtr> SelectNodes(NodePtr s, std::function<bool(NodePtr)> func);
+std::vector<NodePtr> SelectNodes(NodePtr node, std::function<bool(NodePtr)> func);
 
 /**
  * Finds simply connected ngraph operations
- * @param graph input graph
- * @param s
- * @param func selection criteria
- * @return
  */
-std::vector<NodePtr> FindSubgraph(Graph& graph, NodePtr s,
+std::vector<NodePtr> FindSubgraph(Graph& graph, NodePtr node,
                                   std::function<bool(NodePtr)> func);
 
 }  // namespace ngraph_bridge
