@@ -132,89 +132,34 @@ class OpNode : public Node {
   }
 };
 
-/**
- * Graph class
- * Graph subclasses Node so that we can embed graphs into other graphs
- * This is useful when we take a graph and replace it with an ngraph computation
- * TODO: Refactor into Graph and subgraph?
- */
+/*
+Graph class
+Graph subclasses Node so that we can embed graphs into other graphs
+This is useful when we take a graph and replace it with an ngraph computation
+TODO: Refactor into Graph and subgraph?
+*/
 class Graph : public Node {
- private:
-  typedef ngraph::runtime::CallFrame CallFrame;
-
  public:
-  Graph(const std::string& name = "") : Node(NodeType::kGraph, nullptr, name) {}
+  Graph() : Node(NodeType::kGraph, nullptr, "") {}
+  Graph(const std::string& name) : Node(NodeType::kGraph, nullptr, name) {}
 
-  /**
-   * Add a node to the graph
-   */
+  // Add a node to the graph
   void AddNode(NodePtr node) { nodes_.emplace_back(node); }
 
-  /**
-   * Constant accessor for nodes
-   */
-  const std::vector<NodePtr>& GetNodes() const { return nodes_; }
-
-  /**
-   * Non-const accessor for nodes
-   */
-  std::vector<NodePtr>& GetNodes() { return nodes_; }
-
-  /**
-   * Accessor for number of outputs
-   */
-  int GetNumOutputs() const { return num_outputs_; }
-
-  /**
-   * Sets the number of outputs for this graph
-   */
-  void SetNumOutputs(int num_outputs) { num_outputs_ = num_outputs; }
-
-  /**
-   * NGraph forward operation
-   */
-  const std::shared_ptr<CallFrame>& GetNgraphForward() const {
-    return ngraph_forward_;
-  }
-
-  /**
-   * Set NGraph forward operation
-   */
-  void SetNgraphForward(std::shared_ptr<CallFrame> forward) {
-    ngraph_forward_ = std::move(forward);
-  }
-
-  /**
-   * NGraph backward operation
-   */
-  const std::shared_ptr<CallFrame>& GetNgraphBackward() const {
-    return ngraph_backward_;
-  }
-
-  /**
-   * Set NGraph backward operation
-   */
-  void SetNgraphBackward(std::shared_ptr<CallFrame> backward) {
-    ngraph_backward_ = std::move(backward);
-  }
-
-  /**
-   * get the node corresponding to a name
-   */
-  NodePtr operator[](std::string name) const {
+  // get the node corresponding to a name
+  NodePtr operator[](std::string name) {
     for (auto n : nodes_)
       if (n->name_ == name) return n;
     // This throw is used in constructing multi-output subgraphs
     throw "NGRAPH_BRIDGE: node not in graph";
   }
 
- private:
-  int num_outputs_ = 1;
-  /// nodes in this graph
-  std::vector<NodePtr> nodes_{};
+  int num_outputs = 1;
+  // nodes in this graph
+  std::vector<NodePtr> nodes_;
   // functions to execute this graph in ngraph
-  std::shared_ptr<CallFrame> ngraph_forward_{nullptr};
-  std::shared_ptr<CallFrame> ngraph_backward_{nullptr};
+  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward;
+  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward;
 };
 
 /**
@@ -232,7 +177,8 @@ void CollapseSubgraphs(Graph& graph);
  * Selection of nodes based on function criterion.
  * Note: uses DFSUtil().
  */
-std::vector<NodePtr> SelectNodes(NodePtr node, std::function<bool(NodePtr)> func);
+std::vector<NodePtr> SelectNodes(NodePtr node,
+                                 std::function<bool(NodePtr)> func);
 
 /**
  * Finds simply connected ngraph operations

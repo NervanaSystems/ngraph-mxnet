@@ -27,12 +27,12 @@
 namespace ngraph_bridge {
 
 // get the OP from nnvm, return a pointer to it.
-nnvm::Op* get_subgraph_op(GraphPtr graph) {
+nnvm::Op* get_subgraph_op(std::shared_ptr<Graph> graph) {
   return &(::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
       "ngraph_" + graph->name_));
 }
 
-void register_forward_op(GraphPtr graph) {
+void register_forward_op(std::shared_ptr<Graph> graph) {
   // register the op with nnvm
   auto& op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
       "ngraph_" + graph->name_);
@@ -137,7 +137,7 @@ void register_forward_op(GraphPtr graph) {
         return mxnet::op::type_assign(&((*oattr)[0]), dtype);
       });
 
-  auto computation = graph->GetNgraphForward();
+  auto computation = graph->ngraph_forward;
   auto name = graph->name_;
 
   // create the compute lambda
@@ -155,7 +155,7 @@ void register_forward_op(GraphPtr graph) {
       });
 }
 
-void register_backward_op(GraphPtr graph) {
+void register_backward_op(std::shared_ptr<Graph> graph) {
   // register the op with nnvm
   auto& op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
       "_backward_" + ("ngraph_" + graph->name_));
@@ -175,7 +175,7 @@ void register_backward_op(GraphPtr graph) {
   // Mark as backward
   op.set_attr<bool>("TIsBackward", true);
 
-  auto computation = graph->GetNgraphBackward();
+  auto computation = graph->ngraph_backward;
   auto name = graph->name_;
 
   // create the compute lambda
@@ -194,7 +194,7 @@ void register_backward_op(GraphPtr graph) {
       });
 }
 // register subgraph ops with nnvm.
-void register_subgraph(GraphPtr graph) {
+void register_subgraph(std::shared_ptr<Graph> graph) {
   register_forward_op(graph);
   register_backward_op(graph);
 }

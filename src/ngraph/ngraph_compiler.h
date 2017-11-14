@@ -165,7 +165,6 @@ class Compiler {
   nnvm::Graph graph_;
   // storage for IR graph
   ngraph_bridge::Graph ngraph_;
-
   // shape and type maps to return to the graph executor
   NgraphShape ngraph_shape_;
   NgraphDType ngraph_dtype_;

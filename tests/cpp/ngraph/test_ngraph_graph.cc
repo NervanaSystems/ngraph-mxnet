@@ -88,28 +88,28 @@ TEST(NGRAPH_GRAPH, GRAPH_NODES_) {
 auto isop = [](NodePtr s) { return (s->type_ == NodeType::kOp); };
 
 struct DFS_Test {
-  DFS_Test() : linear_graph(), branching_graph() {
+  DFS_Test() {
     std::vector<std::string> opnames{"Flatten", "Convolution", "relu", "add",
                                      "FullyConnected"};
     linear_graph.AddNode(std::make_shared<VariableNode>(nullptr, "variable"));
     for (int i = 0; i < 4; ++i)
       linear_graph.AddNode(std::shared_ptr<OpNode>(
           new OpNode(nullptr, "op" + std::to_string(i), opnames[i],
-                     {linear_graph.GetNodes()[i]})));
+                     {linear_graph.nodes_[i]})));
 
     branching_graph.AddNode(
         std::make_shared<VariableNode>(nullptr, "variable"));
-    branching_graph.AddNode(std::shared_ptr<OpNode>(new OpNode(
-        nullptr, "op0", opnames[0], {branching_graph.GetNodes()[0]})));
-    branching_graph.AddNode(std::shared_ptr<OpNode>(new OpNode(
-        nullptr, "op1", opnames[1], {branching_graph.GetNodes()[1]})));
-    branching_graph.AddNode(std::shared_ptr<VariableNode>(new VariableNode(
-        nullptr, "variable1", {branching_graph.GetNodes()[1]})));
-    branching_graph.AddNode(std::shared_ptr<OpNode>(new OpNode(
-        nullptr, "op2", opnames[2],
-        {branching_graph.GetNodes()[2], branching_graph.GetNodes()[3]})));
-    branching_graph.AddNode(std::shared_ptr<OpNode>(new OpNode(
-        nullptr, "op3", opnames[3], {branching_graph.GetNodes()[4]})));
+    branching_graph.AddNode(std::shared_ptr<OpNode>(
+        new OpNode(nullptr, "op0", opnames[0], {branching_graph.nodes_[0]})));
+    branching_graph.AddNode(std::shared_ptr<OpNode>(
+        new OpNode(nullptr, "op1", opnames[1], {branching_graph.nodes_[1]})));
+    branching_graph.AddNode(std::shared_ptr<VariableNode>(
+        new VariableNode(nullptr, "variable1", {branching_graph.nodes_[1]})));
+    branching_graph.AddNode(std::shared_ptr<OpNode>(
+        new OpNode(nullptr, "op2", opnames[2],
+                   {branching_graph.nodes_[2], branching_graph.nodes_[3]})));
+    branching_graph.AddNode(std::shared_ptr<OpNode>(
+        new OpNode(nullptr, "op3", opnames[3], {branching_graph.nodes_[4]})));
     // branching_graph.WriteDot("branching.dot");
   }
   Graph linear_graph;
@@ -120,48 +120,41 @@ DFS_Test test_search;
 
 TEST(NGRAPH_GRAPH, GRAPH_DFS_LINEAR) {
   // TODO
-  EXPECT_EQ(SelectNodes(test_search.linear_graph.GetNodes()[4], isop).size(),
-            4);
-  EXPECT_EQ(SelectNodes(test_search.linear_graph.GetNodes()[3], isop).size(),
-            3);
-  EXPECT_EQ(SelectNodes(test_search.linear_graph.GetNodes()[0], isop).size(),
-            0);
+  EXPECT_EQ(SelectNodes(test_search.linear_graph.nodes_[4], isop).size(), 4);
+  EXPECT_EQ(SelectNodes(test_search.linear_graph.nodes_[3], isop).size(), 3);
+  EXPECT_EQ(SelectNodes(test_search.linear_graph.nodes_[0], isop).size(), 0);
 }
 
 TEST(NGRAPH_GRAPH, GRAPH_DFS_BRANCHING) {
-  EXPECT_EQ(SelectNodes(test_search.branching_graph.GetNodes()[1], isop).size(),
-            1);
-  EXPECT_EQ(SelectNodes(test_search.branching_graph.GetNodes()[2], isop).size(),
-            2);
-  EXPECT_EQ(SelectNodes(test_search.branching_graph.GetNodes()[4], isop).size(),
-            3);
-  EXPECT_EQ(SelectNodes(test_search.branching_graph.GetNodes()[5], isop).size(),
-            4);
+  EXPECT_EQ(SelectNodes(test_search.branching_graph.nodes_[1], isop).size(), 1);
+  EXPECT_EQ(SelectNodes(test_search.branching_graph.nodes_[2], isop).size(), 2);
+  EXPECT_EQ(SelectNodes(test_search.branching_graph.nodes_[4], isop).size(), 3);
+  EXPECT_EQ(SelectNodes(test_search.branching_graph.nodes_[5], isop).size(), 4);
 }
 
 TEST(NGRAPH_GRAPH, GRAPH_FIND_SUBGRAPH) {
   EXPECT_EQ(FindSubgraph(test_search.branching_graph,
-                         test_search.branching_graph.GetNodes()[2], isop)
+                         test_search.branching_graph.nodes_[2], isop)
                 .size(),
             2);
   EXPECT_EQ(FindSubgraph(test_search.branching_graph,
-                         test_search.branching_graph.GetNodes()[4], isop)
+                         test_search.branching_graph.nodes_[4], isop)
                 .size(),
             2);
   EXPECT_EQ(FindSubgraph(test_search.branching_graph,
-                         test_search.branching_graph.GetNodes()[5], isop)
+                         test_search.branching_graph.nodes_[5], isop)
                 .size(),
             3);
 }
 
 TEST(NGRAPH_GRAPH, GRAPH_IDENTIFY_SUBGRAPHS) {
   IdentifySubgraphs(test_search.branching_graph, isop);
-  EXPECT_EQ(test_search.branching_graph.GetNodes()[0]->subgraph_, 0);
-  EXPECT_EQ(test_search.branching_graph.GetNodes()[1]->subgraph_, -1);
-  EXPECT_EQ(test_search.branching_graph.GetNodes()[2]->subgraph_, 1);
-  EXPECT_EQ(test_search.branching_graph.GetNodes()[3]->subgraph_, -1);
-  EXPECT_EQ(test_search.branching_graph.GetNodes()[4]->subgraph_, 1);
-  EXPECT_EQ(test_search.branching_graph.GetNodes()[5]->subgraph_, 1);
+  EXPECT_EQ(test_search.branching_graph.nodes_[0]->subgraph_, 0);
+  EXPECT_EQ(test_search.branching_graph.nodes_[1]->subgraph_, -1);
+  EXPECT_EQ(test_search.branching_graph.nodes_[2]->subgraph_, 1);
+  EXPECT_EQ(test_search.branching_graph.nodes_[3]->subgraph_, -1);
+  EXPECT_EQ(test_search.branching_graph.nodes_[4]->subgraph_, 1);
+  EXPECT_EQ(test_search.branching_graph.nodes_[5]->subgraph_, 1);
 }
 
 struct SUBG_test {
@@ -176,11 +169,10 @@ struct SUBG_test {
 SUBG_test subgraph_test;
 
 TEST(NGRAPH_GRAPH, GRAPH_COLLAPSE_SUBGRAPHS) {
-  EXPECT_EQ(subgraph_test.test.branching_graph.GetNodes().size(), 4);
+  EXPECT_EQ(subgraph_test.test.branching_graph.nodes_.size(), 4);
   EXPECT_EQ(std::dynamic_pointer_cast<Graph>(
-                subgraph_test.test.branching_graph.GetNodes().back())
-                ->GetNodes()
-                .size(),
+                subgraph_test.test.branching_graph.nodes_.back())
+                ->nodes_.size(),
             3);
 }
 

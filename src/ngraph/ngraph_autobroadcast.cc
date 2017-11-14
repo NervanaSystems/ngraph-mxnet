@@ -1,6 +1,3 @@
-
-#include <numeric>
-
 #include "ngraph_autobroadcast.h"
 
 namespace ngraph_bridge {

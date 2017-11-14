@@ -28,12 +28,12 @@ void WriteDot(const Graph& graph, const std::string& fname) {
   dotfile << "size=\"8,10.5\"" << std::endl;
 
   // Loop over inputs, write graph connections
-  for (auto n : graph.GetNodes())
+  for (auto n : graph.nodes_)
     for (auto i : n->inputs_) {
       dotfile << i->name_ << " -> " << n->name_ << ";" << std::endl;
     }
   // Loop over nodes and write labels
-  for (auto n : graph.GetNodes())
+  for (auto n : graph.nodes_)
     if (!n->name_.empty()) dotfile << n->createNodeLabel() << std::endl;
   // Finish file.
   dotfile << "}" << std::endl;
@@ -42,7 +42,7 @@ void WriteDot(const Graph& graph, const std::string& fname) {
 
 void WriteSubgraphDots(const Graph& graph, const std::string& base) {
   WriteDot(graph, base + ".dot");
-  for (auto n : graph.GetNodes()) {
+  for (auto n : graph.nodes_) {
     if (n->type_ == NodeType::kGraph) {
       auto sg = std::dynamic_pointer_cast<Graph>(n);
       std::ostringstream stream;
