@@ -19,12 +19,6 @@
 #include "../../src/ngraph/ngraph_sgcompiler_utils.h"
 namespace ngraph_bridge {
 
-TEST(NGRAPH_STRING, GETINTS) {
-  EXPECT_EQ(getInts("(1, 2, 3)"), std::vector<int>({1, 2, 3}));
-  EXPECT_EQ(getInts("(1,2,3)"), std::vector<int>({1, 2, 3}));
-  EXPECT_EQ(getInts("(1, 2,3, 9,12, 17)"),
-            std::vector<int>({1, 2, 3, 9, 12, 17}));
-}
 TEST(NGRAPH_STRING, RANDOMSTRING) {
   EXPECT_EQ(randomString(12).size(), 12);
   EXPECT_EQ(randomString(4).size(), 4);
@@ -67,93 +61,6 @@ TEST(NGRAPH_NNVM, GetBufferSize) {
   EXPECT_EQ(get_buffer_size(Tshape, 2), 240);
   EXPECT_EQ(get_buffer_size(Tshape, 4), 480);
   EXPECT_EQ(get_buffer_size(Tshape, 8), 960);
-}
-
-TEST(NGRAPH_NNVM, CopyBuffers) {
-  auto manager = ngraph::runtime::Manager::get("NGVM");
-  auto backend = manager->allocate_backend();
-  ngraph::Shape shape{10};
-  // TODO: Is there a shorter way to write this?
-  {
-    auto PT = backend->make_parameterized_tensor_view<ngraph::element::Float32>(
-        shape);
-    std::vector<float> vec{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-    copy_TBlob(
-        PT, mshadow::kFloat32,
-        get_buffer_size(shape, ngraph::element::Float32::element_type().size()),
-        vec.data());
-
-    std::vector<float> vec2{11, 12, 13, 14, 15, 16, 17, 18, 19, 10};
-    copy_result(
-        PT, mshadow::kFloat32,
-        get_buffer_size(shape, ngraph::element::Float32::element_type().size()),
-        vec2.data());
-    EXPECT_EQ(vec2, PT->get_vector());
-  }
-  {
-    auto PT =
-        backend->make_parameterized_tensor_view<ngraph::element::UInt8>(shape);
-    std::vector<uint8_t> vec{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-    copy_TBlob(
-        PT, mshadow::kUint8,
-        get_buffer_size(shape, ngraph::element::UInt8::element_type().size()),
-        vec.data());
-
-    std::vector<uint8_t> vec2{11, 12, 13, 14, 15, 16, 17, 18, 19, 10};
-    copy_result(
-        PT, mshadow::kUint8,
-        get_buffer_size(shape, ngraph::element::UInt8::element_type().size()),
-        vec2.data());
-    EXPECT_EQ(vec2, PT->get_vector());
-  }
-  {
-    auto PT =
-        backend->make_parameterized_tensor_view<ngraph::element::Int8>(shape);
-    std::vector<int8_t> vec{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-    copy_TBlob(
-        PT, mshadow::kInt8,
-        get_buffer_size(shape, ngraph::element::Int8::element_type().size()),
-        vec.data());
-
-    std::vector<int8_t> vec2{11, 12, 13, 14, 15, 16, 17, 18, 19, 10};
-    copy_result(
-        PT, mshadow::kInt8,
-        get_buffer_size(shape, ngraph::element::Int8::element_type().size()),
-        vec2.data());
-    EXPECT_EQ(vec2, PT->get_vector());
-  }
-  {
-    auto PT =
-        backend->make_parameterized_tensor_view<ngraph::element::Int32>(shape);
-    std::vector<int32_t> vec{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-    copy_TBlob(
-        PT, mshadow::kInt32,
-        get_buffer_size(shape, ngraph::element::Int32::element_type().size()),
-        vec.data());
-
-    std::vector<int32_t> vec2{11, 12, 13, 14, 15, 16, 17, 18, 19, 10};
-    copy_result(
-        PT, mshadow::kInt32,
-        get_buffer_size(shape, ngraph::element::Int32::element_type().size()),
-        vec2.data());
-    EXPECT_EQ(vec2, PT->get_vector());
-  }
-  {
-    auto PT =
-        backend->make_parameterized_tensor_view<ngraph::element::Int64>(shape);
-    std::vector<int64_t> vec{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-    copy_TBlob(
-        PT, mshadow::kInt64,
-        get_buffer_size(shape, ngraph::element::Int64::element_type().size()),
-        vec.data());
-
-    std::vector<int64_t> vec2{11, 12, 13, 14, 15, 16, 17, 18, 19, 10};
-    copy_result(
-        PT, mshadow::kInt64,
-        get_buffer_size(shape, ngraph::element::Int64::element_type().size()),
-        vec2.data());
-    EXPECT_EQ(vec2, PT->get_vector());
-  }
 }
 
 TEST(NGRAPH_NNVM, copy_TBlobs) {
