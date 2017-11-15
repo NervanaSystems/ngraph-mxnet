@@ -336,15 +336,9 @@ inline int get_default(const NodePtr& node, const std::string& key,
 template <typename T>
 inline std::vector<T> get_default(const NodePtr& node, const std::string& key,
                                   const std::vector<T>& default_val) {
-  std::vector<T> out;
-  if (node->orig_node_->attrs.dict.count(key)) {
-    auto tmp = GetInts(node->orig_node_->attrs.dict[key]);
-    for (auto val : tmp) out.push_back(val);
-  } else {
-    out = default_val;
-  }
-
-  return out;
+  return node->orig_node_->attrs.dict.count(key)
+             ? GetInts<T>(node->orig_node_->attrs.dict[key])
+             : default_val;
 }
 
 // MXNet high level ops generating function

@@ -62,11 +62,12 @@ inline std::shared_ptr<ngraph::Node> makeConstant(const NodePtr& node,
   return std::make_shared<ngraph::op::Constant>(et, shape, num);
 }
 
-inline std::vector<int> GetInts(std::string input) {
+template <typename T>
+inline std::vector<T> GetInts(std::string input) {
   input = input.substr(1, input.size() - 2);
   std::stringstream ss(input);
-  std::vector<int> vect;
-  int i;
+  std::vector<T> vect;
+  T i;
   while (ss >> i) {
     vect.push_back(i);
     if (ss.peek() == ',' || ss.peek() == ' ') ss.ignore();
