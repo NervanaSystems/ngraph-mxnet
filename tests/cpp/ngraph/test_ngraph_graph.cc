@@ -120,56 +120,35 @@ DFS_Test test_search;
 
 TEST(NGRAPH_GRAPH, GRAPH_DFS_LINEAR) {
   // TODO
-  EXPECT_EQ(test_search.linear_graph
-                .DFSselect(test_search.linear_graph.nodes_[4], isop)
-                .size(),
-            4);
-  EXPECT_EQ(test_search.linear_graph
-                .DFSselect(test_search.linear_graph.nodes_[3], isop)
-                .size(),
-            3);
-  EXPECT_EQ(test_search.linear_graph
-                .DFSselect(test_search.linear_graph.nodes_[0], isop)
-                .size(),
-            0);
+  EXPECT_EQ(SelectNodes(test_search.linear_graph.nodes_[4], isop).size(), 4);
+  EXPECT_EQ(SelectNodes(test_search.linear_graph.nodes_[3], isop).size(), 3);
+  EXPECT_EQ(SelectNodes(test_search.linear_graph.nodes_[0], isop).size(), 0);
 }
 
 TEST(NGRAPH_GRAPH, GRAPH_DFS_BRANCHING) {
-  EXPECT_EQ(test_search.branching_graph
-                .DFSselect(test_search.branching_graph.nodes_[1], isop)
-                .size(),
-            1);
-  EXPECT_EQ(test_search.branching_graph
-                .DFSselect(test_search.branching_graph.nodes_[2], isop)
-                .size(),
-            2);
-  EXPECT_EQ(test_search.branching_graph
-                .DFSselect(test_search.branching_graph.nodes_[4], isop)
-                .size(),
-            3);
-  EXPECT_EQ(test_search.branching_graph
-                .DFSselect(test_search.branching_graph.nodes_[5], isop)
-                .size(),
-            4);
+  EXPECT_EQ(SelectNodes(test_search.branching_graph.nodes_[1], isop).size(), 1);
+  EXPECT_EQ(SelectNodes(test_search.branching_graph.nodes_[2], isop).size(), 2);
+  EXPECT_EQ(SelectNodes(test_search.branching_graph.nodes_[4], isop).size(), 3);
+  EXPECT_EQ(SelectNodes(test_search.branching_graph.nodes_[5], isop).size(), 4);
 }
 
 TEST(NGRAPH_GRAPH, GRAPH_FIND_SUBGRAPH) {
-  EXPECT_EQ(test_search.branching_graph
-                .FindSubgraph(test_search.branching_graph.nodes_[2], isop)
+  EXPECT_EQ(FindSubgraph(test_search.branching_graph,
+                         test_search.branching_graph.nodes_[2], isop)
                 .size(),
             2);
-  EXPECT_EQ(test_search.branching_graph
-                .FindSubgraph(test_search.branching_graph.nodes_[4], isop)
+  EXPECT_EQ(FindSubgraph(test_search.branching_graph,
+                         test_search.branching_graph.nodes_[4], isop)
                 .size(),
             2);
-  EXPECT_EQ(test_search.branching_graph
-                .FindSubgraph(test_search.branching_graph.nodes_[5], isop)
+  EXPECT_EQ(FindSubgraph(test_search.branching_graph,
+                         test_search.branching_graph.nodes_[5], isop)
                 .size(),
             3);
 }
 
 TEST(NGRAPH_GRAPH, GRAPH_IDENTIFY_SUBGRAPHS) {
-  test_search.branching_graph.IdentifySubgraphs(isop);
+  IdentifySubgraphs(test_search.branching_graph, isop);
   EXPECT_EQ(test_search.branching_graph.nodes_[0]->subgraph_, 0);
   EXPECT_EQ(test_search.branching_graph.nodes_[1]->subgraph_, -1);
   EXPECT_EQ(test_search.branching_graph.nodes_[2]->subgraph_, 1);
@@ -180,8 +159,8 @@ TEST(NGRAPH_GRAPH, GRAPH_IDENTIFY_SUBGRAPHS) {
 
 struct SUBG_test {
   SUBG_test() {
-    test.branching_graph.IdentifySubgraphs(isop);
-    test.branching_graph.CollapseSubgraphs();
+    IdentifySubgraphs(test.branching_graph, isop);
+    CollapseSubgraphs(test.branching_graph);
     // test.branching_graph.WriteSubgraphDots("collapsed_branches");
   }
   DFS_Test test;

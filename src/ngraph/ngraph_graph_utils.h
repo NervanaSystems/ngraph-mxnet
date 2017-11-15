@@ -15,10 +15,17 @@
 #ifndef NGRAPH_GRAPH_UTILS_H_
 #define NGRAPH_GRAPH_UTILS_H_
 
+#include <algorithm>
 #include <random>
 #include <string>
 
 namespace ngraph_bridge {
+
+// Forward Delcaration for type aliases
+class Node;
+class Graph;
+using NodePtr = std::shared_ptr<Node>;
+using GraphPtr = std::shared_ptr<Graph>;
 
 // create a random string to avoid subgraph name collisions
 inline std::string randomString(const int length = 12) {
@@ -38,6 +45,21 @@ inline std::string randomString(const int length = 12) {
                   [&]() { return alphabet[dist(rng)]; });
   return str;
 }
+
+template <typename T>
+inline bool in_vec(const std::vector<T>& vec, const T& s) {
+  return (std::find(vec.begin(), vec.end(), s) != vec.end());
+}
+
+/**
+ * Utility for writing a graph to a file for graphviz visualization
+ */
+void WriteDot(const Graph& graph, const std::string& fname);
+
+/**
+ * Write the subgraphs in a graph to a dot file for graphviz visualization
+ */
+void WriteSubgraphDots(const Graph& graph, const std::string& base);
 
 }  // namespace ngraph_bridge
 #endif  // UTILS_H_
