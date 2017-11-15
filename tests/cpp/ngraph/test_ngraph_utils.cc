@@ -110,6 +110,30 @@ TEST(NGRAPH_NNVM, copy_TBlobs) {
 }
 
 TEST(NGRAPH_TRANSPOSE, STANDARD_TRANSPOSE) {
+  ngraph::Shape shape{2, 4};
+  auto param = std::make_shared<ngraph::op::Parameter>(
+      ngraph::element::Float32::element_type(), shape);
+  auto transposed =
+      std::dynamic_pointer_cast<ngraph::op::Reshape>(NgraphTranspose(param, shape));
+  EXPECT_EQ(ngraph::Shape({4, 2}), transposed->get_output_shape());
+}
+
+TEST(NGRAPH_TRANSPOSE, MULTIDIMENSIONAL_TRANSPOSE) {
+  ngraph::Shape shape{2, 4, 8};
+  auto param = std::make_shared<ngraph::op::Parameter>(
+      ngraph::element::Float32::element_type(), shape);
+  auto transposed =
+      std::dynamic_pointer_cast<ngraph::op::Reshape>(NgraphTranspose(param, shape));
+  EXPECT_EQ(ngraph::Shape({8, 4, 2}), transposed->get_output_shape());
+}
+
+TEST(NGRAPH_TRANSPOSE, REORDER_TRANSPOSE) {
+  ngraph::Shape shape{2, 4, 8};
+  auto param = std::make_shared<ngraph::op::Parameter>(
+      ngraph::element::Float32::element_type(), shape);
+  auto transposed = std::dynamic_pointer_cast<ngraph::op::Reshape>(
+      NgraphTranspose(param, shape, {2, 0, 1}));
+  EXPECT_EQ(ngraph::Shape({8, 2, 4}), transposed->get_output_shape());
 }
 
 }  // namespace ngraph_bridge

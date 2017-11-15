@@ -74,8 +74,8 @@ inline std::vector<int> GetInts(std::string input) {
   return vect;
 }
 
-inline NgraphNodePtr NgraphTranspose(NgraphNodePtr node,
-                                     ngraph::Shape in_shape,
+inline NgraphNodePtr NgraphTranspose(const NgraphNodePtr& node,
+                                     const ngraph::Shape& in_shape,
                                      ngraph::AxisVector order = {}) {
   // default, reverse the order of the axes
   if (order.size() == 0){

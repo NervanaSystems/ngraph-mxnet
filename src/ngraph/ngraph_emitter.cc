@@ -335,7 +335,7 @@ inline int get_default(const NodePtr& node, const std::string& key,
 
 template <typename T>
 inline std::vector<T> get_default(const NodePtr& node, const std::string& key,
-                                  std::vector<T> default_val) {
+                                  const std::vector<T>& default_val) {
   std::vector<T> out;
   if (node->orig_node_->attrs.dict.count(key)) {
     auto tmp = GetInts(node->orig_node_->attrs.dict[key]);
