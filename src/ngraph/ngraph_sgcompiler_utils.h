@@ -68,13 +68,15 @@ inline std::shared_ptr<ngraph::Node> makeConstant(const NodePtr& node,
 // like stride/padding/reshape ordering
 template <typename T>
 inline std::vector<T> GetIntVectorFromString(std::string input) {
-  input = input.substr(1, input.size() - 2);
+  input.erase(std::remove(input.begin(), input.end(), ' '), input.end());
+  input.erase(std::remove(input.begin(), input.end(), ')'), input.end());
+  input.erase(std::remove(input.begin(), input.end(), '('), input.end());
   std::stringstream ss(input);
   std::vector<T> vect;
   T i;
   while (ss >> i) {
     vect.push_back(i);
-    if (ss.peek() == ',' || ss.peek() == ' ') ss.ignore();
+    if (ss.peek() == ',') ss.ignore();
   }
   return vect;
 }
