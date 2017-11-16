@@ -64,7 +64,7 @@ inline std::shared_ptr<ngraph::Node> makeConstant(const NodePtr& node,
 
 // This function expects the input string to be of the form 
 // "(1,2,3)" with optional spaces between the numbers, i.e.
-// "( 1,2 , 3)". This is the standard format MXNet uses to represent things
+// "(1,2 , 3)". This is the standard format MXNet uses to represent things
 // like stride/padding/reshape ordering
 template <typename T>
 inline std::vector<T> GetIntVectorFromString(std::string input) {
@@ -90,16 +90,16 @@ inline NgraphNodePtr NgraphTranspose(const NgraphNodePtr& node,
     std::generate(order.begin(), order.end(), [&n](){return --n;});
   } else if (order.size() == in_shape.size()) {
     // validate that the axes order is valid, i.e., unique and the right size
-    std::set<size_t> axes;
+    std::set<ngraph::AxisVector::value_type> axes;
     for (auto o : order) {
       if (o >= 0 && o < in_shape.size() && !axes.count(o)) {
         axes.insert(o);
       } else {
-        throw "Invalid axes order";
+        throw "NGRAPH_BRIDGE: Invalid axes order";
       }
     }
   } else {
-    throw "Invalid axes order";
+    throw "NGRAPH_BRIDGE: Invalid axes order";
   }
 
   // create output shape

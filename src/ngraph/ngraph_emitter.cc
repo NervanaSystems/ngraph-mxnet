@@ -353,7 +353,8 @@ get_default(const NodePtr& node, const std::string& key,
       if (val >= 0){
         out.push_back(val);
       } else {
-        throw std::string("expected unsigned integers but got ") +
+        throw std::string(
+            "NGRAPH_BRIDGE: expected unsigned integers but got ") +
             std::to_string(val);
       }
     }
