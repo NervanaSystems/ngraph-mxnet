@@ -20,10 +20,22 @@
 namespace ngraph_bridge {
 
 TEST(NGRAPH_STRING, GETINTS) {
-  EXPECT_EQ(GetInts("(1, 2, 3)"), std::vector<int>({1, 2, 3}));
-  EXPECT_EQ(GetInts("(1,2,3)"), std::vector<int>({1, 2, 3}));
-  EXPECT_EQ(GetInts("(1, 2,3, 9,12, 17)"),
+  EXPECT_EQ(GetIntVectorFromString<int>("(1, 2, 3)"),
+            std::vector<int>({1, 2, 3}));
+  EXPECT_EQ(GetIntVectorFromString<int>("(1,2,3)"),
+            std::vector<int>({1, 2, 3}));
+  EXPECT_EQ(GetIntVectorFromString<int>("(1, 2,3, 9,12, 17)"),
             std::vector<int>({1, 2, 3, 9, 12, 17}));
+
+  EXPECT_EQ(GetIntVectorFromString<size_t>("(1, 2, 3)"),
+            std::vector<size_t>({1, 2, 3}));
+  EXPECT_EQ(GetIntVectorFromString<size_t>("(1,2,3)"),
+            std::vector<size_t>({1, 2, 3}));
+  EXPECT_EQ(GetIntVectorFromString<size_t>("(1, 2,3, 9,12, 17)"),
+            std::vector<size_t>({1, 2, 3, 9, 12, 17}));
+
+  EXPECT_EQ(GetIntVectorFromString<int>("(-1, 2, 3)"),
+            std::vector<int>({-1, 2, 3}));
 }
 
 TEST(NGRAPH_STRING, RANDOMSTRING) {

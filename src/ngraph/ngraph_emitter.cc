@@ -334,11 +334,33 @@ inline int get_default(const NodePtr& node, const std::string& key,
 }
 
 template <typename T>
-inline std::vector<T> get_default(const NodePtr& node, const std::string& key,
-                                  const std::vector<T>& default_val) {
+inline typename std::enable_if<!std::is_unsigned<T>::value, std::vector<T>>::type
+get_default(const NodePtr& node, const std::string& key,
+            const std::vector<T>& default_val) {
   return node->orig_node_->attrs.dict.count(key)
-             ? GetInts<T>(node->orig_node_->attrs.dict[key])
+             ? GetIntVectorFromString<T>(node->orig_node_->attrs.dict[key])
              : default_val;
+}
+
+template <typename T>
+inline typename std::enable_if<std::is_unsigned<T>::value, std::vector<T>>::type
+get_default(const NodePtr& node, const std::string& key,
+            const std::vector<T>& default_val) {
+  std::vector<T> out;
+  if (node->orig_node_->attrs.dict.count(key)) {
+    auto tmp = GetIntVectorFromString<int>(node->orig_node_->attrs.dict[key]);
+    for (auto val : tmp) {
+      if (val >= 0){
+        out.push_back(val);
+      } else {
+        throw std::string("expected unsigned integers but got ") +
+            std::to_string(val);
+      }
+    }
+  } else {
+    out = default_val;
+  }
+  return out;
 }
 
 // MXNet high level ops generating function
@@ -431,8 +453,8 @@ void Emitter::CreateLayerOps() {
   // Implement transpose with a utility function that returns
   // a reshape op. Not ideal, we should have a ngraph transpose op
   ngraph_op_funcs_["transpose"] = [this](const NodePtr& node) {
-
-    auto axes_order = get_default(node, "axes", std::vector<size_t>());
+    auto axes_order = get_default(
+        node, "axes", std::vector<ngraph::AxisVector::value_type>());
     return NgraphTranspose(op_map_[node->inputs_[0]],
                            TShape_to_NShape(node->inputs_[0]->shape_),
                            axes_order);
