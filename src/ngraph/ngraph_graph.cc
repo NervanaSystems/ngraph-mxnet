@@ -91,7 +91,6 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
   // create storage for the ouputs and the visited nodes
   std::vector<NodePtr> outNodes;
   std::unordered_set<NodePtr> visited;
-  std::set<EdgeRemoveTuple> visited_edges;
 
   // This function searches the nodes that are inputs to the final
   // subgraph output AND outputs of other subgraph nodes
@@ -131,6 +130,7 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
     }
   };
 
+  std::set<EdgeRemoveTuple> visited_edges;
   // recursive search for bad branches
   RemoveUtil(node, outNodes, good_subgraph_node, visited_edges);
   return outNodes;
@@ -162,7 +162,7 @@ std::vector<NodePtr> PruneSubgraphOutputs(Graph &graph, NodePtr node,
   // function to remove all of the outputs that aren't the last one
   auto prune_subgraph = [&subgraph_nodes](std::vector<NodePtr> outNodes) {
     for (auto n : outNodes)
-      if (n != subgraph_nodes[0])
+      if (n != subgraph_nodes.back())
         subgraph_nodes.erase(
             std::remove(subgraph_nodes.begin(), subgraph_nodes.end(), n),
             subgraph_nodes.end());
