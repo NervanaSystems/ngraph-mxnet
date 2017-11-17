@@ -21,7 +21,7 @@
 
 namespace ngraph_bridge {
 
-testEmitter test_emitter(nullptr);
+testElemwiseEmitter test_emitter(nullptr);
 
 TEST(NGRAPH_EMITTER, COMPOUND_UNARY_OPS) {
   auto relu = test_emitter.ngraph_op_funcs_["relu"](test_emitter.node);
@@ -244,12 +244,25 @@ TEST(NGRAPH_EMITTER, BINARY_OPS) {
       test_emitter.ngraph_op_funcs_["_lesser"](test_emitter.node)));
   EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::LessEq>(
       test_emitter.ngraph_op_funcs_["_lesser_equal"](test_emitter.node)));
-  // other
-  EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Dot>(
-      test_emitter.ngraph_op_funcs_["dot"](test_emitter.node)));
 }
 
-TEST(NGRAPH_EMITTER, SPLIT) {
+TEST_F(testGeneralEmitter, DOT) {
+  in1->shape_ = nnvm::TShape{2, 4};
+  in2->shape_ = nnvm::TShape{4, 2};
+  node->shape_ = nnvm::TShape{2, 2};
+
+  op_map_[in1] = std::make_shared<ngraph::op::Parameter>(
+      ngraph::element::Float32::element_type(),
+      TShape_to_NShape(in1->shape_));
+  op_map_[in2] = std::make_shared<ngraph::op::Parameter>(
+      ngraph::element::Float32::element_type(),
+      TShape_to_NShape(in2->shape_));
+
+  EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Dot>(
+      ngraph_op_funcs_["dot"](node)));
+}
+
+TEST_F(testGeneralEmitter, SPLIT) {
   // slice no squeeze
   {
     mxnet::op::SliceChannelParam param;
@@ -264,15 +277,19 @@ TEST(NGRAPH_EMITTER, SPLIT) {
     attr.dict["axis"] = "2";
     attr.dict["squeeze_axis"] = "0";
 
-    auto node = nnvm::Node::Create();
-    node->attrs = attr;
+    auto nnvmnode = nnvm::Node::Create();
+    nnvmnode->attrs = attr;
+    node = std::make_shared<OpNode>(nnvmnode, "node", "test",
+                                    std::vector<NodePtr>{in1, in2, in3});
 
-    testEmitter test(node);
-    test.in1->shape_ = nnvm::TShape{2, 4, 8, 16};
-    test.node->shape_ = nnvm::TShape{2, 4, 2, 16};
-    test.node->multi_output_index_ = 1;
+    in1->shape_ = nnvm::TShape{2, 4, 8, 16};
+    op_map_[in1] = std::make_shared<ngraph::op::Parameter>(
+        ngraph::element::Float32::element_type(),
+        TShape_to_NShape(in1->shape_));
+    node->shape_ = nnvm::TShape{2, 4, 2, 16};
+    node->multi_output_index_ = 1;
 
-    auto op = test.ngraph_op_funcs_["split"](test.node);
+    auto op = ngraph_op_funcs_["split"](node);
 
     ASSERT_TRUE(std::dynamic_pointer_cast<ngraph::op::Slice>(op));
 
@@ -280,6 +297,7 @@ TEST(NGRAPH_EMITTER, SPLIT) {
     EXPECT_EQ(op_cast->get_lower_bounds(), ngraph::Shape({0, 0, 2, 0}));
     EXPECT_EQ(op_cast->get_upper_bounds(), ngraph::Shape({2, 4, 4, 16}));
     EXPECT_EQ(op_cast->get_step(), ngraph::Shape({1, 1, 1, 1}));
+    EXPECT_EQ(op_cast->get_shape(), TShape_to_NShape(node->shape_));
   }
   // slice with squeeze
   {
@@ -295,27 +313,33 @@ TEST(NGRAPH_EMITTER, SPLIT) {
     attr.dict["axis"] = "2";
     attr.dict["squeeze_axis"] = "1";
 
-    auto node = nnvm::Node::Create();
-    node->attrs = attr;
+    auto nnvmnode = nnvm::Node::Create();
+    nnvmnode->attrs = attr;
+    node = std::make_shared<OpNode>(nnvmnode, "node", "test",
+                                    std::vector<NodePtr>{in1, in2, in3});
 
-    testEmitter test(node);
-    test.in1->shape_ = nnvm::TShape{2, 4, 8, 16};
-    test.node->shape_ = nnvm::TShape{2, 4, 16};
-    test.node->multi_output_index_ = 0;
+    in1->shape_ = nnvm::TShape{2, 4, 8, 16};
+    op_map_[in1] = std::make_shared<ngraph::op::Parameter>(
+        ngraph::element::Float32::element_type(),
+        TShape_to_NShape(in1->shape_));
+    node->shape_ = nnvm::TShape{2, 4, 16};
+    node->multi_output_index_ = 0;
 
-    auto op = test.ngraph_op_funcs_["split"](test.node);
+    auto op = ngraph_op_funcs_["split"](node);
 
     ASSERT_TRUE(std::dynamic_pointer_cast<ngraph::op::Reshape>(op));
 
     auto op_cast = std::dynamic_pointer_cast<ngraph::op::Reshape>(op);
-    ngraph::AxisVector order(TShape_to_NShape(test.in1->shape_).size());
+
+    ngraph::AxisVector order(TShape_to_NShape(in1->shape_).size());
     std::iota(order.begin(), order.end(), 0);
+
     EXPECT_EQ(op_cast->get_input_order(), order);
-    EXPECT_EQ(op_cast->get_output_shape(), TShape_to_NShape(test.node->shape_));
+    EXPECT_EQ(op_cast->get_shape(), TShape_to_NShape(node->shape_));
   }
 }
 
-TEST(NGRAPH_EMITTER, CONCAT) {
+TEST_F(testGeneralEmitter, CONCAT) {
   // concat
   {
     mxnet::op::ConcatParam param;
@@ -331,18 +355,26 @@ TEST(NGRAPH_EMITTER, CONCAT) {
     auto svec = std::vector<nnvm::TShape>{in1shape, in2shape};
     attr.op = (nnvm::Op*)mxnet::op::CreateOp<mxnet::cpu>(param, 0, &svec);
 
-    auto node = nnvm::Node::Create();
-    node->attrs = attr;
+    auto nnvmnode = nnvm::Node::Create();
+    nnvmnode->attrs = attr;
+    node = std::make_shared<OpNode>(nnvmnode, "node", "test",
+                                    std::vector<NodePtr>{in1, in2});
 
-    testEmitter test(node);
-    test.in1->shape_ = in1shape;
-    test.in2->shape_ = in2shape;
-    test.node->shape_ = nnvm::TShape{4, 2, 2};
-
+    in1->shape_ = in1shape;
+    in2->shape_ = in2shape;
+    op_map_[in1] = std::make_shared<ngraph::op::Parameter>(
+        ngraph::element::Float32::element_type(),
+        TShape_to_NShape(in1->shape_));
+    op_map_[in2] = std::make_shared<ngraph::op::Parameter>(
+        ngraph::element::Float32::element_type(),
+        TShape_to_NShape(in2->shape_));
+    node->shape_ = nnvm::TShape{4, 2, 2};
+    std::cout << "make concat" << std::endl;
     auto op = std::dynamic_pointer_cast<ngraph::op::Concat>(
-        test.ngraph_op_funcs_["concat"](test.node));
+        ngraph_op_funcs_["concat"](node));
     ASSERT_TRUE(op);
     EXPECT_EQ(op->get_concatenation_axis(), 0);
+    EXPECT_EQ(op->get_shape(), TShape_to_NShape(node->shape_));
   }
 }
 
@@ -449,7 +481,7 @@ TEST(NGRAPH_EMITTER, BROADCAST_OPS) {
       "2");
 }
 
-TEST(NGRAPH_EMITTER, MATRIX_OPS) {
+TEST_F(testGeneralEmitter, MATRIX_OPS) {
   // expand dims
   {
     nnvm::NodeAttrs attr;
@@ -457,19 +489,26 @@ TEST(NGRAPH_EMITTER, MATRIX_OPS) {
     attr.dict["axis"] = "0";
     attr.op = nnvm::Op::Get("expand_dims");
 
-    auto node = nnvm::Node::Create();
-    node->attrs = attr;
+    auto nnvmnode = nnvm::Node::Create();
+    nnvmnode->attrs = attr;
+    node = std::make_shared<OpNode>(nnvmnode, "node", "test",
+                                    std::vector<NodePtr>{in1, in2});
 
-    testEmitter test(node);
-    test.in1->shape_ = nnvm::TShape{2, 2};
-    test.in2->shape_ = nnvm::TShape{2, 2};
-    test.node->shape_ = nnvm::TShape{1, 2, 2};
+    in1->shape_ = nnvm::TShape{2, 2};
+    in2->shape_ = nnvm::TShape{2, 2};
+    op_map_[in1] = std::make_shared<ngraph::op::Parameter>(
+        ngraph::element::Float32::element_type(),
+        TShape_to_NShape(in1->shape_));
+    op_map_[in2] = std::make_shared<ngraph::op::Parameter>(
+        ngraph::element::Float32::element_type(),
+        TShape_to_NShape(in2->shape_));
+    node->shape_ = nnvm::TShape{1, 2, 2};
 
     auto op = std::dynamic_pointer_cast<ngraph::op::Reshape>(
-        test.ngraph_op_funcs_["expand_dims"](test.node));
+        ngraph_op_funcs_["expand_dims"](node));
     ASSERT_TRUE(op);
     EXPECT_EQ(op->get_input_order(), ngraph::Shape({0, 1}));
-    EXPECT_EQ(op->get_output_shape(), TShape_to_NShape(test.node->shape_));
+    EXPECT_EQ(op->get_shape(), TShape_to_NShape(node->shape_));
   }
   // flatten
   {
@@ -477,18 +516,22 @@ TEST(NGRAPH_EMITTER, MATRIX_OPS) {
     attr.name = "flatten_test";
     attr.op = nnvm::Op::Get("flatten");
 
-    auto node = nnvm::Node::Create();
-    node->attrs = attr;
+    auto nnvmnode = nnvm::Node::Create();
+    nnvmnode->attrs = attr;
+    node = std::make_shared<OpNode>(nnvmnode, "node", "test",
+                                    std::vector<NodePtr>{in1});
 
-    testEmitter test(node);
-    test.in1->shape_ = nnvm::TShape{2, 4, 8, 16};
-    test.node->shape_ = nnvm::TShape{2, 4 * 8 * 16};
+    in1->shape_ = nnvm::TShape{2, 4, 8, 16};
+    op_map_[in1] = std::make_shared<ngraph::op::Parameter>(
+        ngraph::element::Float32::element_type(),
+        TShape_to_NShape(in1->shape_));
+    node->shape_ = nnvm::TShape{2, 4 * 8 * 16};
 
     auto op = std::dynamic_pointer_cast<ngraph::op::Reshape>(
-        test.ngraph_op_funcs_["flatten"](test.node));
+        ngraph_op_funcs_["flatten"](node));
     ASSERT_TRUE(op);
     EXPECT_EQ(op->get_input_order(), ngraph::Shape({0, 1, 2, 3}));
-    EXPECT_EQ(op->get_output_shape(), TShape_to_NShape(test.node->shape_));
+    EXPECT_EQ(op->get_shape(), TShape_to_NShape(node->shape_));
   }
   // transpose
   {
@@ -496,22 +539,26 @@ TEST(NGRAPH_EMITTER, MATRIX_OPS) {
     attr.name = "transpose_test";
     attr.op = nnvm::Op::Get("transpose");
 
-    auto node = nnvm::Node::Create();
-    node->attrs = attr;
+    auto nnvmnode = nnvm::Node::Create();
+    nnvmnode->attrs = attr;
+    node = std::make_shared<OpNode>(nnvmnode, "node", "test",
+                                    std::vector<NodePtr>{in1});
 
-    testEmitter test(node);
-    test.in1->shape_ = nnvm::TShape{2, 4};
-    test.node->shape_ = nnvm::TShape{4, 2};
+    in1->shape_ = nnvm::TShape{2, 4};
+    op_map_[in1] = std::make_shared<ngraph::op::Parameter>(
+        ngraph::element::Float32::element_type(),
+        TShape_to_NShape(in1->shape_));
+    node->shape_ = nnvm::TShape{4, 2};
 
     auto op = std::dynamic_pointer_cast<ngraph::op::Reshape>(
-        test.ngraph_op_funcs_["transpose"](test.node));
+        ngraph_op_funcs_["transpose"](node));
     ASSERT_TRUE(op);
     EXPECT_EQ(op->get_input_order(), ngraph::Shape({1, 0}));
-    EXPECT_EQ(op->get_output_shape(), TShape_to_NShape(test.node->shape_));
+    EXPECT_EQ(op->get_shape(), TShape_to_NShape(node->shape_));
   }
 }
 
-TEST(NGRAPH_EMITTER, FULLYCONNECTED) {
+TEST_F(testGeneralEmitter, FULLYCONNECTED) {
   mxnet::op::FullyConnectedParam param;
   param.num_hidden = 8;
 
@@ -525,30 +572,44 @@ TEST(NGRAPH_EMITTER, FULLYCONNECTED) {
   attr.op = (nnvm::Op*)mxnet::op::CreateOp<mxnet::cpu>(
       param, 0, &inshape, &outshape, mxnet::Context());
 
-  auto node = nnvm::Node::Create();
-  node->attrs = attr;
+  auto nnvmnode = nnvm::Node::Create();
+  nnvmnode->attrs = attr;
+  node = std::make_shared<OpNode>(nnvmnode, "node", "test",
+                                  std::vector<NodePtr>{in1, in2, in3});
 
-  testEmitter test(node);
-  test.in1->shape_ = in1shape;
-  test.in2->shape_ = nnvm::TShape{8, 4};
-  test.in3->shape_ = nnvm::TShape{8};
-  test.node->shape_ = nodeshape;
+  in1->shape_ = in1shape;
+  in2->shape_ = nnvm::TShape{8, 4};
+  in3->shape_ = nnvm::TShape{8};
+  op_map_[in1] = std::make_shared<ngraph::op::Parameter>(
+      ngraph::element::Float32::element_type(),
+      TShape_to_NShape(in1->shape_));
+  op_map_[in2] = std::make_shared<ngraph::op::Parameter>(
+      ngraph::element::Float32::element_type(),
+      TShape_to_NShape(in2->shape_));
+  op_map_[in3] = std::make_shared<ngraph::op::Parameter>(
+      ngraph::element::Float32::element_type(),
+      TShape_to_NShape(in3->shape_));
+  node->shape_ = nodeshape;
 
-  auto op = test.ngraph_op_funcs_["FullyConnected"](test.node);
+  data1 = op_map_[in1];
+  data2 = op_map_[in2];
+  data3 = op_map_[in3];
+
+  auto op = ngraph_op_funcs_["FullyConnected"](node);
 
   EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Add>(op));
   EXPECT_TRUE(
       std::dynamic_pointer_cast<ngraph::op::Dot>(op->get_arguments()[0]));
 
-  EXPECT_EQ(op->get_arguments()[0]->get_arguments()[0], test.data1);
+  EXPECT_EQ(op->get_arguments()[0]->get_arguments()[0], data1);
   EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Reshape>(
       op->get_arguments()[0]->get_arguments()[1]));
   EXPECT_EQ(op->get_arguments()[0]->get_arguments()[1]->get_arguments()[0],
-            test.data2);
+            data2);
 
   EXPECT_TRUE(
       std::dynamic_pointer_cast<ngraph::op::Broadcast>(op->get_arguments()[1]));
-  EXPECT_EQ(op->get_arguments()[1]->get_arguments()[0], test.data3);
+  EXPECT_EQ(op->get_arguments()[1]->get_arguments()[0], data3);
 }
 
 }  // namespace ngraph_bridge
