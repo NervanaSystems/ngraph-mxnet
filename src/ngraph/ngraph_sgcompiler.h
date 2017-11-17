@@ -15,8 +15,8 @@
 #ifndef NGRAPH_SGCOMPILER_H_
 #define NGRAPH_SGCOMPILER_H_
 
-#include "ngraph_graph.h"
 #include "ngraph_emitter.h"
+#include "ngraph_graph.h"
 
 #include <mxnet/base.h>
 
@@ -35,5 +35,6 @@ class SGCompiler : public Emitter {
   void ClearOpMap();
 };
 
-}  // end namespace ngraph
+
+}  // namespace ngraph_bridge
 #endif

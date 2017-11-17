@@ -16,7 +16,7 @@
 #include "ngraph_compiler.h"
 #include "test_util.h"
 
-namespace ngraph_bridge{
+namespace ngraph_bridge {
 
 class NGRAPH_COMPILER : public ::testing::Test {
  protected:
@@ -29,7 +29,6 @@ class NGRAPH_COMPILER : public ::testing::Test {
     nodes_[name] = node;
     return nnvm::NodeEntry{node, 0, 0};
   }
-  
 
   virtual void SetUp() {
     auto A = createNode("A");
@@ -78,21 +77,21 @@ class NGRAPH_COMPILER : public ::testing::Test {
   std::unordered_map<std::string, nnvm::NodePtr> nodes_;
 };
 
-class testCompiler : public Compiler{
+class testCompiler : public Compiler {
  public:
   using Compiler::CheckInNgraph;
-  using Compiler::DeepCopy;
+  using Compiler::compiler_;
   using Compiler::CopyNodes;
+  using Compiler::DeepCopy;
+  using Compiler::graph_;
+  using Compiler::Infer;
   using Compiler::MakeCopiedFeedDict;
   using Compiler::MakeCopiedInputs;
-  using Compiler::Infer;
-  using Compiler::node_map_;
-  using Compiler::graph_;
   using Compiler::ngraph_;
-  using Compiler::compiler_;
+  using Compiler::node_map_;
   testCompiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                const NNVMNodeVec& inputs, const BindArgBase& bindarg)
       : Compiler(graph, feed_dict, inputs, bindarg){};
 };
 
-}
+}  // namespace ngraph_bridge

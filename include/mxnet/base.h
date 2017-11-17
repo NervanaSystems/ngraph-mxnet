@@ -226,13 +226,13 @@ struct Context {
   inline static Context CPUPinned(int32_t dev_id = -1);
   /*!
    * Create a NNP context.
-   * \param dev_id the device id for corresponding GPU.
-   * \return Pinned CPU context. -1 for current GPU.
+   * \param dev_id the device id for corresponding NNP.
+   * \return NNP context. -1 for current GPU.
    */
   inline static Context NNP(int32_t dev_id = -1);
 
   /*!
-   * Create a context from string of the format [cpu|gpu|cpu_pinned](n)
+   * Create a context from string of the format [cpu|gpu|cpu_pinned|nnp](n)
    * \param str the string pattern
    * \return Context
    */

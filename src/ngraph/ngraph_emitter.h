@@ -15,25 +15,23 @@
 #ifndef NGRAPH_EMITTER_H_
 #define NGRAPH_EMITTER_H_
 
-#include "ngraph_graph.h"
 #include "ngraph_autobroadcast.h"
-
-using NgraphNodePtr = std::shared_ptr<ngraph::Node>;
+#include "ngraph_graph.h"
 
 namespace ngraph_bridge {
 
 // Alias for maps of name, function, where function returns an ngraph node
 using OpEmitter =
-    std::map<std::string,
-             std::function<NgraphNodePtr(const NodePtr&)> >;
+    std::map<std::string, std::function<NgraphNodePtr(const NodePtr&)> >;
 
 // Emitter primairily serves to create and store ngraph Nodes
 class Emitter {
-public:
+ public:
   Emitter();
   // maps of ngraph operation generator functions
   OpEmitter ngraph_op_funcs_;
-protected:
+
+ protected:
   // create unary operation functions
   void CreateUnaryOps();
   // create binary operation functions
@@ -48,5 +46,5 @@ protected:
   std::vector<NodePtr> placeholder_order_;
 };
 
-}  // end namespace ngraph
+}  // namespace ngraph_bridge
 #endif

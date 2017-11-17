@@ -3,8 +3,6 @@
 
 #include "ngraph_graph.h"
 
-using NgraphNodePtr = std::shared_ptr<ngraph::Node>;
-
 namespace ngraph_bridge {
 
 // broadcasts input ngraph nodes per numpy rules

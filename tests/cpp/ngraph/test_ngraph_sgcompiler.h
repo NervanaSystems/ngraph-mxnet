@@ -13,8 +13,9 @@
 // ----------------------------------------------------------------------------
 
 #include "test_util.h"
-#include "../../src/ngraph/ngraph_sgcompiler_utils.h"
+
 #include "../../src/ngraph/ngraph_sgcompiler.h"
+#include "../../src/ngraph/ngraph_sgcompiler_utils.h"
 
 namespace ngraph_bridge {
 
@@ -27,7 +28,7 @@ class NGRAPH_SGCOMPILER : public ::testing::Test {
   NodePtr node2;
   std::shared_ptr<Graph> subgraph;
   virtual void SetUp() {
-    const auto shape = nnvm::TShape{4,8,12,16};
+    const auto shape = nnvm::TShape{4, 8, 12, 16};
 
     in1 = std::make_shared<VariableNode>(nullptr, "in1");
     in2 = std::make_shared<VariableNode>(nullptr, "in2");
@@ -56,21 +57,18 @@ class NGRAPH_SGCOMPILER : public ::testing::Test {
 };
 
 class testSGCompiler : public SGCompiler {
-  public:
-    using SGCompiler::op_map_;
-    using SGCompiler::ngraph_op_funcs_;
-    using SGCompiler::CompileInput;
-    using SGCompiler::CompileNode;
-    using SGCompiler::Compile;
+ public:
+  using SGCompiler::Compile;
+  using SGCompiler::CompileInput;
+  using SGCompiler::CompileNode;
+  using SGCompiler::ngraph_op_funcs_;
+  using SGCompiler::op_map_;
 
-    std::shared_ptr<ngraph::Node> operator[](NodePtr node){
-      return op_map_[node];
-    }
+  std::shared_ptr<ngraph::Node> operator[](NodePtr node) {
+    return op_map_[node];
+  }
 
-    int count(NodePtr node){
-      return op_map_.count(node);
-    }
-
+  int count(NodePtr node) { return op_map_.count(node); }
 };
 
-}
+}  // namespace ngraph_bridge
