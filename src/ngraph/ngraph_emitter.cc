@@ -182,6 +182,10 @@ void Emitter::CreateUnaryOps() {
   // ngraph_op_funcs_["gammaln"] = [this](const NodePtr& node){
   //   return ;
   // };
+  ngraph_op_funcs_["cast"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Convert>(op_map_[node->inputs_[0]],
+                                                 getType(node->dtype_));
+  };
 }
 
 // autobroadcast factory function to avoid code copy
