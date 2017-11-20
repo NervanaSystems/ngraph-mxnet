@@ -48,6 +48,18 @@ inline To convert_shapes(const Ti& inshape) {
   return shape;
 }
 
+template <>
+inline ngraph::Shape convert_shapes(const nnvm::TShape& inshape) {
+  ngraph::Shape shape;
+  for (const auto& s : inshape) {
+    if (s < 0) {
+      throw "NGRAPH_BRIDGE: After InferShape no shapes w/ negative dimensions";
+    }
+    shape.push_back(s);
+  }
+  return shape;
+}
+
 // Only thing we're currently converting -> TShape to ngraph::Shape
 inline ngraph::Shape TShape_to_NShape(const nnvm::TShape& inshape) {
   return convert_shapes<nnvm::TShape, ngraph::Shape>(inshape);

@@ -177,9 +177,9 @@ void Emitter::CreateUnaryOps() {
     return op_map_[node->inputs_[0]] * (pi / oneeighty);
   };
   ngraph_op_funcs_["reshape"] = [this](const NodePtr& node) {
-    auto child = op_map_[node->inputs_[0]];
     auto new_shape = TShape_to_NShape(node->shape_);
 
+    auto child = op_map_[node->inputs_[0]];
     if (new_shape.size() ==
         0)  // ngraph++'s reshape wouldn't like an empty shape
     {
