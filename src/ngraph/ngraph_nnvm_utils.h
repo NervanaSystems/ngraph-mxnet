@@ -32,9 +32,14 @@ inline size_t get_buffer_size(const T& shape, size_t nbytes) {
 // from the TBlob to the ngraph tensor.
 inline std::shared_ptr<TensorView> TBlob_to_TensorView(
     const mxnet::TBlob& input, bool copy = false) {
+  // TODO: add a frontend flag for switching between ngraph backends
+  auto manager = ngraph::runtime::Manager::get("NGVM");
+  auto backend = manager->allocate_backend();
+
   auto shape = TShape_to_NShape(input.shape_);
   const auto& element_type = getType(input.type_flag_);
-  auto TV = element_type.make_primary_tensor_view(shape);
+
+  auto TV = backend->make_primary_tensor_view(element_type, shape);
 
   if (copy) {
     auto buffer_size = get_buffer_size(shape, element_type.size());
