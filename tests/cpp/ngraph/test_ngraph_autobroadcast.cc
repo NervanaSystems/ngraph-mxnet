@@ -10,15 +10,7 @@ std::shared_ptr<ngraph::op::Parameter> getParamFromShape(
       ngraph::element::Float32::element_type(), shape);
 }
 
-void propTypes(const NgraphNodePtr &node) {
-  for (auto arg : node->get_arguments()) {
-    propTypes(arg);
-  }
-  node->propagate_types();
-}
-
 inline ngraph::Shape getShapeFromParam(const NgraphNodePtr &node) {
-  propTypes(node);
   auto type = std::dynamic_pointer_cast<const ngraph::TensorViewType>(
       node->get_value_type());
   return type->get_shape();

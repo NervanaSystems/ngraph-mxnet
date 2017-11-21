@@ -114,6 +114,7 @@ static std::unordered_map<std::string, std::string> nameswitch({
     {"Flatten", "flatten"},
     // Unary Ops
     {"Reshape", "reshape"},
+    {"Cast", "cast"},
 });
 
 // Utility function for replacing operation names

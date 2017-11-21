@@ -74,15 +74,55 @@ inline std::shared_ptr<ngraph::Node> makeConstant(const NodePtr& node,
   return std::make_shared<ngraph::op::Constant>(et, shape, num);
 }
 
-// Hacky, reshape-based function for transposing a 2D matrix
-inline NgraphNodePtr NgraphTranspose(NgraphNodePtr node,
-                                     const ngraph::Shape& in_shape) {
-  // TODO: Support multidimensional Transpose
-  if (in_shape.size() != 2)
-    throw "NGRAPH_BRIDGE: no support for multidimensional transpose";
-  auto out_shape = ngraph::Shape({in_shape[1], in_shape[0]});
-  return std::make_shared<ngraph::op::Reshape>(node, ngraph::AxisVector{1, 0},
-                                               out_shape);
+// This function expects the input string to be of the form 
+// "(1,2,3)" with optional spaces between the numbers, i.e.
+// "(1,2 , 3)". This is the standard format MXNet uses to represent things
+// like stride/padding/reshape ordering
+template <typename T>
+inline std::vector<T> GetIntVectorFromString(std::string input) {
+  input.erase(std::remove(input.begin(), input.end(), ' '), input.end());
+  input.erase(std::remove(input.begin(), input.end(), ')'), input.end());
+  input.erase(std::remove(input.begin(), input.end(), '('), input.end());
+  std::stringstream ss(input);
+  std::vector<T> vect;
+  T i;
+  while (ss >> i) {
+    vect.push_back(i);
+    if (ss.peek() == ',') ss.ignore();
+  }
+  return vect;
+}
+
+inline NgraphNodePtr NgraphTranspose(const NgraphNodePtr& node,
+                                     const ngraph::Shape& in_shape,
+                                     ngraph::AxisVector order = {}) {
+  // default, reverse the order of the axes
+  if (order.size() == 0){
+    auto n = in_shape.size();
+    order = ngraph::AxisVector(n);
+    
+    std::generate(order.begin(), order.end(), [&n](){return --n;});
+  } else if (order.size() == in_shape.size()) {
+    // validate that the axes order is valid, i.e., unique and the right size
+    std::set<ngraph::AxisVector::value_type> axes;
+    for (auto o : order) {
+      if (o >= 0 && o < in_shape.size() && !axes.count(o)) {
+        axes.insert(o);
+      } else {
+        throw "NGRAPH_BRIDGE: Invalid axes order";
+      }
+    }
+  } else {
+    throw "NGRAPH_BRIDGE: Invalid axes order";
+  }
+
+  // create output shape
+  auto out_shape = ngraph::Shape();
+  for (size_t i = 0; i < in_shape.size(); ++i)
+    out_shape.push_back(in_shape[order[i]]);
+
+  // do the reshaping with the order
+  return std::make_shared<ngraph::op::Reshape>(node, order, out_shape);
 }
 
 }  // namespace ngraph_bridge
