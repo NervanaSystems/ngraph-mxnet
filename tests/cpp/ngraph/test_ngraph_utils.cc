@@ -99,7 +99,8 @@ TEST(NGRAPH_NNVM, copy_TBlobs) {
   inblobs.push_back(TBlob1);
   inblobs.push_back(TBlob2);
 
-  auto placeholders = make_ngraph_placeholders(inblobs, true);
+  auto graph = std::make_shared<Graph>(Graph());
+  auto placeholders = make_ngraph_placeholders(inblobs, graph, true);
 
   EXPECT_EQ(
       vec1,
@@ -131,8 +132,8 @@ TEST(NGRAPH_TRANSPOSE, STANDARD_TRANSPOSE) {
   ngraph::Shape shape{2, 4};
   auto param = std::make_shared<ngraph::op::Parameter>(
       ngraph::element::Float32::element_type(), shape);
-  auto transposed =
-      std::dynamic_pointer_cast<ngraph::op::Reshape>(NgraphTranspose(param, shape));
+  auto transposed = std::dynamic_pointer_cast<ngraph::op::Reshape>(
+      NgraphTranspose(param, shape));
   EXPECT_EQ(ngraph::Shape({4, 2}), transposed->get_output_shape());
 }
 
@@ -140,8 +141,8 @@ TEST(NGRAPH_TRANSPOSE, MULTIDIMENSIONAL_TRANSPOSE) {
   ngraph::Shape shape{2, 4, 8};
   auto param = std::make_shared<ngraph::op::Parameter>(
       ngraph::element::Float32::element_type(), shape);
-  auto transposed =
-      std::dynamic_pointer_cast<ngraph::op::Reshape>(NgraphTranspose(param, shape));
+  auto transposed = std::dynamic_pointer_cast<ngraph::op::Reshape>(
+      NgraphTranspose(param, shape));
   EXPECT_EQ(ngraph::Shape({8, 4, 2}), transposed->get_output_shape());
 }
 

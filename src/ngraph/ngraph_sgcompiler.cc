@@ -50,13 +50,11 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph, std::shared_p
 
   // initialize the runtime manager and backend
   // TODO: add a frontend flag for switching between ngraph backends
-  auto nnp_ctx =mxnet::Context::NNP(0) ;
-  auto manager = ngraph::runtime::Manager::get("NGVM");
-  if ( (*contxt_)==nnp_ctx ){
-	  manager = manager->get("ARGON");
-  }
-
-  auto backend = manager->allocate_backend();
+  // auto nnp_ctx =mxnet::Context::NNP(0) ;
+  // auto manager = ngraph::runtime::Manager::get("NGVM");
+  // if ( (*contxt_)==nnp_ctx ){
+  //   manager = manager->get("ARGON");
+  // }
 
   // map the inputs into a parameter list
   // TODO: std::transform?
@@ -76,8 +74,9 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph, std::shared_p
 
   // compile it into a call frame with the backend, and save
   // the compile frame into the subgraph
-  auto forward_external = manager->compile(f);
-  sub_graph->ngraph_forward = backend->make_call_frame(forward_external);
+  auto forward_external = sub_graph->manager->compile(f);
+  sub_graph->ngraph_forward =
+      sub_graph->backend->make_call_frame(forward_external);
 
   // rebuild the graph and forward function for the backprop calculation
   // this is due to a current limitation in ngraph autodiff
@@ -118,8 +117,9 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph, std::shared_p
   auto bf = std::make_shared<ngraph::Function>(result, result->get_value_type(),
                                                backward_parameters);
 
-  auto backward_external = manager->compile(bf);
-  sub_graph->ngraph_backward = backend->make_call_frame(backward_external);
+  auto backward_external = sub_graph->manager->compile(bf);
+  sub_graph->ngraph_backward =
+      sub_graph->backend->make_call_frame(backward_external);
 }
 
 // compiling a node, recursively checking it's inputs

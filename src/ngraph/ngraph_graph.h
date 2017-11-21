@@ -140,8 +140,10 @@ TODO: Refactor into Graph and subgraph?
 */
 class Graph : public Node {
  public:
-  Graph() : Node(NodeType::kGraph, nullptr, "") {}
-  Graph(const std::string& name) : Node(NodeType::kGraph, nullptr, name) {}
+  Graph(const std::string& name = "")
+      : Node(NodeType::kGraph, nullptr, name),
+        manager(ngraph::runtime::Manager::get("NGVM")),
+        backend(manager->allocate_backend()) {}
 
   // Add a node to the graph
   void AddNode(NodePtr node) { nodes_.emplace_back(node); }
@@ -160,6 +162,9 @@ class Graph : public Node {
   // functions to execute this graph in ngraph
   std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward;
   std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward;
+
+  const std::shared_ptr<ngraph::runtime::Manager> manager;
+  const std::shared_ptr<ngraph::runtime::Backend> backend;
 };
 
 /**
