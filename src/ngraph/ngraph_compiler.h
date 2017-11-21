@@ -112,7 +112,8 @@ static std::unordered_map<std::string, std::string> nameswitch({
     // Layer Ops
     {"Concat", "concat"},
     {"Flatten", "flatten"},
-    // Unary
+    // Unary Ops
+    {"Reshape", "reshape"},
     {"Cast", "cast"},
 });
 

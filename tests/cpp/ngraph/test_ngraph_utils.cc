@@ -55,6 +55,12 @@ TEST(NGRAPH_SGCOMPILER_UTILS, Convert_Shapes) {
   for (auto n : Nshape) NshapeVec.push_back(n);
 
   for (int i = 0; i < 4; ++i) EXPECT_EQ(TshapeVec[i], NshapeVec[i]);
+
+  EXPECT_EQ(TShape_to_NShape(nnvm::TShape{}), ngraph::Shape{});
+  EXPECT_EQ(TShape_to_NShape(nnvm::TShape{1}), ngraph::Shape{1});
+  EXPECT_EQ(TShape_to_NShape(nnvm::TShape{2, 3, 4, 5, 6}),
+            (ngraph::Shape{2, 3, 4, 5, 6}));
+  EXPECT_THROW(TShape_to_NShape(nnvm::TShape{2, 3, 4, -1}), const char*);
 }
 
 TEST(NGRAPH_SGCOMPILER_UTILS, GetNGraphTypes) {
