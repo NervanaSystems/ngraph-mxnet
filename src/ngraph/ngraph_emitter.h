@@ -15,7 +15,6 @@
 #ifndef NGRAPH_EMITTER_H_
 #define NGRAPH_EMITTER_H_
 
-#include "ngraph_autobroadcast.h"
 #include "ngraph_graph.h"
 
 namespace ngraph_bridge {
@@ -23,6 +22,10 @@ namespace ngraph_bridge {
 // Alias for maps of name, function, where function returns an ngraph node
 using OpEmitter =
     std::map<std::string, std::function<NgraphNodePtr(const NodePtr&)> >;
+
+struct AutoBroadcast {
+  NgraphNodePtr lhs, rhs;
+};
 
 // Emitter primairily serves to create and store ngraph Nodes
 class Emitter {
