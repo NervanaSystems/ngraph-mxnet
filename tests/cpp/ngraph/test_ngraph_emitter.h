@@ -15,30 +15,63 @@
 #include "test_util.h"
 
 #include "../../src/ngraph/ngraph_emitter.h"
+#include "../../src/ngraph/ngraph_sgcompiler_utils.h"
 
 namespace ngraph_bridge {
 
-struct testEmitter : public Emitter {
+struct testGeneralEmitter : public Emitter, public ::testing::Test {
+protected:
   std::shared_ptr<VariableNode> in1;
   std::shared_ptr<VariableNode> in2;
   std::shared_ptr<VariableNode> in3;
   std::shared_ptr<OpNode> node;
+
   NgraphNodePtr data1;
   NgraphNodePtr data2;
   NgraphNodePtr data3;
-  testEmitter(nnvmNodePtr n) {
+
+  virtual void SetUp() {
     in1 = std::make_shared<VariableNode>(nullptr, "in1");
     in2 = std::make_shared<VariableNode>(nullptr, "in2");
     in3 = std::make_shared<VariableNode>(nullptr, "in3");
-    node = std::make_shared<OpNode>(n, "node", "test",
-                                    std::vector<NodePtr>{in1, in2, in3});
 
-    op_map_[in1] = std::make_shared<ngraph::op::Parameter>();
-    op_map_[in2] = std::make_shared<ngraph::op::Parameter>();
-    op_map_[in3] = std::make_shared<ngraph::op::Parameter>();
+    node = std::make_shared<OpNode>(nullptr, "node", "test",
+                                    std::vector<NodePtr>{in1, in2, in3});
+  };
+
+  virtual void TearDown(){};
+
+};
+
+
+struct testElemwiseEmitter : public Emitter {
+  std::shared_ptr<VariableNode> in1;
+  std::shared_ptr<VariableNode> in2;
+  std::shared_ptr<OpNode> node;
+
+  NgraphNodePtr data1;
+  NgraphNodePtr data2;
+
+  testElemwiseEmitter(nnvmNodePtr n) {
+    in1 = std::make_shared<VariableNode>(nullptr, "in1");
+    in2 = std::make_shared<VariableNode>(nullptr, "in2");
+
+    node = std::make_shared<OpNode>(n, "node", "test",
+                                    std::vector<NodePtr>{in1, in2});
+
+    in1->shape_ = nnvm::TShape{2, 4, 8};
+    in2->shape_ = nnvm::TShape{2, 4, 8};
+    node->shape_ = nnvm::TShape{2, 4, 8};
+
+    op_map_[in1] = std::make_shared<ngraph::op::Parameter>(
+        ngraph::element::Float32::element_type(),
+        TShape_to_NShape(in1->shape_));
+    op_map_[in2] = std::make_shared<ngraph::op::Parameter>(
+        ngraph::element::Float32::element_type(),
+        TShape_to_NShape(in2->shape_));
+
     data1 = op_map_[in1];
     data2 = op_map_[in2];
-    data3 = op_map_[in3];
   };
 };
 
@@ -54,16 +87,16 @@ struct testEmitterBroadcast : public Emitter {
     node = std::make_shared<OpNode>(nullptr, "node", "test",
                                     std::vector<NodePtr>{in1, in2});
 
-    auto s2345 = nnvm::TShape{2, 3, 4, 5};
-    auto s2145 = nnvm::TShape{2, 1, 4, 5};
-    auto s2315 = nnvm::TShape{2, 3, 1, 5};
+    in1->shape_ = nnvm::TShape{2, 3, 1, 5};
+    in2->shape_ = nnvm::TShape{2, 1, 4, 5};
+    node->shape_ = nnvm::TShape{2, 3, 4, 5};
 
-    in1->shape_ = s2145;
-    in2->shape_ = s2315;
-    node->shape_ = s2345;
-
-    op_map_[in1] = std::make_shared<ngraph::op::Parameter>();
-    op_map_[in2] = std::make_shared<ngraph::op::Parameter>();
+    op_map_[in1] = std::make_shared<ngraph::op::Parameter>(
+        ngraph::element::Float32::element_type(),
+        TShape_to_NShape(in1->shape_));
+    op_map_[in2] = std::make_shared<ngraph::op::Parameter>(
+        ngraph::element::Float32::element_type(),
+        TShape_to_NShape(in2->shape_));
     data1 = op_map_[in1];
     data2 = op_map_[in2];
   };
