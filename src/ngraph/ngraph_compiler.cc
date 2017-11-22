@@ -128,8 +128,10 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
 
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
-                   const NNVMNodeVec& inputs, const BindArgBase& bindbase) {
+                   const NNVMNodeVec& inputs, const BindArgBase& bindbase,
+				   const mxnet::Context& default_ctx) {
   DeepCopy(graph);
+  default_ctx_= default_ctx;
 
   // infer nnvm::Graph shape and type
   auto bind = dynamic_cast<const BindArg*>(&bindbase);
@@ -199,7 +201,8 @@ nnvm::Graph Compiler::Compile() {
   for (auto n : ngraph_.nodes_) {
     if (n->type_ == NodeType::kGraph) {
       // extract and compile subgraph
-      auto sg = compiler_.Compile(n);
+      auto sg_ctx = std::make_shared<mxnet::Context>(default_ctx_);
+      auto sg = compiler_.Compile(n, sg_ctx);
       // register compiled subgraph with nnvm
       register_subgraph(sg);
       // create nnvm node

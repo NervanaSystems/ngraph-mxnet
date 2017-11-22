@@ -528,13 +528,14 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   std::vector<Context> aux_state_ctxes(aux_states.size());
   std::transform(aux_states.begin(), aux_states.end(), aux_state_ctxes.begin(), get_ctx1);
 
+
   nnvm::Graph g = InitGraph(symbol, default_ctx, ctx_map, in_arg_ctxes,
                             arg_grad_ctxes, aux_state_ctxes, grad_req_types);
 
 #if MXNET_USE_NGRAPH == 1
   ngraph_bridge::BindArg bind(num_forward_inputs_, in_args, aux_states);
   ngraph_bridge::Compiler compiler(
-      g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), bind);
+      g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), bind, default_ctx);
   saved_states_ = compiler.CopySavedStates(saved_states_);
   g = compiler.Compile();
 
@@ -967,7 +968,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   ngraph_bridge::SimpleBindArg simplebind(num_forward_inputs_, arg_shape_map,
                                           arg_dtype_map);
   ngraph_bridge::Compiler compiler(
-      g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), simplebind);
+      g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), simplebind, default_ctx);
   saved_states_ = compiler.CopySavedStates(saved_states_);
   g = compiler.Compile();
 

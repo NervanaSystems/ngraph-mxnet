@@ -73,7 +73,7 @@ USE_OPENMP = 1
 # whether to use NGRAPH during compile
 # Need to point to ngraph
 USE_NGRAPH = 0
-NGRAPH_DIR = 
+NGRAPH_DIR =
 
 
 # MKL ML Library for Intel CPU/Xeon Phi
