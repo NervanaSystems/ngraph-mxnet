@@ -42,15 +42,15 @@ nnvm::NodeEntry CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
 
 // Generator to create functions that convert mxnet layer operations
 // into a series of ngraph operations
-LayerGraphs create_layer_graphs() {
+LayerGraphs create_layer_graphs(const mxnet::Context& context) {
   LayerGraphs layer_funcs;
 
   // Split is an operation with multiple outputs that splits
   // a tensor into multiple tensors by creating even slices along
   // one axis. To ease the interface with ngraph, we convert split into
   // a slice based subgraph.
-  layer_funcs[std::string("split")] = [](const NodePtr node) {
-    Graph tmpGraph(node->name_);
+  layer_funcs[std::string("split")] = [context](const NodePtr node) {
+    Graph tmpGraph(context, node->name_);
     int num_outputs = 1;
     for (auto& kv : node->orig_node_->attrs.dict)
       if (kv.first == "num_outputs") num_outputs = std::stoi(kv.second);
@@ -70,8 +70,8 @@ LayerGraphs create_layer_graphs() {
   // Slice channel is an alias for split
   layer_funcs[std::string("SliceChannel")] = layer_funcs["split"];
 
-  layer_funcs[std::string("Activation")] = [](const NodePtr node) {
-    Graph tmpGraph;
+  layer_funcs[std::string("Activation")] = [context](const NodePtr node) {
+    Graph tmpGraph(context);
     auto act_type = node->orig_node_->attrs.dict["act_type"];
     tmpGraph.AddNode(std::make_shared<OpNode>(node->orig_node_, node->name_,
                                               act_type, node->inputs_));
@@ -129,9 +129,9 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                    const NNVMNodeVec& inputs, const BindArgBase& bindbase,
-				   const mxnet::Context& default_ctx) {
+                   const mxnet::Context& context)
+    : ngraph_(context) {
   DeepCopy(graph);
-  default_ctx_= default_ctx;
 
   // infer nnvm::Graph shape and type
   auto bind = dynamic_cast<const BindArg*>(&bindbase);
@@ -160,7 +160,7 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
 
   MakeCopiedInputs(inputs);
   MakeCopiedFeedDict(feed_dict);
-  ParseNnvmGraph();
+  ParseNnvmGraph(context);
   CheckInNgraph();
 
   IdentifySubgraphs(ngraph_, [&feed_dict](NodePtr s) -> bool {
@@ -201,8 +201,7 @@ nnvm::Graph Compiler::Compile() {
   for (auto n : ngraph_.nodes_) {
     if (n->type_ == NodeType::kGraph) {
       // extract and compile subgraph
-      auto sg_ctx = std::make_shared<mxnet::Context>(default_ctx_);
-      auto sg = compiler_.Compile(n, sg_ctx);
+      auto sg = compiler_.Compile(n);
       // register compiled subgraph with nnvm
       register_subgraph(sg);
       // create nnvm node
@@ -369,9 +368,9 @@ void Compiler::CheckInNgraph() {
 }
 
 // Function that parses an nnvm Graph into an intermediary graph
-void Compiler::ParseNnvmGraph() {
+void Compiler::ParseNnvmGraph(const mxnet::Context& context) {
   // Create dictionary of layer->ngraph functions
-  auto layer_funcs = create_layer_graphs();
+  auto layer_funcs = create_layer_graphs(context);
   // Use NNVM's depth first search to trace the tree and construct the
   // intermediary graph
   nnvm::DFSVisit(graph_.outputs, [this,

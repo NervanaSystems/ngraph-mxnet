@@ -226,7 +226,8 @@ void CollapseSubgraphs(Graph &graph) {
   // loop variable for undefined number of subgraphs
   int i = 1;
   while (true) {
-    auto tmpGraph = std::make_shared<Graph>("subgraph_" + randomString(12) + std::to_string(i));
+    auto tmpGraph = std::make_shared<Graph>(
+        graph.context_, "subgraph_" + randomString(12) + std::to_string(i));
     // loop over all nodes and add nodes in the current subgraph to
     for (auto node : graph.nodes_)
       if (node->subgraph_ == i) tmpGraph->AddNode(node);

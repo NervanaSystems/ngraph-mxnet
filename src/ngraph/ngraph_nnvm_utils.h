@@ -35,7 +35,7 @@ inline std::shared_ptr<TensorView> TBlob_to_TensorView(
   auto shape = TShape_to_NShape(input.shape_);
   const auto& element_type = getType(input.type_flag_);
 
-  auto TV = subgraph->backend->make_primary_tensor_view(element_type, shape);
+  auto TV = subgraph->backend_->make_primary_tensor_view(element_type, shape);
 
   if (copy) {
     auto buffer_size = get_buffer_size(shape, element_type.size());

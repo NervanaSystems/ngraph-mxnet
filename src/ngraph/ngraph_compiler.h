@@ -133,12 +133,12 @@ class Compiler {
   // for ngraph compilation
   Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
            const NNVMNodeVec& inputs, const BindArgBase& bindarg,
-		   const mxnet::Context& default_ctx);
+           const mxnet::Context& default_ctx);
   // Compile returns the compiled graph
   nnvm::Graph Compile();
   // parse the nnvm graph into an intermediate represenation
   // TODO: Make this protected, it's here for debugging
-  void ParseNnvmGraph();
+  void ParseNnvmGraph(const mxnet::Context& context);
 
   StateMap CopySavedStates(const StateMap& saved_states);
   // Return maps of the shapes and dtypes for further analysis in graph_executor
@@ -175,8 +175,6 @@ class Compiler {
   // copied feed dict and inputs
   nnvm::NodeEntryMap<mxnet::NDArray> feed_dict_;
   NNVMNodeVec inputs_;
-  // storage for copied context
-  mxnet::Context default_ctx_;
 
   // infer nnvm::Graph shape and type for bind case
   void Infer(const BindArg* bind);
