@@ -31,11 +31,12 @@ inline size_t get_buffer_size(const T& shape, size_t nbytes) {
 // of an input mxnet TBlob. It optionally copies the data
 // from the TBlob to the ngraph tensor.
 inline std::shared_ptr<TensorView> TBlob_to_TensorView(
-    const mxnet::TBlob& input, GraphPtr subgraph, bool copy) {
+    const mxnet::TBlob& input,
+    std::shared_ptr<ngraph::runtime::Backend> backend, bool copy) {
   auto shape = TShape_to_NShape(input.shape_);
   const auto& element_type = getType(input.type_flag_);
 
-  auto TV = subgraph->backend_->make_primary_tensor_view(element_type, shape);
+  auto TV = backend->make_primary_tensor_view(element_type, shape);
 
   if (copy) {
     auto buffer_size = get_buffer_size(shape, element_type.size());
@@ -50,12 +51,12 @@ inline std::shared_ptr<TensorView> TBlob_to_TensorView(
 // equialently shaped and typed ngraph tensors, optionally
 // copied the data from the TBlobs to ngraph
 inline ValueVector make_ngraph_placeholders(
-    const std::vector<mxnet::TBlob>& inputs, GraphPtr subgraph,
-    bool copy_data) {
+    const std::vector<mxnet::TBlob>& inputs,
+    std::shared_ptr<ngraph::runtime::Backend> backend, bool copy_data) {
   ValueVector out;
   std::transform(inputs.begin(), inputs.end(), std::back_inserter(out),
-                 [copy_data, subgraph](const mxnet::TBlob& tb) {
-                   return TBlob_to_TensorView(tb, subgraph, copy_data);
+                 [copy_data, backend](const mxnet::TBlob& tb) {
+                   return TBlob_to_TensorView(tb, backend, copy_data);
                  });
   return out;
 }

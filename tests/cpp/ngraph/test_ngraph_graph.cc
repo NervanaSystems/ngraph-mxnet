@@ -64,7 +64,6 @@ TEST_F(NGRAPH_GRAPH, GRAPH_INIT) {
   EXPECT_EQ(Graph(test_name).name_, test_name);
 }
 
-
 TEST_F(NGRAPH_GRAPH, GRAPH_NODES_) {
   EXPECT_ANY_THROW(empty_graph["there's no node here"]);
   EXPECT_EQ(full_graph[test_name], test_ngraph_node);
@@ -84,19 +83,19 @@ TEST_F(NGRAPH_GRAPH, GRAPH_DFS_BRANCHING) {
 }
 
 TEST_F(NGRAPH_GRAPH, GRAPH_FIND_SUBGRAPH) {
-  //branching
+  // branching
   EXPECT_EQ(
       FindSubgraph(branching_graph, branching_graph.nodes_[2], isop).size(), 1);
   EXPECT_EQ(
       FindSubgraph(branching_graph, branching_graph.nodes_[4], isop).size(), 2);
   EXPECT_EQ(
       FindSubgraph(branching_graph, branching_graph.nodes_[5], isop).size(), 3);
-  //multi
+  // multi
   EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[2], isop).size(), 1);
   EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[4], isop).size(), 1);
   EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[5], isop).size(), 1);
   EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[7], isop).size(), 2);
-  //complex
+  // complex
   EXPECT_EQ(FindSubgraph(complex_graph, complex_graph.nodes_[9], isop).size(),
             1);
   EXPECT_EQ(FindSubgraph(complex_graph, complex_graph.nodes_[20], isop).size(),
@@ -125,7 +124,6 @@ TEST_F(NGRAPH_GRAPH, GRAPH_COLLAPSE_SUBGRAPHS) {
                 ->nodes_.size(),
             3);
 }
-
 
 // TEST(NGRAPH_GRAPH, PARSENNVM) {
 //   // TODO:: Perhaps in python?

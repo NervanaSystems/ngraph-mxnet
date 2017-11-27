@@ -134,6 +134,15 @@ class OpNode : public Node {
   }
 };
 
+inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
+    const mxnet::Context& context) {
+  if (context == mxnet::Context::NNP(0)) {
+    return ngraph::runtime::Manager::get("ARGON");
+  }
+
+  return ngraph::runtime::Manager::get("NGVM");
+}
+
 /*
 Graph class
 Graph subclasses Node so that we can embed graphs into other graphs
@@ -142,12 +151,11 @@ TODO: Refactor into Graph and subgraph?
 */
 class Graph : public Node {
  public:
-  Graph(const mxnet::Context& context, const std::string& name = "")
+  Graph(const std::string& name = "",
+        const mxnet::Context& context = mxnet::Context::CPU())
       : Node(NodeType::kGraph, nullptr, name),
         context_(context),
-        manager_(context == mxnet::Context::NNP(0)
-                     ? ngraph::runtime::Manager::get("ARGON")
-                     : ngraph::runtime::Manager::get("NGVM")),
+        manager_(GetManagerFromContext(context_)),
         backend_(manager_->allocate_backend()) {}
 
   // Add a node to the graph

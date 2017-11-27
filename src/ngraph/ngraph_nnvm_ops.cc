@@ -137,20 +137,18 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
         return mxnet::op::type_assign(&((*oattr)[0]), dtype);
       });
 
-  auto computation = graph->ngraph_forward;
-  auto name = graph->name_;
-
   // create the compute lambda
   op.set_attr<mxnet::FCompute>(
       "FCompute<cpu>",
-      [computation, name, graph](
-          const nnvm::NodeAttrs& attrs, const mxnet::OpContext& ctx,
-          const std::vector<mxnet::TBlob>& inputs,
-          const std::vector<mxnet::OpReqType>& req,
-          const std::vector<mxnet::TBlob>& outputs) -> void {
-        auto placeholders = make_ngraph_placeholders(inputs, graph, true);
-        auto results = make_ngraph_placeholders(outputs, graph, false);
-        (*computation)(placeholders, results);
+      [graph](const nnvm::NodeAttrs& attrs, const mxnet::OpContext& ctx,
+              const std::vector<mxnet::TBlob>& inputs,
+              const std::vector<mxnet::OpReqType>& req,
+              const std::vector<mxnet::TBlob>& outputs) -> void {
+        auto placeholders =
+            make_ngraph_placeholders(inputs, graph->backend_, true);
+        auto results =
+            make_ngraph_placeholders(outputs, graph->backend_, false);
+        (*graph->ngraph_forward)(placeholders, results);
         result_to_TBlob(results[0], outputs, 0);
       });
 }
@@ -175,20 +173,19 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
   // Mark as backward
   op.set_attr<bool>("TIsBackward", true);
 
-  auto computation = graph->ngraph_backward;
-  auto name = graph->name_;
-
   // create the compute lambda
   op.set_attr<mxnet::FCompute>(
       "FCompute<cpu>",
-      [computation, name, graph](
-          const nnvm::NodeAttrs& attrs, const mxnet::OpContext& ctx,
-          const std::vector<mxnet::TBlob>& inputs,
-          const std::vector<mxnet::OpReqType>& req,
-          const std::vector<mxnet::TBlob>& outputs) -> void {
-        auto placeholders = make_ngraph_placeholders(inputs, graph, true);
-        auto results = make_ngraph_placeholders(outputs, graph, false);
-        (*computation)(placeholders, {ngraph::runtime::make_tuple(results)});
+      [graph](const nnvm::NodeAttrs& attrs, const mxnet::OpContext& ctx,
+              const std::vector<mxnet::TBlob>& inputs,
+              const std::vector<mxnet::OpReqType>& req,
+              const std::vector<mxnet::TBlob>& outputs) -> void {
+        auto placeholders =
+            make_ngraph_placeholders(inputs, graph->backend_, true);
+        auto results =
+            make_ngraph_placeholders(outputs, graph->backend_, false);
+        (*graph->ngraph_backward)(placeholders,
+                                  {ngraph::runtime::make_tuple(results)});
         for (size_t j = 0; j < results.size(); ++j)
           result_to_TBlob(results[j], outputs, j);
       });

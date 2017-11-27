@@ -100,7 +100,8 @@ TEST(NGRAPH_NNVM, copy_TBlobs) {
   inblobs.push_back(TBlob2);
 
   auto graph = std::make_shared<Graph>(Graph());
-  auto placeholders = make_ngraph_placeholders(inblobs, graph, true);
+  auto backend = ngraph::runtime::Manager::get("NGVM")->allocate_backend();
+  auto placeholders = make_ngraph_placeholders(inblobs, backend, true);
 
   EXPECT_EQ(
       vec1,
