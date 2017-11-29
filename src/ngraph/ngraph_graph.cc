@@ -210,12 +210,14 @@ void IdentifySubgraphs(Graph &graph, std::function<bool(NodePtr)> func) {
     if (i->subgraph_ == 0) {
       // select nodes in the a subgraph starting here and going up the graph
       auto subgraph_nodes = FindSubgraph(graph, i, func);
-      // if we found a significantly large subgraph, label it
-      for (auto node : subgraph_nodes) node->subgraph_ = sg;
-      for (auto node : subgraph_nodes)
-        for (auto i : node->inputs_)
-          if (i->subgraph_ != sg) i->subgraph_ = -1;
-      sg += 1;
+      if (subgraph_nodes.size() > 0) {
+        // if we found a significantly large subgraph, label it
+        for (auto node : subgraph_nodes) node->subgraph_ = sg;
+        for (auto node : subgraph_nodes)
+          for (auto i : node->inputs_)
+            if (i->subgraph_ != sg) i->subgraph_ = -1;
+        sg += 1;
+      }
     }
   }
 }
