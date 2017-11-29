@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
+#include "test_util.h"
+
 #include <nnvm/graph.h>
 #include "ngraph_compiler.h"
-#include "test_util.h"
 
 namespace ngraph_bridge {
 
@@ -91,7 +92,7 @@ class testCompiler : public Compiler {
   using Compiler::node_map_;
   testCompiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                const NNVMNodeVec& inputs, const BindArgBase& bindarg)
-      : Compiler(graph, feed_dict, inputs, bindarg){};
+      : Compiler(graph, feed_dict, inputs, bindarg, mxnet::Context::CPU()){};
 };
 
 }  // namespace ngraph_bridge

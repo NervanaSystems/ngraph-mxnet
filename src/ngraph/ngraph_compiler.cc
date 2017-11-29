@@ -129,9 +129,9 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                    const NNVMNodeVec& inputs, const BindArgBase& bindbase,
-				   const mxnet::Context& default_ctx) {
+                   const mxnet::Context& context)
+    : ngraph_("ngraph_" + randomString(6), context) {
   DeepCopy(graph);
-  default_ctx_= default_ctx;
 
   // infer nnvm::Graph shape and type
   auto bind = dynamic_cast<const BindArg*>(&bindbase);
@@ -201,8 +201,7 @@ nnvm::Graph Compiler::Compile() {
   for (auto n : ngraph_.nodes_) {
     if (n->type_ == NodeType::kGraph) {
       // extract and compile subgraph
-      auto sg_ctx = std::make_shared<mxnet::Context>(default_ctx_);
-      auto sg = compiler_.Compile(n, sg_ctx);
+      auto sg = compiler_.Compile(n);
       // register compiled subgraph with nnvm
       register_subgraph(sg);
       // create nnvm node
@@ -219,7 +218,6 @@ nnvm::Graph Compiler::Compile() {
       // use nnvm depth first search to fix node connections in nnvm
       nnvm::DFSVisit(
           graph_.outputs, [sg_node, &matches](const nnvm::NodePtr node) {
-
             for (auto input : node->inputs) {
               auto it = std::find_if(node->inputs.begin(), node->inputs.end(),
                                      matches);
@@ -231,7 +229,6 @@ nnvm::Graph Compiler::Compile() {
                                    node->inputs.end());
               }
             }
-
           });
     }
   }

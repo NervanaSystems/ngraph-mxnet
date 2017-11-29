@@ -26,6 +26,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include <mxnet/base.h>
+
 #include <nnvm/graph.h>
 #include <nnvm/symbolic.h>
 #include <nnvm/tuple.h>
@@ -132,6 +134,15 @@ class OpNode : public Node {
   }
 };
 
+inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
+    const mxnet::Context& context) {
+  if (context == mxnet::Context::NNP(0)) {
+    return ngraph::runtime::Manager::get("ARGON");
+  }
+
+  return ngraph::runtime::Manager::get("NGVM");
+}
+
 /*
 Graph class
 Graph subclasses Node so that we can embed graphs into other graphs
@@ -140,8 +151,12 @@ TODO: Refactor into Graph and subgraph?
 */
 class Graph : public Node {
  public:
-  Graph() : Node(NodeType::kGraph, nullptr, "") {}
-  Graph(const std::string& name) : Node(NodeType::kGraph, nullptr, name) {}
+  Graph(const std::string& name = "",
+        const mxnet::Context& context = mxnet::Context::CPU())
+      : Node(NodeType::kGraph, nullptr, name),
+        context_(context),
+        manager_(GetManagerFromContext(context_)),
+        backend_(manager_->allocate_backend()) {}
 
   // Add a node to the graph
   void AddNode(NodePtr node) { nodes_.emplace_back(node); }
@@ -160,6 +175,10 @@ class Graph : public Node {
   // functions to execute this graph in ngraph
   std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward;
   std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward;
+
+  const mxnet::Context context_;
+  const std::shared_ptr<ngraph::runtime::Manager> manager_;
+  const std::shared_ptr<ngraph::runtime::Backend> backend_;
 };
 
 /**
