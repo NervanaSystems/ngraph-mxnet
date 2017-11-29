@@ -114,15 +114,18 @@ TEST_F(NGRAPH_GRAPH, GRAPH_IDENTIFY_SUBGRAPHS) {
   EXPECT_EQ(branching_graph.nodes_[3]->subgraph_, -1);
   EXPECT_EQ(branching_graph.nodes_[4]->subgraph_, 1);
   EXPECT_EQ(branching_graph.nodes_[5]->subgraph_, 1);
+  EXPECT_EQ(branching_graph.nodes_[6]->subgraph_, 0);
 }
 
 TEST_F(NGRAPH_GRAPH, GRAPH_COLLAPSE_SUBGRAPHS) {
   IdentifySubgraphs(branching_graph, isop);
   CollapseSubgraphs(branching_graph);
-  EXPECT_EQ(branching_graph.nodes_.size(), 4);
-  EXPECT_EQ(std::dynamic_pointer_cast<Graph>(branching_graph.nodes_.back())
-                ->nodes_.size(),
-            3);
+  auto size = branching_graph.nodes_.size();
+  EXPECT_EQ(size, 5);
+  auto subgraph =
+      std::dynamic_pointer_cast<Graph>(branching_graph.nodes_[size - 2]);
+  EXPECT_NE(subgraph, nullptr);
+  EXPECT_EQ(subgraph->nodes_.size(), 3);
 }
 
 // TEST(NGRAPH_GRAPH, PARSENNVM) {
