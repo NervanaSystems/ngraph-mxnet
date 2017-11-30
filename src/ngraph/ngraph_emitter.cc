@@ -248,10 +248,9 @@ void Emitter::CreateBinaryOps() {
                                                  op_map_[node->inputs_[1]]);
   };
   ngraph_op_funcs_["_hypot"] = [this](const NodePtr& node) {
-    auto two = makeConstant(node, "2");
-    return std::make_shared<ngraph::op::Sqrt>(
-        std::make_shared<ngraph::op::Power>(op_map_[node->inputs_[0]], two) +
-        std::make_shared<ngraph::op::Power>(op_map_[node->inputs_[1]], two));
+    auto A = op_map_[node->inputs_[0]];
+    auto B = op_map_[node->inputs_[1]];
+    return std::make_shared<ngraph::op::Sqrt>((A * A) + (B * B));
   };
   ngraph_op_funcs_["_equal"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Equal>(op_map_[node->inputs_[0]],
@@ -306,12 +305,11 @@ void Emitter::CreateBinaryOps() {
     return CreateAutoBroadcast<ngraph::op::Minimum>(node);
   };
   ngraph_op_funcs_["broadcast_hypot"] = [this](const NodePtr& node) {
-    auto ab = ngraph::builder::numpy_broadcast(
-        {op_map_[node->inputs_[0]], op_map_[node->inputs_[1]]});
-    auto two = makeConstant(node, "2");
+    auto A = op_map_[node->inputs_[0]];
+    auto B = op_map_[node->inputs_[1]];
     return std::make_shared<ngraph::op::Sqrt>(
-        std::make_shared<ngraph::op::Power>(ab.first, two) +
-        std::make_shared<ngraph::op::Power>(ab.second, two));
+        ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>((A * A),
+                                                                    (B * B)));
   };
   ngraph_op_funcs_["broadcast_equal"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Equal>(node);
@@ -434,8 +432,8 @@ void Emitter::CreateLayerOps() {
     auto dot = std::make_shared<ngraph::op::Dot>(
         X, NgraphTranspose(W, TShape_to_NShape(node->inputs_[1]->shape_)));
 
-    auto ab = ngraph::builder::numpy_broadcast({dot, beta});
-    return ab.first + ab.second;
+    return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(dot,
+                                                                       beta);
   };
 
   // flatten converts an array of shape (x0, x1, x2, ...)
