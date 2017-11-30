@@ -210,11 +210,9 @@ void Emitter::CreateUnaryOps() {
 
 // autobroadcast factory function to avoid code copy
 AutoBroadcast Emitter::CreateAutoBroadcast(const NodePtr& node) {
-  auto lhsNode = op_map_[node->inputs_[0]];
-  auto lhsShape = TShape_to_NShape(node->inputs_[0]->shape_);
-  auto rhsNode = op_map_[node->inputs_[1]];
-  auto rhsShape = TShape_to_NShape(node->inputs_[1]->shape_);
-  return AutoBroadcast(lhsNode, lhsShape, rhsNode, rhsShape);
+  auto arg0 = op_map_[node->inputs_[0]];
+  auto arg1 = op_map_[node->inputs_[1]];
+  return ngraph::builder::numpy_broadcast({arg0, arg1});
 }
 
 // binary op generating function generator
@@ -285,68 +283,68 @@ void Emitter::CreateBinaryOps() {
   };
   ngraph_op_funcs_["broadcast_add"] = [this](const NodePtr& node) {
     auto ab = CreateAutoBroadcast(node);
-    return ab.lhs() + ab.rhs();
+    return ab.first + ab.second;
   };
   ngraph_op_funcs_["broadcast_sub"] = [this](const NodePtr& node) {
     auto ab = CreateAutoBroadcast(node);
-    return ab.lhs() - ab.rhs();
+    return ab.first - ab.second;
   };
   ngraph_op_funcs_["broadcast_mul"] = [this](const NodePtr& node) {
     auto ab = CreateAutoBroadcast(node);
-    return ab.lhs() * ab.rhs();
+    return ab.first * ab.second;
   };
   ngraph_op_funcs_["broadcast_div"] = [this](const NodePtr& node) {
     auto ab = CreateAutoBroadcast(node);
-    return ab.lhs() / ab.rhs();
+    return ab.first / ab.second;
   };
   ngraph_op_funcs_["broadcast_mod"] = [this](const NodePtr& node) {
     auto ab = CreateAutoBroadcast(node);
-    return std::make_shared<ngraph::op::Remainder>(ab.lhs(), ab.rhs());
+    return std::make_shared<ngraph::op::Remainder>(ab.first, ab.second);
   };
   ngraph_op_funcs_["broadcast_power"] = [this](const NodePtr& node) {
     auto ab = CreateAutoBroadcast(node);
-    return std::make_shared<ngraph::op::Power>(ab.lhs(), ab.rhs());
+    return std::make_shared<ngraph::op::Power>(ab.first, ab.second);
   };
   ngraph_op_funcs_["broadcast_maximum"] = [this](const NodePtr& node) {
     auto ab = CreateAutoBroadcast(node);
-    return std::make_shared<ngraph::op::Maximum>(ab.lhs(), ab.rhs());
+    return std::make_shared<ngraph::op::Maximum>(ab.first, ab.second);
   };
   ngraph_op_funcs_["broadcast_minimum"] = [this](const NodePtr& node) {
     auto ab = CreateAutoBroadcast(node);
-    return std::make_shared<ngraph::op::Minimum>(ab.lhs(), ab.rhs());
+    return std::make_shared<ngraph::op::Minimum>(ab.first, ab.second);
   };
   ngraph_op_funcs_["broadcast_hypot"] = [this](const NodePtr& node) {
     auto ab = CreateAutoBroadcast(node);
     auto one = makeConstant(node, "1");
     auto two = makeConstant(node, "2");
     return std::make_shared<ngraph::op::Power>(
-        (std::make_shared<ngraph::op::Power>(ab.lhs(), two) +
-         std::make_shared<ngraph::op::Power>(ab.rhs(), two)),
+        (std::make_shared<ngraph::op::Power>(ab.first, two) +
+         std::make_shared<ngraph::op::Power>(ab.second, two)),
         one / two);
   };
   ngraph_op_funcs_["broadcast_equal"] = [this](const NodePtr& node) {
     auto ab = CreateAutoBroadcast(node);
-    return std::make_shared<ngraph::op::Equal>(ab.lhs(), ab.rhs());
+    return std::make_shared<ngraph::op::Equal>(ab.first, ab.second);
   };
   ngraph_op_funcs_["broadcast_not_equal"] = [this](const NodePtr& node) {
     auto ab = CreateAutoBroadcast(node);
-    return std::make_shared<ngraph::op::NotEqual>(ab.lhs(), ab.rhs());
+    return std::make_shared<ngraph::op::NotEqual>(ab.first, ab.second);
   };
   ngraph_op_funcs_["broadcast_greater"] = [this](const NodePtr& node) {
     auto ab = CreateAutoBroadcast(node);
-    return std::make_shared<ngraph::op::Greater>(ab.lhs(), ab.rhs());
+    return std::make_shared<ngraph::op::Greater>(ab.first, ab.second);
   };
   ngraph_op_funcs_["broadcast_greater_equal"] = [this](const NodePtr& node) {
     auto ab = CreateAutoBroadcast(node);
-    return std::make_shared<ngraph::op::GreaterEq>(ab.lhs(), ab.rhs());
+    return std::make_shared<ngraph::op::GreaterEq>(ab.first, ab.second);
   };
   ngraph_op_funcs_["broadcast_lesser"] = [this](const NodePtr& node) {
     auto ab = CreateAutoBroadcast(node);
-    return std::make_shared<ngraph::op::Less>(ab.lhs(), ab.rhs());
+    return std::make_shared<ngraph::op::Less>(ab.first, ab.second);
   };
   ngraph_op_funcs_["broadcast_lesser_equal"] = [this](const NodePtr& node) {
     auto ab = CreateAutoBroadcast(node);
-    return std::make_shared<ngraph::op::LessEq>(ab.lhs(), ab.rhs());
+    return std::make_shared<ngraph::op::LessEq>(ab.first, ab.second);
   };
 }
 
@@ -358,9 +356,10 @@ inline int get_default(const NodePtr& node, const std::string& key,
 }
 
 template <typename T>
-inline typename std::enable_if<!std::is_unsigned<T>::value, std::vector<T>>::type
-get_default(const NodePtr& node, const std::string& key,
-            const std::vector<T>& default_val) {
+inline
+    typename std::enable_if<!std::is_unsigned<T>::value, std::vector<T>>::type
+    get_default(const NodePtr& node, const std::string& key,
+                const std::vector<T>& default_val) {
   return node->orig_node_->attrs.dict.count(key)
              ? GetIntVectorFromString<T>(node->orig_node_->attrs.dict[key])
              : default_val;
@@ -374,7 +373,7 @@ get_default(const NodePtr& node, const std::string& key,
   if (node->orig_node_->attrs.dict.count(key)) {
     auto tmp = GetIntVectorFromString<int>(node->orig_node_->attrs.dict[key]);
     for (auto val : tmp) {
-      if (val >= 0){
+      if (val >= 0) {
         out.push_back(val);
       } else {
         throw std::string(
@@ -395,7 +394,6 @@ void Emitter::CreateLayerOps() {
   // each of those outputs is a single node.  This function creates
   // the slice op for making each tensor.
   ngraph_op_funcs_["split"] = [this](const NodePtr& node) {
-
     size_t axis = get_default(node, "axis", 1);
     int num_outputs = get_default(node, "num_outputs", 1);
     int index = node->multi_output_index_;
@@ -451,11 +449,8 @@ void Emitter::CreateLayerOps() {
     auto dot = std::make_shared<ngraph::op::Dot>(
         X, NgraphTranspose(W, TShape_to_NShape(node->inputs_[1]->shape_)));
 
-    auto dotShape = TShape_to_NShape(node->shape_);
-    auto betaShape = TShape_to_NShape(node->inputs_[2]->shape_);
-
-    auto ab = AutoBroadcast(dot, dotShape, beta, betaShape);
-    return ab.lhs() + ab.rhs();
+    auto ab = ngraph::builder::numpy_broadcast({dot, beta});
+    return ab.first + ab.second;
   };
 
   // flatten converts an array of shape (x0, x1, x2, ...)
