@@ -22,7 +22,6 @@ namespace ngraph_bridge {
 // Alias for maps of name, function, where function returns an ngraph node
 using OpEmitter =
     std::map<std::string, std::function<NgraphNodePtr(const NodePtr&)> >;
-using AutoBroadcast = std::pair<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>>;
 
 // Emitter primairily serves to create and store ngraph Nodes
 class Emitter {
@@ -39,7 +38,8 @@ class Emitter {
   // create larger MXNet layer operations
   void CreateLayerOps();
   // Factory function for autobroadcasting the inputs of a node
-  AutoBroadcast CreateAutoBroadcast(const NodePtr& node);
+  template <class op>
+  std::shared_ptr<ngraph::Node> CreateAutoBroadcast(const NodePtr& node);
 
   // information on compiled objects
   std::map<NodePtr, NgraphNodePtr> op_map_;
