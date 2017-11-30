@@ -94,37 +94,5 @@ inline std::vector<T> GetIntVectorFromString(std::string input) {
   return vect;
 }
 
-inline NgraphNodePtr NgraphTranspose(const NgraphNodePtr& node,
-                                     const ngraph::Shape& in_shape,
-                                     ngraph::AxisVector order = {}) {
-  // default, reverse the order of the axes
-  if (order.size() == 0){
-    auto n = in_shape.size();
-    order = ngraph::AxisVector(n);
-    
-    std::generate(order.begin(), order.end(), [&n](){return --n;});
-  } else if (order.size() == in_shape.size()) {
-    // validate that the axes order is valid, i.e., unique and the right size
-    std::set<ngraph::AxisVector::value_type> axes;
-    for (auto o : order) {
-      if (o >= 0 && o < in_shape.size() && !axes.count(o)) {
-        axes.insert(o);
-      } else {
-        throw "NGRAPH_BRIDGE: Invalid axes order";
-      }
-    }
-  } else {
-    throw "NGRAPH_BRIDGE: Invalid axes order";
-  }
-
-  // create output shape
-  auto out_shape = ngraph::Shape();
-  for (size_t i = 0; i < in_shape.size(); ++i)
-    out_shape.push_back(in_shape[order[i]]);
-
-  // do the reshaping with the order
-  return std::make_shared<ngraph::op::Reshape>(node, order, out_shape);
-}
-
 }  // namespace ngraph_bridge
 #endif  // UTILS_H_
