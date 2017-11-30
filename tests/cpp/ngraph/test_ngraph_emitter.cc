@@ -197,40 +197,6 @@ TEST(NGRAPH_EMITTER, BINARY_OPS) {
   EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Minimum>(
       test_emitter.ngraph_op_funcs_["_minimum"](test_emitter.node)));
 
-  auto hypot = test_emitter.ngraph_op_funcs_["_hypot"](test_emitter.node);
-  EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Power>(hypot));
-  EXPECT_TRUE(
-      std::dynamic_pointer_cast<ngraph::op::Divide>(hypot->get_arguments()[1]));
-  EXPECT_EQ(std::dynamic_pointer_cast<ngraph::op::Constant>(
-                hypot->get_arguments()[1]->get_arguments()[0])
-                ->get_value_strings()[0],
-            "1");
-  EXPECT_EQ(std::dynamic_pointer_cast<ngraph::op::Constant>(
-                hypot->get_arguments()[1]->get_arguments()[1])
-                ->get_value_strings()[0],
-            "2");
-  EXPECT_TRUE(
-      std::dynamic_pointer_cast<ngraph::op::Add>(hypot->get_arguments()[0]));
-  EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Power>(
-      hypot->get_arguments()[0]->get_arguments()[0]));
-  EXPECT_EQ(hypot->get_arguments()[0]->get_arguments()[0]->get_arguments()[0],
-            test_emitter.data1);
-  EXPECT_EQ(
-      std::dynamic_pointer_cast<ngraph::op::Constant>(
-          hypot->get_arguments()[0]->get_arguments()[0]->get_arguments()[1])
-          ->get_value_strings()[0],
-      "2");
-  EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Power>(
-      hypot->get_arguments()[0]->get_arguments()[1]));
-
-  EXPECT_EQ(hypot->get_arguments()[0]->get_arguments()[1]->get_arguments()[0],
-            test_emitter.data2);
-  EXPECT_EQ(
-      std::dynamic_pointer_cast<ngraph::op::Constant>(
-          hypot->get_arguments()[0]->get_arguments()[1]->get_arguments()[1])
-          ->get_value_strings()[0],
-      "2");
-
   // Logic
   EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Equal>(
       test_emitter.ngraph_op_funcs_["_equal"](test_emitter.node)));
@@ -421,64 +387,6 @@ TEST(NGRAPH_EMITTER, BROADCAST_OPS) {
   EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Less>(op));
   op = test_direct_op("broadcast_lesser_equal");
   EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::LessEq>(op));
-
-  auto hypot =
-      test_broadcast.ngraph_op_funcs_["broadcast_hypot"](test_broadcast.node);
-  EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Power>(hypot));
-  EXPECT_TRUE(
-      std::dynamic_pointer_cast<ngraph::op::Divide>(hypot->get_arguments()[1]));
-  EXPECT_EQ(std::dynamic_pointer_cast<ngraph::op::Constant>(
-                hypot->get_arguments()[1]->get_arguments()[0])
-                ->get_value_strings()[0],
-            "1");
-  EXPECT_EQ(std::dynamic_pointer_cast<ngraph::op::Constant>(
-                hypot->get_arguments()[1]->get_arguments()[1])
-                ->get_value_strings()[0],
-            "2");
-
-  EXPECT_TRUE(
-      std::dynamic_pointer_cast<ngraph::op::Add>(hypot->get_arguments()[0]));
-  EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Power>(
-      hypot->get_arguments()[0]->get_arguments()[0]));
-  EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Broadcast>(
-      hypot->get_arguments()[0]->get_arguments()[0]->get_arguments()[0]));
-  EXPECT_TRUE(
-      std::dynamic_pointer_cast<ngraph::op::Reshape>(hypot->get_arguments()[0]
-                                                         ->get_arguments()[0]
-                                                         ->get_arguments()[0]
-                                                         ->get_arguments()[0]));
-  EXPECT_EQ(hypot->get_arguments()[0]
-                ->get_arguments()[0]
-                ->get_arguments()[0]
-                ->get_arguments()[0]
-                ->get_arguments()[0],
-            test_broadcast.data1);
-  EXPECT_EQ(
-      std::dynamic_pointer_cast<ngraph::op::Constant>(
-          hypot->get_arguments()[0]->get_arguments()[0]->get_arguments()[1])
-          ->get_value_strings()[0],
-      "2");
-  EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Power>(
-      hypot->get_arguments()[0]->get_arguments()[1]));
-
-  EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Broadcast>(
-      hypot->get_arguments()[0]->get_arguments()[1]->get_arguments()[0]));
-  EXPECT_TRUE(
-      std::dynamic_pointer_cast<ngraph::op::Reshape>(hypot->get_arguments()[0]
-                                                         ->get_arguments()[1]
-                                                         ->get_arguments()[0]
-                                                         ->get_arguments()[0]));
-  EXPECT_EQ(hypot->get_arguments()[0]
-                ->get_arguments()[1]
-                ->get_arguments()[0]
-                ->get_arguments()[0]
-                ->get_arguments()[0],
-            test_broadcast.data2);
-  EXPECT_EQ(
-      std::dynamic_pointer_cast<ngraph::op::Constant>(
-          hypot->get_arguments()[0]->get_arguments()[1]->get_arguments()[1])
-          ->get_value_strings()[0],
-      "2");
 }
 
 TEST_F(testGeneralEmitter, MATRIX_OPS) {

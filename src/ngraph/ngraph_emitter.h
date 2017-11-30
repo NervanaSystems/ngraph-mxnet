@@ -15,7 +15,6 @@
 #ifndef NGRAPH_EMITTER_H_
 #define NGRAPH_EMITTER_H_
 
-#include "ngraph_autobroadcast.h"
 #include "ngraph_graph.h"
 
 namespace ngraph_bridge {
@@ -39,7 +38,8 @@ class Emitter {
   // create larger MXNet layer operations
   void CreateLayerOps();
   // Factory function for autobroadcasting the inputs of a node
-  AutoBroadcast CreateAutoBroadcast(const NodePtr& node);
+  template <class op>
+  std::shared_ptr<ngraph::Node> CreateAutoBroadcast(const NodePtr& node);
 
   // information on compiled objects
   std::map<NodePtr, NgraphNodePtr> op_map_;
