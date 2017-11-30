@@ -19,13 +19,13 @@
 namespace ngraph_bridge {
 
 class NGRAPH_NODE : public ::testing::Test {
-protected:
- virtual void SetUp() {
+ protected:
+  virtual void SetUp() {
     auto var_node = std::make_shared<VariableNode>(test_input, "test_input");
     test_inputs.push_back(var_node);
   };
 
-  virtual void TearDown() {};
+  virtual void TearDown(){};
 
   nnvm::NodePtr test_node;
   nnvm::NodePtr test_input;
@@ -35,8 +35,7 @@ protected:
 };
 
 class NGRAPH_GRAPH : public ::testing::Test {
-protected:
-
+ protected:
   static bool isop(NodePtr s) { return (s->type_ == NodeType::kOp); };
 
   void CreateLinear() {
@@ -56,14 +55,15 @@ protected:
         new OpNode(nullptr, "op0", opnames[0], {branching_graph.nodes_[0]})));
     branching_graph.AddNode(std::shared_ptr<OpNode>(
         new OpNode(nullptr, "op1", opnames[1], {branching_graph.nodes_[1]})));
-    branching_graph.AddNode(std::shared_ptr<VariableNode>(new VariableNode(
-        nullptr, "variable1", {branching_graph.nodes_[1]})));
+    branching_graph.AddNode(std::shared_ptr<VariableNode>(
+        new VariableNode(nullptr, "variable1", {branching_graph.nodes_[1]})));
     branching_graph.AddNode(std::shared_ptr<OpNode>(
         new OpNode(nullptr, "op2", opnames[2],
                    {branching_graph.nodes_[2], branching_graph.nodes_[3]})));
     branching_graph.AddNode(std::shared_ptr<OpNode>(
-        new OpNode(nullptr, "op3", opnames[3],
-                   {branching_graph.nodes_[4]})));
+        new OpNode(nullptr, "op3", opnames[3], {branching_graph.nodes_[4]})));
+    branching_graph.AddNode(std::shared_ptr<VariableNode>(
+        new VariableNode(nullptr, "variable2", {branching_graph.nodes_[5]})));
   };
 
   void CreateMultiOut() {
@@ -77,8 +77,8 @@ protected:
       for (auto n : inputs[i]) input_nodes.push_back(multi_graph.nodes_[n]);
 
       if (is_op[i]) {
-        multi_graph.AddNode(std::shared_ptr<OpNode>(
-            new OpNode(nullptr, "op" + std::to_string(i), "tanh", input_nodes)));
+        multi_graph.AddNode(std::shared_ptr<OpNode>(new OpNode(
+            nullptr, "op" + std::to_string(i), "tanh", input_nodes)));
       } else {
         multi_graph.AddNode(std::make_shared<VariableNode>(
             nullptr, "variable" + std::to_string(i), input_nodes));
@@ -97,14 +97,14 @@ protected:
         {5, 6},       {7},         {8},      {9},      {10},     {11},
         {12},         {13, 14},    {14, 15}, {16, 17}, {17, 18}, {},
         {19, 20, 21}, {21, 22, 23}};
-    
+
     for (size_t i = 0; i < is_op.size(); ++i) {
       std::vector<NodePtr> input_nodes;
       for (auto n : inputs[i]) input_nodes.push_back(complex_graph.nodes_[n]);
 
       if (is_op[i]) {
-        complex_graph.AddNode(std::shared_ptr<OpNode>(
-            new OpNode(nullptr, "op" + std::to_string(i), "tanh", input_nodes)));
+        complex_graph.AddNode(std::shared_ptr<OpNode>(new OpNode(
+            nullptr, "op" + std::to_string(i), "tanh", input_nodes)));
       } else {
         complex_graph.AddNode(std::make_shared<VariableNode>(
             nullptr, "variable" + std::to_string(i), input_nodes));
@@ -123,7 +123,7 @@ protected:
     CreateComplexGraph();
   };
 
-  virtual void TearDown() {};
+  virtual void TearDown(){};
 
   nnvm::NodePtr test_node;
 
@@ -139,4 +139,4 @@ protected:
   Graph complex_graph;
 };
 
-}
+}  // namespace ngraph_bridge
