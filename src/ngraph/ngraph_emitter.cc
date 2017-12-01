@@ -91,13 +91,6 @@ NgraphNodePtr Emitter::ReduceAxes(
   std::iota(axes_numbers.begin(), axes_numbers.end(), 0);
 
   auto axes = get_default(node, "axis", axes_numbers);
-  if (!axes.size()) axes = axes_numbers;
-  std::cout << "input shape : ";
-  for (auto i : input_shape) std::cout << i << ",";
-  std::cout << std::endl;
-  std::cout << "axes : ";
-  for (auto i : axes) std::cout << i << ",";
-  std::cout << std::endl;
 
   ngraph::AxisSet reduction_axes;
   if (get_default(node, "exclude", false)) {
@@ -107,11 +100,6 @@ NgraphNodePtr Emitter::ReduceAxes(
     for (auto i : axes) reduction_axes.insert(i);
   }
   
-
-  std::cout << "reduction_axes : ";
-  for (auto i : reduction_axes) std::cout << i << ",";
-  std::cout << std::endl;
-
   auto output = func(op_map_[node->inputs_[0]], reduction_axes);
 
   if (get_default(node, "keepdims", false)) {
