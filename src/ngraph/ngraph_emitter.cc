@@ -25,6 +25,45 @@ Emitter::Emitter() {
   CreateLayerOps();
 }
 
+inline int get_default(const NodePtr& node, const std::string& key,
+                       int default_val) {
+  return node->orig_node_->attrs.dict.count(key)
+             ? std::stoi(node->orig_node_->attrs.dict[key])
+             : default_val;
+}
+
+template <typename T>
+inline
+    typename std::enable_if<!std::is_unsigned<T>::value, std::vector<T>>::type
+    get_default(const NodePtr& node, const std::string& key,
+                const std::vector<T>& default_val) {
+  return node->orig_node_->attrs.dict.count(key)
+             ? GetIntVectorFromString<T>(node->orig_node_->attrs.dict[key])
+             : default_val;
+}
+
+template <typename T>
+inline typename std::enable_if<std::is_unsigned<T>::value, std::vector<T>>::type
+get_default(const NodePtr& node, const std::string& key,
+            const std::vector<T>& default_val) {
+  std::vector<T> out;
+  if (node->orig_node_->attrs.dict.count(key)) {
+    auto tmp = GetIntVectorFromString<int>(node->orig_node_->attrs.dict[key]);
+    for (auto val : tmp) {
+      if (val >= 0) {
+        out.push_back(val);
+      } else {
+        throw std::string(
+            "NGRAPH_BRIDGE: expected unsigned integers but got ") +
+            std::to_string(val);
+      }
+    }
+  } else {
+    out = default_val;
+  }
+  return out;
+}
+
 // unary op function generator
 void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["relu"] = [this](const NodePtr& node) {
@@ -206,6 +245,26 @@ void Emitter::CreateUnaryOps() {
     return std::make_shared<ngraph::op::Convert>(op_map_[node->inputs_[0]],
                                                  getType(node->dtype_));
   };
+
+  //----------------------------- Reduce Ops ----------------------------//
+  auto get_reduction_axes = [](const NodePtr& node) -> ngraph::AxisSet {
+    auto axes =
+        get_default(node, "axis", TShape_to_NShape(node->inputs_[0]->shape_));
+    return ngraph::AxisSet(axes.begin(), axes.end());
+  };
+
+  ngraph_op_funcs_["norm"] = [this, &get_reduction_axes](const NodePtr& node) {
+    return ngraph::builder::l2_norm(op_map_[node->inputs_[0]],
+                                    get_reduction_axes(node));
+  };
+  ngraph_op_funcs_["mean"] = [this, &get_reduction_axes](const NodePtr& node) {
+    return ngraph::builder::mean(op_map_[node->inputs_[0]],
+                                 get_reduction_axes(node));
+  };
+  ngraph_op_funcs_["sum"] = [this, &get_reduction_axes](const NodePtr& node) {
+    return std::make_shared<ngraph::op::Sum>(op_map_[node->inputs_[0]],
+                                             get_reduction_axes(node));
+  };
 }
 
 // autobroadcast factory function to avoid code copy
@@ -331,44 +390,6 @@ void Emitter::CreateBinaryOps() {
   };
 }
 
-inline int get_default(const NodePtr& node, const std::string& key,
-                       int default_val) {
-  return node->orig_node_->attrs.dict.count(key)
-             ? std::stoi(node->orig_node_->attrs.dict[key])
-             : default_val;
-}
-
-template <typename T>
-inline
-    typename std::enable_if<!std::is_unsigned<T>::value, std::vector<T>>::type
-    get_default(const NodePtr& node, const std::string& key,
-                const std::vector<T>& default_val) {
-  return node->orig_node_->attrs.dict.count(key)
-             ? GetIntVectorFromString<T>(node->orig_node_->attrs.dict[key])
-             : default_val;
-}
-
-template <typename T>
-inline typename std::enable_if<std::is_unsigned<T>::value, std::vector<T>>::type
-get_default(const NodePtr& node, const std::string& key,
-            const std::vector<T>& default_val) {
-  std::vector<T> out;
-  if (node->orig_node_->attrs.dict.count(key)) {
-    auto tmp = GetIntVectorFromString<int>(node->orig_node_->attrs.dict[key]);
-    for (auto val : tmp) {
-      if (val >= 0) {
-        out.push_back(val);
-      } else {
-        throw std::string(
-            "NGRAPH_BRIDGE: expected unsigned integers but got ") +
-            std::to_string(val);
-      }
-    }
-  } else {
-    out = default_val;
-  }
-  return out;
-}
 
 // MXNet high level ops generating function
 void Emitter::CreateLayerOps() {

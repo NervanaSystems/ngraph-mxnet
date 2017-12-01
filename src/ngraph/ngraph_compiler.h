@@ -115,6 +115,7 @@ static std::unordered_map<std::string, std::string> nameswitch({
     // Unary Ops
     {"Reshape", "reshape"},
     {"Cast", "cast"},
+    {"sum_axis", "sum"},
 });
 
 // Utility function for replacing operation names
