@@ -430,7 +430,7 @@ void Emitter::CreateLayerOps() {
     auto W = op_map_[node->inputs_[1]];
     auto beta = op_map_[node->inputs_[2]];
     auto dot = std::make_shared<ngraph::op::Dot>(
-        X, NgraphTranspose(W, TShape_to_NShape(node->inputs_[1]->shape_)));
+        X, ngraph::builder::numpy_transpose(W));
 
     return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(dot,
                                                                        beta);
@@ -456,10 +456,8 @@ void Emitter::CreateLayerOps() {
   // Implement transpose with a utility function that returns
   // a reshape op. Not ideal, we should have a ngraph transpose op
   ngraph_op_funcs_["transpose"] = [this](const NodePtr& node) {
-    auto axes_order = get_default(
-        node, "axes", std::vector<ngraph::AxisVector::value_type>());
-    return NgraphTranspose(op_map_[node->inputs_[0]],
-                           TShape_to_NShape(node->inputs_[0]->shape_),
+    auto axes_order = get_default(node, "axes", ngraph::AxisVector());
+    return ngraph::builder::numpy_transpose(op_map_[node->inputs_[0]],
                            axes_order);
   };
 
