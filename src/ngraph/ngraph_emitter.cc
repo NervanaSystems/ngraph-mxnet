@@ -32,6 +32,23 @@ inline int get_default(const NodePtr& node, const std::string& key,
              : default_val;
 }
 
+inline bool get_default(const NodePtr& node, const std::string& key,
+                        bool default_val) {
+  try {
+    return get_default(node, key, static_cast<int>(default_val));
+  } catch (...) {
+    static std::map<std::string, bool> stobool(
+        {{"True", true}, {"False", false}});
+
+    bool out = default_val;
+    if (node->orig_node_->attrs.dict.count(key)) {
+      auto val = node->orig_node_->attrs.dict[key];
+      if (stobool.count(val)) out = stobool[val];
+    }
+    return out;
+  }
+}
+
 template <typename T>
 inline
     typename std::enable_if<!std::is_unsigned<T>::value, std::vector<T>>::type
@@ -64,6 +81,49 @@ get_default(const NodePtr& node, const std::string& key,
   return out;
 }
 
+NgraphNodePtr Emitter::ReduceAxes(
+    const NodePtr& node,
+    const std::function<NgraphNodePtr(const NgraphNodePtr&,
+                                      const ngraph::AxisSet&)>& func) {
+  auto input_shape = TShape_to_NShape(node->inputs_[0]->shape_);
+
+  ngraph::AxisVector axes_numbers(input_shape.size());
+  std::iota(axes_numbers.begin(), axes_numbers.end(), 0);
+
+  auto axes = get_default(node, "axis", axes_numbers);
+  if (!axes.size()) axes = axes_numbers;
+  std::cout << "input shape : ";
+  for (auto i : input_shape) std::cout << i << ",";
+  std::cout << std::endl;
+  std::cout << "axes : ";
+  for (auto i : axes) std::cout << i << ",";
+  std::cout << std::endl;
+
+  ngraph::AxisSet reduction_axes;
+  if (get_default(node, "exclude", false)) {
+    for (size_t i = 0; i < input_shape.size(); ++i)
+      if (!in_vec(axes, i)) reduction_axes.insert(i);
+  } else {
+    for (auto i : axes) reduction_axes.insert(i);
+  }
+  
+
+  std::cout << "reduction_axes : ";
+  for (auto i : reduction_axes) std::cout << i << ",";
+  std::cout << std::endl;
+
+  auto output = func(op_map_[node->inputs_[0]], reduction_axes);
+
+  if (get_default(node, "keepdims", false)) {
+    auto reshape = input_shape;
+    for (auto i : reduction_axes) reshape[i] = 1;
+
+    ngraph::AxisVector order(output->get_shape().size());
+    std::iota(order.begin(), order.end(), 0);
+    output = std::make_shared<ngraph::op::Reshape>(output, order, reshape);
+  }
+  return output;
+}
 // unary op function generator
 void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["relu"] = [this](const NodePtr& node) {
@@ -247,23 +307,18 @@ void Emitter::CreateUnaryOps() {
   };
 
   //----------------------------- Reduce Ops ----------------------------//
-  auto get_reduction_axes = [](const NodePtr& node) -> ngraph::AxisSet {
-    auto axes =
-        get_default(node, "axis", TShape_to_NShape(node->inputs_[0]->shape_));
-    return ngraph::AxisSet(axes.begin(), axes.end());
+  ngraph_op_funcs_["norm"] = [this](const NodePtr& node) {
+    return ReduceAxes(node, ngraph::builder::l2_norm);
   };
-
-  ngraph_op_funcs_["norm"] = [this, &get_reduction_axes](const NodePtr& node) {
-    return ngraph::builder::l2_norm(op_map_[node->inputs_[0]],
-                                    get_reduction_axes(node));
+  ngraph_op_funcs_["mean"] = [this](const NodePtr& node) {
+    return ReduceAxes(node, ngraph::builder::mean);
   };
-  ngraph_op_funcs_["mean"] = [this, &get_reduction_axes](const NodePtr& node) {
-    return ngraph::builder::mean(op_map_[node->inputs_[0]],
-                                 get_reduction_axes(node));
-  };
-  ngraph_op_funcs_["sum"] = [this, &get_reduction_axes](const NodePtr& node) {
-    return std::make_shared<ngraph::op::Sum>(op_map_[node->inputs_[0]],
-                                             get_reduction_axes(node));
+  ngraph_op_funcs_["sum"] = [this](const NodePtr& node) {
+    auto create_sum = [](const NgraphNodePtr& node,
+                         const ngraph::AxisSet& reduction_axes) {
+      return std::make_shared<ngraph::op::Sum>(node, reduction_axes);
+    };
+    return ReduceAxes(node, create_sum);
   };
 }
 
