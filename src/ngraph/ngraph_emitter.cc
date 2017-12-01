@@ -99,7 +99,7 @@ NgraphNodePtr Emitter::ReduceAxes(
   } else {
     for (auto i : axes) reduction_axes.insert(i);
   }
-  
+
   auto output = func(op_map_[node->inputs_[0]], reduction_axes);
 
   if (get_default(node, "keepdims", false)) {
@@ -433,7 +433,6 @@ void Emitter::CreateBinaryOps() {
   };
 }
 
-
 // MXNet high level ops generating function
 void Emitter::CreateLayerOps() {
   // In mxnet, split takes a tensor and creates multiple tensors from
@@ -522,7 +521,7 @@ void Emitter::CreateLayerOps() {
   ngraph_op_funcs_["transpose"] = [this](const NodePtr& node) {
     auto axes_order = get_default(node, "axes", ngraph::AxisVector());
     return ngraph::builder::numpy_transpose(op_map_[node->inputs_[0]],
-                           axes_order);
+                                            axes_order);
   };
 
   // expand dims inserts an axis of length 1 somewhere in the tensor shape

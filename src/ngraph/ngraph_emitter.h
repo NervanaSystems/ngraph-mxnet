@@ -42,9 +42,9 @@ class Emitter {
   NgraphNodePtr CreateAutoBroadcast(const NodePtr& node);
   // Factory function for reducing based on a reduction op function
   NgraphNodePtr ReduceAxes(
-    const NodePtr& node,
-    const std::function<NgraphNodePtr(const NgraphNodePtr&,
-                                      const ngraph::AxisSet&)>& func);
+      const NodePtr& node,
+      const std::function<NgraphNodePtr(const NgraphNodePtr&,
+                                        const ngraph::AxisSet&)>& func);
   // information on compiled objects
   std::map<NodePtr, NgraphNodePtr> op_map_;
   std::vector<NodePtr> placeholder_order_;
