@@ -81,6 +81,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
   // Compile the backward Pass
   auto Y = f->get_result();
+  ngraph::op::Parameters backward_parameters;
 
   std::vector<NgraphNodePtr> dYdXs;
   for (auto rarg : Y->get_arguments()) {
