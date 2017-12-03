@@ -179,21 +179,21 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["reshape"] = [this](const NodePtr& node) {
     auto new_shape = TShape_to_NShape(node->shape_);
 
-    auto child = op_map_[node->inputs_[0]];
+    auto input = op_map_[node->inputs_[0]];
     if (new_shape.size() ==
         0)  // ngraph++'s reshape wouldn't like an empty shape
     {
       // std::shared_ptr<ngraph::Node> is needed to reconciale
       // ngraph::op::Constant and ngraph::op::Reshape return types
       return std::shared_ptr<ngraph::Node>(
-          std::make_shared<ngraph::op::Constant>(child->get_element_type(),
+          std::make_shared<ngraph::op::Constant>(input->get_element_type(),
                                                  ngraph::Shape{}, "0"));
     }
 
-    ngraph::AxisVector order(new_shape.size());
+    ngraph::AxisVector order(input->get_shape().size());
     std::iota(begin(order), end(order), 0);
     return std::shared_ptr<ngraph::Node>(
-        std::make_shared<ngraph::op::Reshape>(child, order, new_shape));
+        std::make_shared<ngraph::op::Reshape>(input, order, new_shape));
   };
 
   // ngraph_op_funcs_["gamma"] = [this](const NodePtr& node){
