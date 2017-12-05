@@ -25,42 +25,40 @@ Emitter::Emitter() {
   CreateLayerOps();
 }
 
-inline int get_default(const NodePtr& node, const std::string& key,
-                       int default_val) {
+int get_default(const NodePtr& node, const std::string& key, int default_val) {
   return node->orig_node_->attrs.dict.count(key)
              ? std::stoi(node->orig_node_->attrs.dict[key])
              : default_val;
 }
 
-inline bool get_default(const NodePtr& node, const std::string& key,
-                        bool default_val) {
+bool get_default(const NodePtr& node, const std::string& key,
+                 bool default_val) {
   try {
     return get_default(node, key, static_cast<int>(default_val));
   } catch (...) {
-    static std::map<std::string, bool> stobool(
+    static std::map<std::string, bool> string_to_bool_map(
         {{"True", true}, {"False", false}});
 
     bool out = default_val;
     if (node->orig_node_->attrs.dict.count(key)) {
       auto val = node->orig_node_->attrs.dict[key];
-      if (stobool.count(val)) out = stobool[val];
+      if (string_to_bool_map.count(val)) out = string_to_bool_map[val];
     }
     return out;
   }
 }
 
 template <typename T>
-inline
-    typename std::enable_if<!std::is_unsigned<T>::value, std::vector<T>>::type
-    get_default(const NodePtr& node, const std::string& key,
-                const std::vector<T>& default_val) {
+typename std::enable_if<!std::is_unsigned<T>::value, std::vector<T>>::type
+get_default(const NodePtr& node, const std::string& key,
+            const std::vector<T>& default_val) {
   return node->orig_node_->attrs.dict.count(key)
              ? GetIntVectorFromString<T>(node->orig_node_->attrs.dict[key])
              : default_val;
 }
 
 template <typename T>
-inline typename std::enable_if<std::is_unsigned<T>::value, std::vector<T>>::type
+typename std::enable_if<std::is_unsigned<T>::value, std::vector<T>>::type
 get_default(const NodePtr& node, const std::string& key,
             const std::vector<T>& default_val) {
   std::vector<T> out;
@@ -112,6 +110,7 @@ NgraphNodePtr Emitter::ReduceAxes(
   }
   return output;
 }
+
 // unary op function generator
 void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["relu"] = [this](const NodePtr& node) {
