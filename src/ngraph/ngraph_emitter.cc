@@ -171,16 +171,11 @@ void Emitter::CreateUnaryOps() {
     return std::make_shared<ngraph::op::Power>(op_map_[node->inputs_[0]], two);
   };
   ngraph_op_funcs_["sqrt"] = [this](const NodePtr& node) {
-    auto one = makeConstant(node, "1");
-    auto two = makeConstant(node, "2");
-    return std::make_shared<ngraph::op::Power>(op_map_[node->inputs_[0]],
-                                               one / two);
+    return std::make_shared<ngraph::op::Sqrt>(op_map_[node->inputs_[0]]);
   };
   ngraph_op_funcs_["rsqrt"] = [this](const NodePtr& node) {
     auto one = makeConstant(node, "1");
-    auto two = makeConstant(node, "2");
-    return one / std::make_shared<ngraph::op::Power>(op_map_[node->inputs_[0]],
-                                                     one / two);
+    return one / ngraph_op_funcs_["sqrt"](node);
   };
   ngraph_op_funcs_["cbrt"] = [this](const NodePtr& node) {
     auto one = makeConstant(node, "1");
@@ -190,9 +185,7 @@ void Emitter::CreateUnaryOps() {
   };
   ngraph_op_funcs_["rcbrt"] = [this](const NodePtr& node) {
     auto one = makeConstant(node, "1");
-    auto three = makeConstant(node, "3");
-    return one / std::make_shared<ngraph::op::Power>(op_map_[node->inputs_[0]],
-                                                     one / three);
+    return one / ngraph_op_funcs_["cbrt"](node);
   };
   ngraph_op_funcs_["exp"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Exp>(op_map_[node->inputs_[0]]);
@@ -225,15 +218,15 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["tan"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Tan>(op_map_[node->inputs_[0]]);
   };
-  ngraph_op_funcs_["arcsin"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::Asin>(op_map_[node->inputs_[0]]);
-  };
-  ngraph_op_funcs_["arccos"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::Acos>(op_map_[node->inputs_[0]]);
-  };
-  ngraph_op_funcs_["arctan"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::Atan>(op_map_[node->inputs_[0]]);
-  };
+  // ngraph_op_funcs_["arcsin"] = [this](const NodePtr& node) {
+  //   return std::make_shared<ngraph::op::Asin>(op_map_[node->inputs_[0]]);
+  // };
+  // ngraph_op_funcs_["arccos"] = [this](const NodePtr& node) {
+  //   return std::make_shared<ngraph::op::Acos>(op_map_[node->inputs_[0]]);
+  // };
+  // ngraph_op_funcs_["arctan"] = [this](const NodePtr& node) {
+  //   return std::make_shared<ngraph::op::Atan>(op_map_[node->inputs_[0]]);
+  // };
   ngraph_op_funcs_["sinh"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Sinh>(op_map_[node->inputs_[0]]);
   };
