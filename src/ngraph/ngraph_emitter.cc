@@ -383,14 +383,10 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["dot"] = [this](const NodePtr& node) {
     auto left = op_map_[node->inputs_[0]];
     auto right = op_map_[node->inputs_[1]];
-    if (get_default(node, "transpose_a", false)) left = numpy_transpose(left);
-    if (get_default(node, "transpose_b", false)) right = numpy_transpose(right); 
-    std::cout << "input0_shape ";
-    for (auto i : node->inputs_[0]->shape_) std::cout << i << ",";
-    std::cout << std::endl;
-    std::cout << "input1_shape ";
-    for (auto i : node->inputs_[1]->shape_) std::cout << i << ",";
-    std::cout << std::endl;
+    if (get_default(node, "transpose_a", false))
+      left = ngraph::builder::numpy_transpose(left);
+    if (get_default(node, "transpose_b", false))
+      right = ngraph::builder::numpy_transpose(right);
     return std::make_shared<ngraph::op::Dot>(left, right);
   };
   ngraph_op_funcs_["broadcast_add"] = [this](const NodePtr& node) {
