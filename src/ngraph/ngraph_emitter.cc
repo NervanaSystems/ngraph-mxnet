@@ -243,6 +243,9 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["tanh"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Tanh>(op_map_[node->inputs_[0]]);
   };
+  ngraph_op_funcs_["_zeros"] = [this](const NodePtr& node) {
+    return makeConstant(node, "0");
+  };
   // ngraph_op_funcs_["arcsinh"] = [this](const NodePtr& node){
   //   return ;
   // };
@@ -378,8 +381,17 @@ void Emitter::CreateBinaryOps() {
                                                 op_map_[node->inputs_[1]]);
   };
   ngraph_op_funcs_["dot"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::Dot>(op_map_[node->inputs_[0]],
-                                             op_map_[node->inputs_[1]]);
+    auto left = op_map_[node->inputs_[0]];
+    auto right = op_map_[node->inputs_[1]];
+    if (get_default(node, "transpose_a", false)) left = numpy_transpose(left);
+    if (get_default(node, "transpose_b", false)) right = numpy_transpose(right); 
+    std::cout << "input0_shape ";
+    for (auto i : node->inputs_[0]->shape_) std::cout << i << ",";
+    std::cout << std::endl;
+    std::cout << "input1_shape ";
+    for (auto i : node->inputs_[1]->shape_) std::cout << i << ",";
+    std::cout << std::endl;
+    return std::make_shared<ngraph::op::Dot>(left, right);
   };
   ngraph_op_funcs_["broadcast_add"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Add>(node);
