@@ -75,15 +75,14 @@ inline std::shared_ptr<ngraph::Node> makeConstant(const NodePtr& node,
   return std::make_shared<ngraph::op::Constant>(et, shape, num);
 }
 
-// This function expects the input string to be of the form 
+// This function expects the input string to be of the form
 // "(1,2,3)" with optional spaces between the numbers, i.e.
 // "(1,2 , 3)". This is the standard format MXNet uses to represent things
 // like stride/padding/reshape ordering
 template <typename T>
 inline std::vector<T> GetIntVectorFromString(std::string input) {
-  input.erase(std::remove(input.begin(), input.end(), ' '), input.end());
-  input.erase(std::remove(input.begin(), input.end(), ')'), input.end());
-  input.erase(std::remove(input.begin(), input.end(), '('), input.end());
+  for (char c : {' ', ')', '(', ']', '['})
+    input.erase(std::remove(input.begin(), input.end(), c), input.end());
   std::stringstream ss(input);
   std::vector<T> vect;
   T i;

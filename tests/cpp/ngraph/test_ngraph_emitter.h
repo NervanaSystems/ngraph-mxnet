@@ -20,7 +20,7 @@
 namespace ngraph_bridge {
 
 struct testGeneralEmitter : public Emitter, public ::testing::Test {
-protected:
+ protected:
   std::shared_ptr<VariableNode> in1;
   std::shared_ptr<VariableNode> in2;
   std::shared_ptr<VariableNode> in3;
@@ -40,9 +40,7 @@ protected:
   };
 
   virtual void TearDown(){};
-
 };
-
 
 struct testElemwiseEmitter : public Emitter {
   std::shared_ptr<VariableNode> in1;

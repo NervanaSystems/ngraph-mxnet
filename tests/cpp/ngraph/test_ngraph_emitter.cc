@@ -218,11 +218,9 @@ TEST_F(testGeneralEmitter, DOT) {
   node->shape_ = nnvm::TShape{2, 2};
 
   op_map_[in1] = std::make_shared<ngraph::op::Parameter>(
-      ngraph::element::Float32::element_type(),
-      TShape_to_NShape(in1->shape_));
+      ngraph::element::Float32::element_type(), TShape_to_NShape(in1->shape_));
   op_map_[in2] = std::make_shared<ngraph::op::Parameter>(
-      ngraph::element::Float32::element_type(),
-      TShape_to_NShape(in2->shape_));
+      ngraph::element::Float32::element_type(), TShape_to_NShape(in2->shape_));
 
   EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Dot>(
       ngraph_op_funcs_["dot"](node)));
@@ -489,14 +487,11 @@ TEST_F(testGeneralEmitter, FULLYCONNECTED) {
   in2->shape_ = nnvm::TShape{8, 4};
   in3->shape_ = nnvm::TShape{8};
   op_map_[in1] = std::make_shared<ngraph::op::Parameter>(
-      ngraph::element::Float32::element_type(),
-      TShape_to_NShape(in1->shape_));
+      ngraph::element::Float32::element_type(), TShape_to_NShape(in1->shape_));
   op_map_[in2] = std::make_shared<ngraph::op::Parameter>(
-      ngraph::element::Float32::element_type(),
-      TShape_to_NShape(in2->shape_));
+      ngraph::element::Float32::element_type(), TShape_to_NShape(in2->shape_));
   op_map_[in3] = std::make_shared<ngraph::op::Parameter>(
-      ngraph::element::Float32::element_type(),
-      TShape_to_NShape(in3->shape_));
+      ngraph::element::Float32::element_type(), TShape_to_NShape(in3->shape_));
   node->shape_ = nodeshape;
 
   data1 = op_map_[in1];
