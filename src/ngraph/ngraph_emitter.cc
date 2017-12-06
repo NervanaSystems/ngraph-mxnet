@@ -480,6 +480,87 @@ void Emitter::CreateLayerOps() {
     return std::make_shared<ngraph::op::Reshape>(op_map_[node->inputs_[0]],
                                                  order, out_shape);
   };
+
+  // batch norm operation
+  ngraph_op_funcs_["batch_norm"] = [this](const NodePtr& node) {
+    // Default Batch norm parameters
+    float eps = 0.001;
+    float momentum = 0.9;
+    bool fix_gamma = true;
+    float use_global_stats = false;
+    ngraph::AxisSet axis{1};
+    // parse mxnet parameters
+    auto attrs = node->orig_node_->attrs;
+    for (auto& kv : attrs.dict) {
+      if (kv.first == "eps") {
+        eps = std::stof(kv.second);
+      } else if (kv.first == "momentum") {
+        momentum = std::stof(kv.second);
+      } else if (kv.first == "axis") {
+        axis = {static_cast<ngraph::AxisSet::value_type>(std::stoi(kv.second))};
+      } else if (kv.first == "fix_gamma") {
+        if (kv.second == "False" || kv.second == "0") {
+          fix_gamma = false;
+        }
+      } else if (kv.first == "use_global_stats") {
+        if (kv.second == "True" || kv.second == "1") {
+          use_global_stats = true;
+        }
+      }
+    }
+    NgraphNodePtr in_data = op_map_[node->inputs_[0]];
+    auto mean = ngraph::builder::mean(in_data, {axis});
+
+#if 0
+    // get data, channel axis
+    auto C = getNthAxis(data, 0);
+    data = ng.attr("flatten_at")(data, 1);
+    auto Ctuple = createPyTuple(pyvec{C});
+    // create placeholders for batch norm parameters
+    auto gamma = createPyPlaceholder(node->name + "_gamma", Ctuple);
+    auto beta = createPyPlaceholder(node->name + "_beta", Ctuple);
+    // create placeholders for moving averages
+    // TODO: Not actually using these anywhere as an auxilary state
+    // TODO: Figure out how to pass auxillary states to the right place
+    auto moving_mean = createPyPlaceholder(node->name + "_moving_mean", Ctuple);
+    auto moving_var = createPyPlaceholder(node->name + "_moving_var", Ctuple);
+    // calculate batch mean and variance
+    auto mean = ng.attr("mean")(data, "out_axes"_a = Ctuple);
+    auto var = ng.attr("variance")(data, "out_axes"_a = Ctuple);
+    // Momentum update for moving mean/var. Not currenlty used.
+    auto mom_update = [momentum, ng](py::object val, py::object gval) {
+      auto first = ng.attr("multiply")(gval, momentum);
+      auto second = ng.attr("multiply")(val, 1.0 - momentum);
+      return ng.attr("add")(first, second);
+    };
+
+    moving_mean = mom_update(mean,moving_mean);
+    moving_var = mom_update(mean,moving_var);
+    // Utility function for actually computing batch norm
+    // separated out for global stats.
+    auto batch_norm = [&eps, &data, &gamma, &beta, &ng](py::object mean,
+                                                        py::object var) {
+      auto denom = ng.attr("reciprocal")(
+          ng.attr("sqrt")(ng.attr("add")(var, ng.attr("constant")(eps))));
+      auto numer = ng.attr("subtract")(data, mean);
+      auto xi = ng.attr("multiply")(numer, denom);
+      return ng.attr("add")(ng.attr("multiply")(xi, gamma), beta);
+    };
+
+    py::object op;
+    if (use_global_stats){
+      op = batch_norm(moving_mean, moving_var);
+    } else {
+      op = batch_norm(mean, var);
+    }
+
+    op = ng.attr("unflatten")(op);
+#endif
+
+    return std::make_shared<ngraph::op::Equal>(op_map_[node->inputs_[0]],
+                                               op_map_[node->inputs_[1]]);
+  };
+
 }
 
 }  // namespace ngraph_bridge

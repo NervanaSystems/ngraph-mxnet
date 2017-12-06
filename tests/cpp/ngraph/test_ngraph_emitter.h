@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
-#include "test_util.h"
+#include "../include/test_util.h"
 
-#include "../../src/ngraph/ngraph_emitter.h"
-#include "../../src/ngraph/ngraph_sgcompiler_utils.h"
+#include "../../../src/ngraph/ngraph_emitter.h"
+#include "../../../src/ngraph/ngraph_sgcompiler_utils.h"
 
 namespace ngraph_bridge {
 
