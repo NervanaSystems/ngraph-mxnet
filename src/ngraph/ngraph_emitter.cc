@@ -186,7 +186,7 @@ void Emitter::CreateUnaryOps() {
     auto one = makeConstant(node, "1");
     return one / ngraph_op_funcs_["sqrt"](node);
   };
-  // TODO(mbrookahrt) Power is returning Nans, dropping for now
+  // TODO(mbrookahrt) test for cbrt seems wrong...
   // ngraph_op_funcs_["cbrt"] = [this](const NodePtr& node) {
   //   auto third = makeConstant(node, "0.333333333333333333");
   //   return std::make_shared<ngraph::op::Power>(op_map_[node->inputs_[0]],
@@ -227,7 +227,7 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["tan"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Tan>(op_map_[node->inputs_[0]]);
   };
-  // TODO(mbrookhart) arc trig functions are all returning zeros
+  // TODO(mbrookhart) arc trig functions are all returning zeros - backprop not implemented
   // ngraph_op_funcs_["arcsin"] = [this](const NodePtr& node) {
   //   return std::make_shared<ngraph::op::Asin>(op_map_[node->inputs_[0]]);
   // };
@@ -365,27 +365,27 @@ void Emitter::CreateBinaryOps() {
     return std::make_shared<ngraph::op::Equal>(op_map_[node->inputs_[0]],
                                                op_map_[node->inputs_[1]]);
   };
-  // TODO(mbrookhart) seg fault
+  // TODO(mbrookhart) seg fault due to non-aligned output types
   // ngraph_op_funcs_["_not_equal"] = [this](const NodePtr& node) {
   //   return std::make_shared<ngraph::op::NotEqual>(op_map_[node->inputs_[0]],
   //                                                 op_map_[node->inputs_[1]]);
   // };
-  ngraph_op_funcs_["_greater"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::Greater>(op_map_[node->inputs_[0]],
-                                                 op_map_[node->inputs_[1]]);
-  };
-  ngraph_op_funcs_["_greater_equal"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::GreaterEq>(op_map_[node->inputs_[0]],
-                                                   op_map_[node->inputs_[1]]);
-  };
-  ngraph_op_funcs_["_lesser"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::Less>(op_map_[node->inputs_[0]],
-                                              op_map_[node->inputs_[1]]);
-  };
-  ngraph_op_funcs_["_lesser_equal"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::LessEq>(op_map_[node->inputs_[0]],
-                                                op_map_[node->inputs_[1]]);
-  };
+  // ngraph_op_funcs_["_greater"] = [this](const NodePtr& node) {
+  //   return std::make_shared<ngraph::op::Greater>(op_map_[node->inputs_[0]],
+  //                                                op_map_[node->inputs_[1]]);
+  // };
+  // ngraph_op_funcs_["_greater_equal"] = [this](const NodePtr& node) {
+  //   return std::make_shared<ngraph::op::GreaterEq>(op_map_[node->inputs_[0]],
+  //                                                  op_map_[node->inputs_[1]]);
+  // };
+  // ngraph_op_funcs_["_lesser"] = [this](const NodePtr& node) {
+  //   return std::make_shared<ngraph::op::Less>(op_map_[node->inputs_[0]],
+  //                                             op_map_[node->inputs_[1]]);
+  // };
+  // ngraph_op_funcs_["_lesser_equal"] = [this](const NodePtr& node) {
+  //   return std::make_shared<ngraph::op::LessEq>(op_map_[node->inputs_[0]],
+  //                                               op_map_[node->inputs_[1]]);
+  // };
   ngraph_op_funcs_["dot"] = [this](const NodePtr& node) {
     auto left = op_map_[node->inputs_[0]];
     auto right = op_map_[node->inputs_[1]];
@@ -428,24 +428,24 @@ void Emitter::CreateBinaryOps() {
   //       ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>((A * A),
   //                                                                   (B * B)));
   // };
-  ngraph_op_funcs_["broadcast_equal"] = [this](const NodePtr& node) {
-    return CreateAutoBroadcast<ngraph::op::Equal>(node);
-  };
-  ngraph_op_funcs_["broadcast_not_equal"] = [this](const NodePtr& node) {
-    return CreateAutoBroadcast<ngraph::op::NotEqual>(node);
-  };
-  ngraph_op_funcs_["broadcast_greater"] = [this](const NodePtr& node) {
-    return CreateAutoBroadcast<ngraph::op::Greater>(node);
-  };
-  ngraph_op_funcs_["broadcast_greater_equal"] = [this](const NodePtr& node) {
-    return CreateAutoBroadcast<ngraph::op::GreaterEq>(node);
-  };
-  ngraph_op_funcs_["broadcast_lesser"] = [this](const NodePtr& node) {
-    return CreateAutoBroadcast<ngraph::op::Less>(node);
-  };
-  ngraph_op_funcs_["broadcast_lesser_equal"] = [this](const NodePtr& node) {
-    return CreateAutoBroadcast<ngraph::op::LessEq>(node);
-  };
+  // ngraph_op_funcs_["broadcast_equal"] = [this](const NodePtr& node) {
+  //   return CreateAutoBroadcast<ngraph::op::Equal>(node);
+  // };
+  // ngraph_op_funcs_["broadcast_not_equal"] = [this](const NodePtr& node) {
+  //   return CreateAutoBroadcast<ngraph::op::NotEqual>(node);
+  // };
+  // ngraph_op_funcs_["broadcast_greater"] = [this](const NodePtr& node) {
+  //   return CreateAutoBroadcast<ngraph::op::Greater>(node);
+  // };
+  // ngraph_op_funcs_["broadcast_greater_equal"] = [this](const NodePtr& node) {
+  //   return CreateAutoBroadcast<ngraph::op::GreaterEq>(node);
+  // };
+  // ngraph_op_funcs_["broadcast_lesser"] = [this](const NodePtr& node) {
+  //   return CreateAutoBroadcast<ngraph::op::Less>(node);
+  // };
+  // ngraph_op_funcs_["broadcast_lesser_equal"] = [this](const NodePtr& node) {
+  //   return CreateAutoBroadcast<ngraph::op::LessEq>(node);
+  // };
 }
 
 // MXNet high level ops generating function
