@@ -134,30 +134,43 @@ class OpNode : public Node {
   }
 };
 
-static std::shared_ptr<ngraph::runtime::Manager> nbridge_manager_;
-static std::shared_ptr<ngraph::runtime::Backend> nbridge_backend_;
+// makes sure you have only one manager of one type
+static std::shared_ptr<ngraph::runtime::Manager> nbridge_ngvm_manager_;
+static std::shared_ptr<ngraph::runtime::Backend> nbridge_ngvm_backend_;
+static std::shared_ptr<ngraph::runtime::Manager> nbridge_argon_manager_;
+static std::shared_ptr<ngraph::runtime::Backend> nbridge_argon_backend_;
 
 inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
     const mxnet::Context& context) {
-  if (!nbridge_manager_){ 
-    if (context == mxnet::Context::NNP(0)) {
-      nbridge_manager_ = ngraph::runtime::Manager::get("ARGON");
-      return nbridge_manager_;
+  if (context == mxnet::Context::NNP(0)) {
+    if (!nbridge_argon_manager_) {
+      nbridge_argon_manager_ = ngraph::runtime::Manager::get("ARGON");
+      return nbridge_argon_manager_;
     }
-    nbridge_manager_ =ngraph::runtime::Manager::get("NGVM");
-    return nbridge_manager_ ;
+    return nbridge_argon_manager_;
   }
-  return nbridge_manager_;
-}
-inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromManager(
-    const std::shared_ptr<ngraph::runtime::Manager> manager) {
-  if (!nbridge_backend_){ 
-    nbridge_backend_ = manager->allocate_backend();
-    return nbridge_backend_;
+  if (!nbridge_ngvm_manager_) {
+    nbridge_ngvm_manager_ = ngraph::runtime::Manager::get("NGVM");
+    return nbridge_ngvm_manager_;
   }
-  return nbridge_backend_;
+  return nbridge_ngvm_manager_;
 }
 
+inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
+    const mxnet::Context& context) {
+  if (context == mxnet::Context::NNP(0)) {
+    if (!nbridge_argon_backend_) {
+      nbridge_argon_backend_ = nbridge_argon_manager_->allocate_backend();
+      return nbridge_argon_backend_;
+    }
+    return nbridge_argon_backend_;
+  }
+  if (!nbridge_ngvm_backend_) {
+    nbridge_ngvm_backend_ = nbridge_ngvm_manager_->allocate_backend();
+    return nbridge_ngvm_backend_;
+  }
+  return nbridge_ngvm_backend_;
+}
 
 /*
 Graph class
@@ -172,7 +185,7 @@ class Graph : public Node {
       : Node(NodeType::kGraph, nullptr, name),
         context_(context),
         manager_(GetManagerFromContext(context_)),
-        backend_(GetBackendFromManager(manager_)) {}
+        backend_(GetBackendFromContext(context_)) {}
 
   // Add a node to the graph
   void AddNode(NodePtr node) { nodes_.emplace_back(node); }
