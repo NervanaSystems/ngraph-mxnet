@@ -303,8 +303,8 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
   for (auto& out : graph_.outputs) out.node = node_map_[out.node.get()];
 
   for (auto out : graph_.outputs)
-    TraversePartialGraph<nnvm::NodePtr>(out.node, replace_inputs, stop_conditon,
-                                        get_nnvm_inputs);
+    DFSPartialGraphSearch<nnvm::NodePtr>(out.node, replace_inputs,
+                                         stop_conditon, get_nnvm_inputs);
 }
 
 // Check nodes in NGraph

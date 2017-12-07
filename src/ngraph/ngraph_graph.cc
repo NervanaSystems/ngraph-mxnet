@@ -22,10 +22,10 @@ namespace ngraph_bridge {
 // Type Aliases
 using EdgeRemoveTuple = std::tuple<NodePtr, NodePtr, bool>;
 
-void TraversePartialGraph(
+void DFSPartialGraphSearch(
     NodePtr node, std::function<void(NodePtr)> func,
     std::function<bool(NodePtr, NodePtr)> stop_condition) {
-  TraversePartialGraph<NodePtr>(
+  DFSPartialGraphSearch<NodePtr>(
       node, func, stop_condition,
       [](NodePtr node) -> std::vector<NodePtr> { return node->inputs_; });
 }
@@ -47,7 +47,7 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
     }
   };
 
-  TraversePartialGraph(node, select_nodes, stop_condition);
+  DFSPartialGraphSearch(node, select_nodes, stop_condition);
 
   return outNodes;
 }
