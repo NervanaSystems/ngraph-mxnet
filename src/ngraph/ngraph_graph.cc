@@ -22,37 +22,33 @@ namespace ngraph_bridge {
 // Type Aliases
 using EdgeRemoveTuple = std::tuple<NodePtr, NodePtr, bool>;
 
-/**
- * Utility to mark a node as visited and recursive search based on the results
- * of an input function
- */
-void DFSUtil(NodePtr node, std::unordered_set<NodePtr> &visited,
-             std::vector<NodePtr> &outNodes,
-             std::function<bool(NodePtr)> &func) {
-  // Mark the current node as visited
-  visited.insert(node);
-  // if this node matches func condition
-  if (func(node)) {
-    // add it to the output
-    outNodes.push_back(node);
-    // visit it's inputs
-    for (auto i : node->inputs_) {
-      if (!visited.count(i) && i->subgraph_ == 0) {
-        DFSUtil(i, visited, outNodes, func);
-      }
-    }
-  }
+void TraversePartialGraph(
+    NodePtr node, std::function<void(NodePtr)> func,
+    std::function<bool(NodePtr, NodePtr)> stop_condition) {
+  TraversePartialGraph<NodePtr>(
+      node, func, stop_condition,
+      [](NodePtr node) -> std::vector<NodePtr> { return node->inputs_; });
 }
 
-// Depth first selection of nodes based on function criterion
 std::vector<NodePtr> SelectNodes(NodePtr node,
                                  std::function<bool(NodePtr)> func) {
-  // init visited vector
-  std::unordered_set<NodePtr> visited;
   // init output vector
   std::vector<NodePtr> outNodes;
-  // recursiveliy search the graph
-  DFSUtil(node, visited, outNodes, func);
+
+  auto select_nodes = [&outNodes, &func](NodePtr node) {
+    if (func(node)) outNodes.push_back(node);
+  };
+
+  auto stop_condition = [&func](NodePtr node, NodePtr input) {
+    if (func(node)) {
+      return false;
+    } else {
+      return true;
+    }
+  };
+
+  TraversePartialGraph(node, select_nodes, stop_condition);
+
   return outNodes;
 }
 

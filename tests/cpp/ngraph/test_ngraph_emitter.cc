@@ -260,7 +260,7 @@ TEST_F(testGeneralEmitter, SPLIT) {
     auto op_cast = std::dynamic_pointer_cast<ngraph::op::Slice>(op);
     EXPECT_EQ(op_cast->get_lower_bounds(), ngraph::Shape({0, 0, 2, 0}));
     EXPECT_EQ(op_cast->get_upper_bounds(), ngraph::Shape({2, 4, 4, 16}));
-    EXPECT_EQ(op_cast->get_step(), ngraph::Shape({1, 1, 1, 1}));
+    EXPECT_EQ(op_cast->get_strides(), ngraph::Shape({1, 1, 1, 1}));
     EXPECT_EQ(op_cast->get_shape(), TShape_to_NShape(node->shape_));
   }
   // slice with squeeze

@@ -268,93 +268,43 @@ void Compiler::MakeCopiedInputs(const NNVMNodeVec& inputs) {
 }
 
 void Compiler::CopyNodes(const nnvm::Graph& graph) {
-  // lambda that makes a copy of a node and returns
-  // a new smart pointer to that copy
-  auto CopyNode = [](const nnvm::NodePtr& node) {
-    return std::make_shared<nnvm::Node>(*(node.get()));
-  };
-  // forward declaration
-  std::function<void(const nnvm::NodePtr&)> copy_nodes;
-
-  // function to copy a node and it's inputs based on recursion
-  auto copy_and_recurse = [this, &copy_nodes,
-                           &CopyNode](const nnvm::NodePtr& node) {
-    // check if we've copied this node already
-    if (!node_map_.count(node.get())) {
-      // if we haven't, make and store a copy
-      node_map_[node.get()] = CopyNode(node);
-      // and copy the input nodes
-      copy_nodes(node_map_[node.get()]);
-    }
-  };
-
-  // function for copying the inputs of a node
-  copy_nodes = [&copy_and_recurse](const nnvm::NodePtr& node) {
-    // copy all of the input nodes (and their inputs recursively)
-    for (const auto& input : node->inputs) {
-      copy_and_recurse(input.node);
-    }
-    // copy all of the control dependencies
-    for (const auto& input : node->control_deps) {
-      copy_and_recurse(node);
-    }
-  };
-
-  // Loop over the output nodes and the nodes and their inputs.
-  for (const auto& out : graph.outputs) {
-    copy_and_recurse(out.node);
-  }
+  nnvm::DFSVisit(graph.outputs, [this](const nnvm::NodePtr node) {
+    if (!this->node_map_.count(node.get()))
+      this->node_map_[node.get()] = std::make_shared<nnvm::Node>(*(node.get()));
+  });
 }
 
 void Compiler::DeepCopy(const nnvm::Graph& graph) {
+  auto replace_inputs = [this](nnvm::NodePtr node) {
+    int i = 0;
+    for (auto& input : node->inputs) {
+      if (this->node_map_.count(input.node.get())) {
+        input.node = this->node_map_[input.node.get()];
+      }
+      i += 1;
+    }
+  };
+
+  auto stop_conditon = [](nnvm::NodePtr node, nnvm::NodePtr input) {
+    return false;
+  };
+
+  auto get_nnvm_inputs = [](nnvm::NodePtr node) {
+    std::vector<nnvm::NodePtr> output;
+    for (auto& input : node->inputs) output.push_back(input.node);
+    for (auto& input : node->control_deps) output.push_back(input);
+    return output;
+  };
+
   // make copies of all the graph nodes
   CopyNodes(graph);
-  // a map for storing information on where the recursion has visited.
-  std::unordered_set<nnvm::NodePtr> visited;
-
-  // forward declare recursive function
-  std::function<void(nnvm::NodePtr&)> set_inputs;
-
-  // function to replace a node with a copy and recurse on it's inputs
-  auto replace_node_and_recurse = [&visited, &set_inputs,
-                                   this](nnvm::NodePtr& node) {
-    // check to see if this is an original node or a copied node
-    if (node_map_.count(node.get())) {
-      // if it's original make a copy of the node smart pointer
-      nnvm::NodePtr node_copy = node;
-      // replace the input node with the copied node
-      node = node_map_[node_copy.get()];
-      // check to see if we've recursed on this node before
-      // if we haven't, replace the inputs with copies
-      if (!visited.count(node_copy)) {
-        visited.insert(node_copy);
-        set_inputs(node_map_[node_copy.get()]);
-      }
-    }
-  };
-
-  // function to replace the inputs of a node with copies
-  set_inputs = [&replace_node_and_recurse](nnvm::NodePtr& node) {
-    // replace the input nodes
-    for (auto& input : node->inputs) {
-      replace_node_and_recurse(input.node);
-    }
-    // replace the control deps
-    for (auto& input : node->control_deps) {
-      replace_node_and_recurse(input);
-    }
-  };
-
-  // init the copied graph
   graph_.outputs = graph.outputs;
-  graph_.attrs = graph.attrs;
 
-  // loop over the outputs and replace them
-  // not using const references because we're replacing the smart pointer in
-  // in the funciton call
-  for (auto& out : graph_.outputs) {
-    replace_node_and_recurse(out.node);
-  }
+  for (auto& out : graph_.outputs) out.node = node_map_[out.node.get()];
+
+  for (auto out : graph_.outputs)
+    TraversePartialGraph<nnvm::NodePtr>(out.node, replace_inputs, stop_conditon,
+                                        get_nnvm_inputs);
 }
 
 // Check nodes in NGraph

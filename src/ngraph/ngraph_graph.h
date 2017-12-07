@@ -16,6 +16,7 @@
 #define NGRAPH_INTERMEDIARY_GRAPH_H_
 
 #include <algorithm>
+#include <deque>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -204,6 +205,39 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
  */
 std::vector<NodePtr> FindSubgraph(Graph& graph, NodePtr node,
                                   std::function<bool(NodePtr)> func);
+
+// template <typename T>
+// void TraverseFullGraph(T node, std::function<void(T)> func);
+
+template <typename T>
+void TraversePartialGraph(T node, std::function<void(T)> operation,
+                          std::function<bool(T, T)> stop_condition,
+                          std::function<std::vector<T>(T)> get_inputs,
+                          std::function<std::vector<T>(T)> get_outputs =
+                              [](T node) { return std::vector<T>(); }) {
+  std::unordered_set<T> visited;
+  std::deque<T> stack;
+
+  stack.push_front(node);
+
+  while (stack.size() > 0) {
+    auto n = stack.front();
+    if (!visited.count(n)) {
+      visited.insert(n);
+      operation(n);
+    }
+
+    stack.pop_front();
+
+    auto add_nodes_to_stack = [&](std::vector<T> nodes) {
+      for (auto i : nodes)
+        if (!visited.count(i) && !stop_condition(n, i)) stack.push_front(i);
+    };
+
+    add_nodes_to_stack(get_inputs(n));
+    add_nodes_to_stack(get_outputs(n));
+  }
+}
 
 }  // namespace ngraph_bridge
 
