@@ -134,14 +134,30 @@ class OpNode : public Node {
   }
 };
 
+static std::shared_ptr<ngraph::runtime::Manager> nbridge_manager_;
+static std::shared_ptr<ngraph::runtime::Backend> nbridge_backend_;
+
 inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
     const mxnet::Context& context) {
-  if (context == mxnet::Context::NNP(0)) {
-    return ngraph::runtime::Manager::get("ARGON");
+  if (!nbridge_manager_){ 
+    if (context == mxnet::Context::NNP(0)) {
+      nbridge_manager_ = ngraph::runtime::Manager::get("ARGON");
+      return nbridge_manager_;
+    }
+    nbridge_manager_ =ngraph::runtime::Manager::get("NGVM");
+    return nbridge_manager_ ;
   }
-
-  return ngraph::runtime::Manager::get("NGVM");
+  return nbridge_manager_;
 }
+inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromManager(
+    const std::shared_ptr<ngraph::runtime::Manager> manager) {
+  if (!nbridge_backend_){ 
+    nbridge_backend_ = manager->allocate_backend();
+    return nbridge_backend_;
+  }
+  return nbridge_backend_;
+}
+
 
 /*
 Graph class
@@ -156,7 +172,7 @@ class Graph : public Node {
       : Node(NodeType::kGraph, nullptr, name),
         context_(context),
         manager_(GetManagerFromContext(context_)),
-        backend_(manager_->allocate_backend()) {}
+        backend_(GetBackendFromManager(manager_)) {}
 
   // Add a node to the graph
   void AddNode(NodePtr node) { nodes_.emplace_back(node); }
