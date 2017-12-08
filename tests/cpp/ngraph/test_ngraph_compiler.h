@@ -15,7 +15,7 @@
 #include "test_util.h"
 
 #include <nnvm/graph.h>
-#include "ngraph_compiler.h"
+#include "../../../src/ngraph/ngraph_compiler.h"
 
 namespace ngraph_bridge {
 
@@ -40,6 +40,7 @@ class NGRAPH_COMPILER : public ::testing::Test {
     auto mul = createNode("mul", "_mul");
     auto add2 = createNode("add2", "_add");
     auto relu = createNode("relu", "relu");
+    auto batchnorm1 = createNode("batchnorm1", "BatchNorm");
 
     add1.node->inputs.push_back(A);
     add1.node->inputs.push_back(B);

@@ -123,7 +123,7 @@ void BatchNormOp<xpu, DType, AccReal>::DoForward(mshadow::Stream<cpu> *,
       ForEachFast(inputData, channel, [mean, channel](const DType *in_data) {
         mean[channel] += *in_data; });
       mean[channel] /= itemCountPerChannel;
-
+      std::cout << "mean: " << mean[channel] << std::endl;
       // compute variance per input
       const AccReal thisMean = mean[channel];
       var[channel] = 0;

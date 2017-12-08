@@ -1,4 +1,9 @@
 
+
+set(GTEST_ROOT "/opt/gtest")
+find_package(GTest)
+include_directories(/opt/gtest/include)
+
 # ---[ Google Test
 if(NOT GTEST_ROOT)
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/googletest")

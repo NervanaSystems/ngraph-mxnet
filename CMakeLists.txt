@@ -1,7 +1,15 @@
 cmake_minimum_required(VERSION 3.0.2)
 
 project(mxnet C CXX)
-
+###########################
+# louis clion
+include_directories(~/mkldnn/include)
+add_definitions(-DMXNET_USE_MKLDNN=1)
+add_definitions(-DMXNET_USE_MKL2017=0)
+include_directories(../private-ngraph-cpp/src)
+set(USE_CUDA FALSE)
+set(USE_OPENMP FALSE)
+###########################
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/build/private/local_config.cmake)
   include(${CMAKE_CURRENT_SOURCE_DIR}/build/private/local_config.cmake)
 endif()

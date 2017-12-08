@@ -528,22 +528,22 @@ TEST_F(testGeneralEmitter, BATCHNORM) {
   param.momentum = 0.9;
 
   // set up attributes
-//  nnvm::NodeAttrs attr;
-//  attr.name = "batch_norm_test";
-//  attr.dict["axis"] = "0";
-//  attr.dict["eps"] = "0.00001";
-//  attr.dict["momentum"] = "0.9";
-//  attr.dict["fix_gamma"] = "True";
-//  attr.dict["use_global_stats"] = "False";
-//  nnvm::TShape shape;
-//  attr.op = (nnvm::Op*)mxnet::op::CreateOp<mxnet::cpu>(
-//      param, 0, shape);
+  nnvm::NodeAttrs attr;
+  attr.name = "batch_norm_test";
+  attr.dict["axis"] = "0";
+  attr.dict["eps"] = "0.00001";
+  attr.dict["momentum"] = "0.9";
+  attr.dict["fix_gamma"] = "True";
+  attr.dict["use_global_stats"] = "False";
+  nnvm::TShape shape;
+  attr.op = (nnvm::Op*)mxnet::op::CreateOp<mxnet::cpu>(
+      param, 0, shape);
   auto nnvmnode = nnvm::Node::Create();
-//  nnvmnode->attrs = attr;
+  nnvmnode->attrs = attr;
 
   node = std::make_shared<OpNode>(nnvmnode, "node", "test",
                                   std::vector<NodePtr>{in1});
-  auto op = ngraph_op_funcs_["batch_norm"](node);
+//  auto op = ngraph_op_funcs_["batch_norm"](node);
 
 #if 0
   nnvm::NodeAttrs attr;

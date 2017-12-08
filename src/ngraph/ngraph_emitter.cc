@@ -482,13 +482,15 @@ void Emitter::CreateLayerOps() {
   };
 
   // batch norm operation
-  ngraph_op_funcs_["batch_norm"] = [this](const NodePtr& node) {
+  ngraph_op_funcs_["BatchNorm"] = [this](const NodePtr& node) {
     // Default Batch norm parameters
+    // TODO lfeng: refactor this to use get_default()
     float eps = 0.001;
     float momentum = 0.9;
     bool fix_gamma = true;
     float use_global_stats = false;
     ngraph::AxisSet axis{1};
+
     // parse mxnet parameters
     auto attrs = node->orig_node_->attrs;
     for (auto& kv : attrs.dict) {
@@ -508,8 +510,33 @@ void Emitter::CreateLayerOps() {
         }
       }
     }
-    NgraphNodePtr in_data = op_map_[node->inputs_[0]];
-    auto mean = ngraph::builder::mean(in_data, {axis});
+
+    NodePtr in_data = node->inputs_[0];
+    NodePtr in_gamma = node->inputs_[1];
+    NodePtr in_beta = node->inputs_[2];
+    NodePtr in_moving_mean = node->inputs_[3];
+    NodePtr in_moving_var = node->inputs_[4];
+
+
+
+    NgraphNodePtr ng_in_data = op_map_[in_data];
+
+    NgraphNodePtr ng_temp_data = ngraph_op_funcs_["flatten"](node);
+
+//    ngraph::AxisVector in_data_order(in_shape.size());
+//    std::iota(begin(in_data_order), end(in_data_order), 0);
+//    ngraph::Shape temp_shape {in_shape[0], 1};
+//    ng_temp_data = std::shared_ptr<ngraph::Node>(std::make_shared<ngraph::op::Reshape>(ng_in_data, in_data_order, temp_shape));
+
+    NgraphNodePtr ng_mean = ngraph::builder::mean(ng_temp_data, {0});
+    NgraphNodePtr ng_variance = ngraph::builder::variance(ng_temp_data, {0});
+
+//    ngraph::AxisVector stats_order(ng_mean->get_shape().size());
+//    std::iota(begin(stats_order), end(stats_order), 0);
+//    ngraph::Shape in_shape = TShape_to_NShape(in_data->shape_);
+//    ngraph::Shape stats_shape {in_shape[0], 1};
+//    ng_mean = std::shared_ptr<ngraph::Node>(std::make_shared<ngraph::op::Reshape>(ng_mean, stats_order, stats_shape));
+//    ng_variance = std::shared_ptr<ngraph::Node>(std::make_shared<ngraph::op::Reshape>(ng_variance, stats_order, stats_shape));
 
 #if 0
     // get data, channel axis
@@ -557,8 +584,14 @@ void Emitter::CreateLayerOps() {
     op = ng.attr("unflatten")(op);
 #endif
 
-    return std::make_shared<ngraph::op::Equal>(op_map_[node->inputs_[0]],
-                                               op_map_[node->inputs_[1]]);
+    NgraphNodePtr ng_one = std::make_shared<ngraph::op::Constant>(ng_variance->get_element_type(), ng_variance->get_shape(), "1");
+    NgraphNodePtr ng_two = std::make_shared<ngraph::op::Constant>(ng_variance->get_element_type(), ng_variance->get_shape(), "2");
+    NgraphNodePtr ng_eps = std::make_shared<ngraph::op::Constant>(ng_variance->get_element_type(), ng_variance->get_shape(), "0.00001");
+    NgraphNodePtr denom = ng_one / std::make_shared<ngraph::op::Power>(ng_variance + ng_eps, ng_one / ng_two);
+    //NgraphNodePtr denom = std::make_shared<ngraph::op::Power>(ng_variance + ng_eps, ng_one / ng_two); //;
+
+    return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Multiply>(ngraph::builder::make_with_numpy_broadcast<ngraph::op::Subtract>(ng_in_data, ng_mean), denom);
+    //return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Subtract>(ng_in_data, denom);
   };
 
 }
