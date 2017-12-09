@@ -70,9 +70,17 @@ inline ngraph::Shape TShape_to_NShape(const nnvm::TShape& inshape) {
 // along with a string representing the number
 inline std::shared_ptr<ngraph::Node> makeConstant(const NodePtr& node,
                                                   const std::string& num) {
-  const auto& et = getType(node->dtype_);
+  NgraphNodePtr val = std::make_shared<ngraph::op::Constant>(
+      getType(node->dtype_), ngraph::Shape{}, num);
   auto shape = TShape_to_NShape(node->shape_);
-  return std::make_shared<ngraph::op::Constant>(et, shape, num);
+
+  if (shape.size() > 0) {
+    ngraph::AxisSet axes;
+    for (size_t i = 0; i < shape.size(); i++) axes.insert(i);
+    val = std::make_shared<ngraph::op::Broadcast>(val, shape, axes);
+  }
+
+  return val;
 }
 
 // This function expects the input string to be of the form
