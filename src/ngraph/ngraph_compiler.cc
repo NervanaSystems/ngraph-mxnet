@@ -239,7 +239,7 @@ nnvm::Graph Compiler::Compile() {
   // initialize it with original graph nodes
   out_graph.outputs = graph_.outputs;
 
-  return std::move(out_graph);
+  return out_graph;
 }
 
 // create copied saved states
