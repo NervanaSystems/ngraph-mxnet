@@ -338,6 +338,24 @@ inline int get_default(const NodePtr& node, const std::string& key,
              : default_val;
 }
 
+inline float get_default(const NodePtr& node, const std::string& key,
+                         const float default_val) {
+  return node->orig_node_->attrs.dict.count(key)
+         ? std::stof(node->orig_node_->attrs.dict[key])
+         : default_val;
+}
+
+inline bool get_default(const NodePtr& node, const std::string& key,
+                         const bool default_val) {
+  if (node->orig_node_->attrs.dict.count(key) > 0) {
+    const std::string& val = node->orig_node_->attrs.dict[key];
+    if (val == "False" || val == "0") return false;
+    else if (val == "True" || val == "1") return true;
+    else throw std::string("NGRAPH_BRIDGE: expected boolean but got ") + val;
+  }
+  return default_val;
+}
+
 template <typename T>
 inline
     typename std::enable_if<!std::is_unsigned<T>::value, std::vector<T>>::type
@@ -484,114 +502,54 @@ void Emitter::CreateLayerOps() {
   // batch norm operation
   ngraph_op_funcs_["BatchNorm"] = [this](const NodePtr& node) {
     // Default Batch norm parameters
-    // TODO lfeng: refactor this to use get_default()
-    float eps = 0.001;
-    float momentum = 0.9;
-    bool fix_gamma = true;
-    float use_global_stats = false;
+    float eps = get_default(node, "eps", 0.00001f);
+    float momentum = get_default(node, "eps", 0.9f);
+    bool fix_gamma = get_default(node, "fix_gamma", true);
+    bool use_global_stats = get_default(node, "use_global_stats", false);
     ngraph::AxisSet axis{1};
 
-    // parse mxnet parameters
-    auto attrs = node->orig_node_->attrs;
-    for (auto& kv : attrs.dict) {
-      if (kv.first == "eps") {
-        eps = std::stof(kv.second);
-      } else if (kv.first == "momentum") {
-        momentum = std::stof(kv.second);
-      } else if (kv.first == "axis") {
-        axis = {static_cast<ngraph::AxisSet::value_type>(std::stoi(kv.second))};
-      } else if (kv.first == "fix_gamma") {
-        if (kv.second == "False" || kv.second == "0") {
-          fix_gamma = false;
-        }
-      } else if (kv.first == "use_global_stats") {
-        if (kv.second == "True" || kv.second == "1") {
-          use_global_stats = true;
-        }
-      }
-    }
+    enum InputName {
+      kData = 0,
+      kGamma,
+      kBeta,
+      kMovingMean,
+      kMovingVar
+    };
 
-    NodePtr in_data = node->inputs_[0];
-    NodePtr in_gamma = node->inputs_[1];
-    NodePtr in_beta = node->inputs_[2];
-    NodePtr in_moving_mean = node->inputs_[3];
-    NodePtr in_moving_var = node->inputs_[4];
-
-
+    NodePtr in_data = node->inputs_[kData];
+    NodePtr in_gamma = node->inputs_[kGamma];
+    NodePtr in_beta = node->inputs_[kBeta];
+    NodePtr in_moving_mean = node->inputs_[kMovingMean];
+    NodePtr in_moving_var = node->inputs_[kMovingVar];
 
     NgraphNodePtr ng_in_data = op_map_[in_data];
 
-    NgraphNodePtr ng_temp_data = ngraph_op_funcs_["flatten"](node);
+    nnvm::TShape in_data_shape = in_data->shape_;
+    NgraphNodePtr ng_mean{nullptr};
+    NgraphNodePtr ng_var{nullptr};
+    if (in_data_shape.ndim() == 2) {
+      ng_mean = ngraph::builder::mean(ng_in_data, {0});
+      ng_var = ngraph::builder::variance(ng_in_data, {0});
+    }
+    else if (in_data_shape.ndim() == 4) {
+      ng_mean = ngraph::builder::mean(ng_in_data, {0,2,3});
+      ng_var = ngraph::builder::variance(ng_in_data, {0,2,3});
 
-//    ngraph::AxisVector in_data_order(in_shape.size());
-//    std::iota(begin(in_data_order), end(in_data_order), 0);
-//    ngraph::Shape temp_shape {in_shape[0], 1};
-//    ng_temp_data = std::shared_ptr<ngraph::Node>(std::make_shared<ngraph::op::Reshape>(ng_in_data, in_data_order, temp_shape));
-
-    NgraphNodePtr ng_mean = ngraph::builder::mean(ng_temp_data, {0});
-    NgraphNodePtr ng_variance = ngraph::builder::variance(ng_temp_data, {0});
-
-//    ngraph::AxisVector stats_order(ng_mean->get_shape().size());
-//    std::iota(begin(stats_order), end(stats_order), 0);
-//    ngraph::Shape in_shape = TShape_to_NShape(in_data->shape_);
-//    ngraph::Shape stats_shape {in_shape[0], 1};
-//    ng_mean = std::shared_ptr<ngraph::Node>(std::make_shared<ngraph::op::Reshape>(ng_mean, stats_order, stats_shape));
-//    ng_variance = std::shared_ptr<ngraph::Node>(std::make_shared<ngraph::op::Reshape>(ng_variance, stats_order, stats_shape));
-
-#if 0
-    // get data, channel axis
-    auto C = getNthAxis(data, 0);
-    data = ng.attr("flatten_at")(data, 1);
-    auto Ctuple = createPyTuple(pyvec{C});
-    // create placeholders for batch norm parameters
-    auto gamma = createPyPlaceholder(node->name + "_gamma", Ctuple);
-    auto beta = createPyPlaceholder(node->name + "_beta", Ctuple);
-    // create placeholders for moving averages
-    // TODO: Not actually using these anywhere as an auxilary state
-    // TODO: Figure out how to pass auxillary states to the right place
-    auto moving_mean = createPyPlaceholder(node->name + "_moving_mean", Ctuple);
-    auto moving_var = createPyPlaceholder(node->name + "_moving_var", Ctuple);
-    // calculate batch mean and variance
-    auto mean = ng.attr("mean")(data, "out_axes"_a = Ctuple);
-    auto var = ng.attr("variance")(data, "out_axes"_a = Ctuple);
-    // Momentum update for moving mean/var. Not currenlty used.
-    auto mom_update = [momentum, ng](py::object val, py::object gval) {
-      auto first = ng.attr("multiply")(gval, momentum);
-      auto second = ng.attr("multiply")(val, 1.0 - momentum);
-      return ng.attr("add")(first, second);
-    };
-
-    moving_mean = mom_update(mean,moving_mean);
-    moving_var = mom_update(mean,moving_var);
-    // Utility function for actually computing batch norm
-    // separated out for global stats.
-    auto batch_norm = [&eps, &data, &gamma, &beta, &ng](py::object mean,
-                                                        py::object var) {
-      auto denom = ng.attr("reciprocal")(
-          ng.attr("sqrt")(ng.attr("add")(var, ng.attr("constant")(eps))));
-      auto numer = ng.attr("subtract")(data, mean);
-      auto xi = ng.attr("multiply")(numer, denom);
-      return ng.attr("add")(ng.attr("multiply")(xi, gamma), beta);
-    };
-
-    py::object op;
-    if (use_global_stats){
-      op = batch_norm(moving_mean, moving_var);
-    } else {
-      op = batch_norm(mean, var);
+      ngraph::AxisVector stats_order(ng_mean->get_shape().size());
+      std::iota(begin(stats_order), end(stats_order), 0);
+      ngraph::Shape in_shape = TShape_to_NShape(in_data_shape);
+      ngraph::Shape stats_shape {1, in_shape[1], 1, 1};
+      ng_mean = std::shared_ptr<ngraph::Node>(std::make_shared<ngraph::op::Reshape>(ng_mean, stats_order, stats_shape));
+      ng_var = std::shared_ptr<ngraph::Node>(std::make_shared<ngraph::op::Reshape>(ng_var, stats_order, stats_shape));
     }
 
-    op = ng.attr("unflatten")(op);
-#endif
-
-    NgraphNodePtr ng_one = std::make_shared<ngraph::op::Constant>(ng_variance->get_element_type(), ng_variance->get_shape(), "1");
-    NgraphNodePtr ng_two = std::make_shared<ngraph::op::Constant>(ng_variance->get_element_type(), ng_variance->get_shape(), "2");
-    NgraphNodePtr ng_eps = std::make_shared<ngraph::op::Constant>(ng_variance->get_element_type(), ng_variance->get_shape(), "0.00001");
-    NgraphNodePtr denom = ng_one / std::make_shared<ngraph::op::Power>(ng_variance + ng_eps, ng_one / ng_two);
-    //NgraphNodePtr denom = std::make_shared<ngraph::op::Power>(ng_variance + ng_eps, ng_one / ng_two); //;
+    NgraphNodePtr ng_one = std::make_shared<ngraph::op::Constant>(ng_var->get_element_type(), ng_var->get_shape(), "1");
+    NgraphNodePtr ng_two = std::make_shared<ngraph::op::Constant>(ng_var->get_element_type(), ng_var->get_shape(), "2");
+    NgraphNodePtr ng_eps = std::make_shared<ngraph::op::Constant>(ng_var->get_element_type(), ng_var->get_shape(), "0.00001");
+    NgraphNodePtr denom = ng_one / std::make_shared<ngraph::op::Power>(ng_var + ng_eps, ng_one / ng_two);
 
     return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Multiply>(ngraph::builder::make_with_numpy_broadcast<ngraph::op::Subtract>(ng_in_data, ng_mean), denom);
-    //return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Subtract>(ng_in_data, denom);
+    //return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Subtract>(ng_in_data, ng_mean);
   };
 
 }
