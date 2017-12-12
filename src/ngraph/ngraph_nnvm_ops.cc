@@ -145,9 +145,9 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
               const std::vector<mxnet::OpReqType>& req,
               const std::vector<mxnet::TBlob>& outputs) -> void {
         auto placeholders =
-            make_ngraph_placeholders(inputs, graph->backend_, true);
+            make_ngraph_placeholders(inputs, GetBackendFromContext(graph->context_), true);
         auto results =
-            make_ngraph_placeholders(outputs, graph->backend_, false);
+            make_ngraph_placeholders(outputs, GetBackendFromContext(graph->context_), false);
         graph->ngraph_forward->call(placeholders, results);
         result_to_TBlob(results[0], outputs, 0);
       });
@@ -181,9 +181,9 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
               const std::vector<mxnet::OpReqType>& req,
               const std::vector<mxnet::TBlob>& outputs) -> void {
         auto placeholders =
-            make_ngraph_placeholders(inputs, graph->backend_, true);
+            make_ngraph_placeholders(inputs, GetBackendFromContext(graph->context_), true);
         auto results =
-            make_ngraph_placeholders(outputs, graph->backend_, false);
+            make_ngraph_placeholders(outputs, GetBackendFromContext(graph->context_), false);
         graph->ngraph_backward->call(placeholders,
                                      {ngraph::runtime::make_tuple(results)});
         for (size_t j = 0; j < results.size(); ++j)

@@ -142,7 +142,7 @@ static std::shared_ptr<ngraph::runtime::Backend> nbridge_argon_backend_;
 
 inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
     const mxnet::Context& context) {
-  if (context == mxnet::Context::NNP(0)) {
+  if (context == mxnet::Context::NNP()) {
     if (!nbridge_argon_manager_) {
       nbridge_argon_manager_ = ngraph::runtime::Manager::get("ARGON");
       return nbridge_argon_manager_;
@@ -158,7 +158,7 @@ inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
 
 inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
     const mxnet::Context& context) {
-  if (context == mxnet::Context::NNP(0)) {
+  if (context == mxnet::Context::NNP()) {
     if (!nbridge_argon_backend_) {
       nbridge_argon_backend_ = nbridge_argon_manager_->allocate_backend();
       return nbridge_argon_backend_;
@@ -183,9 +183,8 @@ class Graph : public Node {
   Graph(const std::string& name = "",
         const mxnet::Context& context = mxnet::Context::CPU())
       : Node(NodeType::kGraph, nullptr, name),
-        context_(context),
-        manager_(GetManagerFromContext(context_)),
-        backend_(GetBackendFromContext(context_)) {}
+        context_(context)
+        {}
 
   // Add a node to the graph
   void AddNode(NodePtr node) { nodes_.emplace_back(node); }
@@ -206,8 +205,6 @@ class Graph : public Node {
   std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward;
 
   const mxnet::Context context_;
-  const std::shared_ptr<ngraph::runtime::Manager> manager_;
-  const std::shared_ptr<ngraph::runtime::Backend> backend_;
 };
 
 /**
