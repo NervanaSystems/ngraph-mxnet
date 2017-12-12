@@ -16,6 +16,7 @@
 #include <nnvm/node.h>
 #include <nnvm/pass.h>
 #include <algorithm>
+#include <ngraph/serializer.hpp>
 #include "ngraph_sgcompiler_utils.h"
 
 namespace ngraph_bridge {
@@ -42,6 +43,7 @@ void SGCompiler::ClearOpMap() {
 // Compile a Subgraph into ngraph forward and backward call frames
 void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // initalize a placeholder order vector for this subgraph
+    std::cout << "------------------" << std::endl;
   for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
 
   // compile all the ndoes in the graph
@@ -58,11 +60,12 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   auto shape = TShape_to_NShape(sub_graph->nodes_.back()->shape_);
   auto return_type = std::make_shared<ngraph::TensorViewType>(
       getType(sub_graph->nodes_.back()->dtype_), shape);
-
+  for (auto x : shape) std::cout << x << ",";
+  std::cout<<std::endl;
   // create the Function object representing the graph
   auto f = std::make_shared<ngraph::Function>(op_map_[sub_graph->nodes_.back()],
                                               return_type, parameters);
-
+  std::cout << ngraph::serialize(f) << std::endl;
   // compile it into a call frame with the backend, and save
   // the compile frame into the subgraph
   auto forward_external = sub_graph->manager_->compile(f);
@@ -105,6 +108,9 @@ void SGCompiler::CompileNode(NodePtr node,
       }
     }
     // use the emitter to compile this node and store it
+    std::cout << node->name_ << " " << node->operation_ << " ";
+    for (auto x : node->shape_) std::cout << x << ",";
+    std::cout<<std::endl;
     op_map_[node] = ngraph_op_funcs_[node->operation_](node);
   }
 }
@@ -114,6 +120,9 @@ void SGCompiler::CompileInput(NodePtr input) {
   auto shape = TShape_to_NShape(input->shape_);
   // make a shaped and typed parameter based on the input node
   // store it in the op_map_
+  std::cout << input->name_ << " ";
+  for (auto x : input->shape_) std::cout << x << ",";
+  std::cout<<std::endl;
   op_map_[input] =
       std::make_shared<ngraph::op::Parameter>(getType(input->dtype_), shape);
 }

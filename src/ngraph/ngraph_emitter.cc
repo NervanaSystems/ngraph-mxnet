@@ -378,8 +378,33 @@ void Emitter::CreateBinaryOps() {
                                                 op_map_[node->inputs_[1]]);
   };
   ngraph_op_funcs_["dot"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::Dot>(op_map_[node->inputs_[0]],
-                                             op_map_[node->inputs_[1]]);
+    auto left = op_map_[node->inputs_[0]];
+    auto right = op_map_[node->inputs_[1]];
+    std::cout << "arg0: ";
+    for (auto x : left->get_shape()) std::cout << x << ",";
+    std::cout << std::endl;
+    std::cout << "arg1: ";
+    for (auto x : right->get_shape()) std::cout << x << ",";
+    std::cout << std::endl;
+    if (get_default(node, "transpose_a", false)) {
+      std::cout << "transpose left" << std::endl;
+      left = ngraph::builder::numpy_transpose(left);
+    }
+    if (get_default(node, "transpose_b", false)) {
+      std::cout << "transpose right" << std::endl;
+      right = ngraph::builder::numpy_transpose(right);
+    }
+    std::cout << "arg0: ";
+    for (auto x : left->get_shape()) std::cout << x << ",";
+    std::cout << std::endl;
+    std::cout << "arg1: ";
+    for (auto x : right->get_shape()) std::cout << x << ",";
+    std::cout << std::endl;
+    auto dot = std::make_shared<ngraph::op::Dot>(left, right, 1);
+    std::cout << "dot: ";
+    for (auto x : dot->get_shape()) std::cout << x << ",";
+    std::cout << std::endl;
+  return dot;
   };
   ngraph_op_funcs_["broadcast_add"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Add>(node);
