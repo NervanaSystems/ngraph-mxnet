@@ -31,6 +31,13 @@ int get_default(const NodePtr& node, const std::string& key, int default_val) {
              : default_val;
 }
 
+inline float get_default(const NodePtr& node, const std::string& key,
+                         const float default_val) {
+  return node->orig_node_->attrs.dict.count(key)
+         ? std::stof(node->orig_node_->attrs.dict[key])
+         : default_val;
+}
+
 bool get_default(const NodePtr& node, const std::string& key,
                  bool default_val) {
   try {
@@ -445,24 +452,6 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["broadcast_lesser_equal"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::LessEq>(node);
   };
-inline float get_default(const NodePtr& node, const std::string& key,
-                         const float default_val) {
-  return node->orig_node_->attrs.dict.count(key)
-         ? std::stof(node->orig_node_->attrs.dict[key])
-         : default_val;
-}
-
-inline bool get_default(const NodePtr& node, const std::string& key,
-                         const bool default_val) {
-  if (node->orig_node_->attrs.dict.count(key) > 0) {
-    const std::string& val = node->orig_node_->attrs.dict[key];
-    if (val == "False" || val == "0") return false;
-    else if (val == "True" || val == "1") return true;
-    else throw std::string("NGRAPH_BRIDGE: expected boolean but got ") + val;
-  }
-  return default_val;
-}
-
 }
 
 // MXNet high level ops generating function
@@ -598,8 +587,6 @@ void Emitter::CreateLayerOps() {
     bool fix_gamma = get_default(node, "fix_gamma", true);
     bool use_global_stats = get_default(node, "use_global_stats", false);
     int axis = get_default(node, "axis", 1);
-    ngraph::AxisSet channel_axis;
-    channel_axis.insert(axis);
 
     NgraphNodePtr ng_in_data = op_map_[in_data];
     NgraphNodePtr ng_in_gamma = op_map_[in_gamma];

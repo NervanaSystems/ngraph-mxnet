@@ -1223,7 +1223,6 @@ class Symbol(SymbolBase):
         arg_handles = []
         arg_arrays = []
         if isinstance(args, list):
-            print(len(args), len(arg_names))
             if len(args) != len(arg_names):
                 raise ValueError('Length of %s does not match the number of arguments' % arg_key)
             for narr in args:
