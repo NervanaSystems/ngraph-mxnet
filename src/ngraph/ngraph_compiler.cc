@@ -394,7 +394,7 @@ void Compiler::ParseNnvmGraph() {
         std::shared_ptr<Node> tmpnode;
         try {
           tmpnode = this->ngraph_[e.node->attrs.name];
-        } catch (std::string& error) {
+        } catch (char const* error) {
           try {
             auto name = e.node->attrs.name + "_" + std::to_string(e.index);
             tmpnode = this->ngraph_[name];
