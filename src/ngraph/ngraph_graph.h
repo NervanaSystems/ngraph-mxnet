@@ -143,6 +143,13 @@ inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
   return ngraph::runtime::Manager::get("NGVM");
 }
 
+struct FpropCache {
+  ngraph::NodeMap nodes_to_params;
+  ngraph::Nodes output_nodes;
+  std::vector<std::shared_ptr<ngraph::op::Parameter>> input_params;
+  std::vector<std::shared_ptr<ngraph::runtime::Value>> values;
+};
+
 /*
 Graph class
 Graph subclasses Node so that we can embed graphs into other graphs
@@ -179,6 +186,7 @@ class Graph : public Node {
   const mxnet::Context context_;
   const std::shared_ptr<ngraph::runtime::Manager> manager_;
   const std::shared_ptr<ngraph::runtime::Backend> backend_;
+  FpropCache fprop_cache;
 };
 
 /**

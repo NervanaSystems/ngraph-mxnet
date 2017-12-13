@@ -63,21 +63,18 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   auto Y = op_map_[sub_graph->nodes_.back()];
   auto f = std::make_shared<ngraph::Function>(Y, return_type, parameters);
 
-  struct FpropCache {
-    ngraph::NodeMap nodes_to_params;
-    ngraph::Nodes output_nodes;
-    std::vector<std::shared_ptr<ngraph::op::Parameter>> input_params;
-  } fprop_cache;
-
-  ngraph::traverse_nodes(f, [&fprop_cache](std::shared_ptr<ngraph::Node> node) {
+  ngraph::traverse_nodes(f, [&sub_graph](std::shared_ptr<ngraph::Node> node) {
     auto param = std::make_shared<ngraph::op::Parameter>(
         node->get_element_type(), node->get_shape());
-    fprop_cache.nodes_to_params.Add(node, param);
-    fprop_cache.input_params.push_back(param);
-    fprop_cache.output_nodes.push_back(node);
+    sub_graph->fprop_cache.nodes_to_params.Add(node, param);
+    sub_graph->fprop_cache.input_params.push_back(param);
+    sub_graph->fprop_cache.output_nodes.push_back(node);
   });
+  sub_graph->fprop_cache.values.resize(
+      sub_graph->fprop_cache.output_nodes.size());
 
-  auto outTuple = std::make_shared<ngraph::op::Tuple>(fprop_cache.output_nodes);
+  auto outTuple =
+      std::make_shared<ngraph::op::Tuple>(sub_graph->fprop_cache.output_nodes);
   auto outTupleType = outTuple->get_value_type();
   auto newf =
       std::make_shared<ngraph::Function>(outTuple, outTupleType, parameters);
@@ -97,11 +94,12 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
   auto result = std::make_shared<ngraph::op::Tuple>(dYdXs);
 
-  fprop_cache.input_params.insert(fprop_cache.input_params.begin(), C);
-  auto bf = std::make_shared<ngraph::Function>(result, result->get_value_type(),
-                                               fprop_cache.input_params);
+  sub_graph->fprop_cache.input_params.insert(
+      sub_graph->fprop_cache.input_params.begin(), C);
+  auto bf = std::make_shared<ngraph::Function>(
+      result, result->get_value_type(), sub_graph->fprop_cache.input_params);
 
-  auto cbf = ngraph::clone_function(bf, fprop_cache.nodes_to_params);
+  auto cbf = ngraph::clone_function(bf, sub_graph->fprop_cache.nodes_to_params);
 
   auto backward_external = sub_graph->manager_->compile(cbf);
   sub_graph->ngraph_backward =
