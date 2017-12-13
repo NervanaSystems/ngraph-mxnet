@@ -603,10 +603,14 @@ void Emitter::CreateLayerOps() {
         std::iota(begin(convert_order), end(convert_order), 0);
         size_t channel_size = static_cast<unsigned long>(in_data_shape[axis]);
         ngraph::Shape convert_shape{channel_size, 1};
-        ng_mean = std::make_shared<Reshape>(ng_mean, convert_order, convert_shape);
-        ng_var = std::make_shared<Reshape>(ng_var, convert_order, convert_shape);
-        ng_in_gamma = std::make_shared<Reshape>(ng_in_gamma, convert_order, convert_shape);
-        ng_in_beta = std::make_shared<Reshape>(ng_in_beta, convert_order, convert_shape);
+        ng_mean =
+            std::make_shared<Reshape>(ng_mean, convert_order, convert_shape);
+        ng_var =
+            std::make_shared<Reshape>(ng_var, convert_order, convert_shape);
+        ng_in_gamma = std::make_shared<Reshape>(ng_in_gamma, convert_order,
+                                                convert_shape);
+        ng_in_beta =
+            std::make_shared<Reshape>(ng_in_beta, convert_order, convert_shape);
       }
     } else if (in_data_shape.ndim() == 4) {
       CHECK(axis == 1)
@@ -620,10 +624,13 @@ void Emitter::CreateLayerOps() {
       std::iota(begin(convert_order), end(convert_order), 0);
       size_t channel_size = static_cast<unsigned long>(in_data_shape[axis]);
       ngraph::Shape convert_shape{1, channel_size, 1, 1};
-      ng_mean = std::make_shared<Reshape>(ng_mean, convert_order, convert_shape);
+      ng_mean =
+          std::make_shared<Reshape>(ng_mean, convert_order, convert_shape);
       ng_var = std::make_shared<Reshape>(ng_var, convert_order, convert_shape);
-      ng_in_gamma = std::make_shared<Reshape>(ng_in_gamma, convert_order, convert_shape);
-      ng_in_beta = std::make_shared<Reshape>(ng_in_beta, convert_order, convert_shape);
+      ng_in_gamma =
+          std::make_shared<Reshape>(ng_in_gamma, convert_order, convert_shape);
+      ng_in_beta =
+          std::make_shared<Reshape>(ng_in_beta, convert_order, convert_shape);
     }
 
     using ngraph::op::Constant;
