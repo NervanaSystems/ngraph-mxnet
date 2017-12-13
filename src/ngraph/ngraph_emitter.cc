@@ -573,12 +573,7 @@ void Emitter::CreateLayerOps() {
     // - support varying and negative axis
 
     enum InputName { kData = 0, kGamma, kBeta, kMovingMean, kMovingVar };
-    NodePtr in_data = node->inputs_[kData];
-    NodePtr in_gamma = node->inputs_[kGamma];
-    NodePtr in_beta = node->inputs_[kBeta];
-    NodePtr in_moving_mean = node->inputs_[kMovingMean];
-    NodePtr in_moving_var = node->inputs_[kMovingVar];
-    nnvm::TShape in_data_shape = in_data->shape_;
+    nnvm::TShape in_data_shape = node->inputs_[kData]->shape_;
 
     CHECK(in_data_shape.ndim() == 2 || in_data_shape.ndim() == 4)
         << "Only support 2D and 4D tensors";
@@ -590,9 +585,9 @@ void Emitter::CreateLayerOps() {
     bool use_global_stats = get_default(node, "use_global_stats", false);
     int axis = get_default(node, "axis", 1);
 
-    NgraphNodePtr ng_in_data = op_map_[in_data];
-    NgraphNodePtr ng_in_gamma = op_map_[in_gamma];
-    NgraphNodePtr ng_in_beta = op_map_[in_beta];
+    NgraphNodePtr ng_in_data = op_map_[node->inputs_[kData]];
+    NgraphNodePtr ng_in_gamma = op_map_[node->inputs_[kGamma]];
+    NgraphNodePtr ng_in_beta = op_map_[node->inputs_[kBeta]];
     NgraphNodePtr ng_mean{nullptr};
     NgraphNodePtr ng_var{nullptr};
     using ngraph::op::Reshape;
