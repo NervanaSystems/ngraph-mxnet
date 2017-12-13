@@ -13,7 +13,9 @@
 // ----------------------------------------------------------------------------
 
 #include <functional>
+#include <iterator>
 #include <stack>
+#include <vector>
 
 #include "ngraph_graph.h"
 #include "reverse_iterate.h"
@@ -136,86 +138,74 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
   return outNodes;
 }
 
-/**
- * Modified subgraph to only return 1 output.
- * If we improve the subgraph compiler/nnvm op construction
- * we might be able to get rid of this pass
- * This removes mutiple outputs from a graph, because the subgraph compiler
- * doesn't currently support multiple outputs
- * TODO: make the subgraph compiler handle multiple outputs and get rid of this
- * graph pass
- */
+// This removes mutiple outputs from a graph, because the subgraph compiler
+// doesn't currently support multiple outputs
+// TODO: make the subgraph compiler handle multiple outputs and get rid of this
+// graph pass
 std::vector<NodePtr> PruneSubgraphOutputs(Graph &graph, NodePtr node,
                                           std::vector<NodePtr> &subgraph_nodes,
                                           std::function<bool(NodePtr)> func) {
-  // function to get all the outputs of the subgraph
-  auto get_subgraph_outputs = [&graph, &subgraph_nodes]() {
-    std::vector<NodePtr> outNodes;
-    for (auto n : graph.nodes_)
-      if (!in_vec(subgraph_nodes, n))
-        for (auto i : n->inputs_)
-          if (in_vec(subgraph_nodes, i) && !in_vec(outNodes, i))
-            outNodes.emplace_back(i);
-    return outNodes;
-  };
-
-  // function to remove all of the outputs that aren't the last one
-  auto prune_subgraph = [&subgraph_nodes](std::vector<NodePtr> outNodes) {
-    for (auto n : outNodes)
-      if (n != subgraph_nodes.back())
-        subgraph_nodes.erase(
-            std::remove(subgraph_nodes.begin(), subgraph_nodes.end(), n),
-            subgraph_nodes.end());
-  };
-
-  // main pass
-  // count is for debugging purposes in case the recursive logic is broken
   std::vector<NodePtr> outNodes;
-  bool single_output = false;
-  int count = 0;
-  while (!single_output && count < 100) {
-    // get the current outputs
-    outNodes = get_subgraph_outputs();
-    if (outNodes.size() <= 1) {
-      single_output = true;
-    } else {
-      // we have more than 1 output, remove them and clean any broken loops
-      prune_subgraph(outNodes);
-      subgraph_nodes = RemoveBroken(node, subgraph_nodes, func);
-    }
-    count += 1;
-  }
-
-  return subgraph_nodes;
+  for (auto n : graph.nodes_)
+    if (!in_vec(subgraph_nodes, n))
+      for (auto i : n->inputs_) {
+        if (in_vec(subgraph_nodes, i)) {
+          if (!in_vec(outNodes, i)) {  // TODO: use set
+            //@#$ FIX
+            auto index = std::distance(
+                begin(outNodes),
+                std::find(begin(outNodes), end(outNodes),
+                          i));  // if not found index is the no of elements
+            if (index == outNodes.size()) {
+              outNodes.emplace_back(i);
+            }
+            n->input_index_ = index;
+          }
+        }
+      }
+  return outNodes;
 }
 
 // Find a subgraph, check it for bad branches
-std::vector<NodePtr> FindSubgraph(Graph &graph, NodePtr node,
-                                  std::function<bool(NodePtr)> func) {
-  auto subgraph_nodes = SelectNodes(node, func);
+std::pair<std::vector<NodePtr>, std::vector<NodePtr>> FindSubgraph(
+    Graph &graph, NodePtr s, std::function<bool(NodePtr)> func) {
+  auto subgraph_nodes = SelectNodes(s, func);
   std::vector<NodePtr> outNodes;
   outNodes = subgraph_nodes;
   // search for broken loops
   // remove nodes on broken loops
-  outNodes = RemoveBroken(node, outNodes, func);
-  outNodes = PruneSubgraphOutputs(graph, node, outNodes, func);
-  return outNodes;
+  subgraph_nodes = RemoveBroken(s, outNodes, func);
+  outNodes = PruneSubgraphOutputs(graph, s, subgraph_nodes, func);
+  return std::make_pair(subgraph_nodes, outNodes);
 }
 
 // function to identify and label connected ngraph ops as subgraphs
 void IdentifySubgraphs(Graph &graph, std::function<bool(NodePtr)> func) {
   int sg = 1;
+  graph.subgraphs_outputs_.push_back(
+      std::vector<NodePtr>{nullptr});  // since sg counts from 1 and up
   // loop over the nodes from the back
   for (auto i : reverse_iterate(graph.nodes_)) {
     if (i->subgraph_ == 0) {
       // select nodes in the a subgraph starting here and going up the graph
-      auto subgraph_nodes = FindSubgraph(graph, i, func);
+      auto pair = FindSubgraph(graph, i, func);
+      auto subgraph_nodes = pair.first;
+      // if we found a significantly large subgraph, label it
       if (subgraph_nodes.size() > 0) {
-        // if we found a significantly large subgraph, label it
+        auto &outNodes = pair.second;
         for (auto node : subgraph_nodes) node->subgraph_ = sg;
         for (auto node : subgraph_nodes)
           for (auto i : node->inputs_)
-            if (i->subgraph_ != sg) i->subgraph_ = -1;
+            if (i->subgraph_ != sg) {
+              auto pos = std::find(begin(outNodes), end(outNodes), i);
+              if (pos != end(outNodes)) {
+                outNodes.erase(pos);
+              }
+              i->subgraph_ = -1;  // are any of these in outNodes should we
+                                  // replace those w/ nullptr
+            }
+
+        graph.subgraphs_outputs_.emplace_back(outNodes);
         sg += 1;
       }
     }
@@ -235,7 +225,8 @@ void CollapseSubgraphs(Graph &graph) {
       if (node->subgraph_ == i) tmpGraph->AddNode(node);
 
     if (tmpGraph->nodes_.size() == 0) {
-      // if we don't find any nodes, assume we've run out of subgraphs
+      // if we don't find any nodes, assume we've run out of subgraphs TODO:
+      // [nikolayk] how did we get there?
       break;
     } else {
       // if we found nodes, setup subgraph
@@ -246,21 +237,40 @@ void CollapseSubgraphs(Graph &graph) {
       auto shape = tmpGraph->nodes_.back()->shape_;
       tmpGraph->shape_ = shape;
       tmpGraph->dtype_ = tmpGraph->nodes_.back()->dtype_;
-      auto in_tmpGraphInputs = [&tmpGraph](NodePtr n) {
+      auto in_tmpGraphInputs = [&tmpGraph](
+          NodePtr
+              n) {  //[nikolayk] 2nd time seeing this pattern why not use set?
         if (!in_vec(tmpGraph->inputs_, n)) return false;
         return true;
       };
       // setup inputs to this subgraph (as a node)
       for (auto node : tmpGraph->nodes_) {
         for (auto input : node->inputs_) {
-          if (input->subgraph_ != i && !in_tmpGraphInputs(input))
+          if (input->subgraph_ != i && !in_tmpGraphInputs(input)) {
             tmpGraph->inputs_.emplace_back(input);
+          }
         }
       }
+
+      auto &sgOuts = graph.subgraphs_outputs_[tmpGraph->subgraph_];
+      tmpGraph->subgraph_outputs_.insert(end(tmpGraph->subgraph_outputs_),
+                                         begin(sgOuts), end(sgOuts));
+
       // set subgraph as input to all of the nodes downline.
       for (auto n : graph.nodes_)
-        for (size_t i = 0; i < n->inputs_.size(); ++i)
-          if (n->inputs_[i]->name_ == name) n->inputs_[i] = tmpGraph;
+        for (size_t i = 0; i < n->inputs_.size(); ++i) {
+          if (n->inputs_[i]->name_ == name) {
+            auto index = std::distance(
+                begin(tmpGraph->subgraph_outputs_),
+                std::find(begin(tmpGraph->subgraph_outputs_),
+                          end(tmpGraph->subgraph_outputs_), n->inputs_[i]));
+            if (index == tmpGraph->subgraph_outputs_.size()) {
+              throw "NGRAPH_BRIDGE: input node must be in the outputs of the graph"; //assert
+            }
+            n->inputs_[i] = tmpGraph;
+            n->inputs_[i]->input_index_ = index;
+          }
+        }
 
       // find the position we're replacing in the graph
       auto it = std::find_if(

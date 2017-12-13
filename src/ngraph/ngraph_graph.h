@@ -71,6 +71,7 @@ class Node {
   const nnvmNodePtr orig_node_;
   const std::string name_;
   std::vector<NodePtr> inputs_;
+  size_t input_index_;
 
   // mxnet type information
   nnvm::TShape shape_;
@@ -198,6 +199,9 @@ class Graph : public Node {
     throw "NGRAPH_BRIDGE: node not in graph";
   }
 
+  std::vector<std::vector<NodePtr>> subgraphs_outputs_;
+  std::vector<NodePtr> subgraph_outputs_;
+
   int num_outputs = 1;
   // nodes in this graph
   std::vector<NodePtr> nodes_;
@@ -231,9 +235,8 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
 /**
  * Finds simply connected ngraph operations
  */
-std::vector<NodePtr> FindSubgraph(Graph& graph, NodePtr node,
-                                  std::function<bool(NodePtr)> func);
-
+std::pair<std::vector<NodePtr>, std::vector<NodePtr>> FindSubgraph(
+    Graph& graph, NodePtr node, std::function<bool(NodePtr)> func);
 }  // namespace ngraph_bridge
 
 #endif

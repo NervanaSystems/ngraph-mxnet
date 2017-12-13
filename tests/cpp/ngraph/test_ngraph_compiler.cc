@@ -117,6 +117,54 @@ TEST_F(NGRAPH_COMPILER, PARSENNVMGRAPH) {
   }
 }
 
+TEST(NGRAPH_COMPILER_NOF, MULTIPLE_OUTPUTS) {
+  nnvm::Graph nnvm_graph;
+  auto A = createNode("A");
+  auto B = createNode("B");
+  auto C = createNode("C");
+  auto D = createNode("D");
+  auto add1 = createNode("add1", "_add");
+  auto mul = createNode("mul", "_mul");
+  auto add2 = createNode("add2", "_add");
+  auto add3 = createNode("add3", "_add");
+
+  auto arcsinh = createNode("arcsinh", "_arcsinh");
+  auto arcsinh2 = createNode("arcsinh2", "_arcsinh");
+
+  auto add4 = createNode("add4", "_add");
+
+  add1.node->inputs.push_back(A);
+  add1.node->inputs.push_back(B);
+
+  mul.node->inputs.push_back(add1);
+  mul.node->inputs.push_back(C);
+  arcsinh.node->inputs.push_back(mul);
+
+  add2.node->inputs.push_back(mul);
+  add2.node->inputs.push_back(D);
+  arcsinh2.node->inputs.push_back(add2);
+
+  add4.node->inputs.push_back(arcsinh);
+  add4.node->inputs.push_back(arcsinh2);
+
+  nnvm_graph.outputs.push_back(add4);
+
+  nnvm::TShape shape{1};
+  std::unordered_map<std::string, int> dtypes;
+  std::unordered_map<std::string, nnvm::TShape> shapes;
+
+  for (auto n : {A, B, C, D}) inputs.push_back(n.node);
+
+  for (auto n : {"A", "B", "C", "D"}) {
+    dtypes[n] = 0;
+    shapes[n] = shape;
+  }
+  feed_dict[A] = mxnet::NDArray(shape, mxnet::Context());
+  bindarg = std::make_shared<ngraph_bridge::SimpleBindArg>(4, shapes, dtypes);
+  Compiler c(nnvm_graph, feed_dict, inputs, *bindarg);
+  c.Compile();
+}
+
 TEST_F(NGRAPH_COMPILER, CHECK_IN_NGRAPH) {
   testCompiler test(nnvm_graph, feed_dict, inputs, *bindarg);
   for (auto n : test.ngraph_.nodes_) {
@@ -139,5 +187,4 @@ TEST_F(NGRAPH_COMPILER, COMPILE) {
   EXPECT_TRUE(out_graph.outputs[0].node->op()->name.find("subgraph") !=
               std::string::npos);
 }
-
-}  // namespace ngraph_bridge
+}
