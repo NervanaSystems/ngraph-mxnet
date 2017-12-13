@@ -34,8 +34,8 @@ int get_default(const NodePtr& node, const std::string& key, int default_val) {
 inline float get_default(const NodePtr& node, const std::string& key,
                          const float default_val) {
   return node->orig_node_->attrs.dict.count(key)
-         ? std::stof(node->orig_node_->attrs.dict[key])
-         : default_val;
+             ? std::stof(node->orig_node_->attrs.dict[key])
+             : default_val;
 }
 
 bool get_default(const NodePtr& node, const std::string& key,
@@ -568,10 +568,11 @@ void Emitter::CreateLayerOps() {
   // batch norm operation
   ngraph_op_funcs_["BatchNorm"] = [this](const NodePtr& node) {
     // TODO lfeng:
-    // - support use_global_stats (moving_mean & moving_variance), this feature requires multiple outputs.
+    // - support use_global_stats (moving_mean & moving_variance), this feature
+    // requires multiple outputs.
     // - support negative axis
 
-    enum InputName {kData = 0, kGamma, kBeta, kMovingMean, kMovingVar};
+    enum InputName { kData = 0, kGamma, kBeta, kMovingMean, kMovingVar };
     NodePtr in_data = node->inputs_[kData];
     NodePtr in_gamma = node->inputs_[kGamma];
     NodePtr in_beta = node->inputs_[kBeta];
@@ -579,7 +580,8 @@ void Emitter::CreateLayerOps() {
     NodePtr in_moving_var = node->inputs_[kMovingVar];
     nnvm::TShape in_data_shape = in_data->shape_;
 
-    CHECK(in_data_shape.ndim() == 2 || in_data_shape.ndim() == 4) << "Only support 2D and 4D tensors";
+    CHECK(in_data_shape.ndim() == 2 || in_data_shape.ndim() == 4)
+        << "Only support 2D and 4D tensors";
 
     // Default Batch norm parameters
     float eps = get_default(node, "eps", 0.001f);
@@ -598,36 +600,43 @@ void Emitter::CreateLayerOps() {
       if (axis == 1) {
         ng_mean = ngraph::builder::mean(ng_in_data, {0});
         ng_var = ngraph::builder::variance(ng_in_data, {0});
-      }
-      else {
+      } else {
         ng_mean = ngraph::builder::mean(ng_in_data, {1});
         ng_var = ngraph::builder::variance(ng_in_data, {1});
 
         ngraph::AxisVector convert_order(ng_mean->get_shape().size());
         std::iota(begin(convert_order), end(convert_order), 0);
         size_t channel_size = static_cast<unsigned long>(in_data_shape[axis]);
-        ngraph::Shape convert_shape {channel_size, 1};
-        ng_mean = NgraphNodePtr(std::make_shared<Reshape>(ng_mean, convert_order, convert_shape));
-        ng_var = NgraphNodePtr(std::make_shared<Reshape>(ng_var, convert_order, convert_shape));
-        ng_in_gamma = NgraphNodePtr(std::make_shared<Reshape>(ng_in_gamma, convert_order, convert_shape));
-        ng_in_beta = NgraphNodePtr(std::make_shared<Reshape>(ng_in_beta, convert_order, convert_shape));
+        ngraph::Shape convert_shape{channel_size, 1};
+        ng_mean = NgraphNodePtr(
+            std::make_shared<Reshape>(ng_mean, convert_order, convert_shape));
+        ng_var = NgraphNodePtr(
+            std::make_shared<Reshape>(ng_var, convert_order, convert_shape));
+        ng_in_gamma = NgraphNodePtr(std::make_shared<Reshape>(
+            ng_in_gamma, convert_order, convert_shape));
+        ng_in_beta = NgraphNodePtr(std::make_shared<Reshape>(
+            ng_in_beta, convert_order, convert_shape));
       }
-    }
-    else if (in_data_shape.ndim() == 4) {
-      CHECK(axis == 1) << "Only support NCHW layout and reduction along Channel axis";
-      enum NCHWChannels {kN = 0, kC, kH, kW};
+    } else if (in_data_shape.ndim() == 4) {
+      CHECK(axis == 1)
+          << "Only support NCHW layout and reduction along Channel axis";
+      enum NCHWChannels { kN = 0, kC, kH, kW };
 
-      ng_mean = ngraph::builder::mean(ng_in_data, {kN,kH,kW});
-      ng_var = ngraph::builder::variance(ng_in_data, {kN,kH,kW});
+      ng_mean = ngraph::builder::mean(ng_in_data, {kN, kH, kW});
+      ng_var = ngraph::builder::variance(ng_in_data, {kN, kH, kW});
 
       ngraph::AxisVector convert_order(ng_mean->get_shape().size());
       std::iota(begin(convert_order), end(convert_order), 0);
       size_t channel_size = static_cast<unsigned long>(in_data_shape[axis]);
-      ngraph::Shape convert_shape {1, channel_size, 1, 1};
-      ng_mean = NgraphNodePtr(std::make_shared<Reshape>(ng_mean, convert_order, convert_shape));
-      ng_var = NgraphNodePtr(std::make_shared<Reshape>(ng_var, convert_order, convert_shape));
-      ng_in_gamma = NgraphNodePtr(std::make_shared<Reshape>(ng_in_gamma, convert_order, convert_shape));
-      ng_in_beta = NgraphNodePtr(std::make_shared<Reshape>(ng_in_beta, convert_order, convert_shape));
+      ngraph::Shape convert_shape{1, channel_size, 1, 1};
+      ng_mean = NgraphNodePtr(
+          std::make_shared<Reshape>(ng_mean, convert_order, convert_shape));
+      ng_var = NgraphNodePtr(
+          std::make_shared<Reshape>(ng_var, convert_order, convert_shape));
+      ng_in_gamma = NgraphNodePtr(
+          std::make_shared<Reshape>(ng_in_gamma, convert_order, convert_shape));
+      ng_in_beta = NgraphNodePtr(
+          std::make_shared<Reshape>(ng_in_beta, convert_order, convert_shape));
     }
 
     using ngraph::op::Constant;
@@ -637,22 +646,27 @@ void Emitter::CreateLayerOps() {
     using ngraph::op::Add;
     const auto& constType = ng_var->get_element_type();
     const auto& constShape = ng_var->get_shape();
-    NgraphNodePtr ng_one = std::make_shared<Constant>(constType, constShape, "1");
-    NgraphNodePtr ng_two = std::make_shared<Constant>(constType, constShape, "2");
-    NgraphNodePtr ng_eps = std::make_shared<Constant>(constType, constShape, std::to_string(eps));
-    NgraphNodePtr denom = std::make_shared<Power>(ng_var + ng_eps, ng_one / ng_two);
-    NgraphNodePtr numerator = ngraph::builder::make_with_numpy_broadcast<Subtract>(ng_in_data, ng_mean);
-    NgraphNodePtr result = ngraph::builder::make_with_numpy_broadcast<Multiply>(numerator, ng_one/denom);
-    if (fix_gamma) {
-      result = ngraph::builder::make_with_numpy_broadcast<Add>(result, ng_in_beta);
+    NgraphNodePtr ng_one =
+        std::make_shared<Constant>(constType, constShape, "1");
+    NgraphNodePtr ng_two =
+        std::make_shared<Constant>(constType, constShape, "2");
+    NgraphNodePtr ng_eps =
+        std::make_shared<Constant>(constType, constShape, std::to_string(eps));
+    NgraphNodePtr denom =
+        std::make_shared<Power>(ng_var + ng_eps, ng_one / ng_two);
+    NgraphNodePtr numerator =
+        ngraph::builder::make_with_numpy_broadcast<Subtract>(ng_in_data,
+                                                             ng_mean);
+    NgraphNodePtr result = ngraph::builder::make_with_numpy_broadcast<Multiply>(
+        numerator, ng_one / denom);
+    if (!fix_gamma) {
+      result = ngraph::builder::make_with_numpy_broadcast<Multiply>(
+          result, ng_in_gamma);
     }
-    else {
-      result = ngraph::builder::make_with_numpy_broadcast<Add>(
-               ngraph::builder::make_with_numpy_broadcast<Multiply>(result, ng_in_gamma), ng_in_beta);
-    }
+    result =
+        ngraph::builder::make_with_numpy_broadcast<Add>(result, ng_in_beta);
     return result;
   };
-
 }
 
 }  // namespace ngraph_bridge
