@@ -570,7 +570,7 @@ void Emitter::CreateLayerOps() {
     // TODO lfeng:
     // - support use_global_stats (moving_mean & moving_variance), this feature
     // requires multiple outputs.
-    // - support negative axis
+    // - support varying and negative axis
 
     enum InputName { kData = 0, kGamma, kBeta, kMovingMean, kMovingVar };
     NodePtr in_data = node->inputs_[kData];
