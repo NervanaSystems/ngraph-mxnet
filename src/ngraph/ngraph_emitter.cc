@@ -634,23 +634,21 @@ void Emitter::CreateLayerOps() {
     }
 
     using ngraph::op::Constant;
-    using ngraph::op::Power;
+    using ngraph::op::Sqrt;
     using ngraph::op::Multiply;
+    using ngraph::op::Divide;
     using ngraph::op::Subtract;
     using ngraph::op::Add;
     const auto& constType = ng_var->get_element_type();
     const auto& constShape = ng_var->get_shape();
-    NgraphNodePtr ng_one =
-        std::make_shared<Constant>(constType, constShape, "1");
-    NgraphNodePtr ng_two =
-        std::make_shared<Constant>(constType, constShape, "2");
     NgraphNodePtr ng_eps =
         std::make_shared<Constant>(constType, constShape, std::to_string(eps));
-    NgraphNodePtr denom =
-        std::make_shared<Power>(ng_var + ng_eps, ng_one / ng_two);
+    NgraphNodePtr denom = std::make_shared<Sqrt>(ng_var + ng_eps);
     NgraphNodePtr numerator =
         ngraph::builder::make_with_numpy_broadcast<Subtract>(ng_in_data,
                                                              ng_mean);
+    NgraphNodePtr ng_one =
+        std::make_shared<Constant>(constType, constShape, "1");
     NgraphNodePtr result = ngraph::builder::make_with_numpy_broadcast<Multiply>(
         numerator, ng_one / denom);
     if (!fix_gamma) {
