@@ -60,20 +60,35 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
       getType(sub_graph->nodes_.back()->dtype_), shape);
 
   // create the Function object representing the graph
-  auto f = std::make_shared<ngraph::Function>(op_map_[sub_graph->nodes_.back()],
-                                              return_type, parameters);
+  auto Y = op_map_[sub_graph->nodes_.back()];
+  auto f = std::make_shared<ngraph::Function>(Y, return_type, parameters);
 
-  auto clone_f = ngraph::clone_function(f);
+  struct FpropCache {
+    ngraph::NodeMap nodes_to_params;
+    ngraph::Nodes output_nodes;
+    std::vector<std::shared_ptr<ngraph::op::Parameter>> input_params;
+  } fprop_cache;
+
+  ngraph::traverse_nodes(f, [&fprop_cache](std::shared_ptr<ngraph::Node> node) {
+    auto param = std::make_shared<ngraph::op::Parameter>(
+        node->get_element_type(), node->get_shape());
+    fprop_cache.nodes_to_params.Add(node, param);
+    fprop_cache.input_params.push_back(param);
+    fprop_cache.output_nodes.push_back(node);
+  });
+
+  auto outTuple = std::make_shared<ngraph::op::Tuple>(fprop_cache.output_nodes);
+  auto outTupleType = outTuple->get_value_type();
+  auto newf =
+      std::make_shared<ngraph::Function>(outTuple, outTupleType, parameters);
 
   // compile it into a call frame with the backend, and save
   // the compile frame into the subgraph
-  auto forward_external = sub_graph->manager_->compile(f);
+  auto forward_external = sub_graph->manager_->compile(newf);
   sub_graph->ngraph_forward =
-      sub_graph->backend_->make_call_frame(forward_external); // <-- 
+      sub_graph->backend_->make_call_frame(forward_external);
 
   // Compile the backward Pass
-  auto Y = clone_f->get_result();
-
   auto C = std::make_shared<ngraph::op::Parameter>(Y->get_value_type());
 
   std::vector<NgraphNodePtr> dYdXs(parameters.size());
@@ -81,11 +96,14 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
             [C, Y](const NgraphNodePtr& X) { return Y->backprop_node(X, C); });
 
   auto result = std::make_shared<ngraph::op::Tuple>(dYdXs);
-  parameters.insert(parameters.begin(), C);
-  auto bf = std::make_shared<ngraph::Function>(result, result->get_value_type(),
-                                               parameters);
 
-  auto backward_external = sub_graph->manager_->compile(bf);
+  fprop_cache.input_params.insert(fprop_cache.input_params.begin(), C);
+  auto bf = std::make_shared<ngraph::Function>(result, result->get_value_type(),
+                                               fprop_cache.input_params);
+
+  auto cbf = ngraph::clone_function(bf, fprop_cache.nodes_to_params);
+
+  auto backward_external = sub_graph->manager_->compile(cbf);
   sub_graph->ngraph_backward =
       sub_graph->backend_->make_call_frame(backward_external);
 }
