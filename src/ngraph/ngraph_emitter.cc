@@ -381,16 +381,17 @@ void Emitter::CreateBinaryOps() {
     NgraphNodePtr left = op_map_[node->inputs_[0]];
     NgraphNodePtr right = op_map_[node->inputs_[1]];
     if (get_default(node, "transpose_a", false)) {
-      ngraph::AxisVector order;
-      for (size_t i = 1; i < left->get_shape().size(); ++i) order.push_back(i);
+      auto N = left->get_shape().size();
+      ngraph::AxisVector order(N - 1);
+      std::iota(order.begin(), order.end(), 1);
       order.push_back(0);
       left = ngraph::builder::numpy_transpose(left, order);
     }
     if (get_default(node, "transpose_b", false)) {
-      ngraph::AxisVector order;
       auto N = right->get_shape().size();
-      order.push_back(N - 1);
-      for (size_t i = 0; i < N - 1; ++i) order.push_back(i);
+      ngraph::AxisVector order(N - 1);
+      std::iota(order.begin(), order.end(), 0);
+      order.insert(order.begin(), N - 1);
       right = ngraph::builder::numpy_transpose(right, order);
     }
     return std::make_shared<ngraph::op::Dot>(left, right, 1);
