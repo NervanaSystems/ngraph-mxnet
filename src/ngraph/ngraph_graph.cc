@@ -22,24 +22,18 @@ namespace ngraph_bridge {
 // Type Aliases
 using EdgeRemoveTuple = std::tuple<NodePtr, NodePtr, bool>;
 
-void DFSPartialGraphSearch(
-    NodePtr node, std::function<void(NodePtr)> func,
-    std::function<bool(NodePtr, NodePtr)> stop_condition) {
-  DFSPartialGraphSearch<NodePtr>(
-      node, func, stop_condition,
-      [](NodePtr node) -> std::vector<NodePtr> { return node->inputs_; });
-}
-
 std::vector<NodePtr> SelectNodes(NodePtr node,
                                  std::function<bool(NodePtr)> func) {
   // init output vector
   std::vector<NodePtr> outNodes;
 
-  auto select_nodes = [&outNodes, &func](NodePtr node) {
+  GraphVisitor<Node> visitor;
+
+  visitor.operation = [&outNodes, &func](NodePtr node) {
     if (func(node)) outNodes.push_back(node);
   };
 
-  auto stop_condition = [&func](NodePtr node, NodePtr input) {
+  visitor.stop_condition = [&func](NodePtr node, NodePtr input) {
     if (func(node)) {
       return false;
     } else {
@@ -47,7 +41,11 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
     }
   };
 
-  DFSPartialGraphSearch(node, select_nodes, stop_condition);
+  visitor.get_inputs = [](NodePtr node) -> std::vector<NodePtr> {
+    return node->inputs_;
+  };
+
+  DFSGraphTraverse(node, visitor);
 
   return outNodes;
 }
@@ -127,6 +125,17 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
   };
 
   std::set<EdgeRemoveTuple> visited_edges;
+  GraphVisitor<Node> visitor;
+
+  auto is_good = [&](NodePtr node){
+    
+  }
+
+  visitor.operation = [&](NodePtr node) {
+    if (!func(node))
+      outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), node),
+                     outNodes.end());
+  };
   // recursive search for bad branches
   RemoveUtil(node, outNodes, good_subgraph_node, visited_edges);
   return outNodes;
@@ -138,7 +147,8 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
  * we might be able to get rid of this pass
  * This removes mutiple outputs from a graph, because the subgraph compiler
  * doesn't currently support multiple outputs
- * TODO: make the subgraph compiler handle multiple outputs and get rid of this
+ * TODO: make the subgraph compiler handle multiple outputs and get rid of
+ * this
  * graph pass
  */
 std::vector<NodePtr> PruneSubgraphOutputs(Graph &graph, NodePtr node,

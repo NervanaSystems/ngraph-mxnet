@@ -200,77 +200,79 @@ void CollapseSubgraphs(Graph& graph);
 std::vector<NodePtr> SelectNodes(NodePtr node,
                                  std::function<bool(NodePtr)> func);
 
-template <typename T>
-struct GraphVistor
-
 /**
  * Finds simply connected ngraph operations
  */
 std::vector<NodePtr> FindSubgraph(Graph& graph, NodePtr node,
                                   std::function<bool(NodePtr)> func);
-template <typename T>
-void BrutePartialGraphSearch(T node, std::function<void(T)> operation,
-                             std::function<bool(T, T)> stop_condition,
-                             std::function<std::vector<T>(T)> get_inputs,
-                             std::function<std::vector<T>(T)> get_outputs =
-                                 [](T node) { return std::vector<T>(); }) {
-  std::deque<T> stack;
 
-  stack.push_front(node);
+template <typename T>
+struct GraphVisitor {
+  typedef std::shared_ptr<T> TypePtr;
+  std::function<void(TypePtr)> operation;
+  std::function<bool(TypePtr, TypePtr)> stop_condition;
+  std::function<std::vector<TypePtr>(TypePtr)> get_inputs;
+  std::function<std::vector<TypePtr>(TypePtr)> get_outputs = [](TypePtr n) {
+    return std::vector<TypePtr>();
+  };
+};
+
+template <typename T>
+void BruteGraphTraverse(std::shared_ptr<T> node,
+                        const GraphVisitor<T>& visitor) {
+
+  typedef std::shared_ptr<T> TypePtr;
+
+  std::deque<std::pair<TypePtr,TypePtr>> stack;
+
+  stack.push_front(nullptr, node);
 
   while (stack.size() > 0) {
     auto n = stack.front();
-    if (!visited.count(n)) {
-      visited.insert(n);
-      operation(n);
-    }
+
+    visitor.operation(n);
 
     stack.pop_front();
 
-    auto add_nodes_to_stack = [&](std::vector<T> nodes) {
+    auto add_nodes_to_stack = [&](std::vector<TypePtr> nodes) {
       for (auto i : nodes)
-        if (!visited.count(i) && !stop_condition(n, i)) stack.push_front(i);
+        if (!visitor.stop_condition(n, i)) stack.push_front({n,i});
     };
 
-    add_nodes_to_stack(get_inputs(n));
-    add_nodes_to_stack(get_outputs(n));
+    add_nodes_to_stack(visitor.get_inputs(n));
+    add_nodes_to_stack(visitor.get_outputs(n));
   }
 }
 
 template <typename T>
-struct GraphVisitor() {
-  typedef std::shared_ptr<T> TypePtr;
-  std::function<void(TypePtr)> operation;
-  std::function<bool(TypePtr, TypePtr)> stop_condition;
-  std::function<std::vector<T>(TypePtr)> get_inputs;
-  std::function<std::vector<T>(TypePtr)> get_outputs;
-  std::unordered_set<TypePtr> nodes_already_operated_on;
-  std::set<std::pair<T,T>> edges_visited;
-}
+void DFSGraphTraverse(std::shared_ptr<T> node,
+                      const GraphVisitor<T>& visitor) {
 
-void DFSPartialGraphSearch(std::shared_ptr<T> node,
-                           const GraphVisitor<T>& visitor) {
-  std::unordered_set<T> visited;
-  std::deque<T> stack;
+  typedef std::shared_ptr<T> TypePtr;
+
+  std::unordered_set<TypePtr> visited;
+  std::deque<TypePtr> stack;
 
   stack.push_front(node);
 
   while (stack.size() > 0) {
     auto n = stack.front();
+
     if (!visited.count(n)) {
       visited.insert(n);
-      operation(n);
+      visitor.operation(n);
     }
 
     stack.pop_front();
 
-    auto add_nodes_to_stack = [&](std::vector<T> nodes) {
+    auto add_nodes_to_stack = [&](std::vector<TypePtr> nodes) {
       for (auto i : nodes)
-        if (!visited.count(i) && !stop_condition(n, i)) stack.push_front(i);
+        if (!visited.count(i) && !visitor.stop_condition(n, i))
+          stack.push_front(i);
     };
 
-    add_nodes_to_stack(get_inputs(n));
-    add_nodes_to_stack(get_outputs(n));
+    add_nodes_to_stack(visitor.get_inputs(n));
+    add_nodes_to_stack(visitor.get_outputs(n));
   }
 }
 

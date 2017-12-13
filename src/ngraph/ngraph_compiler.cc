@@ -275,7 +275,10 @@ void Compiler::CopyNodes(const nnvm::Graph& graph) {
 }
 
 void Compiler::DeepCopy(const nnvm::Graph& graph) {
-  auto replace_inputs = [this](nnvm::NodePtr node) {
+
+  GraphVisitor<nnvm::Node> visitor;
+
+  visitor.operation = [this](nnvm::NodePtr node) {
     int i = 0;
     for (auto& input : node->inputs) {
       if (this->node_map_.count(input.node.get())) {
@@ -285,11 +288,11 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
     }
   };
 
-  auto stop_conditon = [](nnvm::NodePtr node, nnvm::NodePtr input) {
+  visitor.stop_condition = [](nnvm::NodePtr node, nnvm::NodePtr input) {
     return false;
   };
 
-  auto get_nnvm_inputs = [](nnvm::NodePtr node) {
+  visitor.get_inputs = [](nnvm::NodePtr node) {
     std::vector<nnvm::NodePtr> output;
     for (auto& input : node->inputs) output.push_back(input.node);
     for (auto& input : node->control_deps) output.push_back(input);
@@ -303,8 +306,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
   for (auto& out : graph_.outputs) out.node = node_map_[out.node.get()];
 
   for (auto out : graph_.outputs)
-    DFSPartialGraphSearch<nnvm::NodePtr>(out.node, replace_inputs,
-                                         stop_conditon, get_nnvm_inputs);
+    DFSGraphTraverse(out.node, visitor);
 }
 
 // Check nodes in NGraph
