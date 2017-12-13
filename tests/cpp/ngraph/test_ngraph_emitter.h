@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
-#include "../include/test_util.h"
+#include "test_util.h"
 
-#include "../../../src/ngraph/ngraph_emitter.h"
-#include "../../../src/ngraph/ngraph_sgcompiler_utils.h"
+#include "../../src/ngraph/ngraph_emitter.h"
+#include "../../src/ngraph/ngraph_sgcompiler_utils.h"
 
 namespace ngraph_bridge {
 
@@ -101,4 +101,35 @@ struct testEmitterBroadcast : public Emitter {
     data2 = op_map_[in2];
   };
 };
+
+struct testBatchNormEmitter : public Emitter, public ::testing::Test {
+ protected:
+  std::shared_ptr<VariableNode> in1;
+  std::shared_ptr<VariableNode> in2;
+  std::shared_ptr<VariableNode> in3;
+  std::shared_ptr<VariableNode> in4;
+  std::shared_ptr<VariableNode> in5;
+  std::shared_ptr<OpNode> node;
+
+  NgraphNodePtr data1;
+  NgraphNodePtr data2;
+  NgraphNodePtr data3;
+  NgraphNodePtr data4;
+  NgraphNodePtr data5;
+
+  virtual void SetUp() {
+      in1 = std::make_shared<VariableNode>(nullptr, "in1");
+      in2 = std::make_shared<VariableNode>(nullptr, "in2");
+      in3 = std::make_shared<VariableNode>(nullptr, "in3");
+      in4 = std::make_shared<VariableNode>(nullptr, "in4");
+      in5 = std::make_shared<VariableNode>(nullptr, "in5");
+
+      node = std::make_shared<OpNode>(nullptr, "node", "test",
+                                      std::vector<NodePtr>{in1, in2, in3, in4, in5});
+  };
+
+  virtual void TearDown(){};
+
+};
+
 }  // namespace ngraph_bridge

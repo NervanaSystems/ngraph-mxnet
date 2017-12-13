@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
-#include <operator/batch_norm-inl.h>
+#include "../../../src/operator/batch_norm-inl.h"
 #include "test_ngraph_emitter.h"
-#include "../../../src/ngraph/ngraph_sgcompiler_utils.h"
-#include "../../../src/operator/concat-inl.h"
-#include "../../../src/operator/fully_connected-inl.h"
-#include "../../../src/operator/slice_channel-inl.h"
-#include "../../../src/operator/tensor/matrix_op-inl.h"
+#include "../../src/ngraph/ngraph_sgcompiler_utils.h"
+#include "../../src/operator/concat-inl.h"
+#include "../../src/operator/fully_connected-inl.h"
+#include "../../src/operator/slice_channel-inl.h"
+#include "../../src/operator/tensor/matrix_op-inl.h"
 
 namespace ngraph_bridge {
 
@@ -521,7 +521,7 @@ TEST_F(testGeneralEmitter, FULLYCONNECTED) {
   EXPECT_EQ(op->get_arguments()[1]->get_arguments()[0], data3);
 }
 
-TEST_F(testGeneralEmitter, BATCHNORM) {
+TEST_F(testBatchNormEmitter, BATCHNORM) {
   mxnet::op::BatchNormParam param;
   param.axis = 1;
   param.eps = 0.0001;
@@ -530,7 +530,7 @@ TEST_F(testGeneralEmitter, BATCHNORM) {
   // set up attributes
   nnvm::NodeAttrs attr;
   attr.name = "batch_norm_test";
-  attr.dict["axis"] = "0";
+  attr.dict["axis"] = "1";
   attr.dict["eps"] = "0.00001";
   attr.dict["momentum"] = "0.9";
   attr.dict["fix_gamma"] = "True";
@@ -543,58 +543,8 @@ TEST_F(testGeneralEmitter, BATCHNORM) {
 
   node = std::make_shared<OpNode>(nnvmnode, "node", "test",
                                   std::vector<NodePtr>{in1});
-//  auto op = ngraph_op_funcs_["batch_norm"](node);
+  auto op = ngraph_op_funcs_["BatchNorm"](node);
 
-#if 0
-  nnvm::NodeAttrs attr;
-  attr.name = "concat";
-  auto in1shape = nnvm::TShape{3, 2};
-  auto nodeshape = nnvm::TShape{3, 2};
-  auto inshape = std::vector<nnvm::TShape>{in1shape};
-  auto outshape = std::vector<nnvm::TShape>{nodeshape};
-
-  attr.op = (nnvm::Op *) mxnet::op::CreateOp<mxnet::cpu>(
-      param, 0, &inshape, &outshape, mxnet::Context());
-
-  auto nnvmnode = nnvm::Node::Create();
-  nnvmnode->attrs = attr;
-  node = std::make_shared<OpNode>(nnvmnode, "node", "test",
-                                  std::vector<NodePtr>{in1, in2, in3});
-
-  in1->shape_ = in1shape;
-  in2->shape_ = nnvm::TShape{8, 4};
-  in3->shape_ = nnvm::TShape{8};
-  op_map_[in1] = std::make_shared<ngraph::op::Parameter>(
-      ngraph::element::Float32::element_type(),
-      TShape_to_NShape(in1->shape_));
-  op_map_[in2] = std::make_shared<ngraph::op::Parameter>(
-      ngraph::element::Float32::element_type(),
-      TShape_to_NShape(in2->shape_));
-  op_map_[in3] = std::make_shared<ngraph::op::Parameter>(
-      ngraph::element::Float32::element_type(),
-      TShape_to_NShape(in3->shape_));
-  node->shape_ = nodeshape;
-
-  data1 = op_map_[in1];
-  data2 = op_map_[in2];
-  data3 = op_map_[in3];
-
-  auto op = ngraph_op_funcs_["batch_norm"](node);
-
-  EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Add>(op));
-  EXPECT_TRUE(
-      std::dynamic_pointer_cast<ngraph::op::Dot>(op->get_arguments()[0]));
-
-  EXPECT_EQ(op->get_arguments()[0]->get_arguments()[0], data1);
-  EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Reshape>(
-      op->get_arguments()[0]->get_arguments()[1]));
-  EXPECT_EQ(op->get_arguments()[0]->get_arguments()[1]->get_arguments()[0],
-            data2);
-
-  EXPECT_TRUE(
-      std::dynamic_pointer_cast<ngraph::op::Broadcast>(op->get_arguments()[1]));
-  EXPECT_EQ(op->get_arguments()[1]->get_arguments()[0], data3);
-#endif
 }
 
 }  // namespace ngraph_bridge

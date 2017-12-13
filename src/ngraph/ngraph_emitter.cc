@@ -524,17 +524,12 @@ void Emitter::CreateLayerOps() {
     ngraph::AxisSet channel_axis;
     channel_axis.insert(axis);
 
-    std::cout << "eps=" << eps << std::endl
-              << "axis=" << axis << std::endl
-              << "momentum=" << momentum << std::endl
-              << "fix_gamma=" << fix_gamma << std::endl
-              << "use_global_stats=" << use_global_stats << std::endl;
-
     NgraphNodePtr ng_in_data = op_map_[in_data];
     NgraphNodePtr ng_in_gamma = op_map_[in_gamma];
     NgraphNodePtr ng_in_beta = op_map_[in_beta];
     NgraphNodePtr ng_mean{nullptr};
     NgraphNodePtr ng_var{nullptr};
+    using ngraph::op::Reshape;
     if (in_data_shape.ndim() == 2) {
       if (axis == 1) {
         ng_mean = ngraph::builder::mean(ng_in_data, {0});
@@ -543,15 +538,15 @@ void Emitter::CreateLayerOps() {
       else {
         ng_mean = ngraph::builder::mean(ng_in_data, {1});
         ng_var = ngraph::builder::variance(ng_in_data, {1});
-        using ngraph::op::Reshape;
-        ngraph::AxisVector stats_order(ng_mean->get_shape().size());
-        std::iota(begin(stats_order), end(stats_order), 0);
+
+        ngraph::AxisVector convert_order(ng_mean->get_shape().size());
+        std::iota(begin(convert_order), end(convert_order), 0);
         size_t channel_size = static_cast<unsigned long>(in_data_shape[axis]);
-        ngraph::Shape stats_shape {channel_size, 1};
-        ng_mean = NgraphNodePtr(std::make_shared<Reshape>(ng_mean, stats_order, stats_shape));
-        ng_var = NgraphNodePtr(std::make_shared<Reshape>(ng_var, stats_order, stats_shape));
-        ng_in_gamma = NgraphNodePtr(std::make_shared<Reshape>(ng_in_gamma, stats_order, stats_shape));
-        ng_in_beta = NgraphNodePtr(std::make_shared<Reshape>(ng_in_beta, stats_order, stats_shape));
+        ngraph::Shape convert_shape {channel_size, 1};
+        ng_mean = NgraphNodePtr(std::make_shared<Reshape>(ng_mean, convert_order, convert_shape));
+        ng_var = NgraphNodePtr(std::make_shared<Reshape>(ng_var, convert_order, convert_shape));
+        ng_in_gamma = NgraphNodePtr(std::make_shared<Reshape>(ng_in_gamma, convert_order, convert_shape));
+        ng_in_beta = NgraphNodePtr(std::make_shared<Reshape>(ng_in_beta, convert_order, convert_shape));
       }
     }
     else if (in_data_shape.ndim() == 4) {
@@ -561,15 +556,14 @@ void Emitter::CreateLayerOps() {
       ng_mean = ngraph::builder::mean(ng_in_data, {kN,kH,kW});
       ng_var = ngraph::builder::variance(ng_in_data, {kN,kH,kW});
 
-      using ngraph::op::Reshape;
-      ngraph::AxisVector stats_order(ng_mean->get_shape().size());
-      std::iota(begin(stats_order), end(stats_order), 0);
+      ngraph::AxisVector convert_order(ng_mean->get_shape().size());
+      std::iota(begin(convert_order), end(convert_order), 0);
       size_t channel_size = static_cast<unsigned long>(in_data_shape[axis]);
-      ngraph::Shape stats_shape {1, channel_size, 1, 1};
-      ng_mean = NgraphNodePtr(std::make_shared<Reshape>(ng_mean, stats_order, stats_shape));
-      ng_var = NgraphNodePtr(std::make_shared<Reshape>(ng_var, stats_order, stats_shape));
-      ng_in_gamma = NgraphNodePtr(std::make_shared<Reshape>(ng_in_gamma, stats_order, stats_shape));
-      ng_in_beta = NgraphNodePtr(std::make_shared<Reshape>(ng_in_beta, stats_order, stats_shape));
+      ngraph::Shape convert_shape {1, channel_size, 1, 1};
+      ng_mean = NgraphNodePtr(std::make_shared<Reshape>(ng_mean, convert_order, convert_shape));
+      ng_var = NgraphNodePtr(std::make_shared<Reshape>(ng_var, convert_order, convert_shape));
+      ng_in_gamma = NgraphNodePtr(std::make_shared<Reshape>(ng_in_gamma, convert_order, convert_shape));
+      ng_in_beta = NgraphNodePtr(std::make_shared<Reshape>(ng_in_beta, convert_order, convert_shape));
     }
 
     using ngraph::op::Constant;
@@ -589,7 +583,8 @@ void Emitter::CreateLayerOps() {
       result = ngraph::builder::make_with_numpy_broadcast<Add>(result, ng_in_beta);
     }
     else {
-      result = ngraph::builder::make_with_numpy_broadcast<Add>(ngraph::builder::make_with_numpy_broadcast<Multiply>(result, ng_in_gamma), ng_in_beta);
+      result = ngraph::builder::make_with_numpy_broadcast<Add>(
+               ngraph::builder::make_with_numpy_broadcast<Multiply>(result, ng_in_gamma), ng_in_beta);
     }
     return result;
   };
