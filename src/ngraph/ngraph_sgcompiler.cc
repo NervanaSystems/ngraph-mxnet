@@ -47,63 +47,118 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // compile all the ndoes in the graph
   for (auto node : sub_graph->nodes_) CompileNode(node, sub_graph);
 
-  // map the inputs into a parameter list
-  // TODO: std::transform?
+  FpropCache fprop_cache;
+
   ngraph::op::Parameters parameters;
-  for (auto input : placeholder_order_)
+  ngraph::Nodes param_nodes;
+
+  for (auto input : placeholder_order_) {
+    // get the parameters
     parameters.push_back(
         std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_[input]));
-
+    param_nodes.push_back(op_map_[input]);
+  }
   // calcuate the shape and return type of the subgraph
-  auto shape = TShape_to_NShape(sub_graph->nodes_.back()->shape_);
-  auto return_type = std::make_shared<ngraph::TensorViewType>(
-      getType(sub_graph->nodes_.back()->dtype_), shape);
-
-  // create the Function object representing the graph
   auto Y = op_map_[sub_graph->nodes_.back()];
+  auto return_type = std::make_shared<ngraph::TensorViewType>(
+      Y->get_element_type(), Y->get_shape());
+
+  // create the Forward Function object representing the graph
   auto f = std::make_shared<ngraph::Function>(Y, return_type, parameters);
 
-  ngraph::traverse_nodes(f, [&sub_graph](std::shared_ptr<ngraph::Node> node) {
-    auto param = std::make_shared<ngraph::op::Parameter>(
-        node->get_element_type(), node->get_shape());
-    sub_graph->fprop_cache.nodes_to_params.Add(node, param);
-    sub_graph->fprop_cache.input_params.push_back(param);
-    sub_graph->fprop_cache.output_nodes.push_back(node);
-  });
-  sub_graph->fprop_cache.values.resize(
-      sub_graph->fprop_cache.output_nodes.size());
-
-  auto outTuple =
-      std::make_shared<ngraph::op::Tuple>(sub_graph->fprop_cache.output_nodes);
-  auto outTupleType = outTuple->get_value_type();
-  auto newf =
-      std::make_shared<ngraph::Function>(outTuple, outTupleType, parameters);
-
-  // compile it into a call frame with the backend, and save
-  // the compile frame into the subgraph
-  auto forward_external = sub_graph->manager_->compile(newf);
-  sub_graph->ngraph_forward =
-      sub_graph->backend_->make_call_frame(forward_external);
-
-  // Compile the backward Pass
+  // Create the Backward Pass
   auto C = std::make_shared<ngraph::op::Parameter>(Y->get_value_type());
-
+  
+  // Perform autodiff
   std::vector<NgraphNodePtr> dYdXs(parameters.size());
   transform(parameters.begin(), parameters.end(), dYdXs.begin(),
             [C, Y](const NgraphNodePtr& X) { return Y->backprop_node(X, C); });
 
   auto result = std::make_shared<ngraph::op::Tuple>(dYdXs);
 
-  sub_graph->fprop_cache.input_params.insert(
-      sub_graph->fprop_cache.input_params.begin(), C);
-  auto bf = std::make_shared<ngraph::Function>(
-      result, result->get_value_type(), sub_graph->fprop_cache.input_params);
+  // create the backward function
+  auto back_parameters = parameters;
+  back_parameters.insert(back_parameters.begin(), C);
 
-  auto cbf = ngraph::clone_function(bf, sub_graph->fprop_cache.nodes_to_params);
+  auto bf = std::make_shared<ngraph::Function>(result, result->get_value_type(),
+                                               back_parameters);
 
-  auto backward_external = sub_graph->manager_->compile(cbf);
+  // create a map from f nodes to parameters
+  std::unordered_map<NgraphNodePtr, NgraphNodePtr> node_param_map;
+  ngraph::traverse_nodes(f, [&node_param_map](NgraphNodePtr node) {
+    auto param = std::make_shared<ngraph::op::Parameter>(
+        node->get_element_type(), node->get_shape());
+    node_param_map[node] = param;
+  });
+
+  std::unordered_set<NgraphNodePtr> in_bprop;
+  ngraph::traverse_nodes(bf, [&in_bprop](NgraphNodePtr node) {
+    if (!in_bprop.count(node)) in_bprop.insert(node);
+  });
+
+  std::vector<NgraphNodePtr> unused_nodes;
+  for (auto kv : node_param_map) {
+    if (!in_bprop.count(kv.first) || in_vec(param_nodes, kv.first)) {
+      unused_nodes.push_back(kv.first);
+    } else {
+      fprop_cache.fprop_output_nodes.push_back(kv.first);
+    }
+  }
+  for (auto node : unused_nodes) node_param_map.erase(node);
+
+  for (auto node : fprop_cache.fprop_output_nodes) {
+    fprop_cache.values.push_back(sub_graph->backend_->make_primary_tensor_view(
+        node->get_element_type(), node->get_shape()));
+  }
+
+  std::vector<NgraphNodePtr> fprop_outputs{Y};
+  fprop_outputs.insert(fprop_outputs.end(),
+                       fprop_cache.fprop_output_nodes.begin(),
+                       fprop_cache.fprop_output_nodes.end());
+  auto outTuple =
+      std::make_shared<ngraph::op::Tuple>(fprop_outputs);
+  auto outTupleType = outTuple->get_value_type();
+  auto newf =
+       std::make_shared<ngraph::Function>(outTuple, outTupleType, parameters);
+
+  
+  ngraph::NodeMap node_map;
+  for (auto kv : node_param_map) {
+    node_map.Add(kv.first, kv.second);
+  }
+
+  ngraph::clone_nodes(bf->get_ops(), node_map);
+
+  // get cloned function result and parameters
+  auto cloned_result = node_map[bf->get_result()];
+
+  ngraph::op::Parameters cloned_params;
+  for (auto param : bf->get_parameters())
+  {
+      cloned_params.push_back(std::dynamic_pointer_cast<ngraph::op::Parameter>(node_map[param]));
+  }
+
+  fprop_cache.bprop_input_params = cloned_params;
+
+  for (auto x : fprop_cache.fprop_output_nodes) {
+    fprop_cache.bprop_input_params.push_back(
+        std::dynamic_pointer_cast<ngraph::op::Parameter>(node_map[x]));
+  }
+
+  // create and return cloned function
+  auto newbf = std::make_shared<ngraph::Function>(
+      cloned_result, cloned_result->get_value_type(), fprop_cache.bprop_input_params);
+
+  sub_graph->fprop_cache = fprop_cache;
+
+  auto forward_external = sub_graph->manager_->compile(newf);
+  sub_graph->ngraph_forward =
+      sub_graph->backend_->make_call_frame(forward_external);
+
+  auto backward_external = sub_graph->manager_->compile(newbf);
   sub_graph->ngraph_backward =
       sub_graph->backend_->make_call_frame(backward_external);
+
 }
 
 // compiling a node, recursively checking it's inputs

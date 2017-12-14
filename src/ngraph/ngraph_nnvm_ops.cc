@@ -146,8 +146,12 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
               const std::vector<mxnet::TBlob>& outputs) -> void {
         auto placeholders =
             make_ngraph_placeholders(inputs, graph->backend_, true);
-
-        graph->ngraph_forward->call(placeholders, graph->fprop_cache.values);
+        auto results =
+            make_ngraph_placeholders(outputs, graph->backend_, false);
+        results.insert(results.end(), graph->fprop_cache.values.begin(),
+                       graph->fprop_cache.values.end());
+        graph->ngraph_forward->call(placeholders,
+                                    {ngraph::runtime::make_tuple(results)});
         result_to_TBlob(graph->fprop_cache.values[0], outputs, 0);
       });
 }
@@ -184,12 +188,13 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
         auto results =
             make_ngraph_placeholders(outputs, graph->backend_, false);
 
-        auto values_plus_c = graph->fprop_cache.values;
-        values_plus_c.insert(values_plus_c.begin(), placeholders[0]);
+        placeholders.insert(placeholders.end(),
+                            graph->fprop_cache.values.begin(),
+                            graph->fprop_cache.values.end());
 
-        graph->ngraph_backward->call(values_plus_c,
+        graph->ngraph_backward->call(placeholders,
                                      {ngraph::runtime::make_tuple(results)});
-        for (size_t j = 0; j < results.size(); ++j)
+        for (size_t j = 0; j < outputs.size(); ++j)
           result_to_TBlob(results[j], outputs, j);
       });
 }

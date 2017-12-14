@@ -150,7 +150,7 @@ inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
     return nbridge_argon_manager_;
   }
   if (!nbridge_ngvm_manager_) {
-    nbridge_ngvm_manager_ = ngraph::runtime::Manager::get("NGVM");
+    nbridge_ngvm_manager_ = ngraph::runtime::Manager::get("CPU");
     return nbridge_ngvm_manager_;
   }
   return nbridge_ngvm_manager_;
@@ -174,8 +174,8 @@ inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
 
 struct FpropCache {
   ngraph::NodeMap nodes_to_params;
-  ngraph::Nodes output_nodes;
-  std::vector<std::shared_ptr<ngraph::op::Parameter>> input_params;
+  ngraph::Nodes fprop_output_nodes;
+  std::vector<std::shared_ptr<ngraph::op::Parameter>> bprop_input_params;
   std::vector<std::shared_ptr<ngraph::runtime::Value>> values;
 };
 
