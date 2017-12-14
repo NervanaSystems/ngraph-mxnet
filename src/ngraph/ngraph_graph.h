@@ -135,42 +135,28 @@ class OpNode : public Node {
 };
 
 // makes sure you have only one manager of one type
-static std::shared_ptr<ngraph::runtime::Manager> nbridge_ngvm_manager_;
-static std::shared_ptr<ngraph::runtime::Backend> nbridge_ngvm_backend_;
-static std::shared_ptr<ngraph::runtime::Manager> nbridge_argon_manager_;
-static std::shared_ptr<ngraph::runtime::Backend> nbridge_argon_backend_;
-
-inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
+static std::shared_ptr<ngraph::runtime::Manager> nbridge_backend_manager_;
+static std::shared_ptr<ngraph::runtime::Backend> nbridge_backend_;
+static std::unordered_map< std::string,std::shared_ptr<ngraph::runtime::Manager> > backend_managers = 
+	{{"NGVM", ngraph::runtime::Manager::get("NGVM")}, {"ARGON", nullptr},{"CPU", nullptr},{"GPU", nullptr}};
+   inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
     const mxnet::Context& context) {
-  if (context == mxnet::Context::NNP()) {
-    if (!nbridge_argon_manager_) {
-      nbridge_argon_manager_ = ngraph::runtime::Manager::get("ARGON");
-      return nbridge_argon_manager_;
+    std::string backend = (context == mxnet::Context::NNP()) ? "ARGON" : "NGVM";
+    if (!nbridge_backend_manager_) {
+      nbridge_backend_manager_ = ngraph::runtime::Manager::get(backend);
+      return nbridge_backend_manager_;
     }
-    return nbridge_argon_manager_;
-  }
-  if (!nbridge_ngvm_manager_) {
-    nbridge_ngvm_manager_ = ngraph::runtime::Manager::get("NGVM");
-    return nbridge_ngvm_manager_;
-  }
-  return nbridge_ngvm_manager_;
-}
 
-inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
-    const mxnet::Context& context) {
-  if (context == mxnet::Context::NNP()) {
-    if (!nbridge_argon_backend_) {
-      nbridge_argon_backend_ = nbridge_argon_manager_->allocate_backend();
-      return nbridge_argon_backend_;
-    }
-    return nbridge_argon_backend_;
-  }
-  if (!nbridge_ngvm_backend_) {
-    nbridge_ngvm_backend_ = nbridge_ngvm_manager_->allocate_backend();
-    return nbridge_ngvm_backend_;
-  }
-  return nbridge_ngvm_backend_;
+    return nbridge_backend_manager_;
 }
+   inline  std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
+    const mxnet::Context& context) {
+    if (!nbridge_backend_) {
+      nbridge_backend_ = nbridge_backend_manager_->allocate_backend();
+      return nbridge_backend_;
+    }
+    return nbridge_backend_;
+  }
 
 /*
 Graph class
