@@ -152,7 +152,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
                        graph->fprop_cache.values.end());
         graph->ngraph_forward->call(placeholders,
                                     {ngraph::runtime::make_tuple(results)});
-        result_to_TBlob(graph->fprop_cache.values[0], outputs, 0);
+        result_to_TBlob(results[0], outputs, 0);
       });
 }
 

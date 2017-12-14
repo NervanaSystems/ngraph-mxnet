@@ -150,7 +150,7 @@ inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
     return nbridge_argon_manager_;
   }
   if (!nbridge_ngvm_manager_) {
-    nbridge_ngvm_manager_ = ngraph::runtime::Manager::get("CPU");
+    nbridge_ngvm_manager_ = ngraph::runtime::Manager::get("NGVM");
     return nbridge_ngvm_manager_;
   }
   return nbridge_ngvm_manager_;

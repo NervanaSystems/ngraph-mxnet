@@ -134,16 +134,15 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
   ngraph::op::Parameters cloned_params;
   for (auto param : bf->get_parameters())
-  {
-      cloned_params.push_back(std::dynamic_pointer_cast<ngraph::op::Parameter>(node_map[param]));
-  }
+    cloned_params.push_back(
+        std::dynamic_pointer_cast<ngraph::op::Parameter>(node_map[param]));
 
   fprop_cache.bprop_input_params = cloned_params;
 
-  for (auto x : fprop_cache.fprop_output_nodes) {
+  for (auto x : fprop_cache.fprop_output_nodes)
     fprop_cache.bprop_input_params.push_back(
         std::dynamic_pointer_cast<ngraph::op::Parameter>(node_map[x]));
-  }
+  
 
   // create and return cloned function
   auto newbf = std::make_shared<ngraph::Function>(
