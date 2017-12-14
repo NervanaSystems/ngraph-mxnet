@@ -25,6 +25,92 @@ Emitter::Emitter() {
   CreateLayerOps();
 }
 
+int get_default(const NodePtr& node, const std::string& key, int default_val) {
+  return node->orig_node_->attrs.dict.count(key)
+             ? std::stoi(node->orig_node_->attrs.dict[key])
+             : default_val;
+}
+
+bool get_default(const NodePtr& node, const std::string& key,
+                 bool default_val) {
+  try {
+    return get_default(node, key, static_cast<int>(default_val));
+  } catch (...) {
+    static std::map<std::string, bool> string_to_bool_map(
+        {{"True", true}, {"False", false}});
+
+    bool out = default_val;
+    if (node->orig_node_->attrs.dict.count(key)) {
+      auto val = node->orig_node_->attrs.dict[key];
+      if (string_to_bool_map.count(val)) out = string_to_bool_map[val];
+    }
+    return out;
+  }
+}
+
+template <typename T>
+typename std::enable_if<!std::is_unsigned<T>::value, std::vector<T>>::type
+get_default(const NodePtr& node, const std::string& key,
+            const std::vector<T>& default_val) {
+  return node->orig_node_->attrs.dict.count(key)
+             ? GetIntVectorFromString<T>(node->orig_node_->attrs.dict[key])
+             : default_val;
+}
+
+template <typename T>
+typename std::enable_if<std::is_unsigned<T>::value, std::vector<T>>::type
+get_default(const NodePtr& node, const std::string& key,
+            const std::vector<T>& default_val) {
+  std::vector<T> out;
+  if (node->orig_node_->attrs.dict.count(key)) {
+    auto tmp = GetIntVectorFromString<int>(node->orig_node_->attrs.dict[key]);
+    for (auto val : tmp) {
+      if (val >= 0) {
+        out.push_back(val);
+      } else {
+        throw std::string(
+            "NGRAPH_BRIDGE: expected unsigned integers but got ") +
+            std::to_string(val);
+      }
+    }
+  } else {
+    out = default_val;
+  }
+  return out;
+}
+
+NgraphNodePtr Emitter::ReduceAxes(
+    const NodePtr& node,
+    const std::function<NgraphNodePtr(const NgraphNodePtr&,
+                                      const ngraph::AxisSet&)>& func) {
+  auto input_shape = TShape_to_NShape(node->inputs_[0]->shape_);
+
+  ngraph::AxisVector axes_numbers(input_shape.size());
+  std::iota(axes_numbers.begin(), axes_numbers.end(), 0);
+
+  auto axes = get_default(node, "axis", axes_numbers);
+
+  ngraph::AxisSet reduction_axes;
+  if (get_default(node, "exclude", false)) {
+    for (size_t i = 0; i < input_shape.size(); ++i)
+      if (!in_vec(axes, i)) reduction_axes.insert(i);
+  } else {
+    for (auto i : axes) reduction_axes.insert(i);
+  }
+
+  auto output = func(op_map_[node->inputs_[0]], reduction_axes);
+
+  if (get_default(node, "keepdims", false)) {
+    auto reshape = input_shape;
+    for (auto i : reduction_axes) reshape[i] = 1;
+
+    ngraph::AxisVector order(output->get_shape().size());
+    std::iota(order.begin(), order.end(), 0);
+    output = std::make_shared<ngraph::op::Reshape>(output, order, reshape);
+  }
+  return output;
+}
+
 // unary op function generator
 void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["relu"] = [this](const NodePtr& node) {
@@ -206,6 +292,21 @@ void Emitter::CreateUnaryOps() {
     return std::make_shared<ngraph::op::Convert>(op_map_[node->inputs_[0]],
                                                  getType(node->dtype_));
   };
+
+  //----------------------------- Reduce Ops ----------------------------//
+  ngraph_op_funcs_["norm"] = [this](const NodePtr& node) {
+    return ReduceAxes(node, ngraph::builder::l2_norm);
+  };
+  ngraph_op_funcs_["mean"] = [this](const NodePtr& node) {
+    return ReduceAxes(node, ngraph::builder::mean);
+  };
+  ngraph_op_funcs_["sum"] = [this](const NodePtr& node) {
+    auto create_sum = [](const NgraphNodePtr& node,
+                         const ngraph::AxisSet& reduction_axes) {
+      return std::make_shared<ngraph::op::Sum>(node, reduction_axes);
+    };
+    return ReduceAxes(node, create_sum);
+  };
 }
 
 // autobroadcast factory function to avoid code copy
@@ -277,8 +378,23 @@ void Emitter::CreateBinaryOps() {
                                                 op_map_[node->inputs_[1]]);
   };
   ngraph_op_funcs_["dot"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::Dot>(op_map_[node->inputs_[0]],
-                                             op_map_[node->inputs_[1]]);
+    NgraphNodePtr left = op_map_[node->inputs_[0]];
+    NgraphNodePtr right = op_map_[node->inputs_[1]];
+    if (get_default(node, "transpose_a", false)) {
+      auto N = left->get_shape().size();
+      ngraph::AxisVector order(N - 1);
+      std::iota(order.begin(), order.end(), 1);
+      order.push_back(0);
+      left = ngraph::builder::numpy_transpose(left, order);
+    }
+    if (get_default(node, "transpose_b", false)) {
+      auto N = right->get_shape().size();
+      ngraph::AxisVector order(N - 1);
+      std::iota(order.begin(), order.end(), 0);
+      order.insert(order.begin(), N - 1);
+      right = ngraph::builder::numpy_transpose(right, order);
+    }
+    return std::make_shared<ngraph::op::Dot>(left, right, 1);
   };
   ngraph_op_funcs_["broadcast_add"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Add>(node);
@@ -329,45 +445,6 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["broadcast_lesser_equal"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::LessEq>(node);
   };
-}
-
-inline int get_default(const NodePtr& node, const std::string& key,
-                       int default_val) {
-  return node->orig_node_->attrs.dict.count(key)
-             ? std::stoi(node->orig_node_->attrs.dict[key])
-             : default_val;
-}
-
-template <typename T>
-inline
-    typename std::enable_if<!std::is_unsigned<T>::value, std::vector<T>>::type
-    get_default(const NodePtr& node, const std::string& key,
-                const std::vector<T>& default_val) {
-  return node->orig_node_->attrs.dict.count(key)
-             ? GetIntVectorFromString<T>(node->orig_node_->attrs.dict[key])
-             : default_val;
-}
-
-template <typename T>
-inline typename std::enable_if<std::is_unsigned<T>::value, std::vector<T>>::type
-get_default(const NodePtr& node, const std::string& key,
-            const std::vector<T>& default_val) {
-  std::vector<T> out;
-  if (node->orig_node_->attrs.dict.count(key)) {
-    auto tmp = GetIntVectorFromString<int>(node->orig_node_->attrs.dict[key]);
-    for (auto val : tmp) {
-      if (val >= 0) {
-        out.push_back(val);
-      } else {
-        throw std::string(
-            "NGRAPH_BRIDGE: expected unsigned integers but got ") +
-            std::to_string(val);
-      }
-    }
-  } else {
-    out = default_val;
-  }
-  return out;
 }
 
 // MXNet high level ops generating function
@@ -458,7 +535,7 @@ void Emitter::CreateLayerOps() {
   ngraph_op_funcs_["transpose"] = [this](const NodePtr& node) {
     auto axes_order = get_default(node, "axes", ngraph::AxisVector());
     return ngraph::builder::numpy_transpose(op_map_[node->inputs_[0]],
-                           axes_order);
+                                            axes_order);
   };
 
   // expand dims inserts an axis of length 1 somewhere in the tensor shape

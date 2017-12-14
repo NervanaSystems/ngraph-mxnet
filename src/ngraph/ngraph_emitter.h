@@ -39,8 +39,12 @@ class Emitter {
   void CreateLayerOps();
   // Factory function for autobroadcasting the inputs of a node
   template <class op>
-  std::shared_ptr<ngraph::Node> CreateAutoBroadcast(const NodePtr& node);
-
+  NgraphNodePtr CreateAutoBroadcast(const NodePtr& node);
+  // Factory function for reducing based on a reduction op function
+  NgraphNodePtr ReduceAxes(
+      const NodePtr& node,
+      const std::function<NgraphNodePtr(const NgraphNodePtr&,
+                                        const ngraph::AxisSet&)>& func);
   // information on compiled objects
   std::map<NodePtr, NgraphNodePtr> op_map_;
   std::vector<NodePtr> placeholder_order_;
