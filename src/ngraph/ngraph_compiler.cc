@@ -275,38 +275,17 @@ void Compiler::CopyNodes(const nnvm::Graph& graph) {
 }
 
 void Compiler::DeepCopy(const nnvm::Graph& graph) {
-
-  GraphVisitor<nnvm::Node> visitor;
-
-  visitor.operation = [this](nnvm::NodePtr node) {
-    int i = 0;
-    for (auto& input : node->inputs) {
-      if (this->node_map_.count(input.node.get())) {
-        input.node = this->node_map_[input.node.get()];
-      }
-      i += 1;
-    }
-  };
-
-  visitor.stop_condition = [](nnvm::NodePtr node, nnvm::NodePtr input) {
-    return false;
-  };
-
-  visitor.get_inputs = [](nnvm::NodePtr node) {
-    std::vector<nnvm::NodePtr> output;
-    for (auto& input : node->inputs) output.push_back(input.node);
-    for (auto& input : node->control_deps) output.push_back(input);
-    return output;
-  };
-
   // make copies of all the graph nodes
   CopyNodes(graph);
+  // reset the inputs of the copies
+  for (auto kv : node_map_)
+    for (auto& input : kv.second->inputs)
+      if (node_map_.count(input.node.get()))
+        input.node = node_map_[input.node.get()];
+
+  // set the output graph to use the copied nodes
   graph_.outputs = graph.outputs;
-
   for (auto& out : graph_.outputs) out.node = node_map_[out.node.get()];
-
-  for (auto out : graph_.outputs)
-    DFSGraphTraverse(out.node, visitor);
 }
 
 // Check nodes in NGraph

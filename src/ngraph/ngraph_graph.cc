@@ -22,12 +22,68 @@ namespace ngraph_bridge {
 // Type Aliases
 using EdgeRemoveTuple = std::tuple<NodePtr, NodePtr, bool>;
 
+// Struct containing functors used as a utility for traversing a graph
+struct GraphVisitor {
+  std::function<void(NodePtr)> operation;
+  std::function<bool(NodePtr, NodePtr)> stop_condition = [](
+      NodePtr node, NodePtr input) { return false; };
+  std::function<std::vector<NodePtr>(NodePtr)> get_inputs = [](NodePtr n) {
+    return n->inputs_;
+  };
+  std::function<std::vector<NodePtr>(NodePtr)> get_outputs = [](NodePtr n) {
+    return std::vector<NodePtr>();
+  };
+};
+
+// Perform a DFS or Brute graph traversal non-recursively but always ensuring
+// that the inputs to a node are operated on before the node.
+void GraphTraverse(NodePtr node, const GraphVisitor &visitor,
+                   bool DFS = false) {
+  std::unordered_set<NodePtr> visited;
+  std::deque<NodePtr> stack;
+
+  stack.push_front(node);
+
+  while (stack.size() > 0) {
+    auto n = stack.front();
+
+    if (DFS && visited.count(n)) {
+      stack.pop_front();
+      continue;
+    }
+
+    bool pushed = false;
+    for (auto i : visitor.get_inputs(n))
+      if (!visited.count(i) && !visitor.stop_condition(n, i)) {
+        stack.push_front(i);
+        pushed = true;
+        break;
+      }
+
+    if (pushed) continue;
+
+    if (DFS) visited.insert(n);
+    visitor.operation(n);
+
+    stack.pop_front();
+  }
+}
+
+// convenience definitions
+void DFSGraphTraverse(NodePtr node, const GraphVisitor &visitor) {
+  GraphTraverse(node, visitor, true);
+}
+
+void BruteGraphTraverse(NodePtr node, const GraphVisitor &visitor) {
+  GraphTraverse(node, visitor, false);
+}
+
 std::vector<NodePtr> SelectNodes(NodePtr node,
                                  std::function<bool(NodePtr)> func) {
   // init output vector
   std::vector<NodePtr> outNodes;
 
-  GraphVisitor<Node> visitor;
+  GraphVisitor visitor;
 
   visitor.operation = [&outNodes, &func](NodePtr node) {
     if (func(node)) outNodes.push_back(node);
@@ -41,38 +97,9 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
     }
   };
 
-  visitor.get_inputs = [](NodePtr node) -> std::vector<NodePtr> {
-    return node->inputs_;
-  };
-
   DFSGraphTraverse(node, visitor);
 
   return outNodes;
-}
-
-/**
- * Utility for removing bad branches in a directed, acylic subraph.
- * Will fail for cyclic graphs
- */
-void RemoveUtil(NodePtr node, std::vector<NodePtr> &outNodes,
-                std::function<bool(NodePtr)> func,
-                std::set<EdgeRemoveTuple> &visited_edges) {
-  // if this node doesn't match the function condition, delete it
-  if (!func(node))
-    outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), node),
-                   outNodes.end());
-
-  // visit it's inputs if they're still in the subgraph
-  for (auto i : node->inputs_)
-    if (in_vec(outNodes, i)) {
-      // ask if we've already gone up this branch in this closure state.
-      // if so, don't revisit, if not, try it both good and bad.
-      auto edge_tup = EdgeRemoveTuple{node, i, func(node)};
-      if (!visited_edges.count(edge_tup)) {
-        visited_edges.insert(edge_tup);
-        RemoveUtil(i, outNodes, func, visited_edges);
-      }
-    }
 }
 
 /**
@@ -80,64 +107,67 @@ void RemoveUtil(NodePtr node, std::vector<NodePtr> &outNodes,
  * ngraph identified subgraph non-computable
  */
 std::vector<NodePtr> RemoveBroken(NodePtr node,
-                                  std::vector<NodePtr> &subgraph_nodes,
-                                  std::function<bool(NodePtr)> func) {
+                                  const std::vector<NodePtr> &subgraph_nodes,
+                                  const std::function<bool(NodePtr)> &func) {
   // create storage for the ouputs and the visited nodes
-  std::vector<NodePtr> outNodes;
-  std::unordered_set<NodePtr> visited;
+  std::vector<NodePtr> outNodes;  // = subgraph_nodes;
 
-  // This function searches the nodes that are inputs to the final
+  // This pass searches the nodes that are inputs to the final
   // subgraph output AND outputs of other subgraph nodes
   // to minimize what needs to be searched for broken loops
-  std::function<bool(NodePtr)> get_nodes;
-  get_nodes = [&outNodes, &visited, &get_nodes, &func](NodePtr n) {
-    visited.insert(n);
-    bool im_an_output = false;
-    if (func(n)) im_an_output = true;
+  GraphVisitor visitor;
+  std::unordered_map<NodePtr, bool> is_output;
 
-    for (auto i : n->inputs_) {
-      if (!in_vec(outNodes, i)) {
-        if (!visited.count(i))
-          if (get_nodes(i)) im_an_output = true;
-      } else {
-        im_an_output = true;
-      }
+  visitor.operation = [&outNodes, &is_output, &func](NodePtr node) {
+    is_output[node] = false;
+    if (func(node)) {
+      is_output[node] = true;
+    } else {
+      for (auto input : node->inputs_)
+        if (is_output[input]) is_output[node] = true;
     }
-
-    if (im_an_output) outNodes.push_back(n);
-    return im_an_output;
+    if (is_output[node]) outNodes.push_back(node);
   };
 
-  get_nodes(node);
+  DFSGraphTraverse(node, visitor);
 
-  // This is a mutable closure, copied on each step up the graph,
-  // that tells us weather or not this branch of the graph is good or bad
-  bool found_bad = false;
-  auto good_subgraph_node = [subgraph_nodes, func,
-                             found_bad](NodePtr n) mutable {
-    if (!func(n)) found_bad = true;
-    if (found_bad) return false;
-    if (in_vec(subgraph_nodes, n)) {
-      return true;
+  // Now Remove Broken Branches
+  // First set up a map to check if a node is good or not
+  std::unordered_map<NodePtr, bool> is_good;
+  for (auto n : outNodes) is_good[n] = true;
+
+  visitor.operation = [&](NodePtr node) {
+    // if the node is bad or the node is not in the subgraph, remove it
+    // from the outputs
+    if (!is_good[node] || !in_vec(subgraph_nodes, node)) {
+      is_good[node] = false;
+      outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), node),
+                     outNodes.end());
+      for (auto i : node->inputs_) is_good[i] = false;
     } else {
-      return false;
+      for (auto i : node->inputs_) is_good[i] = true;
     }
   };
 
   std::set<EdgeRemoveTuple> visited_edges;
-  GraphVisitor<Node> visitor;
 
-  auto is_good = [&](NodePtr node){
-    
-  }
-
-  visitor.operation = [&](NodePtr node) {
-    if (!func(node))
-      outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), node),
-                     outNodes.end());
+  visitor.stop_condition = [&](NodePtr node, NodePtr input) {
+    // if this node is still in the branch
+    if (in_vec(outNodes, input)) {
+      // check if we've visited it's inputs before with this condition
+      auto edge_tup = EdgeRemoveTuple{node, input, is_good[node]};
+      // if we haven't, visit
+      if (!visited_edges.count(edge_tup)) {
+        visited_edges.insert(edge_tup);
+        return false;
+      }
+    }
+    return true;
   };
-  // recursive search for bad branches
-  RemoveUtil(node, outNodes, good_subgraph_node, visited_edges);
+
+  // Remove the bad branches
+  BruteGraphTraverse(node, visitor);
+
   return outNodes;
 }
 
