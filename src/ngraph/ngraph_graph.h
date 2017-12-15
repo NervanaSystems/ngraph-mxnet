@@ -39,6 +39,7 @@
 namespace ngraph_bridge {
 
 // Useful type aliases
+using EdgeRemoveTuple = std::tuple<NodePtr, NodePtr, bool>;
 using NgraphNodePtr = std::shared_ptr<ngraph::Node>;
 using nnvmNodePtr = std::shared_ptr<nnvm::Node>;
 
@@ -238,32 +239,109 @@ std::vector<NodePtr> FindSubgraph(Graph& graph, NodePtr node,
 
 // Struct containing functors used as a utility for traversing a graph
 struct GraphVisitor {
-  std::function<void(NodePtr)> operation;
-  std::function<bool(NodePtr, NodePtr)> stop_condition = [](
-      NodePtr node, NodePtr input) { return false; };
-  std::function<std::vector<NodePtr>(NodePtr)> get_inputs = [](NodePtr n) {
-    return n->inputs_;
-  };
-  std::function<std::vector<NodePtr>(NodePtr)> get_outputs = [](NodePtr n) {
+  virtual void operation(NodePtr node) = 0;
+  virtual bool stop_condition(NodePtr node, NodePtr input) { return false; }
+  virtual std::vector<NodePtr> get_inputs(NodePtr node) { return node->inputs_; }
+  virtual std::vector<NodePtr> get_outputs(NodePtr node) {
     return std::vector<NodePtr>();
-  };
+  }
+};
+
+struct SelectNodesGraphVisitor : public GraphVisitor {
+  std::function<bool(NodePtr)> func;
+  std::vector<NodePtr> outNodes;
+
+  SelectNodesGraphVisitor(std::function<bool(NodePtr)> f) : func(f) {};
+  virtual void operation(NodePtr node) {
+    if (func(node)) outNodes.push_back(node);
+  }
+
+  virtual bool stop_condition(NodePtr node, NodePtr input) {
+    if (func(node)) {
+      return false;
+    } else {
+      return true;
+    }
+  }
+};
+
+struct RemoveBrokenGraphVisitor : public GraphVisitor {
+  std::function<bool(NodePtr)> func;
+  std::vector<NodePtr> outNodes;
+  std::vector<NodePtr> subgraph_nodes;
+  std::unordered_map<NodePtr, bool> is_good;
+  std::set<EdgeRemoveTuple> visited_edges;
+
+  RemoveBrokenGraphVisitor(std::function<bool(NodePtr)> f, std::vector<NodePtr> o,
+               std::vector<NodePtr> s)
+      : func(f), outNodes(o), subgraph_nodes(s) {
+    for (auto n : outNodes) is_good[n] = true;
+  }
+
+  virtual void operation(NodePtr node) {
+    // if the node is bad or the node is not in the subgraph, remove it
+    // from the outputs
+    if (!is_good[node] || !in_vec(subgraph_nodes, node)) {
+      is_good[node] = false;
+      outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), node),
+                     outNodes.end());
+      for (auto i : node->inputs_) is_good[i] = false;
+    } else {
+      for (auto i : node->inputs_) is_good[i] = true;
+    }
+  }
+
+  virtual bool stop_condition(NodePtr node, NodePtr input) {
+    // if this node is still in the branch
+    if (in_vec(outNodes, input)) {
+      // check if we've visited it's inputs before with this condition
+      auto edge_tup = EdgeRemoveTuple{node, input, is_good[node]};
+      // if we haven't, visit
+      if (!visited_edges.count(edge_tup)) {
+        visited_edges.insert(edge_tup);
+        return false;
+      }
+    }
+    return true;
+  }
+
+
+};
+
+struct GetInputsGraphVisitor : public GraphVisitor {
+  std::function<bool(NodePtr)> func;
+  std::vector<NodePtr> outNodes;
+  std::unordered_map<NodePtr, bool> is_output;
+
+  GetInputsGraphVisitor(std::function<bool(NodePtr)> f) : func(f) {};
+  virtual void operation(NodePtr node) {
+    is_output[node] = false;
+    if (func(node)) {
+      is_output[node] = true;
+    } else {
+      for (auto input : node->inputs_)
+        if (is_output[input]) is_output[node] = true;
+    }
+    if (is_output[node]) outNodes.push_back(node);
+  }
+
 };
 
 // Perform a DFS or Brute graph traversal non-recursively but always ensuring
 // that the inputs to a node are operated on before the node. It also checks
 // for graph cycles and throws an error if they are found.
-void GraphTraverse(NodePtr node, const GraphVisitor& visitor, bool DFS);
+void GraphTraverse(NodePtr node, GraphVisitor& visitor, bool DFS);
 
 // convenience definitions
 // This pass only visits each node once, but ensures it's inputs are visited first
-inline void DFSGraphTraverse(NodePtr node, const GraphVisitor &visitor) {
+inline void DFSGraphTraverse(NodePtr node, GraphVisitor& visitor) {
   GraphTraverse(node, visitor, true);
 }
 
 // This pass visits all nodes of a graph from all possible approaches.
 // It's primary use is to find branches of the graph that are not compatible
 // with Ngraph
-inline void BruteGraphTraverse(NodePtr node, const GraphVisitor &visitor) {
+inline void BruteGraphTraverse(NodePtr node, GraphVisitor& visitor) {
   GraphTraverse(node, visitor, false);
 }
 

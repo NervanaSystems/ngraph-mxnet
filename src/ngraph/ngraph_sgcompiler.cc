@@ -91,27 +91,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 // compiling a node, recursively checking it's inputs
 void SGCompiler::CompileNodes(NodePtr node,
                               const std::shared_ptr<Graph> sub_graph) {
-  GraphVisitor visitor;
-  // Loop over the inputs and ensure they've been compiled
-  visitor.operation = [this, &sub_graph](NodePtr node) {
-    if (!op_map_.count(node)) {
-      // if it's not in the graph, it's an input, compile it as an input
-      if (!in_vec(sub_graph->nodes_, node)) {
-        this->CompileInput(node);
-      } else {
-        this->op_map_[node] = this->ngraph_op_funcs_[node->operation_](node);
-      }
-    }
-  };
-
-  visitor.stop_condition = [&sub_graph](NodePtr node, NodePtr input) {
-    if (in_vec(sub_graph->nodes_, node)) {
-      return false;
-    } else {
-      return true;
-    }
-  };
-
+  CompileNodesGraphVisitor visitor(this, sub_graph);
   DFSGraphTraverse(node, visitor);
 }
 
