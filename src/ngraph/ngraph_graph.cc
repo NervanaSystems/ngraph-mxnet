@@ -26,10 +26,13 @@ using EdgeRemoveTuple = std::tuple<NodePtr, NodePtr, bool>;
 // Perform a DFS or Brute graph traversal non-recursively but always ensuring
 // that the inputs to a node are operated on before the node.
 void GraphTraverse(NodePtr node, const GraphVisitor &visitor, bool DFS) {
+
   std::unordered_set<NodePtr> visited;
+  std::unordered_set<NodePtr> queued;
   std::deque<NodePtr> stack;
 
   stack.push_front(node);
+  queued.insert(node);
 
   while (stack.size() > 0) {
     auto n = stack.front();
@@ -42,9 +45,14 @@ void GraphTraverse(NodePtr node, const GraphVisitor &visitor, bool DFS) {
     bool pushed = false;
     for (auto i : visitor.get_inputs(n)) {
       if (!visited.count(i) && !visitor.stop_condition(n, i)) {
-        stack.push_front(i);
-        pushed = true;
-        break;
+        if (!queued.count(i)) {
+          stack.push_front(i);
+          queued.insert(i);
+          pushed = true;
+          break;
+        } else {
+          throw "NGRAPH_BRIDGE: GraphTraverse - This Graph has Cylic Loops!";
+        }
       }
     }
 
@@ -52,6 +60,7 @@ void GraphTraverse(NodePtr node, const GraphVisitor &visitor, bool DFS) {
 
     if (DFS) visited.insert(n);
     visitor.operation(n);
+    queued.erase(n);
 
     stack.pop_front();
   }
@@ -75,7 +84,6 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
       return true;
     }
   };
-
   DFSGraphTraverse(node, visitor);
 
   return outNodes;
@@ -115,7 +123,7 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
   std::unordered_map<NodePtr, bool> is_good;
   for (auto n : outNodes) is_good[n] = true;
 
-  visitor.operation = [&](NodePtr node) {
+  visitor.operation = [&subgraph_nodes, &is_good, &outNodes](NodePtr node) {
     // if the node is bad or the node is not in the subgraph, remove it
     // from the outputs
     if (!is_good[node] || !in_vec(subgraph_nodes, node)) {
@@ -130,7 +138,8 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
 
   std::set<EdgeRemoveTuple> visited_edges;
 
-  visitor.stop_condition = [&](NodePtr node, NodePtr input) {
+  visitor.stop_condition = [&visited_edges, &outNodes, &is_good](
+      NodePtr node, NodePtr input) {
     // if this node is still in the branch
     if (in_vec(outNodes, input)) {
       // check if we've visited it's inputs before with this condition

@@ -250,14 +250,19 @@ struct GraphVisitor {
 };
 
 // Perform a DFS or Brute graph traversal non-recursively but always ensuring
-// that the inputs to a node are operated on before the node.
+// that the inputs to a node are operated on before the node. It also checks
+// for graph cycles and throws an error if they are found.
 void GraphTraverse(NodePtr node, const GraphVisitor& visitor, bool DFS);
 
 // convenience definitions
+// This pass only visits each node once, but ensures it's inputs are visited first
 inline void DFSGraphTraverse(NodePtr node, const GraphVisitor &visitor) {
   GraphTraverse(node, visitor, true);
 }
 
+// This pass visits all nodes of a graph from all possible approaches.
+// It's primary use is to find branches of the graph that are not compatible
+// with Ngraph
 inline void BruteGraphTraverse(NodePtr node, const GraphVisitor &visitor) {
   GraphTraverse(node, visitor, false);
 }
