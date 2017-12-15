@@ -87,13 +87,10 @@ get_default(const NodePtr& node, const std::string& key,
 }
 
 NgraphNodePtr Emitter::ReduceAxes(
-    const NgraphNodePtr& node,
-    ngraph::AxisVector axes,
-    bool exclude,
+    const NgraphNodePtr& node, ngraph::AxisVector axes, bool exclude,
     bool keepdims,
     const std::function<NgraphNodePtr(const NgraphNodePtr&,
                                       const ngraph::AxisSet&)>& func) {
-
   ngraph::AxisSet reduction_axes;
 
   if (exclude) {
@@ -125,8 +122,7 @@ NgraphNodePtr Emitter::ReduceAxes(
   auto input = op_map_[node->inputs_[0]];
   ngraph::AxisVector axes_numbers(input->get_shape().size());
   std::iota(axes_numbers.begin(), axes_numbers.end(), 0);
-  return ReduceAxes(input,
-                    get_default(node, "axis", axes_numbers),
+  return ReduceAxes(input, get_default(node, "axis", axes_numbers),
                     get_default(node, "exclude", false),
                     get_default(node, "keepdims", false), func);
 }
@@ -596,15 +592,18 @@ void Emitter::CreateLayerOps() {
     const bool fix_gamma = get_default(node, "fix_gamma", true);
     const bool use_global_stats = get_default(node, "use_global_stats", false);
     int channel_axis = get_default(node, "axis", 1);
-    channel_axis = channel_axis < 0 ? data_shape_size + channel_axis : channel_axis;
+    channel_axis =
+        channel_axis < 0 ? data_shape_size + channel_axis : channel_axis;
     const ngraph::AxisVector axis{static_cast<size_t>(channel_axis)};
 
-    NgraphNodePtr ng_mean = ReduceAxes(ng_in_data, axis, true, true, ngraph::builder::mean);
-    NgraphNodePtr ng_var = ReduceAxes(ng_in_data, axis, true, true,
-                        [](const std::shared_ptr<ngraph::Node>& node,
-                           const ngraph::AxisSet& axes) {
-                          return ngraph::builder::variance(node, axes);
-                        });
+    NgraphNodePtr ng_mean =
+        ReduceAxes(ng_in_data, axis, true, true, ngraph::builder::mean);
+    NgraphNodePtr ng_var =
+        ReduceAxes(ng_in_data, axis, true, true,
+                   [](const std::shared_ptr<ngraph::Node>& node,
+                      const ngraph::AxisSet& axes) {
+                     return ngraph::builder::variance(node, axes);
+                   });
 
     using ngraph::builder::make_with_numpy_broadcast;
 
@@ -620,14 +619,14 @@ void Emitter::CreateLayerOps() {
 
     ngraph::AxisVector convert_order(ng_in_gamma->get_shape().size());
     std::iota(begin(convert_order), end(convert_order), 0);
-    ngraph::Shape convert_shape(data_shape_size-1, 1);
+    ngraph::Shape convert_shape(data_shape_size - 1, 1);
     size_t channel_size = ng_in_data->get_shape()[axis[0]];
     convert_shape.insert(convert_shape.begin() + axis[0], channel_size);
 
-    ng_in_gamma =
-        std::make_shared<ngraph::op::Reshape>(ng_in_gamma, convert_order, convert_shape);
-    ng_in_beta =
-        std::make_shared<ngraph::op::Reshape>(ng_in_beta, convert_order, convert_shape);
+    ng_in_gamma = std::make_shared<ngraph::op::Reshape>(
+        ng_in_gamma, convert_order, convert_shape);
+    ng_in_beta = std::make_shared<ngraph::op::Reshape>(
+        ng_in_beta, convert_order, convert_shape);
 
     if (!fix_gamma) {
       result =
