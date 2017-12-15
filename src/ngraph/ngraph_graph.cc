@@ -22,23 +22,10 @@ namespace ngraph_bridge {
 // Type Aliases
 using EdgeRemoveTuple = std::tuple<NodePtr, NodePtr, bool>;
 
-// Struct containing functors used as a utility for traversing a graph
-struct GraphVisitor {
-  std::function<void(NodePtr)> operation;
-  std::function<bool(NodePtr, NodePtr)> stop_condition = [](
-      NodePtr node, NodePtr input) { return false; };
-  std::function<std::vector<NodePtr>(NodePtr)> get_inputs = [](NodePtr n) {
-    return n->inputs_;
-  };
-  std::function<std::vector<NodePtr>(NodePtr)> get_outputs = [](NodePtr n) {
-    return std::vector<NodePtr>();
-  };
-};
 
 // Perform a DFS or Brute graph traversal non-recursively but always ensuring
 // that the inputs to a node are operated on before the node.
-void GraphTraverse(NodePtr node, const GraphVisitor &visitor,
-                   bool DFS = false) {
+void GraphTraverse(NodePtr node, const GraphVisitor &visitor, bool DFS) {
   std::unordered_set<NodePtr> visited;
   std::deque<NodePtr> stack;
 
@@ -53,12 +40,13 @@ void GraphTraverse(NodePtr node, const GraphVisitor &visitor,
     }
 
     bool pushed = false;
-    for (auto i : visitor.get_inputs(n))
+    for (auto i : visitor.get_inputs(n)) {
       if (!visited.count(i) && !visitor.stop_condition(n, i)) {
         stack.push_front(i);
         pushed = true;
         break;
       }
+    }
 
     if (pushed) continue;
 
@@ -67,15 +55,6 @@ void GraphTraverse(NodePtr node, const GraphVisitor &visitor,
 
     stack.pop_front();
   }
-}
-
-// convenience definitions
-void DFSGraphTraverse(NodePtr node, const GraphVisitor &visitor) {
-  GraphTraverse(node, visitor, true);
-}
-
-void BruteGraphTraverse(NodePtr node, const GraphVisitor &visitor) {
-  GraphTraverse(node, visitor, false);
 }
 
 std::vector<NodePtr> SelectNodes(NodePtr node,

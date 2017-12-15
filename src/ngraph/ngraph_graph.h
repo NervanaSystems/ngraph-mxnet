@@ -235,6 +235,33 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
 std::vector<NodePtr> FindSubgraph(Graph& graph, NodePtr node,
                                   std::function<bool(NodePtr)> func);
 
+
+// Struct containing functors used as a utility for traversing a graph
+struct GraphVisitor {
+  std::function<void(NodePtr)> operation;
+  std::function<bool(NodePtr, NodePtr)> stop_condition = [](
+      NodePtr node, NodePtr input) { return false; };
+  std::function<std::vector<NodePtr>(NodePtr)> get_inputs = [](NodePtr n) {
+    return n->inputs_;
+  };
+  std::function<std::vector<NodePtr>(NodePtr)> get_outputs = [](NodePtr n) {
+    return std::vector<NodePtr>();
+  };
+};
+
+// Perform a DFS or Brute graph traversal non-recursively but always ensuring
+// that the inputs to a node are operated on before the node.
+void GraphTraverse(NodePtr node, const GraphVisitor& visitor, bool DFS);
+
+// convenience definitions
+inline void DFSGraphTraverse(NodePtr node, const GraphVisitor &visitor) {
+  GraphTraverse(node, visitor, true);
+}
+
+inline void BruteGraphTraverse(NodePtr node, const GraphVisitor &visitor) {
+  GraphTraverse(node, visitor, false);
+}
+
 }  // namespace ngraph_bridge
 
 #endif
