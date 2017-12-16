@@ -142,10 +142,10 @@ static std::unordered_map< std::string,std::shared_ptr<ngraph::runtime::Manager>
    inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
     const mxnet::Context& context) {
     std::string backend = (context == mxnet::Context::NNP()) ? "ARGON" : "NGVM";
-    if (!nbridge_backend_manager_) {
-      nbridge_backend_manager_ = ngraph::runtime::Manager::get(backend);
-      return nbridge_backend_manager_;
+    if (backend_managers[backend] == nullptr) {
+      backend_managers[backend] = ngraph::runtime::Manager::get(backend);
     }
+    nbridge_backend_manager_ = backend_managers[backend];
 
     return nbridge_backend_manager_;
 }
