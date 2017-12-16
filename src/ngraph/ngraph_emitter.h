@@ -42,6 +42,11 @@ class Emitter {
   NgraphNodePtr CreateAutoBroadcast(const NodePtr& node);
   // Factory function for reducing based on a reduction op function
   NgraphNodePtr ReduceAxes(
+      const NgraphNodePtr& node, ngraph::AxisVector axes, bool exclude,
+      bool keepdims,
+      const std::function<NgraphNodePtr(const NgraphNodePtr&,
+                                        const ngraph::AxisSet&)>& func);
+  NgraphNodePtr ReduceAxes(
       const NodePtr& node,
       const std::function<NgraphNodePtr(const NgraphNodePtr&,
                                         const ngraph::AxisSet&)>& func);
