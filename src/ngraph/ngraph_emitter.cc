@@ -42,13 +42,8 @@ bool get_default(const NodePtr& node, const std::string& key,
                  bool default_val) {
   if (node->orig_node_->attrs.dict.count(key)) {
     const std::string& val = node->orig_node_->attrs.dict[key];
-    if (key == "False" || key == "0")
-      return false;
-    else if (key == "True" || key == "1")
-      return true;
-    else {
-      throw "NGRAPH_BRIDGE: expected boolean value but got " + val;
-    }
+    if (val == "True" || val == "1") return true;
+    else return false;
   }
   return default_val;
 }
