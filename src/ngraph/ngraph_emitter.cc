@@ -112,13 +112,10 @@ inline size_t get_default_transformed_axis(const NodePtr& node,
  * @return resulting node of the reduction operation
  */
 NgraphNodePtr Emitter::ReduceAxes(
-    const NgraphNodePtr& node,
-    ngraph::AxisVector axes,
-    bool exclude,
+    const NgraphNodePtr& node, ngraph::AxisVector axes, bool exclude,
     bool keepdims,
     const std::function<NgraphNodePtr(const NgraphNodePtr&,
                                       const ngraph::AxisSet&)>& func) {
-
   ngraph::AxisSet reduction_axes;
 
   if (exclude) {
@@ -150,8 +147,7 @@ NgraphNodePtr Emitter::ReduceAxes(
   auto input = op_map_[node->inputs_[0]];
   ngraph::AxisVector axes_numbers(input->get_shape().size());
   std::iota(axes_numbers.begin(), axes_numbers.end(), 0);
-  return ReduceAxes(input,
-                    get_default(node, "axis", axes_numbers),
+  return ReduceAxes(input, get_default(node, "axis", axes_numbers),
                     get_default(node, "exclude", false),
                     get_default(node, "keepdims", false), func);
 }
