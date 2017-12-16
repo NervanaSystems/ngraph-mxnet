@@ -618,7 +618,6 @@ void Emitter::CreateLayerOps() {
     const bool use_global_stats = get_default(node, "use_global_stats", false);
     // zero based channel axis
     const size_t channel_axis = get_default_transformed_axis(node, "axis", 1);
-    std::cout << "channel_axis: " << channel_axis << std::endl;
 
     NgraphNodePtr ng_mean = ReduceAxes(ng_in_data, {channel_axis}, true, true,
                                        ngraph::builder::mean);
