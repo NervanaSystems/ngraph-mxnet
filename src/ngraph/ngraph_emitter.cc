@@ -42,8 +42,10 @@ bool get_default(const NodePtr& node, const std::string& key,
                  bool default_val) {
   if (node->orig_node_->attrs.dict.count(key)) {
     const std::string& val = node->orig_node_->attrs.dict[key];
-    if (val == "True" || val == "1") return true;
-    else return false;
+    if (val == "True" || val == "1")
+      return true;
+    else
+      return false;
   }
   return default_val;
 }
