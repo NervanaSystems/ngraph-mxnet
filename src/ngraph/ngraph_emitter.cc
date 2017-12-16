@@ -38,21 +38,18 @@ inline float get_default(const NodePtr& node, const std::string& key,
              : default_val;
 }
 
+
 bool get_default(const NodePtr& node, const std::string& key,
                  bool default_val) {
-  try {
-    return get_default(node, key, static_cast<int>(default_val));
-  } catch (...) {
-    static std::map<std::string, bool> string_to_bool_map(
-        {{"True", true}, {"False", false}});
-
-    bool out = default_val;
-    if (node->orig_node_->attrs.dict.count(key)) {
-      auto val = node->orig_node_->attrs.dict[key];
-      if (string_to_bool_map.count(val)) out = string_to_bool_map[val];
+  if (node->orig_node_->attrs.dict.count(key)) {
+    const std::string& val = node->orig_node_->attrs.dict[key];
+    if (key == "False" || key == "0") return false;
+    else if (key == "True" || key == "1") return true;
+    else {
+      throw "NGRAPH_BRIDGE: expected boolean value but got " + val;
     }
-    return out;
   }
+  return default_val;
 }
 
 template <typename T>
@@ -86,6 +83,34 @@ get_default(const NodePtr& node, const std::string& key,
   return out;
 }
 
+/**
+ * Transforms input axis attribute with name in key based on MXNet convention (0 based index), where
+ * negative values means indexing from the right.
+ */
+inline size_t get_default_transformed_axis(const NodePtr& node,
+                                           const std::string& key,
+                                           int default_val) {
+  const int shape_size = node->shape_.ndim();
+  int axis = get_default(node, "axis", default_val);
+  assert(abs(axis) <= shape_size);
+  // convert negative axis index to postive (counting from right per mxnet
+  // convention)
+  size_t transformed_axis = axis < 0 ? shape_size + axis : axis;
+
+  return transformed_axis;
+}
+
+/**
+ * Performs a reduction on the node using the input axes.
+ * @param axes list of axis to operate on
+ * @param exclude if true should use node axes not listed in axes parameter,
+ *  otherwise use input axes for the reduction operation.
+ * @param keepdims if true the result will be reshaped to have the same
+ *  dimention as the node (where reduction axes will have size 1), otherwise
+ *  leave the resulting shape produced by func unchanged.
+ * @param func reduction operation
+ * @return resulting node of the reduction operation
+ */
 NgraphNodePtr Emitter::ReduceAxes(
     const NgraphNodePtr& node,
     ngraph::AxisVector axes,
@@ -588,19 +613,20 @@ void Emitter::CreateLayerOps() {
     NgraphNodePtr ng_in_data = op_map_[node->inputs_[kData]];
     NgraphNodePtr ng_in_gamma = op_map_[node->inputs_[kGamma]];
     NgraphNodePtr ng_in_beta = op_map_[node->inputs_[kBeta]];
-    const size_t data_shape_size = ng_in_data->get_shape().size();
+    const int data_shape_size = static_cast<int>(ng_in_data->get_shape().size());
 
     // Default Batch norm parameters
     const float eps = get_default(node, "eps", 0.001f);
     const float momentum = get_default(node, "momentum", 0.9f);
     const bool fix_gamma = get_default(node, "fix_gamma", true);
     const bool use_global_stats = get_default(node, "use_global_stats", false);
-    int channel_axis = get_default(node, "axis", 1);
-    channel_axis = channel_axis < 0 ? data_shape_size + channel_axis : channel_axis;
-    const ngraph::AxisVector axis{static_cast<size_t>(channel_axis)};
+    // zero based channel axis
+    const size_t channel_axis = get_default_transformed_axis(node, "axis", 1);
+    std::cout << "channel_axis: " << channel_axis << std::endl;
 
-    NgraphNodePtr ng_mean = ReduceAxes(ng_in_data, axis, true, true, ngraph::builder::mean);
-    NgraphNodePtr ng_var = ReduceAxes(ng_in_data, axis, true, true,
+    NgraphNodePtr ng_mean = ReduceAxes(ng_in_data, {channel_axis}, true, true,
+                                       ngraph::builder::mean);
+    NgraphNodePtr ng_var = ReduceAxes(ng_in_data, {channel_axis}, true, true,
                         [](const std::shared_ptr<ngraph::Node>& node,
                            const ngraph::AxisSet& axes) {
                           return ngraph::builder::variance(node, axes);
@@ -618,17 +644,26 @@ void Emitter::CreateLayerOps() {
     NgraphNodePtr result =
         make_with_numpy_broadcast<ngraph::op::Divide>(numerator, denom);
 
+    // we need to convert gamma and beta to proper shape similar to mean and
+    // variance thought ReduceAxes. Gamma and beta should already have shape
+    // like [1, C], we want to make sure it's properly shape to [C, 1] depending
+    // on the index of channel.
     ngraph::AxisVector convert_order(ng_in_gamma->get_shape().size());
     std::iota(begin(convert_order), end(convert_order), 0);
+    // fill the shape with (shape_size - 1) of 1s.
     ngraph::Shape convert_shape(data_shape_size-1, 1);
-    size_t channel_size = ng_in_data->get_shape()[axis[0]];
-    convert_shape.insert(convert_shape.begin() + axis[0], channel_size);
+    // number of elements for channel axis
+    size_t channel_size = ng_in_data->get_shape()[channel_axis];
+    // insert channel size at the proper index for the channel
+    convert_shape.insert(convert_shape.begin() + channel_axis, channel_size);
 
     ng_in_gamma =
         std::make_shared<ngraph::op::Reshape>(ng_in_gamma, convert_order, convert_shape);
     ng_in_beta =
         std::make_shared<ngraph::op::Reshape>(ng_in_beta, convert_order, convert_shape);
 
+    // If fix_gamma is true, we assume it to be 1, otherwise, we need to scale
+    // result with gamma
     if (!fix_gamma) {
       result =
           make_with_numpy_broadcast<ngraph::op::Multiply>(result, ng_in_gamma);
