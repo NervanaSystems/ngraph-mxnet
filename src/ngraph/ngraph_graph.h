@@ -215,7 +215,7 @@ class Graph : public Node {
   const mxnet::Context context_;
   const std::shared_ptr<ngraph::runtime::Manager> manager_;
   const std::shared_ptr<ngraph::runtime::Backend> backend_;
-  FpropCache fprop_cache;
+  std::vector<std::shared_ptr<ngraph::runtime::Value>> cached_values;
 };
 
 /**
