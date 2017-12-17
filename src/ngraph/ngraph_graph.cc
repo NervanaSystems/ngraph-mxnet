@@ -20,7 +20,6 @@
 
 namespace ngraph_bridge {
 // Type Aliases
-using EdgeRemoveTuple = std::tuple<NodePtr, NodePtr, bool>;
 
 
 // Perform a DFS or Brute graph traversal non-recursively but always ensuring
@@ -94,8 +93,7 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
  * ngraph identified subgraph non-computable
  */
 std::vector<NodePtr> RemoveBroken(NodePtr node,
-                                  const std::vector<NodePtr> &subgraph_nodes,
-                                  const std::function<bool(NodePtr)> &func) {
+                                  const std::vector<NodePtr> &subgraph_nodes) {
   // create storage for the ouputs and the visited nodes
   std::vector<NodePtr> outNodes;  // = subgraph_nodes;
 
@@ -105,9 +103,9 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
   GraphVisitor visitor;
   std::unordered_map<NodePtr, bool> is_output;
 
-  visitor.operation = [&outNodes, &is_output, &func](NodePtr node) {
+  visitor.operation = [&outNodes, &is_output, &subgraph_nodes](NodePtr node) {
     is_output[node] = false;
-    if (func(node)) {
+    if (in_vec(subgraph_nodes, node)) {
       is_output[node] = true;
     } else {
       for (auto input : node->inputs_)
@@ -121,27 +119,27 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
   // Now Remove Broken Branches
   // First set up a map to check if a node is good or not
   std::unordered_map<NodePtr, bool> is_good;
-  for (auto n : outNodes) is_good[n] = true;
+  for (auto n : outNodes) is_good[n] = false;
+  for (auto n : subgraph_nodes) is_good[n] = true;
 
   visitor.operation = [&subgraph_nodes, &is_good, &outNodes](NodePtr node) {
     // if the node is bad or the node is not in the subgraph, remove it
     // from the outputs
-    if (!is_good[node] || !in_vec(subgraph_nodes, node)) {
-      is_good[node] = false;
+    if (!is_good[node]) {
       outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), node),
                      outNodes.end());
-      for (auto i : node->inputs_) is_good[i] = false;
-    } else {
-      for (auto i : node->inputs_) is_good[i] = true;
     }
   };
 
+  using EdgeRemoveTuple = std::tuple<NodePtr, NodePtr, bool>;
   std::set<EdgeRemoveTuple> visited_edges;
 
   visitor.stop_condition = [&visited_edges, &outNodes, &is_good](
       NodePtr node, NodePtr input) {
     // if this node is still in the branch
     if (in_vec(outNodes, input)) {
+      // if the current node is bad, mark the input as bad
+      if (!is_good[node]) is_good[input] = false;
       // check if we've visited it's inputs before with this condition
       auto edge_tup = EdgeRemoveTuple{node, input, is_good[node]};
       // if we haven't, visit
@@ -170,8 +168,7 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
  * graph pass
  */
 std::vector<NodePtr> PruneSubgraphOutputs(Graph &graph, NodePtr node,
-                                          std::vector<NodePtr> &subgraph_nodes,
-                                          std::function<bool(NodePtr)> func) {
+                                          std::vector<NodePtr> &subgraph_nodes) {
   // function to get all the outputs of the subgraph
   auto get_subgraph_outputs = [&graph, &subgraph_nodes]() {
     std::vector<NodePtr> outNodes;
@@ -205,7 +202,7 @@ std::vector<NodePtr> PruneSubgraphOutputs(Graph &graph, NodePtr node,
     } else {
       // we have more than 1 output, remove them and clean any broken loops
       prune_subgraph(outNodes);
-      subgraph_nodes = RemoveBroken(node, subgraph_nodes, func);
+      subgraph_nodes = RemoveBroken(node, subgraph_nodes);
     }
     count += 1;
   }
@@ -221,8 +218,8 @@ std::vector<NodePtr> FindSubgraph(Graph &graph, NodePtr node,
   outNodes = subgraph_nodes;
   // search for broken loops
   // remove nodes on broken loops
-  outNodes = RemoveBroken(node, outNodes, func);
-  outNodes = PruneSubgraphOutputs(graph, node, outNodes, func);
+  outNodes = RemoveBroken(node, outNodes);
+  outNodes = PruneSubgraphOutputs(graph, node, outNodes);
   return outNodes;
 }
 
