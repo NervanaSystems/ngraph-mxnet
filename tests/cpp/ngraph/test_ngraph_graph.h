@@ -55,7 +55,6 @@ class NGRAPH_GRAPH : public ::testing::Test {
           new OpNode(nullptr, "op" + std::to_string(i), opnames[i],
                      {cyclic_graph.nodes_[i]})));
     cyclic_graph.nodes_[2]->inputs_.push_back(cyclic_graph.nodes_[4]);
-
   };
 
   void CreateBranching() {

@@ -88,11 +88,17 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
       sub_graph->backend_->make_call_frame(backward_external);
 }
 
-// compiling a node, recursively checking it's inputs
+/**
+* Function to perform a graph pass and compile all of the nodes
+* need to make sure we compile the inputs of a node before the node itself
+**/
 void SGCompiler::CompileNodes(NodePtr node,
                               const std::shared_ptr<Graph> sub_graph) {
   GraphVisitor visitor;
-  // Loop over the inputs and ensure they've been compiled
+  // the operation of this graph traverse compiles the node as
+  // an input if it's not part of the subgraph or as an ngraph operation
+  // if the node is part of the subrraph
+  // we capture this so we can save the outputs to the SGCompiler op_map_
   visitor.operation = [this, &sub_graph](NodePtr node) {
     if (!op_map_.count(node)) {
       // if it's not in the graph, it's an input, compile it as an input
@@ -104,6 +110,8 @@ void SGCompiler::CompileNodes(NodePtr node,
     }
   };
 
+  // Don't compile any nodes that aren't inputs to the subgraph or in the
+  // subgraph
   visitor.stop_condition = [&sub_graph](NodePtr node, NodePtr input) {
     if (in_vec(sub_graph->nodes_, node)) {
       return false;

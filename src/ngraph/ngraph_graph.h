@@ -235,7 +235,6 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
 std::vector<NodePtr> FindSubgraph(Graph& graph, NodePtr node,
                                   std::function<bool(NodePtr)> func);
 
-
 // Struct containing functors used as a utility for traversing a graph
 struct GraphVisitor {
   std::function<void(NodePtr)> operation;
@@ -255,15 +254,18 @@ struct GraphVisitor {
 void GraphTraverse(NodePtr node, const GraphVisitor& visitor, bool DFS);
 
 // convenience definitions
-// This pass only visits each node once, but ensures it's inputs are visited first
-inline void DFSGraphTraverse(NodePtr node, const GraphVisitor &visitor) {
+// This pass only visits each node once, but ensures it's inputs are visited
+// first
+// this is used to ensure that compilation of a node's inputs happens before
+// compilation of the node, identifying subgraphs, etc
+inline void DFSGraphTraverse(NodePtr node, const GraphVisitor& visitor) {
   GraphTraverse(node, visitor, true);
 }
 
 // This pass visits all nodes of a graph from all possible approaches.
 // It's primary use is to find branches of the graph that are not compatible
 // with Ngraph
-inline void BruteGraphTraverse(NodePtr node, const GraphVisitor &visitor) {
+inline void BruteGraphTraverse(NodePtr node, const GraphVisitor& visitor) {
   GraphTraverse(node, visitor, false);
 }
 
