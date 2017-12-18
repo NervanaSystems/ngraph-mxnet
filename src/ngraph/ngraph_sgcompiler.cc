@@ -47,8 +47,6 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // compile all the ndoes in the graph
   for (auto node : sub_graph->nodes_) CompileNode(node, sub_graph);
 
-  FpropCache fprop_cache;
-
   ngraph::op::Parameters parameters;
   ngraph::Nodes param_nodes;
 
@@ -68,7 +66,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
   // Create the Backward Pass
   auto C = std::make_shared<ngraph::op::Parameter>(Y->get_value_type());
-  
+
   // Perform autodiff
   std::vector<NgraphNodePtr> dYdXs(parameters.size());
   transform(parameters.begin(), parameters.end(), dYdXs.begin(),
@@ -83,21 +81,21 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   auto bf = std::make_shared<ngraph::XLAFunction>(
       result, result->get_value_type(), back_parameters);
 
-  fprop_cache = ngraph::cache_fprop(f, bf);
+  auto fprop_cache = ngraph::cache_fprop(f, bf);
 
-  for (auto node : fprop_cache->fprop_output_nodes) {
-    fprop_cache.cached_values.push_back(backend_->make_primary_tensor_view(
-        node->get_element_type(), node->get_shape()));
+  for (auto node : fprop_cache.fprop_output_nodes) {
+    sub_graph->cached_values.push_back(
+        sub_graph->backend_->make_primary_tensor_view(node->get_element_type(),
+                                                      node->get_shape()));
   }
 
-  auto forward_external = sub_graph->manager_->compile(fprop_cache->fprop);
+  auto forward_external = sub_graph->manager_->compile(fprop_cache.fprop);
   sub_graph->ngraph_forward =
       sub_graph->backend_->make_call_frame(forward_external);
 
-  auto backward_external = sub_graph->manager_->compile(fprop_cache->bprop);
+  auto backward_external = sub_graph->manager_->compile(fprop_cache.bprop);
   sub_graph->ngraph_backward =
       sub_graph->backend_->make_call_frame(backward_external);
-
 }
 
 // compiling a node, recursively checking it's inputs

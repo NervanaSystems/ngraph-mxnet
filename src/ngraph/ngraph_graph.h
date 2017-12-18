@@ -172,13 +172,6 @@ inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
   return nbridge_ngvm_backend_;
 }
 
-struct FpropCache {
-  ngraph::NodeMap nodes_to_params;
-  ngraph::Nodes fprop_output_nodes;
-  std::vector<std::shared_ptr<ngraph::op::Parameter>> bprop_input_params;
-  std::vector<std::shared_ptr<ngraph::runtime::Value>> values;
-};
-
 /*
 Graph class
 Graph subclasses Node so that we can embed graphs into other graphs
