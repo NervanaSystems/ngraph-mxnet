@@ -65,9 +65,10 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
   // compile it into a call frame with the backend, and save
   // the compile frame into the subgraph
-  auto forward_external = sub_graph->manager_->compile(f);
-  sub_graph->ngraph_forward =
-      sub_graph->backend_->make_call_frame(forward_external);
+  auto forward_external =
+      GetManagerFromContext(sub_graph->context_)->compile(f);
+  sub_graph->ngraph_forward = GetBackendFromContext(sub_graph->context_)
+                                  ->make_call_frame(forward_external);
 
   // Compile the backward Pass
   auto Y = f->get_result();
@@ -76,16 +77,17 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
   std::vector<NgraphNodePtr> dYdXs(parameters.size());
   transform(parameters.begin(), parameters.end(), dYdXs.begin(),
-            [C, Y](const NgraphNodePtr& X) { return Y->backprop_node(X, C); });
+            [C, Y](const NgraphNodePtr &X) { return Y->backprop_node(X, C); });
 
   auto result = std::make_shared<ngraph::op::XLATuple>(dYdXs);
   parameters.insert(parameters.begin(), C);
   auto bf = std::make_shared<ngraph::XLAFunction>(
       result, result->get_value_type(), parameters);
 
-  auto backward_external = sub_graph->manager_->compile(bf);
-  sub_graph->ngraph_backward =
-      sub_graph->backend_->make_call_frame(backward_external);
+  auto backward_external =
+      GetManagerFromContext(sub_graph->context_)->compile(bf);
+  sub_graph->ngraph_backward = GetBackendFromContext(sub_graph->context_)
+                                   ->make_call_frame(backward_external);
 }
 
 // compiling a node, recursively checking it's inputs
