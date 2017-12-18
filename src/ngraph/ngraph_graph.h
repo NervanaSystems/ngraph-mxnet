@@ -47,12 +47,12 @@ enum class NodeType { kVariable, kAux, kOp, kGraph };
 // Base class for Nodes in Intermediary Analysis Graph
 class Node {
  protected:
-  Node(NodeType type, nnvmNodePtr node, const std::string& name)
+  Node(NodeType type, nnvmNodePtr node, const std::string &name)
       : type_(type),
         orig_node_(node),
         name_(name == "" ? randomString(6) : name) {}
-  Node(NodeType type, nnvmNodePtr node, const std::string& name,
-       const std::vector<NodePtr>& inputs)
+  Node(NodeType type, nnvmNodePtr node, const std::string &name,
+       const std::vector<NodePtr> &inputs)
       : type_(type),
         orig_node_(node),
         name_(name == "" ? randomString(6) : name),
@@ -88,10 +88,10 @@ class Node {
 class VariableNode : public Node {
  public:
   // Overloaded constructors for ease of use
-  VariableNode(nnvmNodePtr node, const std::string& name)
+  VariableNode(nnvmNodePtr node, const std::string &name)
       : Node(NodeType::kVariable, node, name) {}
-  VariableNode(nnvmNodePtr node, const std::string& name,
-               const std::vector<NodePtr>& inputs)
+  VariableNode(nnvmNodePtr node, const std::string &name,
+               const std::vector<NodePtr> &inputs)
       : Node(NodeType::kVariable, node, name, inputs) {}
 };
 
@@ -100,10 +100,10 @@ class VariableNode : public Node {
 class AuxNode : public Node {
  public:
   // Overloaded constructors for ease of use
-  AuxNode(nnvmNodePtr node, const std::string& name)
+  AuxNode(nnvmNodePtr node, const std::string &name)
       : Node(NodeType::kAux, node, name) {}
-  AuxNode(nnvmNodePtr node, const std::string& name,
-          const std::vector<NodePtr>& inputs)
+  AuxNode(nnvmNodePtr node, const std::string &name,
+          const std::vector<NodePtr> &inputs)
       : Node(NodeType::kAux, node, name, inputs) {}
 };
 
@@ -122,13 +122,13 @@ class OpNode : public Node {
   }
 
   // Overloaded constructors for ease of use
-  OpNode(nnvmNodePtr node, const std::string& name,
-         const std::string& operation)
+  OpNode(nnvmNodePtr node, const std::string &name,
+         const std::string &operation)
       : Node(NodeType::kOp, node, name) {
     operation_ = operation;
   }
-  OpNode(nnvmNodePtr node, const std::string& name,
-         const std::string& operation, const std::vector<NodePtr>& inputs)
+  OpNode(nnvmNodePtr node, const std::string &name,
+         const std::string &operation, const std::vector<NodePtr> &inputs)
       : Node(NodeType::kOp, node, name, inputs) {
     operation_ = operation;
   }
@@ -137,26 +137,30 @@ class OpNode : public Node {
 // makes sure you have only one manager of one type
 static std::shared_ptr<ngraph::runtime::Manager> nbridge_backend_manager_;
 static std::shared_ptr<ngraph::runtime::Backend> nbridge_backend_;
-static std::unordered_map< std::string,std::shared_ptr<ngraph::runtime::Manager> > backend_managers = 
-	{{"NGVM", ngraph::runtime::Manager::get("NGVM")}, {"ARGON", nullptr},{"CPU", nullptr},{"GPU", nullptr}};
-   inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
-    const mxnet::Context& context) {
-    std::string backend = (context == mxnet::Context::NNP()) ? "ARGON" : "NGVM";
-    if (backend_managers[backend] == nullptr) {
-      backend_managers[backend] = ngraph::runtime::Manager::get(backend);
-    }
-    nbridge_backend_manager_ = backend_managers[backend];
+static std::unordered_map<std::string,
+                          std::shared_ptr<ngraph::runtime::Manager>>
+    backend_managers = {{"NGVM", ngraph::runtime::Manager::get("NGVM")},
+                        {"ARGON", nullptr},
+                        {"CPU", nullptr},
+                        {"GPU", nullptr}};
+inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
+    const mxnet::Context &context) {
+  std::string backend = (context == mxnet::Context::NNP()) ? "ARGON" : "NGVM";
+  if (backend_managers[backend] == nullptr) {
+    backend_managers[backend] = ngraph::runtime::Manager::get(backend);
+  }
+  nbridge_backend_manager_ = backend_managers[backend];
 
-    return nbridge_backend_manager_;
+  return nbridge_backend_manager_;
 }
-   inline  std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
-    const mxnet::Context& context) {
-    if (!nbridge_backend_) {
-      nbridge_backend_ = nbridge_backend_manager_->allocate_backend();
-      return nbridge_backend_;
-    }
+inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
+    const mxnet::Context &context) {
+  if (!nbridge_backend_) {
+    nbridge_backend_ = nbridge_backend_manager_->allocate_backend();
     return nbridge_backend_;
   }
+  return nbridge_backend_;
+}
 
 /*
 Graph class
@@ -166,11 +170,9 @@ TODO: Refactor into Graph and subgraph?
 */
 class Graph : public Node {
  public:
-  Graph(const std::string& name = "",
-        const mxnet::Context& context = mxnet::Context::CPU())
-      : Node(NodeType::kGraph, nullptr, name),
-        context_(context)
-        {}
+  Graph(const std::string &name = "",
+        const mxnet::Context &context = mxnet::Context::CPU())
+      : Node(NodeType::kGraph, nullptr, name), context_(context) {}
 
   // Add a node to the graph
   void AddNode(NodePtr node) { nodes_.emplace_back(node); }
@@ -196,13 +198,13 @@ class Graph : public Node {
 /**
  * High level function that does the subgraph identification
  */
-void IdentifySubgraphs(Graph& graph, std::function<bool(NodePtr)> func);
+void IdentifySubgraphs(Graph &graph, std::function<bool(NodePtr)> func);
 
 /**
  * Convert graph from identified nodes to a network of nodes and graphs,
  * each graph node represented a combined ngraph operation
  */
-void CollapseSubgraphs(Graph& graph);
+void CollapseSubgraphs(Graph &graph);
 
 /**
  * Selection of nodes based on function criterion.
@@ -214,7 +216,7 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
 /**
  * Finds simply connected ngraph operations
  */
-std::vector<NodePtr> FindSubgraph(Graph& graph, NodePtr node,
+std::vector<NodePtr> FindSubgraph(Graph &graph, NodePtr node,
                                   std::function<bool(NodePtr)> func);
 
 }  // namespace ngraph_bridge
