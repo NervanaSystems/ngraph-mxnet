@@ -38,11 +38,6 @@ void GraphTraverse(NodePtr node, const GraphVisitor &visitor, bool DFS) {
     // get the current node
     auto n = stack.front();
 
-    // if we've visited it, ignore this node
-    if (DFS && visited.count(n)) {
-      stack.pop_front();
-      continue;
-    }
     // check the inputs, visit them if
     bool pushed = false;
     for (auto i : visitor.get_inputs(n)) {
@@ -117,8 +112,8 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
   std::vector<NodePtr> outNodes;
 
   /****************************************************************************/
-  // First Graph pass - get the intersection of all inputs and outputs of the
-  // Current subgraph
+  // First Graph pass - get the intersection of all inputs to a subgraph rooted
+  // at node and outputs of the nodes in subgraph_nodes
   /****************************************************************************/
   GraphVisitor visitor;
   std::unordered_map<NodePtr, bool> is_output;
@@ -157,9 +152,10 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
                      outNodes.end());
     }
   };
-
-  using EdgeRemoveTuple = std::tuple<NodePtr, bool>;
-  std::set<EdgeRemoveTuple> visited_edges;
+  /* a tuple representing an input node and the status of the node it was called
+   * from*/
+  using EdgeRemove = std::tuple<NodePtr, bool>;
+  std::set<EdgeRemove> visited_edges;
   // The stop condition of this pass is to check weather
   // 1) if the input to visit is still in the outputs
   // 2) if we've already visiting this input with the current condition
@@ -170,7 +166,7 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
       // if the current node is bad, mark the input as bad so it will be removed
       if (!is_good[node]) is_good[input] = false;
       // check if we've visited it's inputs before with this condition
-      auto edge_tup = EdgeRemoveTuple{input, is_good[input]};
+      auto edge_tup = EdgeRemove{input, is_good[input]};
       // if we haven't, visit
       if (!visited_edges.count(edge_tup)) {
         visited_edges.insert(edge_tup);
