@@ -227,7 +227,7 @@ struct Context {
   /*!
    * Create a NNP context.
    * \param dev_id the device id for corresponding NNP.
-   * \return NNP context. 
+   * \return NNP context.
    */
   inline static Context NNP(int32_t dev_id = 0);
 

@@ -60,8 +60,8 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
       getType(sub_graph->nodes_.back()->dtype_), shape);
 
   // create the Function object representing the graph
-  auto f = std::make_shared<ngraph::Function>(op_map_[sub_graph->nodes_.back()],
-                                              return_type, parameters);
+  auto f = std::make_shared<ngraph::XLAFunction>(
+      op_map_[sub_graph->nodes_.back()], return_type, parameters);
 
   // compile it into a call frame with the backend, and save
   // the compile frame into the subgraph
@@ -79,10 +79,10 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   transform(parameters.begin(), parameters.end(), dYdXs.begin(),
             [C, Y](const NgraphNodePtr &X) { return Y->backprop_node(X, C); });
 
-  auto result = std::make_shared<ngraph::op::Tuple>(dYdXs);
+  auto result = std::make_shared<ngraph::op::XLATuple>(dYdXs);
   parameters.insert(parameters.begin(), C);
-  auto bf = std::make_shared<ngraph::Function>(result, result->get_value_type(),
-                                               parameters);
+  auto bf = std::make_shared<ngraph::XLAFunction>(
+      result, result->get_value_type(), parameters);
 
   auto backward_external =
       GetManagerFromContext(sub_graph->context_)->compile(bf);
