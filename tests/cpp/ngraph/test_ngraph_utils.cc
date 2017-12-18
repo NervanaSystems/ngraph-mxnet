@@ -109,18 +109,12 @@ TEST(NGRAPH_NNVM, copy_TBlobs) {
   auto backend = ngraph::runtime::Manager::get("NGVM")->allocate_backend();
   auto placeholders = make_ngraph_placeholders(inblobs, backend, true);
 
-  EXPECT_EQ(
-      vec1,
-      std::dynamic_pointer_cast<
-          ngraph::runtime::ParameterizedTensorView<ngraph::element::Float32>>(
-          placeholders[0])
-          ->get_vector());
-  EXPECT_EQ(
-      vec2,
-      std::dynamic_pointer_cast<
-          ngraph::runtime::ParameterizedTensorView<ngraph::element::Float32>>(
-          placeholders[1])
-          ->get_vector());
+  EXPECT_EQ(vec1, std::dynamic_pointer_cast<ngraph::runtime::TensorView>(
+                      placeholders[0])
+                      ->get_vector<float>());
+  EXPECT_EQ(vec2, std::dynamic_pointer_cast<ngraph::runtime::TensorView>(
+                      placeholders[1])
+                      ->get_vector<float>());
   std::vector<float> vec3{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   std::vector<float> vec4{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   mxnet::TBlob TBlob3(vec3.data(), shape, 0);
