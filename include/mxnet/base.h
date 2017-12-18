@@ -26,13 +26,13 @@
 
 #include <dmlc/base.h>
 #include <dmlc/io.h>
-#include <dmlc/parameter.h>
 #include <dmlc/type_traits.h>
+#include <dmlc/parameter.h>
 #include <mshadow/tensor.h>
 // nnvm headers for symbolic construction.
 #include <nnvm/op.h>
-#include <nnvm/symbolic.h>
 #include <nnvm/tuple.h>
+#include <nnvm/symbolic.h>
 #include <string>
 
 /*!
@@ -64,7 +64,7 @@
 #endif
 
 /*! \brief Error message for using gpu when MXNET_USE_CUDA==0 */
-#define MXNET_GPU_NOT_ENABLED_ERROR "GPU is not enabled"
+#define MXNET_GPU_NOT_ENABLED_ERROR  "GPU is not enabled"
 
 /*!
  * \brief define compatible keywords in g++
@@ -102,9 +102,9 @@
  * \brief define operator message for profiler
  */
 #if MXNET_USE_PROFILER
-#define PROFILER_MESSAGE(msg) msg
+#define PROFILER_MESSAGE(msg)     msg
 #else
-#define PROFILER_MESSAGE(msg) nullptr
+#define PROFILER_MESSAGE(msg)     nullptr
 #endif
 
 /*! \brief major version */
@@ -114,10 +114,9 @@
 /*! \brief patch version */
 #define MXNET_PATCH 0
 /*! \brief mxnet version */
-#define MXNET_VERSION (MXNET_MAJOR * 10000 + MXNET_MINOR * 100 + MXNET_PATCH)
+#define MXNET_VERSION (MXNET_MAJOR*10000 + MXNET_MINOR*100 + MXNET_PATCH)
 /*! \brief helper for making version number */
-#define MXNET_MAKE_VERSION(major, minor, patch)                                \
-  ((major)*10000 + (minor)*100 + patch)
+#define MXNET_MAKE_VERSION(major, minor, patch) ((major)*10000 + (minor)*100 + patch)
 /*!
  * \brief define function name as profiler message
  */
@@ -158,8 +157,7 @@ struct Context {
    * \return cpu::kDevMask or gpu::kDevMask
    */
   inline int dev_mask() const {
-    if (dev_type == kCPUPinned || dev_type == kNNP)
-      return cpu::kDevMask;
+    if (dev_type == kCPUPinned || dev_type == kNNP) return cpu::kDevMask;
     return dev_type;
   }
   /*!
@@ -181,7 +179,9 @@ struct Context {
    * \param b another context to compare
    * \return whether they are not the same
    */
-  inline bool operator!=(const Context &b) const { return !(*this == b); }
+  inline bool operator!=(const Context &b) const {
+    return !(*this == b);
+  }
   /*!
    * \brief save the content into binary stream
    * \param strm the output stream
@@ -196,10 +196,8 @@ struct Context {
    * \return whether the load is successful
    */
   inline bool Load(dmlc::Stream *strm) {
-    if (strm->Read(&dev_type, sizeof(dev_type)) != sizeof(dev_type))
-      return false;
-    if (strm->Read(&dev_id, sizeof(int32_t)) != sizeof(int32_t))
-      return false;
+    if (strm->Read(&dev_type, sizeof(dev_type)) != sizeof(dev_type)) return false;
+    if (strm->Read(&dev_id, sizeof(int32_t)) != sizeof(int32_t)) return false;
     return true;
   }
   /*! \brief the maximal device type */
@@ -229,9 +227,9 @@ struct Context {
   /*!
    * Create a NNP context.
    * \param dev_id the device id for corresponding NNP.
-   * \return NNP context.
+   * \return NNP context. -1 for current GPU.
    */
-  inline static Context NNP(int32_t dev_id = 0);
+  inline static Context NNP(int32_t dev_id = -1);
 
   /*!
    * Create a context from string of the format [cpu|gpu|cpu_pinned|nnp](n)
@@ -257,13 +255,16 @@ struct RunContext {
    * \return the mshadow stream
    * \tparam xpu the device type of the stream
    */
-  template <typename xpu> inline mshadow::Stream<xpu> *get_stream() const {
-    return static_cast<mshadow::Stream<xpu> *>(stream);
+  template<typename xpu>
+  inline mshadow::Stream<xpu>* get_stream() const {
+    return static_cast<mshadow::Stream<xpu>*>(stream);
   }
   /*! \brief get the base Context from RunContext */
-  inline const Context &get_ctx() const { return ctx; }
+  inline const Context& get_ctx() const {
+    return ctx;
+  }
 };
-} // namespace mxnet
+}  // namespace mxnet
 
 //! \cond Doxygen_Suppress
 namespace mxnet {
@@ -292,25 +293,31 @@ inline Context Context::Create(DeviceType dev_type, int32_t dev_id) {
   }
   return ctx;
 }
-inline Context Context::CPU(int32_t dev_id) { return Create(kCPU, dev_id); }
+inline Context Context::CPU(int32_t dev_id) {
+  return Create(kCPU, dev_id);
+}
 
 inline Context Context::CPUPinned(int32_t dev_id) {
   return Create(kCPUPinned, dev_id);
 }
 
-inline Context Context::GPU(int32_t dev_id) { return Create(kGPU, dev_id); }
+inline Context Context::GPU(int32_t dev_id) {
+  return Create(kGPU, dev_id);
+}
 
-inline Context Context::NNP(int32_t dev_id) { return Create(kNNP, dev_id); }
+inline Context Context::NNP(int32_t dev_id) {
+  return Create(kNNP, dev_id);
+}
 inline Context Context::FromString(std::string str) {
   Context ret;
   try {
     std::string::size_type l = str.find('(');
     CHECK_NE(l, std::string::npos);
     std::string::size_type r = str.find(')');
-    CHECK_EQ(r, str.length() - 1);
+    CHECK_EQ(r, str.length()-1);
 
     std::string type = str.substr(0, l);
-    int id = std::stoi(str.substr(l + 1, r - l - 1));
+    int id = std::stoi(str.substr(l+1, r-l-1));
     if (type == "cpu") {
       ret = CPU(id);
     } else if (type == "gpu") {
@@ -328,7 +335,7 @@ inline Context Context::FromString(std::string str) {
   return ret;
 }
 
-inline std::ostream &operator<<(std::ostream &out, const Context &ctx) {
+inline std::ostream& operator<<(std::ostream &out, const Context &ctx) {
   if (ctx.dev_type == Context::kCPU) {
     out << "cpu(";
   } else if (ctx.dev_type == Context::kGPU) {
@@ -347,12 +354,11 @@ inline std::ostream &operator<<(std::ostream &out, const Context &ctx) {
 // describe op registration point
 #define STRINGIZE_DETAIL(x) #x
 #define STRINGIZE(x) STRINGIZE_DETAIL(x)
-#define MXNET_DESCRIBE(...)                                                    \
-  describe(__VA_ARGS__ "\n\nFrom:" __FILE__ ":" STRINGIZE(__LINE__))
+#define MXNET_DESCRIBE(...) describe(__VA_ARGS__ "\n\nFrom:" __FILE__ ":" STRINGIZE(__LINE__))
 #define ADD_FILELINE "\n\nDefined in " __FILE__ ":L" STRINGIZE(__LINE__)
 
-} // namespace mxnet
+}  // namespace mxnet
 
 #include "./tensor_blob.h"
 //! \endcond
-#endif // MXNET_BASE_H_
+#endif  // MXNET_BASE_H_
