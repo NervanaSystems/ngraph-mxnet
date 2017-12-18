@@ -172,6 +172,7 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
       attrs->parsed = std::move(op);
     }
   };
+
   op.set_attr_parser(attr_parser);
   // Mark as backward
   op.set_attr<bool>("TIsBackward", true);
@@ -184,7 +185,7 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
               const std::vector<mxnet::OpReqType>& req,
               const std::vector<mxnet::TBlob>& outputs) -> void {
         auto placeholders =
-            make_ngraph_placeholders(inputs, graph->backend_, true);
+            make_ngraph_placeholders({inputs[0]}, graph->backend_, true);
         auto results =
             make_ngraph_placeholders(outputs, graph->backend_, false);
 

@@ -81,7 +81,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   auto bf = std::make_shared<ngraph::XLAFunction>(
       result, result->get_value_type(), back_parameters);
 
-  auto fprop_cache = ngraph::cache_fprop(f, bf);
+  auto fprop_cache = ngraph::cache_fprop(f, bf, {C});
 
   for (auto node : fprop_cache.fprop_output_nodes) {
     sub_graph->cached_values.push_back(

@@ -252,6 +252,10 @@ void Emitter::CreateUnaryOps() {
   // ngraph_op_funcs_["arctanh"] = [this](const NodePtr& node){
   //   return ;
   // };
+
+  ngraph_op_funcs_["_zeros"] = [this](const NodePtr& node) {
+    return makeConstant(node, "0");
+  };
   ngraph_op_funcs_["degrees"] = [this](const NodePtr& node) {
     auto pi = makeConstant(node, "3.14159265359");
     auto oneeighty = makeConstant(node, "180");
