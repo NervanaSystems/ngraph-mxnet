@@ -156,6 +156,7 @@ inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
 inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
     const mxnet::Context &context) {
   if (!nbridge_backend_) {
+    if (!nbridge_backend_manager_) GetManagerFromContext(context);
     nbridge_backend_ = nbridge_backend_manager_->allocate_backend();
     return nbridge_backend_;
   }

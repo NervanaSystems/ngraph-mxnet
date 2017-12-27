@@ -16,9 +16,28 @@
 #include <nnvm/node.h>
 #include <nnvm/pass.h>
 #include <algorithm>
+#include <ngraph/serializer.hpp>
 #include "ngraph_sgcompiler_utils.h"
 
+#include <iostream>
+#include <fstream>
+#include <sstream>
+
 namespace ngraph_bridge {
+
+static int fcount = 0;
+
+static bool dump = false;
+
+void dump_graph(std::shared_ptr<ngraph::Function> f) {
+  std::stringstream fname;
+  fname << "Graph_" << fcount << ".json";
+  fcount += 1;
+  std::ofstream file;
+  file.open(fname.str());
+  file << ngraph::serialize(f) << std::endl;
+  file.close();
+}
 
 // Main compilation function
 std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
@@ -63,6 +82,8 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   auto f = std::make_shared<ngraph::XLAFunction>(
       op_map_[sub_graph->nodes_.back()], return_type, parameters);
 
+  if (dump) dump_graph(f);
+
   // compile it into a call frame with the backend, and save
   // the compile frame into the subgraph
   auto forward_external =
@@ -83,6 +104,8 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   parameters.insert(parameters.begin(), C);
   auto bf = std::make_shared<ngraph::XLAFunction>(
       result, result->get_value_type(), parameters);
+
+  if (dump) dump_graph(bf);
 
   auto backward_external =
       GetManagerFromContext(sub_graph->context_)->compile(bf);
