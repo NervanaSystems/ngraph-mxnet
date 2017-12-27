@@ -23,15 +23,42 @@ namespace ngraph_bridge {
 class SGCompiler : public Emitter {
  public:
   std::shared_ptr<Graph> Compile(NodePtr sub_graph);
-
- protected:
-  // compile subgraph into ngraph python objects
-  void CompileSubgraph(std::shared_ptr<Graph> sub_graph);
   // compile input to a node
   void CompileInput(NodePtr input);
-  // compile a single node into an ngraph python object
-  void CompileNode(NodePtr node, const std::shared_ptr<Graph> sub_graph);
+
+ protected:
+  // compile subgraph into ngraph objects
+  void CompileSubgraph(std::shared_ptr<Graph> sub_graph);
+  // compile the graph nodes into ngraph objects
+  void CompileNodes(NodePtr node, const std::shared_ptr<Graph> sub_graph);
   void ClearOpMap();
+};
+
+struct CompileNodesGraphVisitor : public GraphVisitor {
+  SGCompiler* emitter;
+  const std::shared_ptr<Graph> sub_graph;
+
+  CompileNodesGraphVisitor(SGCompiler* f, const std::shared_ptr<Graph> s) : emitter(f), sub_graph(s) {};
+
+  virtual void operation(NodePtr node) {
+    if (!emitter->op_map_.count(node)) {
+      // if it's not in the graph, it's an input, compile it as an input
+      if (!in_vec(sub_graph->nodes_, node)) {
+        emitter->CompileInput(node);
+      } else {
+        emitter->op_map_[node] = emitter->ngraph_op_funcs_[node->operation_](node);
+      }
+    }
+  }
+
+  virtual bool stop_condition(NodePtr node, NodePtr input) {
+    if (in_vec(sub_graph->nodes_, node)) {
+      return false;
+    } else {
+      return true;
+    }
+  }
+
 };
 
 }  // namespace ngraph_bridge

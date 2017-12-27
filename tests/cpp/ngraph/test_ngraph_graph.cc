@@ -69,6 +69,11 @@ TEST_F(NGRAPH_GRAPH, GRAPH_NODES_) {
   EXPECT_EQ(full_graph[test_name], test_ngraph_node);
 }
 
+TEST_F(NGRAPH_GRAPH, CYCLIC_GRAPH) {
+  auto node = cyclic_graph.nodes_.back();
+  EXPECT_ANY_THROW(SelectNodes(node, isop).size());
+}
+
 TEST_F(NGRAPH_GRAPH, GRAPH_DFS_LINEAR) {
   EXPECT_EQ(SelectNodes(linear_graph.nodes_[4], isop).size(), 4);
   EXPECT_EQ(SelectNodes(linear_graph.nodes_[3], isop).size(), 3);

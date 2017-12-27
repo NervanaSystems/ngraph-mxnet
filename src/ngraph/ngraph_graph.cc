@@ -19,66 +19,57 @@
 #include "reverse_iterate.h"
 
 namespace ngraph_bridge {
-// Type Aliases
-using EdgeRemoveTuple = std::tuple<NodePtr, NodePtr, bool>;
 
-/**
- * Utility to mark a node as visited and recursive search based on the results
- * of an input function
- */
-void DFSUtil(NodePtr node, std::unordered_set<NodePtr> &visited,
-             std::vector<NodePtr> &outNodes,
-             std::function<bool(NodePtr)> &func) {
-  // Mark the current node as visited
-  visited.insert(node);
-  // if this node matches func condition
-  if (func(node)) {
-    // add it to the output
-    outNodes.push_back(node);
-    // visit it's inputs
-    for (auto i : node->inputs_) {
-      if (!visited.count(i) && i->subgraph_ == 0) {
-        DFSUtil(i, visited, outNodes, func);
+
+// Perform a DFS or Brute graph traversal non-recursively but always ensuring
+// that the inputs to a node are operated on before the node.
+void GraphTraverse(NodePtr node, GraphVisitor &visitor, bool DFS) {
+
+  std::unordered_set<NodePtr> visited;
+  std::unordered_set<NodePtr> queued;
+  std::deque<NodePtr> stack;
+
+  stack.push_front(node);
+  queued.insert(node);
+
+  while (stack.size() > 0) {
+    auto n = stack.front();
+
+    if (DFS && visited.count(n)) {
+      stack.pop_front();
+      continue;
+    }
+
+    bool pushed = false;
+    for (auto i : visitor.get_inputs(n)) {
+      if (!visited.count(i) && !visitor.stop_condition(n, i)) {
+        if (!queued.count(i)) {
+          stack.push_front(i);
+          queued.insert(i);
+          pushed = true;
+          break;
+        } else {
+          throw "NGRAPH_BRIDGE: GraphTraverse - This Graph has Cylic Loops!";
+        }
       }
     }
+
+    if (pushed) continue;
+
+    if (DFS) visited.insert(n);
+    visitor.operation(n);
+    queued.erase(n);
+
+    stack.pop_front();
   }
 }
 
-// Depth first selection of nodes based on function criterion
+
 std::vector<NodePtr> SelectNodes(NodePtr node,
                                  std::function<bool(NodePtr)> func) {
-  // init visited vector
-  std::unordered_set<NodePtr> visited;
-  // init output vector
-  std::vector<NodePtr> outNodes;
-  // recursiveliy search the graph
-  DFSUtil(node, visited, outNodes, func);
-  return outNodes;
-}
-
-/**
- * Utility for removing bad branches in a directed, acylic subraph.
- * Will fail for cyclic graphs
- */
-void RemoveUtil(NodePtr node, std::vector<NodePtr> &outNodes,
-                std::function<bool(NodePtr)> func,
-                std::set<EdgeRemoveTuple> &visited_edges) {
-  // if this node doesn't match the function condition, delete it
-  if (!func(node))
-    outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), node),
-                   outNodes.end());
-
-  // visit it's inputs if they're still in the subgraph
-  for (auto i : node->inputs_)
-    if (in_vec(outNodes, i)) {
-      // ask if we've already gone up this branch in this closure state.
-      // if so, don't revisit, if not, try it both good and bad.
-      auto edge_tup = EdgeRemoveTuple{node, i, func(node)};
-      if (!visited_edges.count(edge_tup)) {
-        visited_edges.insert(edge_tup);
-        RemoveUtil(i, outNodes, func, visited_edges);
-      }
-    }
+  SelectNodesGraphVisitor visitor(func);
+  DFSGraphTraverse(node, visitor);
+  return visitor.outNodes;
 }
 
 /**
@@ -86,54 +77,22 @@ void RemoveUtil(NodePtr node, std::vector<NodePtr> &outNodes,
  * ngraph identified subgraph non-computable
  */
 std::vector<NodePtr> RemoveBroken(NodePtr node,
-                                  std::vector<NodePtr> &subgraph_nodes,
-                                  std::function<bool(NodePtr)> func) {
-  // create storage for the ouputs and the visited nodes
-  std::vector<NodePtr> outNodes;
-  std::unordered_set<NodePtr> visited;
+                                  const std::vector<NodePtr> &subgraph_nodes,
+                                  const std::function<bool(NodePtr)> &func) {
 
-  // This function searches the nodes that are inputs to the final
+  // This pass searches the nodes that are inputs to the final
   // subgraph output AND outputs of other subgraph nodes
   // to minimize what needs to be searched for broken loops
-  std::function<bool(NodePtr)> get_nodes;
-  get_nodes = [&outNodes, &visited, &get_nodes, &func](NodePtr n) {
-    visited.insert(n);
-    bool im_an_output = false;
-    if (func(n)) im_an_output = true;
+  GetInputsGraphVisitor visitor(func);
+  DFSGraphTraverse(node, visitor);
+  // Now Remove Broken Branches
+  // First set up a map to check if a node is good or not
+  
+  RemoveBrokenGraphVisitor RBvisitor(func, visitor.outNodes, subgraph_nodes);
+  // Remove the bad branches
+  BruteGraphTraverse(node, RBvisitor);
 
-    for (auto i : n->inputs_) {
-      if (!in_vec(outNodes, i)) {
-        if (!visited.count(i))
-          if (get_nodes(i)) im_an_output = true;
-      } else {
-        im_an_output = true;
-      }
-    }
-
-    if (im_an_output) outNodes.push_back(n);
-    return im_an_output;
-  };
-
-  get_nodes(node);
-
-  // This is a mutable closure, copied on each step up the graph,
-  // that tells us weather or not this branch of the graph is good or bad
-  bool found_bad = false;
-  auto good_subgraph_node = [subgraph_nodes, func,
-                             found_bad](NodePtr n) mutable {
-    if (!func(n)) found_bad = true;
-    if (found_bad) return false;
-    if (in_vec(subgraph_nodes, n)) {
-      return true;
-    } else {
-      return false;
-    }
-  };
-
-  std::set<EdgeRemoveTuple> visited_edges;
-  // recursive search for bad branches
-  RemoveUtil(node, outNodes, good_subgraph_node, visited_edges);
-  return outNodes;
+  return RBvisitor.outNodes;
 }
 
 /**
@@ -142,7 +101,8 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
  * we might be able to get rid of this pass
  * This removes mutiple outputs from a graph, because the subgraph compiler
  * doesn't currently support multiple outputs
- * TODO: make the subgraph compiler handle multiple outputs and get rid of this
+ * TODO: make the subgraph compiler handle multiple outputs and get rid of
+ * this
  * graph pass
  */
 std::vector<NodePtr> PruneSubgraphOutputs(Graph &graph, NodePtr node,

@@ -59,8 +59,7 @@ class NGRAPH_SGCOMPILER : public ::testing::Test {
 class testSGCompiler : public SGCompiler {
  public:
   using SGCompiler::Compile;
-  using SGCompiler::CompileInput;
-  using SGCompiler::CompileNode;
+  using SGCompiler::CompileNodes;
   using SGCompiler::ngraph_op_funcs_;
   using SGCompiler::op_map_;
 
