@@ -70,8 +70,7 @@ TEST(NGRAPH_SGCOMPILER_UTILS, Convert_Shapes) {
 }
 
 TEST(NGRAPH_SGCOMPILER_UTILS, GetNGraphTypes) {
-  EXPECT_EQ(ngraph::element::f32,
-            getType(mshadow::kFloat32));
+  EXPECT_EQ(ngraph::element::f32, getType(mshadow::kFloat32));
   EXPECT_EQ(ngraph::element::u8, getType(mshadow::kUint8));
   EXPECT_EQ(ngraph::element::i8, getType(mshadow::kInt8));
   EXPECT_EQ(ngraph::element::i32, getType(mshadow::kInt32));
@@ -106,21 +105,15 @@ TEST(NGRAPH_NNVM, copy_TBlobs) {
   inblobs.push_back(TBlob2);
 
   auto graph = std::make_shared<Graph>(Graph());
-  auto backend = ngraph::runtime::Manager::get("NGVM")->allocate_backend();
+  auto backend = GetBackendFromContext(mxnet::Context::CPU());
   auto placeholders = make_ngraph_placeholders(inblobs, backend, true);
 
-  EXPECT_EQ(
-      vec1,
-      std::dynamic_pointer_cast<
-          ngraph::runtime::TensorView>(
-          placeholders[0])
-          ->get_vector<float>());
-  EXPECT_EQ(
-      vec2,
-      std::dynamic_pointer_cast<
-          ngraph::runtime::TensorView>(
-          placeholders[1])
-          ->get_vector<float>());
+  EXPECT_EQ(vec1, std::dynamic_pointer_cast<ngraph::runtime::TensorView>(
+                      placeholders[0])
+                      ->get_vector<float>());
+  EXPECT_EQ(vec2, std::dynamic_pointer_cast<ngraph::runtime::TensorView>(
+                      placeholders[1])
+                      ->get_vector<float>());
   std::vector<float> vec3{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   std::vector<float> vec4{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   mxnet::TBlob TBlob3(vec3.data(), shape, 0);

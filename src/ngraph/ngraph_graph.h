@@ -135,32 +135,47 @@ class OpNode : public Node {
 };
 
 // makes sure you have only one manager of one type
-static std::shared_ptr<ngraph::runtime::Manager> nbridge_backend_manager_;
-static std::shared_ptr<ngraph::runtime::Backend> nbridge_backend_;
+
 static std::unordered_map<std::string,
                           std::shared_ptr<ngraph::runtime::Manager>>
-    backend_managers = {{"NGVM", ngraph::runtime::Manager::get("NGVM")},
-                        {"ARGON", nullptr},
-                        {"CPU", nullptr},
-                        {"GPU", nullptr}};
+    backend_managers;
+
+static std::unordered_map<std::string,
+                          std::shared_ptr<ngraph::runtime::Backend>>
+    backends;
+
+inline std::string get_backend_name(const mxnet::Context &context) {
+  if (context == mxnet::Context::NNP()) {
+    return "ARGON";
+    // } else if (context == mxnet::Context::GPU()) {
+    //   return "GPU";
+    // } else if (context == mxnet::Context::CPU()) {
+    //   return "CPU";
+  } else {
+    return "INTERPRETER";
+  }
+}
+
 inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
     const mxnet::Context &context) {
-  std::string backend = (context == mxnet::Context::NNP()) ? "ARGON" : "NGVM";
-  if (backend_managers[backend] == nullptr) {
-    backend_managers[backend] = ngraph::runtime::Manager::get(backend);
+  auto backend_name = get_backend_name(context);
+  if (backend_managers.count(backend_name) == 0) {
+    auto manager = ngraph::runtime::Manager::get(backend_name);
+    backend_managers[backend_name] = manager;
   }
-  nbridge_backend_manager_ = backend_managers[backend];
-
-  return nbridge_backend_manager_;
+  return backend_managers[backend_name];
 }
+
 inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
     const mxnet::Context &context) {
-  if (!nbridge_backend_) {
-    if (!nbridge_backend_manager_) GetManagerFromContext(context);
-    nbridge_backend_ = nbridge_backend_manager_->allocate_backend();
-    return nbridge_backend_;
+  auto backend_name = get_backend_name(context);
+  if (backend_managers.count(backend_name) == 0) GetManagerFromContext(context);
+
+  if (backends.count(backend_name) == 0) {
+    auto backend = backend_managers[backend_name]->allocate_backend();
+    backends[backend_name] = backend;
   }
-  return nbridge_backend_;
+  return backends[backend_name];
 }
 
 /*
