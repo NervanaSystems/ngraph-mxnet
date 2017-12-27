@@ -207,20 +207,15 @@ void Emitter::CreateUnaryOps() {
   //   return ;
   // };
   ngraph_op_funcs_["square"] = [this](const NodePtr& node) {
-    auto two = makeConstant(node, "2");
-    return std::make_shared<ngraph::op::Power>(op_map_[node->inputs_[0]], two);
+    auto input = op_map_[node->inputs_[0]];
+    return input * input;
   };
   ngraph_op_funcs_["sqrt"] = [this](const NodePtr& node) {
-    auto one = makeConstant(node, "1");
-    auto two = makeConstant(node, "2");
-    return std::make_shared<ngraph::op::Power>(op_map_[node->inputs_[0]],
-                                               one / two);
+    return std::make_shared<ngraph::op::Sqrt>(op_map_[node->inputs_[0]]);
   };
   ngraph_op_funcs_["rsqrt"] = [this](const NodePtr& node) {
     auto one = makeConstant(node, "1");
-    auto two = makeConstant(node, "2");
-    return one / std::make_shared<ngraph::op::Power>(op_map_[node->inputs_[0]],
-                                                     one / two);
+    return one / std::make_shared<ngraph::op::Sqrt>(op_map_[node->inputs_[0]]);
   };
   ngraph_op_funcs_["cbrt"] = [this](const NodePtr& node) {
     auto one = makeConstant(node, "1");
@@ -292,6 +287,10 @@ void Emitter::CreateUnaryOps() {
   // ngraph_op_funcs_["arctanh"] = [this](const NodePtr& node){
   //   return ;
   // };
+
+  ngraph_op_funcs_["_zeros"] = [this](const NodePtr& node) {
+     return makeConstant(node, "0");
+  };
   ngraph_op_funcs_["degrees"] = [this](const NodePtr& node) {
     auto pi = makeConstant(node, "3.14159265359");
     auto oneeighty = makeConstant(node, "180");
