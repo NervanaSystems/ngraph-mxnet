@@ -27,12 +27,12 @@ namespace ngraph_bridge {
 
 inline const ngraph::element::Type& getType(int type) {
   static const std::map<int, const ngraph::element::Type*> typemap = {
-      {mshadow::kFloat32, &ngraph::element::Float32::element_type()},
-      {mshadow::kFloat64, &ngraph::element::Float64::element_type()},
-      {mshadow::kUint8, &ngraph::element::UInt8::element_type()},
-      {mshadow::kInt8, &ngraph::element::Int8::element_type()},
-      {mshadow::kInt32, &ngraph::element::Int32::element_type()},
-      {mshadow::kInt64, &ngraph::element::Int64::element_type()}};
+      {mshadow::kFloat32, &ngraph::element::f32},
+      {mshadow::kFloat64, &ngraph::element::f64},
+      {mshadow::kUint8, &ngraph::element::u8},
+      {mshadow::kInt8, &ngraph::element::i8},
+      {mshadow::kInt32, &ngraph::element::i32},
+      {mshadow::kInt64, &ngraph::element::i64}};
 
   auto ngraphType = typemap.find(type);
   if (ngraphType == typemap.end()) {
@@ -71,7 +71,7 @@ inline ngraph::Shape TShape_to_NShape(const nnvm::TShape& inshape) {
 inline std::shared_ptr<ngraph::Node> makeConstant(const NodePtr& node,
                                                   const std::string& num) {
   NgraphNodePtr val = std::make_shared<ngraph::op::Constant>(
-      getType(node->dtype_), ngraph::Shape{}, num);
+      getType(node->dtype_), ngraph::Shape{}, std::vector<std::string>{num});
   auto shape = TShape_to_NShape(node->shape_);
 
   if (shape.size() > 0) {
