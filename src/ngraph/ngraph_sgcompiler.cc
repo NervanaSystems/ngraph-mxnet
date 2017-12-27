@@ -19,8 +19,8 @@
 #include <ngraph/serializer.hpp>
 #include "ngraph_sgcompiler_utils.h"
 
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 
 namespace ngraph_bridge {
