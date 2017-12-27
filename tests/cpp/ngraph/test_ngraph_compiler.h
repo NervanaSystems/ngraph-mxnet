@@ -39,7 +39,7 @@ class NGRAPH_COMPILER : public ::testing::Test {
     auto add1 = createNode("add1", "_add");
     auto mul = createNode("mul", "_mul");
     auto add2 = createNode("add2", "_add");
-    //auto relu = createNode("relu", "relu");
+    auto relu = createNode("relu", "relu");
 
     add1.node->inputs.push_back(A);
     add1.node->inputs.push_back(B);
@@ -50,9 +50,9 @@ class NGRAPH_COMPILER : public ::testing::Test {
     add2.node->inputs.push_back(mul);
     add2.node->inputs.push_back(D);
 
-   // relu.node->inputs.push_back(add2);
+    relu.node->inputs.push_back(add2);
 
-    nnvm_graph.outputs.push_back(add2);
+    nnvm_graph.outputs.push_back(relu);
 
     nnvm::TShape shape{2, 2};
     std::unordered_map<std::string, int> dtypes;
@@ -92,7 +92,7 @@ class testCompiler : public Compiler {
   using Compiler::node_map_;
   testCompiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                const NNVMNodeVec& inputs, const BindArgBase& bindarg)
-      : Compiler(graph, feed_dict, inputs, bindarg, mxnet::Context::NNP()){};
+      : Compiler(graph, feed_dict, inputs, bindarg, mxnet::Context::CPU()){};
 };
 
 }  // namespace ngraph_bridge
