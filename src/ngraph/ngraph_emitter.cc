@@ -289,7 +289,7 @@ void Emitter::CreateUnaryOps() {
   // };
 
   ngraph_op_funcs_["_zeros"] = [this](const NodePtr& node) {
-     return makeConstant(node, "0");
+    return makeConstant(node, "0");
   };
   ngraph_op_funcs_["degrees"] = [this](const NodePtr& node) {
     auto pi = makeConstant(node, "3.14159265359");
