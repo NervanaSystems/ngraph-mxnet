@@ -149,8 +149,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
         auto results = make_ngraph_placeholders(outputs, backend, false);
         results.insert(results.end(), graph->cached_values.begin(),
                        graph->cached_values.end());
-        graph->ngraph_forward->call(placeholders,
-                                    {ngraph::runtime::make_tuple(results)});
+        graph->ngraph_forward->call(placeholders, results);
         result_to_TBlob(results[0], outputs, 0);
       });
 }
@@ -191,8 +190,7 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
         placeholders.insert(placeholders.end(), graph->cached_values.begin(),
                             graph->cached_values.end());
 
-        graph->ngraph_backward->call(placeholders,
-                                     {ngraph::runtime::make_tuple(results)});
+        graph->ngraph_backward->call(placeholders, results);
         for (size_t j = 0; j < outputs.size(); ++j)
           result_to_TBlob(results[j], outputs, j);
       });
