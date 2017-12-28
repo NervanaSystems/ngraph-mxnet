@@ -1,0 +1,33 @@
+# Environment to build and run unit tests for ngraph-mxnet
+# Author:  Kim Janik
+
+FROM ubuntu:16.04
+
+#Set up environment variables:
+ENV ftp_proxy="http://proxy-us.intel.com:911"
+ENV http_proxy="http://proxy-us.intel.com:911"
+ENV https_proxy="https://proxy-us.intel.com:911"
+ENV no_proxy="localhost,127.0.0.1,intel.com,.intel.com,cluster,.cluster,10.0.0.0/8,172.168.0.0/16,192.168.0.0/16,nervana-dockrepo01.fm.intel.com,nervana.ai"
+ENV socks_proxy="socks://proxy-us.intel.com:1080"
+
+#Install MxNet Dependencies:
+RUN apt-get update && apt-get install -y build-essential git \
+	libopencv-dev \
+	curl \
+	gcc \
+	libatlas-base-dev \
+	python \
+	python-pip \
+	python-dev \
+	python-opencv \
+	graphviz \
+	python-scipy \
+	python-sklearn \
+	libopenblas-dev \
+	gcc-4.8 \
+	clang \
+	clang-format \
+	virtualenv \
+	cmake
+
+WORKDIR /tmp
