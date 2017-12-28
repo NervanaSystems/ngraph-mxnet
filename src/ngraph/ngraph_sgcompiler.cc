@@ -16,9 +16,28 @@
 #include <nnvm/node.h>
 #include <nnvm/pass.h>
 #include <algorithm>
+#include <ngraph/serializer.hpp>
 #include "ngraph_sgcompiler_utils.h"
 
+#include <fstream>
+#include <iostream>
+#include <sstream>
+
 namespace ngraph_bridge {
+
+static int fcount = 0;
+
+static bool dump = false;
+
+void dump_graph(std::shared_ptr<ngraph::Function> f) {
+  std::stringstream fname;
+  fname << "Graph_" << fcount << ".json";
+  fcount += 1;
+  std::ofstream file;
+  file.open(fname.str());
+  file << ngraph::serialize(f) << std::endl;
+  file.close();
+}
 
 // Main compilation function
 std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
@@ -47,45 +66,61 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // compile all the ndoes in the graph
   CompileNodes(sub_graph->nodes_.back(), sub_graph);
 
-  // map the inputs into a parameter list
-  // TODO: std::transform?
   ngraph::op::Parameters parameters;
-  for (auto input : placeholder_order_)
+  ngraph::Nodes param_nodes;
+
+  for (auto input : placeholder_order_) {
+    // get the parameters
     parameters.push_back(
         std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_[input]));
+    param_nodes.push_back(op_map_[input]);
+  }
 
   // calcuate the shape and return type of the subgraph
-  auto shape = TShape_to_NShape(sub_graph->nodes_.back()->shape_);
+  auto Y = op_map_[sub_graph->nodes_.back()];
   auto return_type = std::make_shared<ngraph::TensorViewType>(
-      getType(sub_graph->nodes_.back()->dtype_), shape);
+      Y->get_element_type(), Y->get_shape());
 
-  // create the Function object representing the graph
-  auto f = std::make_shared<ngraph::Function>(op_map_[sub_graph->nodes_.back()],
-                                              return_type, parameters);
+  // create the Forward Function object representing the graph
+  auto f = std::make_shared<ngraph::XLAFunction>(Y, return_type, parameters);
 
-  // compile it into a call frame with the backend, and save
-  // the compile frame into the subgraph
-  auto forward_external = sub_graph->manager_->compile(f);
-  sub_graph->ngraph_forward =
-      sub_graph->backend_->make_call_frame(forward_external);
-
-  // Compile the backward Pass
-  auto Y = f->get_result();
-
+  // Create the Backward Pass
   auto C = std::make_shared<ngraph::op::Parameter>(Y->get_value_type());
 
+  // Perform autodiff
   std::vector<NgraphNodePtr> dYdXs(parameters.size());
   transform(parameters.begin(), parameters.end(), dYdXs.begin(),
-            [C, Y](const NgraphNodePtr& X) { return Y->backprop_node(X, C); });
+            [C, Y](const NgraphNodePtr &X) { return Y->backprop_node(X, C); });
 
-  auto result = std::make_shared<ngraph::op::Tuple>(dYdXs);
-  parameters.insert(parameters.begin(), C);
-  auto bf = std::make_shared<ngraph::Function>(result, result->get_value_type(),
-                                               parameters);
+  auto result = std::make_shared<ngraph::op::XLATuple>(dYdXs);
 
-  auto backward_external = sub_graph->manager_->compile(bf);
-  sub_graph->ngraph_backward =
-      sub_graph->backend_->make_call_frame(backward_external);
+  // create the backward function
+  auto back_parameters = parameters;
+  back_parameters.insert(back_parameters.begin(), C);
+
+  auto bf = std::make_shared<ngraph::XLAFunction>(
+      result, result->get_value_type(), back_parameters);
+
+  auto fprop_cache = ngraph::cache_fprop(f, bf, {C});
+
+  if (dump) {
+    dump_graph(fprop_cache.fprop);
+    dump_graph(fprop_cache.bprop);
+  }
+
+  auto manager = GetManagerFromContext(sub_graph->context_);
+  auto backend = GetBackendFromContext(sub_graph->context_);
+
+  auto forward_external = manager->compile(fprop_cache.fprop);
+  sub_graph->ngraph_forward = backend->make_call_frame(forward_external);
+
+  auto backward_external = manager->compile(fprop_cache.bprop);
+  sub_graph->ngraph_backward = backend->make_call_frame(backward_external);
+
+  for (auto node : fprop_cache.fprop_output_nodes) {
+    sub_graph->cached_values.push_back(backend->make_primary_tensor_view(
+        node->get_element_type(), node->get_shape()));
+  }
 }
 
 /**

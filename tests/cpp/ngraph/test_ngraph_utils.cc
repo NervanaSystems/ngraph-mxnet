@@ -70,12 +70,11 @@ TEST(NGRAPH_SGCOMPILER_UTILS, Convert_Shapes) {
 }
 
 TEST(NGRAPH_SGCOMPILER_UTILS, GetNGraphTypes) {
-  EXPECT_EQ(ngraph::element::Float32::element_type(),
-            getType(mshadow::kFloat32));
-  EXPECT_EQ(ngraph::element::UInt8::element_type(), getType(mshadow::kUint8));
-  EXPECT_EQ(ngraph::element::Int8::element_type(), getType(mshadow::kInt8));
-  EXPECT_EQ(ngraph::element::Int32::element_type(), getType(mshadow::kInt32));
-  EXPECT_EQ(ngraph::element::Int64::element_type(), getType(mshadow::kInt64));
+  EXPECT_EQ(ngraph::element::f32, getType(mshadow::kFloat32));
+  EXPECT_EQ(ngraph::element::u8, getType(mshadow::kUint8));
+  EXPECT_EQ(ngraph::element::i8, getType(mshadow::kInt8));
+  EXPECT_EQ(ngraph::element::i32, getType(mshadow::kInt32));
+  EXPECT_EQ(ngraph::element::i64, getType(mshadow::kInt64));
 }
 
 TEST(NGRAPH_NNVM, GetBufferSize) {
@@ -106,21 +105,15 @@ TEST(NGRAPH_NNVM, copy_TBlobs) {
   inblobs.push_back(TBlob2);
 
   auto graph = std::make_shared<Graph>(Graph());
-  auto backend = ngraph::runtime::Manager::get("NGVM")->allocate_backend();
+  auto backend = GetBackendFromContext(mxnet::Context::CPU());
   auto placeholders = make_ngraph_placeholders(inblobs, backend, true);
 
-  EXPECT_EQ(
-      vec1,
-      std::dynamic_pointer_cast<
-          ngraph::runtime::ParameterizedTensorView<ngraph::element::Float32>>(
-          placeholders[0])
-          ->get_vector());
-  EXPECT_EQ(
-      vec2,
-      std::dynamic_pointer_cast<
-          ngraph::runtime::ParameterizedTensorView<ngraph::element::Float32>>(
-          placeholders[1])
-          ->get_vector());
+  EXPECT_EQ(vec1, std::dynamic_pointer_cast<ngraph::runtime::TensorView>(
+                      placeholders[0])
+                      ->get_vector<float>());
+  EXPECT_EQ(vec2, std::dynamic_pointer_cast<ngraph::runtime::TensorView>(
+                      placeholders[1])
+                      ->get_vector<float>());
   std::vector<float> vec3{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   std::vector<float> vec4{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   mxnet::TBlob TBlob3(vec3.data(), shape, 0);
