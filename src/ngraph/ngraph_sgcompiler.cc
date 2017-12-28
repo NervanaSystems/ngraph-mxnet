@@ -66,51 +66,61 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // compile all the ndoes in the graph
   for (auto node : sub_graph->nodes_) CompileNode(node, sub_graph);
 
-  // map the inputs into a parameter list
-  // TODO: std::transform?
   ngraph::op::Parameters parameters;
-  for (auto input : placeholder_order_)
+  ngraph::Nodes param_nodes;
+
+  for (auto input : placeholder_order_) {
+    // get the parameters
     parameters.push_back(
         std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_[input]));
+    param_nodes.push_back(op_map_[input]);
+  }
 
   // calcuate the shape and return type of the subgraph
-  auto shape = TShape_to_NShape(sub_graph->nodes_.back()->shape_);
+  auto Y = op_map_[sub_graph->nodes_.back()];
   auto return_type = std::make_shared<ngraph::TensorViewType>(
-      getType(sub_graph->nodes_.back()->dtype_), shape);
+      Y->get_element_type(), Y->get_shape());
 
-  // create the Function object representing the graph
-  auto f = std::make_shared<ngraph::XLAFunction>(
-      op_map_[sub_graph->nodes_.back()], return_type, parameters);
+  // create the Forward Function object representing the graph
+  auto f = std::make_shared<ngraph::XLAFunction>(Y, return_type, parameters);
 
-  if (dump) dump_graph(f);
-
-  // compile it into a call frame with the backend, and save
-  // the compile frame into the subgraph
-  auto forward_external =
-      GetManagerFromContext(sub_graph->context_)->compile(f);
-  sub_graph->ngraph_forward = GetBackendFromContext(sub_graph->context_)
-                                  ->make_call_frame(forward_external);
-
-  // Compile the backward Pass
-  auto Y = f->get_result();
-
+  // Create the Backward Pass
   auto C = std::make_shared<ngraph::op::Parameter>(Y->get_value_type());
 
+  // Perform autodiff
   std::vector<NgraphNodePtr> dYdXs(parameters.size());
   transform(parameters.begin(), parameters.end(), dYdXs.begin(),
             [C, Y](const NgraphNodePtr &X) { return Y->backprop_node(X, C); });
 
   auto result = std::make_shared<ngraph::op::XLATuple>(dYdXs);
-  parameters.insert(parameters.begin(), C);
+
+  // create the backward function
+  auto back_parameters = parameters;
+  back_parameters.insert(back_parameters.begin(), C);
+
   auto bf = std::make_shared<ngraph::XLAFunction>(
-      result, result->get_value_type(), parameters);
+      result, result->get_value_type(), back_parameters);
 
-  if (dump) dump_graph(bf);
+  auto fprop_cache = ngraph::cache_fprop(f, bf, {C});
 
-  auto backward_external =
-      GetManagerFromContext(sub_graph->context_)->compile(bf);
-  sub_graph->ngraph_backward = GetBackendFromContext(sub_graph->context_)
-                                   ->make_call_frame(backward_external);
+  if (dump) {
+    dump_graph(fprop_cache.fprop);
+    dump_graph(fprop_cache.bprop);
+  }
+
+  auto manager = GetManagerFromContext(sub_graph->context_);
+  auto backend = GetBackendFromContext(sub_graph->context_);
+
+  auto forward_external = manager->compile(fprop_cache.fprop);
+  sub_graph->ngraph_forward = backend->make_call_frame(forward_external);
+
+  auto backward_external = manager->compile(fprop_cache.bprop);
+  sub_graph->ngraph_backward = backend->make_call_frame(backward_external);
+
+  for (auto node : fprop_cache.fprop_output_nodes) {
+    sub_graph->cached_values.push_back(backend->make_primary_tensor_view(
+        node->get_element_type(), node->get_shape()));
+  }
 }
 
 // compiling a node, recursively checking it's inputs

@@ -209,8 +209,7 @@ class Graph : public Node {
   std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward;
 
   const mxnet::Context context_;
-  const std::shared_ptr<ngraph::runtime::Manager> manager_;
-  const std::shared_ptr<ngraph::runtime::Backend> backend_;
+  std::vector<std::shared_ptr<ngraph::runtime::Value>> cached_values;
 };
 
 /**

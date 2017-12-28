@@ -144,11 +144,13 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
               const std::vector<mxnet::TBlob> &inputs,
               const std::vector<mxnet::OpReqType> &req,
               const std::vector<mxnet::TBlob> &outputs) -> void {
-        auto placeholders = make_ngraph_placeholders(
-            inputs, GetBackendFromContext(graph->context_), true);
-        auto results = make_ngraph_placeholders(
-            outputs, GetBackendFromContext(graph->context_), false);
-        graph->ngraph_forward->call(placeholders, results);
+        auto backend = GetBackendFromContext(graph->context_);
+        auto placeholders = make_ngraph_placeholders(inputs, backend, true);
+        auto results = make_ngraph_placeholders(outputs, backend, false);
+        results.insert(results.end(), graph->cached_values.begin(),
+                       graph->cached_values.end());
+        graph->ngraph_forward->call(placeholders,
+                                    {ngraph::runtime::make_tuple(results)});
         result_to_TBlob(results[0], outputs, 0);
       });
 }
@@ -169,6 +171,7 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
       attrs->parsed = std::move(op);
     }
   };
+
   op.set_attr_parser(attr_parser);
   // Mark as backward
   op.set_attr<bool>("TIsBackward", true);
@@ -180,13 +183,17 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
               const std::vector<mxnet::TBlob> &inputs,
               const std::vector<mxnet::OpReqType> &req,
               const std::vector<mxnet::TBlob> &outputs) -> void {
-        auto placeholders = make_ngraph_placeholders(
-            inputs, GetBackendFromContext(graph->context_), true);
-        auto results = make_ngraph_placeholders(
-            outputs, GetBackendFromContext(graph->context_), false);
+        auto backend = GetBackendFromContext(graph->context_);
+        auto placeholders =
+            make_ngraph_placeholders({inputs[0]}, backend, true);
+        auto results = make_ngraph_placeholders(outputs, backend, false);
+
+        placeholders.insert(placeholders.end(), graph->cached_values.begin(),
+                            graph->cached_values.end());
+
         graph->ngraph_backward->call(placeholders,
                                      {ngraph::runtime::make_tuple(results)});
-        for (size_t j = 0; j < results.size(); ++j)
+        for (size_t j = 0; j < outputs.size(); ++j)
           result_to_TBlob(results[j], outputs, j);
       });
 }
