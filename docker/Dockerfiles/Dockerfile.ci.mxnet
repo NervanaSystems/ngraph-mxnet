@@ -25,8 +25,8 @@ RUN apt-get update && apt-get install -y build-essential git \
 	python-sklearn \
 	libopenblas-dev \
 	gcc-4.8 \
-	clang \
-	clang-format \
+	clang 3.9 \
+	clang-format 3.9\
 	virtualenv \
 	cmake
 
