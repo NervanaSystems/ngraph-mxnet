@@ -130,14 +130,12 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 void SGCompiler::CompileNodes(NodePtr node,
                               const std::shared_ptr<Graph> sub_graph) {
   GraphVisitor visitor;
-  std::unordered_set<NodePtr> visited;
 
   // the operation of this graph traverse compiles the node as
   // an input if it's not part of the subgraph or as an ngraph operation
   // if the node is part of the subrraph
   // we capture this so we can save the outputs to the SGCompiler op_map_
-  visitor.operation = [this, &sub_graph, &visited](NodePtr node) {
-    visited.insert(node);
+  visitor.operation = [this, &sub_graph](NodePtr node) {
     if (!op_map_.count(node)) {
       // if it's not in the graph, it's an input, compile it as an input
       if (!in_vec(sub_graph->nodes_, node)) {
@@ -148,14 +146,17 @@ void SGCompiler::CompileNodes(NodePtr node,
     }
   };
 
-  // Don't compile any nodes that aren't inputs to the subgraph or in the
-  // subgraph
+  std::unordered_set<NodePtr> visited;
   visitor.stop_condition = [&sub_graph, &visited](NodePtr node, NodePtr input) {
+    // continue if...
+    // 1) node is in subgraph or a subgraph input
+    // 2) input not visited
     if (in_vec(sub_graph->nodes_, node) && !visited.count(input)) {
+      visited.insert(input);
       return false;
-    } else {
-      return true;
     }
+    // else, stop traversing the graph
+    return true;
   };
 
   GraphTraverse(node, visitor);

@@ -29,32 +29,28 @@ void GraphTraverse(NodePtr node, const GraphVisitor &visitor) {
   // start the stack
   std::deque<NodePtr> stack;
   stack.push_front(node);
-  // enter a loop to process the stack
+  // enter loop to process the stack
   while (stack.size() > 0) {
     // get the current node
     auto n = stack.front();
-
-    // visit inputs if visitor controlled stop condition not met
-    bool pushed = false;
+    bool input_pushed = false;
     for (auto i : visitor.get_inputs(n)) {
-      visitor.edge_operation(n, i);
+      // check for cyclic graph
+      if (std::find(stack.begin(), stack.end(), i) != stack.end()) {
+        throw "NGRAPH_BRIDGE: GraphTraverse - This Graph has Cylic Loops!";
+      }
+
+      // call visitor to determine whether to push input
       if (!visitor.stop_condition(n, i)) {
-        if (std::find(stack.begin(), stack.end(), i) == stack.end()) {
-          // if this is an unvisited, non-stop node, add it to the queue and
-          // stop
-          stack.push_front(i);
-          pushed = true;
-          break;
-        } else {
-          // if we find a loop in the graph, throw an error
-          throw "NGRAPH_BRIDGE: GraphTraverse - This Graph has Cylic Loops!";
-        }
+        stack.push_front(i);
+        input_pushed = true;
+        break;  // depth first search
       }
     }
 
     // we want to process inputs before processing a node, so if we've added an
     // input, continue the while loop and process that input
-    if (pushed) continue;
+    if (input_pushed) continue;
 
     // if we've processed all of the inputs, process the node and remove it from
     // the stack.
@@ -68,31 +64,28 @@ void GraphTraverse(NodePtr node, const GraphVisitor &visitor) {
  **/
 std::vector<NodePtr> SelectNodes(NodePtr node,
                                  std::function<bool(NodePtr)> func) {
-  // init output vector
   std::vector<NodePtr> outNodes;
-  std::unordered_set<NodePtr> visited;
 
   GraphVisitor visitor;
 
-  // the operation of this traversal is to save nodes that match some function
-  // condition to the outNodes vector
-  visitor.operation = [&outNodes, &visited, &func](NodePtr node) {
-    visited.insert(node);
+  // save nodes that match some function condition
+  visitor.operation = [&outNodes, &func](NodePtr node) {
     if (func(node)) outNodes.push_back(node);
   };
 
+  std::unordered_set<NodePtr> visited;
   visitor.stop_condition = [&visited, &func](NodePtr node, NodePtr input) {
     // continue if...
     // 1) current node matches function condition
     // 2) input not visited
     if (func(node) && !visited.count(input)) {
+      visited.insert(input);
       return false;
     }
     // else, stop traversing the graph
     return true;
   };
 
-  // perform the traversal
   GraphTraverse(node, visitor);
 
   return outNodes;
@@ -104,21 +97,16 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
  */
 std::vector<NodePtr> RemoveBroken(NodePtr node,
                                   const std::vector<NodePtr> &subgraph_nodes) {
-  // create storage for the ouputs and the visited nodes
   std::vector<NodePtr> outNodes;
-  std::unordered_set<NodePtr> visited;
 
   /****************************************************************************/
   // First Graph pass - get the intersection of all inputs to a subgraph rooted
   // at node and outputs of the nodes in subgraph_nodes
   /****************************************************************************/
-  GraphVisitor visitor;
+  GraphVisitor visitor1;
   std::unordered_map<NodePtr, bool> is_output;
 
-  visitor.operation = [&outNodes, &visited, &is_output,
-                       &subgraph_nodes](NodePtr node) {
-    visited.insert(node);
-
+  visitor1.operation = [&outNodes, &is_output, &subgraph_nodes](NodePtr node) {
     // assume this node isn't in the set
     is_output[node] = false;
     // if it's in the subgraph or it's inputs are, mark it as in the set
@@ -132,62 +120,61 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
     if (is_output[node]) outNodes.push_back(node);
   };
 
-  visitor.stop_condition = [&visited](NodePtr node, NodePtr input) {
+  std::unordered_set<NodePtr> visited1;
+  visitor1.stop_condition = [&visited1](NodePtr node, NodePtr input) {
     // continue if input node not visited
-    if (!visited.count(input)) {
+    if (!visited1.count(input)) {
+      visited1.insert(input);
       return false;
     }
     // else, stop traversing the graph
     return true;
   };
 
-  GraphTraverse(node, visitor);
+  GraphTraverse(node, visitor1);
 
   /****************************************************************************/
-  // Second Graph pass - Removing Broken Branches with a Brute search
+  // Second Graph pass - Removing Broken Branches
   /****************************************************************************/
+  GraphVisitor visitor2;
 
-  // First set up a map to check if a node is good or not, mark all subgraph
-  // nodes as good.
+  // track 'good' status of all nodes
+  // subgraph nodes (identified by SelectNodes) are 'good' (true)
+  // output nodes NOT in subgraph nodes are 'not good' (false)
   std::unordered_map<NodePtr, bool> is_good;
   for (auto n : outNodes) is_good[n] = false;
   for (auto n : subgraph_nodes) is_good[n] = true;
 
-  // The operation of this graph pass is to erase nodes in bad branches
-  // from the output
-  visitor.operation = [&is_good, &outNodes](NodePtr node) {
+  // erase nodes in bad branches from the output
+  visitor2.operation = [&is_good, &outNodes](NodePtr node) {
     if (!is_good[node]) {
       outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), node),
                      outNodes.end());
     }
   };
 
-  visitor.edge_operation = [&is_good](NodePtr node, NodePtr input) {
+  // represents an input and the 'good' status of the node it was called from
+  using NodeGood = std::tuple<NodePtr, bool>;
+  std::set<NodeGood> visited2;
+
+  visitor2.stop_condition = [&visited2, &outNodes, &is_good](NodePtr node,
+                                                             NodePtr input) {
+    // propagate 'good' status from node to input
     if (!is_good[node]) is_good[input] = false;
-  };
-
-  /* a tuple representing an input node and the status of the node it was called
-   * from*/
-  using EdgeRemove = std::tuple<NodePtr, bool>;
-  std::set<EdgeRemove> visited_edges;
-
-  visitor.stop_condition = [&visited_edges, &outNodes, &is_good](
-                               NodePtr node, NodePtr input) {
-    auto edge_tup = EdgeRemove{input, is_good[input]};
+    auto edge_tup = NodeGood{input, is_good[input]};
 
     // continue if...
-    // 1) the input is still in the outputs
-    // 2) the input has not already been vistited with the current condition
-    if (in_vec(outNodes, input) && !visited_edges.count(edge_tup)) {
-      visited_edges.insert(edge_tup);
+    // 1) the input is still in output nodes
+    // 2) the input has not already been visited with its 'good' status
+    if (in_vec(outNodes, input) && !visited2.count(edge_tup)) {
+      visited2.insert(edge_tup);
       return false;
     }
     // else, stop traversing the graph
     return true;
   };
 
-  // Remove the bad branches
-  GraphTraverse(node, visitor);
+  GraphTraverse(node, visitor2);
 
   return outNodes;
 }

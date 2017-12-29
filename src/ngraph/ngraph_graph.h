@@ -240,8 +240,6 @@ std::vector<NodePtr> FindSubgraph(Graph &graph, NodePtr node,
 // Struct containing functors used as a utility for traversing a graph
 struct GraphVisitor {
   std::function<void(NodePtr)> operation;
-  std::function<void(NodePtr, NodePtr)> edge_operation =
-      [](NodePtr node, NodePtr input) { return; };
   std::function<bool(NodePtr, NodePtr)> stop_condition;
   std::function<std::vector<NodePtr>(NodePtr)> get_inputs = [](NodePtr n) {
     return n->inputs_;
