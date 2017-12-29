@@ -240,36 +240,18 @@ std::vector<NodePtr> FindSubgraph(Graph &graph, NodePtr node,
 // Struct containing functors used as a utility for traversing a graph
 struct GraphVisitor {
   std::function<void(NodePtr)> operation;
-  std::function<bool(NodePtr, NodePtr)> stop_condition = [](
-      NodePtr node, NodePtr input) { return false; };
+  std::function<void(NodePtr, NodePtr)> edge_operation =
+      [](NodePtr node, NodePtr input) { return; };
+  std::function<bool(NodePtr, NodePtr)> stop_condition;
   std::function<std::vector<NodePtr>(NodePtr)> get_inputs = [](NodePtr n) {
     return n->inputs_;
   };
-  std::function<std::vector<NodePtr>(NodePtr)> get_outputs = [](NodePtr n) {
-    return std::vector<NodePtr>();
-  };
 };
 
-// Perform a DFS or Brute graph traversal non-recursively but always ensuring
+// Perform a DFS graph traversal non-recursively but always ensuring
 // that the inputs to a node are operated on before the node. It also checks
 // for graph cycles and throws an error if they are found.
-void GraphTraverse(NodePtr node, const GraphVisitor& visitor, bool DFS);
-
-// convenience definitions
-// This pass only visits each node once, but ensures it's inputs are visited
-// first
-// this is used to ensure that compilation of a node's inputs happens before
-// compilation of the node, identifying subgraphs, etc
-inline void DFSGraphTraverse(NodePtr node, const GraphVisitor& visitor) {
-  GraphTraverse(node, visitor, true);
-}
-
-// This pass visits all nodes of a graph from all possible approaches.
-// It's primary use is to find branches of the graph that are not compatible
-// with Ngraph
-inline void BruteGraphTraverse(NodePtr node, const GraphVisitor& visitor) {
-  GraphTraverse(node, visitor, false);
-}
+void GraphTraverse(NodePtr node, const GraphVisitor &visitor);
 
 }  // namespace ngraph_bridge
 

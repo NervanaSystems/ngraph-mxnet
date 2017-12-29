@@ -269,8 +269,8 @@ void Compiler::MakeCopiedInputs(const NNVMNodeVec& inputs) {
 
 void Compiler::CopyNodes(const nnvm::Graph& graph) {
   nnvm::DFSVisit(graph.outputs, [this](const nnvm::NodePtr node) {
-    if (!this->node_map_.count(node.get()))
-      this->node_map_[node.get()] = std::make_shared<nnvm::Node>(*(node.get()));
+    if (!node_map_.count(node.get()))
+      node_map_[node.get()] = std::make_shared<nnvm::Node>(*node);
   });
 }
 
@@ -280,8 +280,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
   // reset the inputs of the copies
   for (auto kv : node_map_)
     for (auto& input : kv.second->inputs)
-      if (node_map_.count(input.node.get()))
-        input.node = node_map_[input.node.get()];
+      input.node = node_map_[input.node.get()];
 
   // set the output graph to use the copied nodes
   graph_.outputs = graph.outputs;
