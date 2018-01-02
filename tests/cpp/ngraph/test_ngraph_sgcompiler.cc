@@ -19,7 +19,7 @@ namespace ngraph_bridge {
 TEST_F(NGRAPH_SGCOMPILER, COMPILE_PARAMETER) {
   testSGCompiler test;
   EXPECT_FALSE(test.count(in1));
-  test.CompileInput(in1);
+  test.CompileNodes(in1, subgraph);
   EXPECT_TRUE(test.count(in1));
   EXPECT_TRUE(std::dynamic_pointer_cast<ngraph::op::Parameter>(test[in1]));
   EXPECT_EQ(test[in1]->get_shape(), TShape_to_NShape(in1->shape_));
@@ -33,7 +33,7 @@ TEST_F(NGRAPH_SGCOMPILER, COMPILE_NODE1) {
   EXPECT_FALSE(test.count(in3));
   EXPECT_FALSE(test.count(node1));
   EXPECT_FALSE(test.count(node2));
-  test.CompileNode(node1, subgraph);
+  test.CompileNodes(node1, subgraph);
 
   EXPECT_TRUE(test.count(in1));
   EXPECT_TRUE(test.count(in2));
@@ -55,7 +55,7 @@ TEST_F(NGRAPH_SGCOMPILER, COMPILE_NODE2) {
   EXPECT_FALSE(test.count(node1));
   EXPECT_FALSE(test.count(node2));
 
-  test.CompileNode(node2, subgraph);
+  test.CompileNodes(node2, subgraph);
 
   EXPECT_TRUE(test.count(in1));
   EXPECT_TRUE(test.count(in2));

@@ -67,7 +67,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
 
   // compile all the ndoes in the graph
-  for (auto node : sub_graph->nodes_) CompileNode(node, sub_graph);
+  CompileNodes(sub_graph->nodes_.back(), sub_graph);
 
   ngraph::op::Parameters parameters;
   ngraph::Nodes param_nodes;
@@ -122,25 +122,43 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 }
 
-// compiling a node, recursively checking it's inputs
-void SGCompiler::CompileNode(NodePtr node,
-                             const std::shared_ptr<Graph> sub_graph) {
-  if (!op_map_.count(node)) {
-    // Loop over the inputs and ensure they've been compile3d
-    for (auto input : node->inputs_) {
-      if (!op_map_.count(input)) {
-        // if it's not in the graph, it's an input, compile it as an input
-        if (std::find(sub_graph->nodes_.begin(), sub_graph->nodes_.end(),
-                      input) == sub_graph->nodes_.end()) {
-          CompileInput(input);
-        } else {
-          CompileNode(input, sub_graph);
-        }
+/**
+ * Function to perform a graph pass and compile all of the nodes
+ * need to make sure we compile the inputs of a node before the node itself
+ **/
+void SGCompiler::CompileNodes(NodePtr node,
+                              const std::shared_ptr<Graph> sub_graph) {
+  GraphVisitor visitor;
+
+  // the operation of this graph traverse compiles the node as
+  // an input if it's not part of the subgraph or as an ngraph operation
+  // if the node is part of the subrraph
+  // we capture this so we can save the outputs to the SGCompiler op_map_
+  visitor.operation = [this, &sub_graph](NodePtr node) {
+    if (!op_map_.count(node)) {
+      // if it's not in the graph, it's an input, compile it as an input
+      if (!in_vec(sub_graph->nodes_, node)) {
+        this->CompileInput(node);
+      } else {
+        this->op_map_[node] = this->ngraph_op_funcs_[node->operation_](node);
       }
     }
-    // use the emitter to compile this node and store it
-    op_map_[node] = ngraph_op_funcs_[node->operation_](node);
-  }
+  };
+
+  std::unordered_set<NodePtr> visited;
+  visitor.stop_condition = [&sub_graph, &visited](NodePtr node, NodePtr input) {
+    // continue if...
+    // 1) node is in subgraph or a subgraph input
+    // 2) input not visited
+    if (in_vec(sub_graph->nodes_, node) && !visited.count(input)) {
+      visited.insert(input);
+      return false;
+    }
+    // else, stop traversing the graph
+    return true;
+  };
+
+  GraphTraverse(node, visitor);
 }
 
 // Compile the inputs
