@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
+#include <deque>
 #include <functional>
-#include <stack>
+#include <unordered_set>
 
 #include "ngraph_graph.h"
 #include "reverse_iterate.h"
@@ -34,6 +35,7 @@ void GraphTraverse(NodePtr node, const GraphVisitor &visitor) {
   // start the stack
   std::deque<NodePtr> stack;
   stack.push_front(node);
+  queued.insert(node);
 
   // enter loop to process the stack
   while (stack.size() > 0) {
@@ -243,6 +245,7 @@ std::vector<NodePtr> PruneSubgraphOutputs(
 // Find a subgraph, check it for bad branches
 std::vector<NodePtr> FindSubgraph(Graph &graph, NodePtr node,
                                   std::function<bool(NodePtr)> func) {
+
   // find simply connected nodes that are ngraph compatible
   auto subgraph_nodes = SelectNodes(node, func);
 
