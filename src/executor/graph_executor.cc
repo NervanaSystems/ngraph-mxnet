@@ -292,7 +292,7 @@ nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Graph g, std::vector<nnvm::NodePt
     if (type == "SoftmaxOutput") return false;
     if (type == "BatchNorm") return false;
     if (type == "CuDNNBatchNorm") return false;
-    if (type.substr(0,7) == "ngraph") return false;
+    if (type.substr(0, 7) == "ngraph") return false;
     return true;
   };
 
@@ -963,7 +963,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // make copies so that ngraph compilation can modify shape / dtype
   std::unordered_map<std::string, TShape> arg_shape_map = arg_shape_mapRef;
   std::unordered_map<std::string, int> arg_dtype_map = arg_dtype_mapRef;
-  
+
 #if MXNET_USE_NGRAPH == 1
   ngraph_bridge::SimpleBindArg simplebind(num_forward_inputs_, arg_shape_map,
                                           arg_dtype_map);

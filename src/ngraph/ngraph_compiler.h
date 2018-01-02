@@ -12,12 +12,8 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
-#ifndef NGRAPH_COMPILER_H_
-#define NGRAPH_COMPILER_H_
-
-#include <mxnet/ndarray.h>
-#include "ngraph_graph.h"
-#include "ngraph_sgcompiler.h"
+#ifndef MXNET_NGRAPH_NGRAPH_COMPILER_H_
+#define MXNET_NGRAPH_NGRAPH_COMPILER_H_
 
 #include <dmlc/any.h>
 #include <mxnet/base.h>
@@ -26,6 +22,13 @@
 #include <mxnet/op_attr_types.h>
 #include <mxnet/resource.h>
 #include <mxnet/tensor_blob.h>
+
+#include <map>
+#include <string>
+#include <vector>
+
+#include "ngraph_graph.h"
+#include "ngraph_sgcompiler.h"
 #include "nnvm/graph_attr_types.h"
 
 namespace ngraph_bridge {
@@ -46,7 +49,7 @@ using StateMap = std::unordered_map<const nnvm::Node*, mxnet::OpStatePtr>;
 // GraphExecutor::Init function where ngraph_bridge::Compiler is
 // invoked.  Hence there are two derivations of this base object.
 struct BindArgBase {
-  BindArgBase(size_t numforward) : kNumForwardInputs(numforward) {}
+  explicit BindArgBase(size_t numforward) : kNumForwardInputs(numforward) {}
   virtual ~BindArgBase() {}
 
   // common arguments
@@ -138,7 +141,7 @@ class Compiler {
   // Compile returns the compiled graph
   nnvm::Graph Compile();
   // parse the nnvm graph into an intermediate represenation
-  // TODO: Make this protected, it's here for debugging
+  // TODO(mbrookhart): Make this protected, it's here for debugging
   void ParseNnvmGraph();
 
   StateMap CopySavedStates(const StateMap& saved_states);
@@ -147,8 +150,8 @@ class Compiler {
   const NgraphDType& GetNgraphDtype() { return ngraph_dtype_; }
   // Return copies of the feed_dict and inputs to feed back into the
   // graph executor inference engine
-  const NDArrayMap& GetFeedDict() { return feed_dict_; };
-  const NNVMNodeVec& GetInputs() { return inputs_; };
+  const NDArrayMap& GetFeedDict() { return feed_dict_; }
+  const NNVMNodeVec& GetInputs() { return inputs_; }
 
  protected:
   // check nodes against ngraph operations
@@ -189,4 +192,4 @@ class Compiler {
 };
 
 }  // namespace ngraph_bridge
-#endif
+#endif  // MXNET_NGRAPH_NGRAPH_COMPILER_H_

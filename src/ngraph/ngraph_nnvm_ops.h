@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
-#ifndef NGRAPH_NNVM_OP_H_
-#define NGRAPH_NNVM_OP_H_
+#ifndef MXNET_NGRAPH_NGRAPH_NNVM_OPS_H_
+#define MXNET_NGRAPH_NGRAPH_NNVM_OPS_H_
 
 #include <nnvm/op.h>
+
+#include <string>
+#include <vector>
+
 #include "ngraph_graph.h"
 
 namespace ngraph_bridge {
@@ -30,8 +34,8 @@ struct NGraphParam {
   std::vector<std::string> aux_states;
   std::vector<std::string> inputs;
   std::vector<std::string> outputs;
-  void Init(const nnvm::NodeAttrs& attrs){};
+  void Init(const nnvm::NodeAttrs& attrs) {}
 };
 
 }  // namespace ngraph_bridge
-#endif  // NGRAPH_NNVM_OP_H
+#endif  // MXNET_NGRAPH_NGRAPH_NNVM_OPS_H_

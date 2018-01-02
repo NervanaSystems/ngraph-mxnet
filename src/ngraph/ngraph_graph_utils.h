@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
-#ifndef NGRAPH_GRAPH_UTILS_H_
-#define NGRAPH_GRAPH_UTILS_H_
+#ifndef MXNET_NGRAPH_NGRAPH_GRAPH_UTILS_H_
+#define MXNET_NGRAPH_NGRAPH_GRAPH_UTILS_H_
 
 #include <algorithm>
 #include <random>
 #include <string>
+#include <vector>
 
 namespace ngraph_bridge {
 
@@ -62,4 +63,4 @@ void WriteDot(const Graph& graph, const std::string& fname);
 void WriteSubgraphDots(const Graph& graph, const std::string& base);
 
 }  // namespace ngraph_bridge
-#endif  // UTILS_H_
+#endif  // MXNET_NGRAPH_NGRAPH_GRAPH_UTILS_H_

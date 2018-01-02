@@ -124,7 +124,7 @@ TEST_F(NGRAPH_GRAPH, GRAPH_IDENTIFY_SUBGRAPHS) {
 
 TEST_F(NGRAPH_GRAPH, GRAPH_COLLAPSE_SUBGRAPHS) {
   IdentifySubgraphs(branching_graph, isop);
-  CollapseSubgraphs(branching_graph);
+  CollapseSubgraphs(&branching_graph);
   auto size = branching_graph.nodes_.size();
   EXPECT_EQ(size, 5);
   auto subgraph =

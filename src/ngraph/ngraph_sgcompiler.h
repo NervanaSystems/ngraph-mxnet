@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
-#ifndef NGRAPH_SGCOMPILER_H_
-#define NGRAPH_SGCOMPILER_H_
+#ifndef MXNET_NGRAPH_NGRAPH_SGCOMPILER_H_
+#define MXNET_NGRAPH_NGRAPH_SGCOMPILER_H_
 
 #include "ngraph_emitter.h"
 #include "ngraph_graph.h"
@@ -35,4 +35,4 @@ class SGCompiler : public Emitter {
 };
 
 }  // namespace ngraph_bridge
-#endif
+#endif  // MXNET_NGRAPH_NGRAPH_SGCOMPILER_H_

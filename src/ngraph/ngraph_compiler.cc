@@ -144,7 +144,7 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
 
   graph_ = mxnet::exec::InferShape(std::move(graph_), std::move(shapes_),
                                    "__shape__");
-  // TODO: may or may not need error checking
+  // TODO(adstraw): may or may not need error checking
   // if (g.GetAttr<size_t>("shape_num_unknown_nodes") != 0U) {
   //  HandleInferShapeError(num_forward_inputs, g.indexed_graph(),
   //    g.GetAttr<nnvm::ShapeVector>("shape"));
@@ -152,7 +152,7 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
 
   graph_ = mxnet::exec::InferType(std::move(graph_), std::move(dtypes_),
                                   "__dtype__");
-  // TODO: may or may not need error checking
+  // TODO(adstraw): may or may not need error checking
   // if (g.GetAttr<size_t>("dtype_num_unknown_nodes") != 0U) {
   //  HandleInferTypeError(num_forward_inputs, g.indexed_graph(),
   //    g.GetAttr<nnvm::DTypeVector>("dtype"));
@@ -180,7 +180,7 @@ nnvm::Graph Compiler::Compile() {
   // Output Graphviz dot files (pre collapse) for vizualization
   if (false) WriteSubgraphDots(ngraph_, "pre_collapse");
 
-  CollapseSubgraphs(ngraph_);
+  CollapseSubgraphs(&ngraph_);
 
   // Output Graphviz dot files (post collapse) for vizualization
   if (false) WriteSubgraphDots(ngraph_, "post_collapse");
