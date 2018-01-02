@@ -180,7 +180,7 @@ nnvm::Graph Compiler::Compile() {
   // Output Graphviz dot files (pre collapse) for vizualization
   if (false) WriteSubgraphDots(ngraph_, "pre_collapse");
 
-  CollapseSubgraphs(ngraph_);
+  CollapseSubgraphs(&ngraph_);
 
   // Output Graphviz dot files (post collapse) for vizualization
   if (false) WriteSubgraphDots(ngraph_, "post_collapse");

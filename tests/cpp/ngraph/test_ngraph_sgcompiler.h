@@ -11,6 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
+#ifndef TESTS_CPP_NGRAPH_TEST_NGRAPH_SGCOMPILER_H_
+#define TESTS_CPP_NGRAPH_TEST_NGRAPH_SGCOMPILER_H_
+
+#include <vector>
 
 #include "test_util.h"
 
@@ -53,7 +57,7 @@ class NGRAPH_SGCOMPILER : public ::testing::Test {
     subgraph->nodes_.push_back(node2);
   }
 
-  virtual void TearDown(){};
+  virtual void TearDown() {}
 };
 
 class testSGCompiler : public SGCompiler {
@@ -71,3 +75,5 @@ class testSGCompiler : public SGCompiler {
 };
 
 }  // namespace ngraph_bridge
+
+#endif  // TESTS_CPP_NGRAPH_TEST_NGRAPH_SGCOMPILER_H_

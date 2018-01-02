@@ -11,17 +11,17 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
-#include <cstring>
-#include <string>
-#include <utility>
-#include <vector>
-
 #include <mshadow/base.h>
 #include <mshadow/tensor.h>
 #include <mxnet/operator.h>
 #include <nnvm/graph.h>
 #include <nnvm/op_attr_types.h>
 #include <nnvm/symbolic.h>
+
+#include <cstring>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "../operator/operator_common.h"
 #include "ngraph_nnvm_ops.h"

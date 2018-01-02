@@ -15,8 +15,8 @@
 #ifndef MXNET_NGRAPH_NGRAPH_EMITTER_H_
 #define MXNET_NGRAPH_NGRAPH_EMITTER_H_
 
-#include <string>
 #include <map>
+#include <string>
 #include <vector>
 
 #include "ngraph_graph.h"

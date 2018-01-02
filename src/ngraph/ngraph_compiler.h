@@ -15,23 +15,22 @@
 #ifndef MXNET_NGRAPH_NGRAPH_COMPILER_H_
 #define MXNET_NGRAPH_NGRAPH_COMPILER_H_
 
-#include <map>
-#include <string>
-#include <vector>
-
-#include <mxnet/ndarray.h>
 #include <dmlc/any.h>
 #include <mxnet/base.h>
 #include <mxnet/engine.h>
+#include <mxnet/ndarray.h>
 #include <mxnet/ndarray.h>
 #include <mxnet/op_attr_types.h>
 #include <mxnet/resource.h>
 #include <mxnet/tensor_blob.h>
 
-#include "nnvm/graph_attr_types.h"
+#include <map>
+#include <string>
+#include <vector>
+
 #include "ngraph_graph.h"
 #include "ngraph_sgcompiler.h"
-
+#include "nnvm/graph_attr_types.h"
 
 namespace ngraph_bridge {
 
@@ -51,7 +50,7 @@ using StateMap = std::unordered_map<const nnvm::Node*, mxnet::OpStatePtr>;
 // GraphExecutor::Init function where ngraph_bridge::Compiler is
 // invoked.  Hence there are two derivations of this base object.
 struct BindArgBase {
-  BindArgBase(size_t numforward) : kNumForwardInputs(numforward) {}
+  explicit BindArgBase(size_t numforward) : kNumForwardInputs(numforward) {}
   virtual ~BindArgBase() {}
 
   // common arguments

@@ -15,6 +15,9 @@
 #ifndef MXNET_NGRAPH_NGRAPH_SGCOMPILER_UTILS_H_
 #define MXNET_NGRAPH_NGRAPH_SGCOMPILER_UTILS_H_
 
+#include <mshadow/base.h>
+#include <mshadow/tensor.h>
+
 #include <iostream>
 #include <iterator>
 #include <map>
@@ -23,9 +26,6 @@
 #include <vector>
 
 #include <ngraph/ngraph.hpp>
-#include <mshadow/base.h>
-#include <mshadow/tensor.h>
-
 #include "ngraph_graph.h"
 
 namespace ngraph_bridge {

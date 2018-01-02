@@ -11,6 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
+#ifndef TESTS_CPP_NGRAPH_TEST_NGRAPH_GRAPH_H_
+#define TESTS_CPP_NGRAPH_TEST_NGRAPH_GRAPH_H_
+
+#include <string>
+#include <vector>
 
 #include "test_util.h"
 
@@ -23,9 +28,9 @@ class NGRAPH_NODE : public ::testing::Test {
   virtual void SetUp() {
     auto var_node = std::make_shared<VariableNode>(test_input, "test_input");
     test_inputs.push_back(var_node);
-  };
+  }
 
-  virtual void TearDown(){};
+  virtual void TearDown() {}
 
   nnvm::NodePtr test_node;
   nnvm::NodePtr test_input;
@@ -36,7 +41,7 @@ class NGRAPH_NODE : public ::testing::Test {
 
 class NGRAPH_GRAPH : public ::testing::Test {
  protected:
-  static bool isop(NodePtr s) { return (s->type_ == NodeType::kOp); };
+  static bool isop(NodePtr s) { return (s->type_ == NodeType::kOp); }
 
   void CreateLinear() {
     linear_graph.nodes_ = {};
@@ -45,7 +50,7 @@ class NGRAPH_GRAPH : public ::testing::Test {
       linear_graph.AddNode(std::shared_ptr<OpNode>(
           new OpNode(nullptr, "op" + std::to_string(i), opnames[i],
                      {linear_graph.nodes_[i]})));
-  };
+  }
 
   void CreateCyclic() {
     cyclic_graph.nodes_ = {};
@@ -55,7 +60,7 @@ class NGRAPH_GRAPH : public ::testing::Test {
           new OpNode(nullptr, "op" + std::to_string(i), opnames[i],
                      {cyclic_graph.nodes_[i]})));
     cyclic_graph.nodes_[2]->inputs_.push_back(cyclic_graph.nodes_[4]);
-  };
+  }
 
   void CreateBranching() {
     branching_graph.nodes_ = {};
@@ -74,7 +79,7 @@ class NGRAPH_GRAPH : public ::testing::Test {
         new OpNode(nullptr, "op3", opnames[3], {branching_graph.nodes_[4]})));
     branching_graph.AddNode(std::shared_ptr<VariableNode>(
         new VariableNode(nullptr, "variable2", {branching_graph.nodes_[5]})));
-  };
+  }
 
   void CreateMultiOut() {
     multi_graph.nodes_ = {};
@@ -94,7 +99,7 @@ class NGRAPH_GRAPH : public ::testing::Test {
             nullptr, "variable" + std::to_string(i), input_nodes));
       }
     }
-  };
+  }
 
   void CreateComplexGraph() {
     complex_graph.nodes_ = {};
@@ -132,9 +137,9 @@ class NGRAPH_GRAPH : public ::testing::Test {
     CreateBranching();
     CreateMultiOut();
     CreateComplexGraph();
-  };
+  }
 
-  virtual void TearDown(){};
+  virtual void TearDown() {}
 
   nnvm::NodePtr test_node;
 
@@ -152,3 +157,5 @@ class NGRAPH_GRAPH : public ::testing::Test {
 };
 
 }  // namespace ngraph_bridge
+
+#endif  // TESTS_CPP_NGRAPH_TEST_NGRAPH_GRAPH_H_

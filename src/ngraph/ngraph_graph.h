@@ -15,6 +15,11 @@
 #ifndef MXNET_NGRAPH_NGRAPH_GRAPH_H_
 #define MXNET_NGRAPH_NGRAPH_GRAPH_H_
 
+#include <mxnet/base.h>
+#include <nnvm/graph.h>
+#include <nnvm/symbolic.h>
+#include <nnvm/tuple.h>
+
 #include <algorithm>
 #include <deque>
 #include <fstream>
@@ -27,12 +32,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include <mxnet/base.h>
-#include <nnvm/graph.h>
-#include <nnvm/symbolic.h>
-#include <nnvm/tuple.h>
 #include <ngraph/ngraph.hpp>
-
 #include "ngraph_graph_utils.h"
 
 namespace ngraph_bridge {
@@ -215,26 +215,27 @@ class Graph : public Node {
 /**
  * High level function that does the subgraph identification
  */
-void IdentifySubgraphs(Graph &graph, std::function<bool(NodePtr)> func);
+void IdentifySubgraphs(const Graph &graph,
+                       const std::function<bool(NodePtr)> &func);
 
 /**
  * Convert graph from identified nodes to a network of nodes and graphs,
  * each graph node represented a combined ngraph operation
  */
-void CollapseSubgraphs(Graph &graph);
+void CollapseSubgraphs(Graph* graph);
 
 /**
  * Selection of nodes based on function criterion.
  * Note: uses DFSUtil().
  */
 std::vector<NodePtr> SelectNodes(NodePtr node,
-                                 std::function<bool(NodePtr)> func);
+                                 const std::function<bool(NodePtr)> &func);
 
 /**
  * Finds simply connected ngraph operations
  */
-std::vector<NodePtr> FindSubgraph(Graph &graph, NodePtr node,
-                                  std::function<bool(NodePtr)> func);
+std::vector<NodePtr> FindSubgraph(const Graph &graph, NodePtr node,
+                                  const std::function<bool(NodePtr)> &func);
 
 // Struct containing functors used as a utility for traversing a graph
 struct GraphVisitor {
@@ -252,4 +253,4 @@ void GraphTraverse(NodePtr node, const GraphVisitor &visitor);
 
 }  // namespace ngraph_bridge
 
-#endif  //MXNET_NGRAPH_NGRAPH_GRAPH_H_
+#endif  // MXNET_NGRAPH_NGRAPH_GRAPH_H_

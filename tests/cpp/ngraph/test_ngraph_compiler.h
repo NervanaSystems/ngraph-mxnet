@@ -11,10 +11,14 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
-
-#include "test_util.h"
+#ifndef TESTS_CPP_NGRAPH_TEST_NGRAPH_COMPILER_H_
+#define TESTS_CPP_NGRAPH_TEST_NGRAPH_COMPILER_H_
 
 #include <nnvm/graph.h>
+
+#include <string>
+
+#include "test_util.h"
 #include "ngraph_compiler.h"
 
 namespace ngraph_bridge {
@@ -66,9 +70,9 @@ class NGRAPH_COMPILER : public ::testing::Test {
     }
     feed_dict[A] = mxnet::NDArray(shape, mxnet::Context());
     bindarg = std::make_shared<ngraph_bridge::SimpleBindArg>(4, shapes, dtypes);
-  };
+  }
 
-  virtual void TearDown(){};
+  virtual void TearDown() {}
 
   nnvm::Graph nnvm_graph;
   std::shared_ptr<ngraph_bridge::SimpleBindArg> bindarg;
@@ -92,7 +96,9 @@ class testCompiler : public Compiler {
   using Compiler::node_map_;
   testCompiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                const NNVMNodeVec& inputs, const BindArgBase& bindarg)
-      : Compiler(graph, feed_dict, inputs, bindarg, mxnet::Context::CPU()){};
+      : Compiler(graph, feed_dict, inputs, bindarg, mxnet::Context::CPU()) {}
 };
 
 }  // namespace ngraph_bridge
+
+#endif  // TESTS_CPP_NGRAPH_TEST_NGRAPH_COMPILER_H_

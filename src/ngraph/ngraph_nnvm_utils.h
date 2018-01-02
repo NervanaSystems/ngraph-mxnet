@@ -70,9 +70,10 @@ inline ValueVector make_ngraph_placeholders(
 
 // Utility function that copies the outnum'th result from an
 // ngraph computation into the outnum'th output TBlob in mxnet
-// TODO(mbrookhart): Make this loop over the outputs to copy all results at once?
+// TODO(mbrookhart): Make this loop over the outputs to copy all results at
+// once?
 template <typename T>
-inline void result_to_TBlob(T& result, const std::vector<mxnet::TBlob>& outputs,
+inline void result_to_TBlob(const T& result, const std::vector<mxnet::TBlob>& outputs,
                             int outnum) {
   void* p = outputs[outnum].dptr_;
   const auto& element_type = getType(outputs[outnum].type_flag_);

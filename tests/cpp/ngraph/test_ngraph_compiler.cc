@@ -13,6 +13,9 @@
 // ----------------------------------------------------------------------------
 
 #include "test_ngraph_compiler.h"
+
+#include <vector>
+
 namespace ngraph_bridge {
 
 TEST_F(NGRAPH_COMPILER, DEEPCOPY) {
@@ -22,7 +25,7 @@ TEST_F(NGRAPH_COMPILER, DEEPCOPY) {
     EXPECT_EQ(kv.first->attrs.name, kv.second->attrs.name);
     EXPECT_EQ(kv.first->attrs.op, kv.second->attrs.op);
     ASSERT_EQ(kv.first->inputs.size(), kv.second->inputs.size());
-    if (kv.first->inputs.size() > 0)
+    if (kv.first->inputs.size() > 0) {
       for (size_t i = 0; i < kv.first->inputs.size(); ++i) {
         EXPECT_NE(kv.first->inputs[i].node.get(),
                   kv.second->inputs[i].node.get());
@@ -31,6 +34,7 @@ TEST_F(NGRAPH_COMPILER, DEEPCOPY) {
         EXPECT_EQ(kv.first->inputs[i].node->attrs.op,
                   kv.second->inputs[i].node->attrs.op);
       }
+    }
   }
 }
 

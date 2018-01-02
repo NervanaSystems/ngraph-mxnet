@@ -14,9 +14,9 @@
 
 #include "ngraph_emitter.h"
 
+#include <functional>
 #include <string>
 #include <vector>
-#include <functional>
 
 #include "ngraph_sgcompiler_utils.h"
 
