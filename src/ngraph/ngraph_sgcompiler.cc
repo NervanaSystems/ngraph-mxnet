@@ -78,28 +78,24 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
   // calcuate the shape and return type of the subgraph
   auto Y = op_map_[sub_graph->nodes_.back()];
-  auto return_type = std::make_shared<ngraph::TensorViewType>(
-      Y->get_element_type(), Y->get_shape());
 
   // create the Forward Function object representing the graph
-  auto f = std::make_shared<ngraph::XLAFunction>(Y, return_type, parameters);
+  auto f = std::make_shared<ngraph::Function>(Y, parameters);
 
   // Create the Backward Pass
-  auto C = std::make_shared<ngraph::op::Parameter>(Y->get_value_type());
+  auto C = std::make_shared<ngraph::op::Parameter>(Y->get_element_type(),
+                                                   Y->get_shape());
 
   // Perform autodiff
   std::vector<NgraphNodePtr> dYdXs(parameters.size());
   transform(parameters.begin(), parameters.end(), dYdXs.begin(),
             [C, Y](const NgraphNodePtr &X) { return Y->backprop_node(X, C); });
 
-  auto result = std::make_shared<ngraph::op::XLATuple>(dYdXs);
-
   // create the backward function
   auto back_parameters = parameters;
   back_parameters.insert(back_parameters.begin(), C);
 
-  auto bf = std::make_shared<ngraph::XLAFunction>(
-      result, result->get_value_type(), back_parameters);
+  auto bf = std::make_shared<ngraph::Function>(dYdXs, back_parameters);
 
   auto fprop_cache = ngraph::cache_fprop(f, bf, {C});
 
