@@ -47,6 +47,16 @@ class NGRAPH_GRAPH : public ::testing::Test {
                      {linear_graph.nodes_[i]})));
   };
 
+  void CreateCyclic() {
+    cyclic_graph.nodes_ = {};
+    cyclic_graph.AddNode(std::make_shared<VariableNode>(nullptr, "variable"));
+    for (int i = 0; i < 4; ++i)
+      cyclic_graph.AddNode(std::shared_ptr<OpNode>(
+          new OpNode(nullptr, "op" + std::to_string(i), opnames[i],
+                     {cyclic_graph.nodes_[i]})));
+    cyclic_graph.nodes_[2]->inputs_.push_back(cyclic_graph.nodes_[4]);
+  };
+
   void CreateBranching() {
     branching_graph.nodes_ = {};
     branching_graph.AddNode(
@@ -118,6 +128,7 @@ class NGRAPH_GRAPH : public ::testing::Test {
     full_graph.AddNode(test_ngraph_node);
 
     CreateLinear();
+    CreateCyclic();
     CreateBranching();
     CreateMultiOut();
     CreateComplexGraph();
@@ -134,6 +145,7 @@ class NGRAPH_GRAPH : public ::testing::Test {
   Graph empty_graph;
   Graph full_graph;
   Graph linear_graph;
+  Graph cyclic_graph;
   Graph branching_graph;
   Graph multi_graph;
   Graph complex_graph;

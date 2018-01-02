@@ -16,6 +16,7 @@
 #define NGRAPH_INTERMEDIARY_GRAPH_H_
 
 #include <algorithm>
+#include <deque>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -235,6 +236,20 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
  */
 std::vector<NodePtr> FindSubgraph(Graph &graph, NodePtr node,
                                   std::function<bool(NodePtr)> func);
+
+// Struct containing functors used as a utility for traversing a graph
+struct GraphVisitor {
+  std::function<void(NodePtr)> operation;
+  std::function<bool(NodePtr, NodePtr)> stop_condition;
+  std::function<std::vector<NodePtr>(NodePtr)> get_inputs = [](NodePtr n) {
+    return n->inputs_;
+  };
+};
+
+// Perform a DFS graph traversal non-recursively but always ensuring
+// that the inputs to a node are operated on before the node. It also checks
+// for graph cycles and throws an error if they are found.
+void GraphTraverse(NodePtr node, const GraphVisitor &visitor);
 
 }  // namespace ngraph_bridge
 
