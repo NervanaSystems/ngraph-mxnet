@@ -12,17 +12,22 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
-#ifndef NGRAPH_PYCOMPILER_UTILS_H_
-#define NGRAPH_PYCOMPILER_UTILS_H_
+#ifndef MXNET_NGRAPH_NGRAPH_SGCOMPILER_UTILS_H_
+#define MXNET_NGRAPH_NGRAPH_SGCOMPILER_UTILS_H_
 
-#include <mshadow/base.h>
-#include <mshadow/tensor.h>
 #include <iostream>
 #include <iterator>
-#include <ngraph/ngraph.hpp>
+#include <map>
 #include <sstream>
+#include <string>
 #include <vector>
+
+#include <ngraph/ngraph.hpp>
+#include <mshadow/base.h>
+#include <mshadow/tensor.h>
+
 #include "ngraph_graph.h"
+
 namespace ngraph_bridge {
 
 inline const ngraph::element::Type& getType(int type) {
@@ -102,4 +107,4 @@ inline std::vector<T> GetIntVectorFromString(std::string input) {
 }
 
 }  // namespace ngraph_bridge
-#endif  // UTILS_H_
+#endif  // MXNET_NGRAPH_NGRAPH_SGCOMPILER_UTILS_H_

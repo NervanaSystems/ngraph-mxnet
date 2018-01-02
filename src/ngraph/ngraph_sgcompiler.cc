@@ -13,15 +13,18 @@
 // ----------------------------------------------------------------------------
 
 #include "ngraph_sgcompiler.h"
+
+#include <algorithm>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+
 #include <nnvm/node.h>
 #include <nnvm/pass.h>
-#include <algorithm>
 #include <ngraph/serializer.hpp>
-#include "ngraph_sgcompiler_utils.h"
 
-#include <fstream>
-#include <iostream>
-#include <sstream>
+#include "ngraph_sgcompiler_utils.h"
 
 namespace ngraph_bridge {
 

@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
-#ifndef NGRAPH_EMITTER_H_
-#define NGRAPH_EMITTER_H_
+#ifndef MXNET_NGRAPH_NGRAPH_EMITTER_H_
+#define MXNET_NGRAPH_NGRAPH_EMITTER_H_
+
+#include <string>
+#include <map>
+#include <vector>
 
 #include "ngraph_graph.h"
 
@@ -56,4 +60,4 @@ class Emitter {
 };
 
 }  // namespace ngraph_bridge
-#endif
+#endif  // MXNET_NGRAPH_NGRAPH_EMITTER_H_

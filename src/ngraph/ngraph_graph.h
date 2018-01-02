@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
-#ifndef NGRAPH_INTERMEDIARY_GRAPH_H_
-#define NGRAPH_INTERMEDIARY_GRAPH_H_
+#ifndef MXNET_NGRAPH_NGRAPH_GRAPH_H_
+#define MXNET_NGRAPH_NGRAPH_GRAPH_H_
 
 #include <algorithm>
 #include <fstream>
@@ -27,12 +27,11 @@
 #include <vector>
 
 #include <mxnet/base.h>
-
 #include <nnvm/graph.h>
 #include <nnvm/symbolic.h>
 #include <nnvm/tuple.h>
-
 #include <ngraph/ngraph.hpp>
+
 #include "ngraph_graph_utils.h"
 
 namespace ngraph_bridge {
@@ -238,4 +237,4 @@ std::vector<NodePtr> FindSubgraph(Graph &graph, NodePtr node,
 
 }  // namespace ngraph_bridge
 
-#endif
+#endif  //MXNET_NGRAPH_NGRAPH_GRAPH_H_

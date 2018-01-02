@@ -13,6 +13,11 @@
 // ----------------------------------------------------------------------------
 
 #include "ngraph_emitter.h"
+
+#include <string>
+#include <vector>
+#include <functional>
+
 #include "ngraph_sgcompiler_utils.h"
 
 namespace ngraph_bridge {
@@ -172,8 +177,7 @@ void Emitter::CreateUnaryOps() {
   //   return ;
   // };
   ngraph_op_funcs_["_copy"] = [this](const NodePtr& node) {
-    return op_map_[node->inputs_[0]];  // TODO: Return this as a reference. Does
-                                       // it actually need to be copied?
+    return op_map_[node->inputs_[0]];
   };
   ngraph_op_funcs_["negative"] = [this](const NodePtr& node) {
     return -op_map_[node->inputs_[0]];
@@ -305,9 +309,8 @@ void Emitter::CreateUnaryOps() {
     auto new_shape = TShape_to_NShape(node->shape_);
 
     auto input = op_map_[node->inputs_[0]];
-    if (new_shape.size() ==
-        0)  // ngraph++'s reshape wouldn't like an empty shape
-    {
+    // ngraph++'s reshape wouldn't like an empty shape
+    if (new_shape.size() == 0) {
       // std::shared_ptr<ngraph::Node> is needed to reconciale
       // ngraph::op::Constant and ngraph::op::Reshape return types
       return std::shared_ptr<ngraph::Node>(
@@ -599,7 +602,7 @@ void Emitter::CreateLayerOps() {
 
   // batch norm operation
   ngraph_op_funcs_["BatchNorm"] = [this](const NodePtr& node) {
-    // TODO lfeng:
+    // TODO(lfeng):
     // - support use_global_stats (moving_mean & moving_variance), this feature
     // requires multiple outputs.
 
