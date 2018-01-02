@@ -26,9 +26,15 @@ namespace ngraph_bridge {
  * that the inputs to a node are operated on before the node.
  **/
 void GraphTraverse(NodePtr node, const GraphVisitor &visitor) {
+  // faster queue lookup datastructure, slighlty more memory
+  // than just using std::find on the stack, but much faster
+  // cyclic checking when graphs get large
+  std::unordered_set<NodePtr> queued;
+
   // start the stack
   std::deque<NodePtr> stack;
   stack.push_front(node);
+
   // enter loop to process the stack
   while (stack.size() > 0) {
     // get the current node
@@ -36,13 +42,14 @@ void GraphTraverse(NodePtr node, const GraphVisitor &visitor) {
     bool input_pushed = false;
     for (auto i : visitor.get_inputs(n)) {
       // check for cyclic graph
-      if (std::find(stack.begin(), stack.end(), i) != stack.end()) {
+      if (queued.count(i) != 0) {
         throw "NGRAPH_BRIDGE: GraphTraverse - This Graph has Cylic Loops!";
       }
 
       // call visitor to determine whether to push input
       if (!visitor.stop_condition(n, i)) {
         stack.push_front(i);
+        queued.insert(i);
         input_pushed = true;
         break;  // depth first search
       }
@@ -55,6 +62,7 @@ void GraphTraverse(NodePtr node, const GraphVisitor &visitor) {
     // if we've processed all of the inputs, process the node and remove it from
     // the stack.
     visitor.operation(n);
+    queued.erase(n);
     stack.pop_front();
   }
 }
@@ -235,13 +243,16 @@ std::vector<NodePtr> PruneSubgraphOutputs(
 // Find a subgraph, check it for bad branches
 std::vector<NodePtr> FindSubgraph(Graph &graph, NodePtr node,
                                   std::function<bool(NodePtr)> func) {
+  // find simply connected nodes that are ngraph compatible
   auto subgraph_nodes = SelectNodes(node, func);
-  std::vector<NodePtr> outNodes;
-  outNodes = subgraph_nodes;
+
   // search for broken loops
   // remove nodes on broken loops
-  outNodes = RemoveBroken(node, outNodes);
+  auto outNodes = RemoveBroken(node, subgraph_nodes);
+
+  // Ensure the graph is single output
   outNodes = PruneSubgraphOutputs(graph, node, outNodes);
+
   return outNodes;
 }
 
