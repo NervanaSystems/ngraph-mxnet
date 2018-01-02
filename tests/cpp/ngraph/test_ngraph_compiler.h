@@ -18,8 +18,8 @@
 
 #include <string>
 
-#include "test_util.h"
 #include "ngraph_compiler.h"
+#include "test_util.h"
 
 namespace ngraph_bridge {
 

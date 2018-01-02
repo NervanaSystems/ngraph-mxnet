@@ -334,11 +334,11 @@ void CollapseSubgraphs(Graph* graph) {
 
   // delete all the nodes we're replacing with the subgraph
   graph->nodes_.erase(std::remove_if(graph->nodes_.begin(), graph->nodes_.end(),
-                                    [](NodePtr n) -> bool {
-                                      return ((n->subgraph_ > 0) &&
-                                              (n->type_ == NodeType::kOp));
-                                    }),
-                     graph->nodes_.end());
+                                     [](NodePtr n) -> bool {
+                                       return ((n->subgraph_ > 0) &&
+                                               (n->type_ == NodeType::kOp));
+                                     }),
+                      graph->nodes_.end());
 }
 
 }  // namespace ngraph_bridge

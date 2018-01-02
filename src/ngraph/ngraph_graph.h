@@ -222,7 +222,7 @@ void IdentifySubgraphs(const Graph &graph,
  * Convert graph from identified nodes to a network of nodes and graphs,
  * each graph node represented a combined ngraph operation
  */
-void CollapseSubgraphs(Graph* graph);
+void CollapseSubgraphs(Graph *graph);
 
 /**
  * Selection of nodes based on function criterion.
