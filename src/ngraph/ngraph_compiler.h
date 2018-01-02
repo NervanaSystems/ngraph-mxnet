@@ -19,7 +19,6 @@
 #include <mxnet/base.h>
 #include <mxnet/engine.h>
 #include <mxnet/ndarray.h>
-#include <mxnet/ndarray.h>
 #include <mxnet/op_attr_types.h>
 #include <mxnet/resource.h>
 #include <mxnet/tensor_blob.h>
