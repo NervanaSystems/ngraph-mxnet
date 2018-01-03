@@ -255,16 +255,13 @@ inline ValueType get_node_attr(
  * \brief Create the graph for backward pass.
  * This is triggered by both simple_bind and bind flows.
  */
-nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Symbol symbol,
+
+
+nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Graph g, std::vector<nnvm::NodePtr> args,
                                          const std::vector<OpReqType>& grad_req_types) {
   using nnvm::NodePtr;
   using nnvm::NodeEntry;
   // initial information
-  num_forward_outputs_ = symbol.outputs.size();
-  num_forward_inputs_ = symbol.ListInputs(nnvm::Symbol::kAll).size();
-
-  nnvm::Graph g;
-  g.outputs = symbol.outputs;
   bool need_grad = false;
   for (OpReqType req : grad_req_types) {
     if (req != kNullOp) need_grad = true;
@@ -275,7 +272,6 @@ nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Symbol symbol,
     head_grad_entry_.emplace_back(AttrHint(ngrad, g.outputs[i]));
     head_grad_map_[ngrad.node.get()] = i;
   }
-  std::vector<NodePtr> args = symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs);
   std::vector<NodeEntry> xs;
   for (size_t i = 0; i < grad_req_types.size(); ++i) {
     if (grad_req_types[i] != kNullOp) {
@@ -306,7 +302,7 @@ nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Symbol symbol,
 
   // take gradient
   nnvm::Graph g_grad = nnvm::pass::Gradient(
-      g, symbol.outputs, xs, head_grad_entry_,
+      g, g.outputs, xs, head_grad_entry_,
       AggregateGradient, need_mirror, nullptr,
       zero_ops, "_copy");
   CHECK_EQ(g_grad.outputs.size(), xs.size());
@@ -555,7 +551,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // create "device" and "context" attrs for the graph
   g = InitFullGraph(g, compiler.GetInputs(), grad_req_types);
   g = AssignContext(g, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
-                    aux_state_ctxes, num_forward_inputs_, num_forward_outputs_);
+                    aux_state_ctxes, grad_req_types, num_forward_inputs_, num_forward_outputs_);
 #endif
 
   // create arg_shapes and arg_dtypes for shape and type inferences
@@ -1018,7 +1014,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // create "device" and "context" attrs for the graph
   g = InitFullGraph(g, compiler.GetInputs(), grad_req_types);
   g = AssignContext(g, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
-                    aux_state_ctxes, num_forward_inputs_, num_forward_outputs_);
+                    aux_state_ctxes, grad_req_types, num_forward_inputs_, num_forward_outputs_);
 
   // modify shape / dtype with ngraph version
   arg_shape_map = compiler.GetNgraphShape();
@@ -1129,7 +1125,8 @@ Graph GraphExecutor::InitGraph(nnvm::Symbol symbol,
   g.outputs = symbol.outputs;
   // setup gradient
 #if MXNET_USE_NGRAPH == 0
-  g = InitFullGraph(symbol, grad_req_types);
+  g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs),
+                    grad_req_types);
   // create "device" and "context" attrs for the graph
   g = AssignContext(g, default_ctx, ctx_map,
                     in_arg_ctxes,
