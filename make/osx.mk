@@ -31,23 +31,14 @@ DEV = 0
 DEBUG = 0
 
 # the additional link flags you want to add
-ADD_LDFLAGS = 
+ADD_LDFLAGS =
 
 # the additional compile flags you want to add
-ADD_CFLAGS =  -g 
-# 
+ADD_CFLAGS =
 
 #---------------------------------------------
 # matrix computation libraries for CPU/GPU
 #---------------------------------------------
-
-# whether to use NGRAPH during compile
-# Need to point to a version of python with ngraph installed
-USE_NGRAPH = 1
-# PY_INCLUDE = /usr/include/python2.7
-# PY_LIB = /usr/lib
-PY_INCLUDE = /usr/local/Cellar/python/2.7.13_1/Frameworks/Python.framework/Versions/2.7/include/python2.7/
-PY_LIB = /usr/local/Cellar/python/2.7.13_1/Frameworks/Python.framework/Versions/2.7/lib/
 
 # whether use CUDA during compile
 USE_CUDA = 0

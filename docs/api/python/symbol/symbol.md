@@ -579,18 +579,6 @@ Composite multiple symbols into a new one by an operator.
     argsort
     argmax
     argmin
-    argmax_channel
-```
-
-### Sequence operation
-
-```eval_rst
-.. autosummary::
-    :nosignatures:
-
-    SequenceLast
-    SequenceMask
-    SequenceReverse
 ```
 
 ### Sequence operation

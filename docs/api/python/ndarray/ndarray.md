@@ -580,18 +580,6 @@ The `ndarray` package provides several classes:
     argsort
     argmax
     argmin
-    argmax_channel
-```
-
-### Sequence operation
-
-```eval_rst
-.. autosummary::
-    :nosignatures:
-
-    SequenceLast
-    SequenceMask
-    SequenceReverse
 ```
 
 ### Sequence operation
