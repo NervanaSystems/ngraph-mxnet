@@ -374,10 +374,11 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["_div"] = [this](const NodePtr& node) {
     return (op_map_[node->inputs_[0]] / op_map_[node->inputs_[1]]);
   };
-  ngraph_op_funcs_["_mod"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::Remainder>(op_map_[node->inputs_[0]],
-                                                   op_map_[node->inputs_[1]]);
-  };
+  // TODO(mbrookhart): Autodiff of Mod (Remainder) not implemented
+  // ngraph_op_funcs_["_mod"] = [this](const NodePtr& node) {
+  //   return std::make_shared<ngraph::op::Remainder>(op_map_[node->inputs_[0]],
+  //                                                  op_map_[node->inputs_[1]]);
+  // };
   ngraph_op_funcs_["_power"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Power>(op_map_[node->inputs_[0]],
                                                op_map_[node->inputs_[1]]);
@@ -395,6 +396,10 @@ void Emitter::CreateBinaryOps() {
     auto B = op_map_[node->inputs_[1]];
     return std::make_shared<ngraph::op::Sqrt>((A * A) + (B * B));
   };
+  // TODO(mbrookhart): ngraph is returning unit8 for logic ops
+  // doesn't work in the bridge. ngraph has comitted to switching to use 
+  // the input types. Uncomment these when that happens.
+  /*
   ngraph_op_funcs_["_equal"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Equal>(op_map_[node->inputs_[0]],
                                                op_map_[node->inputs_[1]]);
@@ -419,6 +424,7 @@ void Emitter::CreateBinaryOps() {
     return std::make_shared<ngraph::op::LessEq>(op_map_[node->inputs_[0]],
                                                 op_map_[node->inputs_[1]]);
   };
+  */
   ngraph_op_funcs_["dot"] = [this](const NodePtr& node) {
     NgraphNodePtr left = op_map_[node->inputs_[0]];
     NgraphNodePtr right = op_map_[node->inputs_[1]];
@@ -469,6 +475,8 @@ void Emitter::CreateBinaryOps() {
         ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>((A * A),
                                                                     (B * B)));
   };
+  // TODO(mbrookhart): uncomment when ngraph de-XLA-ifies boolean logic
+  /*
   ngraph_op_funcs_["broadcast_equal"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Equal>(node);
   };
@@ -487,6 +495,7 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["broadcast_lesser_equal"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::LessEq>(node);
   };
+  */
 }
 
 // MXNet high level ops generating function
