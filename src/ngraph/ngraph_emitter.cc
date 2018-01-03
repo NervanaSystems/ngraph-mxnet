@@ -397,7 +397,7 @@ void Emitter::CreateBinaryOps() {
     return std::make_shared<ngraph::op::Sqrt>((A * A) + (B * B));
   };
   // TODO(mbrookhart): ngraph is returning unit8 for logic ops
-  // doesn't work in the bridge. ngraph has comitted to switching to use 
+  // doesn't work in the bridge. ngraph has comitted to switching to use
   // the input types. Uncomment these when that happens.
   /*
   ngraph_op_funcs_["_equal"] = [this](const NodePtr& node) {
