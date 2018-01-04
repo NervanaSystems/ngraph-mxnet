@@ -12,43 +12,9 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
-#include "test_util.h"
+#include "test_ngraph_imperative.h"
 
-#include "../../src/ngraph/ngraph_imperative.h"
-#include "../../src/ngraph/ngraph_nnvm_utils.h"
 namespace ngraph_bridge {
-
-class NGRAPH_IMPERATIVE : public ::testing::Test {
- protected:
-  NGRAPH_IMPERATIVE() {
-    // default test arguments
-    nnvm::TShape shape{2};
-    inputs.emplace_back(vec1.data(), shape, 0);
-    inputs.emplace_back(vec2.data(), shape, 0);
-    outputs.emplace_back(vec3.data(), shape, 0);
-    attrs.op = nnvm::Op::Get(op_name);
-  }
-  std::string op_name = "broadcast_mul";
-  nnvm::NodeAttrs attrs;
-  std::vector<float> vec1{1, 2};
-  std::vector<float> vec2{2, 3};
-  std::vector<float> vec3{0, 0};
-  std::vector<mxnet::TBlob> inputs;
-  std::vector<mxnet::TBlob> outputs;
-};
-
-class testImperative : public NGImperative {
- public:
-  using NGImperative::graph_;
-  using NGImperative::ngraph_;
-  using NGImperative::op_ngraph_;
-  using NGImperative::parse_ngraph;
-  testImperative(const nnvm::NodeAttrs &attrs, const mxnet::Context &ctx,
-                 const std::vector<mxnet::TBlob> &inputs,
-                 const std::vector<mxnet::OpReqType> *req,
-                 const std::vector<mxnet::TBlob> &outputs)
-      : NGImperative(attrs, ctx, inputs, req, outputs){};
-};
 
 TEST_F(NGRAPH_IMPERATIVE, CREATE_IMPERATIVE) {
   testImperative test(attrs, mxnet::Context::CPU(), inputs, nullptr, outputs);

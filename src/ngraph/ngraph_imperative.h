@@ -21,7 +21,7 @@
 
 namespace ngraph_bridge {
 
-// Registers ngraph operators with nnvm, call only once.
+// Registers ngraph operators with nnvm
 void InitImperative();
 
 // Imperative interface for ngraph_bridge

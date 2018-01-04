@@ -144,7 +144,11 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
   } else if (simplebind != nullptr) {
     Infer(simplebind);
   }
+  MakeCopiedInputs(inputs);
+  ProcessGraph(&feed_dict);
+}
 
+void Compiler::ProcessGraph(const NDArrayMap* feed_dict) {
   graph_ = mxnet::exec::InferShape(std::move(graph_), std::move(shapes_),
                                    "__shape__");
   // TODO(adstraw): may or may not need error checking
@@ -161,14 +165,14 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
   //    g.GetAttr<nnvm::DTypeVector>("dtype"));
   //}
 
-  MakeCopiedInputs(inputs);
-  MakeCopiedFeedDict(feed_dict);
+  if (feed_dict) MakeCopiedFeedDict(*feed_dict);
   ParseNnvmGraph();
   CheckInNgraph();
 
-  IdentifySubgraphs(ngraph_, [&feed_dict](NodePtr s) -> bool {
+  IdentifySubgraphs(ngraph_, [feed_dict](NodePtr s) -> bool {
+    if (!feed_dict) return (s->in_ngraph_ && s->type_ == NodeType::kOp);
     bool in_feed_dict = false;
-    for (auto kv : feed_dict) {
+    for (auto kv : *feed_dict) {
       if (kv.first.node->attrs.name == s->name_) {
         in_feed_dict = true;
         break;

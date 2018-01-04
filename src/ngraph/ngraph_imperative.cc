@@ -68,17 +68,8 @@ NGImperative::NGImperative(const nnvm::NodeAttrs &attrs,
 
 // process ngraph composed of nnvm symbol graph
 void NGImperative::parse_ngraph() {
-  graph_ = mxnet::exec::InferShape(std::move(graph_), std::move(shapes_),
-                                   "__shape__");
-  graph_ = mxnet::exec::InferType(std::move(graph_), std::move(dtypes_),
-                                  "__dtype__");
-  ParseNnvmGraph();
-  CheckInNgraph();
-
-  IdentifySubgraphs(ngraph_, [](NodePtr s) -> bool {
-    return (s->in_ngraph_ && s->type_ == NodeType::kOp);
-  });
-  CollapseSubgraphs(ngraph_);
+  ProcessGraph(nullptr);
+  CollapseSubgraphs(&ngraph_);
   // imperative assumes graph is just one node
   for (auto n : ngraph_.nodes_)
     if (n->type_ == NodeType::kGraph) {
@@ -88,8 +79,8 @@ void NGImperative::parse_ngraph() {
     }
 }
 
-// Registers ngraph operators with nnvm, call only once.
-void InitImperative() {
+// Registers ngraph operators with nnvm
+static void InitImperativeOnce() {
   static bool initialized = false;
   if (initialized)
     return;
@@ -148,4 +139,10 @@ void InitImperative() {
           11);
   }
 }
+
+void InitImperative() {
+  static std::once_flag onceFlag;
+  std::call_once(onceFlag, [] { InitImperativeOnce(); });
+}
+
 }  // namespace ngraph_bridge
