@@ -379,7 +379,7 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["_div"] = [this](const NodePtr& node) {
     return (op_map_[node->inputs_[0]] / op_map_[node->inputs_[1]]);
   };
-  // TODO(mbrookhart): Autodiff of Mod (Remainder) not implemented
+  // TODO(mbrookhart): Remainder not implemented
   // ngraph_op_funcs_["_mod"] = [this](const NodePtr& node) {
   //   return std::make_shared<ngraph::op::Remainder>(op_map_[node->inputs_[0]],
   //                                                  op_map_[node->inputs_[1]]);
@@ -461,9 +461,10 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["broadcast_div"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Divide>(node);
   };
-  ngraph_op_funcs_["broadcast_mod"] = [this](const NodePtr& node) {
-    return CreateAutoBroadcast<ngraph::op::Remainder>(node);
-  };
+  // TODO(mbrookhart): Remainder not implemented in CPU
+  // ngraph_op_funcs_["broadcast_mod"] = [this](const NodePtr& node) {
+  //   return CreateAutoBroadcast<ngraph::op::Remainder>(node);
+  // };
   ngraph_op_funcs_["broadcast_power"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Power>(node);
   };
