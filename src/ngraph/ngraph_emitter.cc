@@ -226,6 +226,9 @@ void Emitter::CreateUnaryOps() {
     auto one = makeConstant(node, "1");
     return one / std::make_shared<ngraph::op::Sqrt>(op_map_[node->inputs_[0]]);
   };
+  // TODO(mbrookhart): MXNet's tests assume that this returns a matrix of nans if some of the inputs
+  // are negative. No idea why, it should be a mix of valid and nan data, which is what ngraph returns
+  /*
   ngraph_op_funcs_["cbrt"] = [this](const NodePtr& node) {
     auto one = makeConstant(node, "1");
     auto three = makeConstant(node, "3");
@@ -238,6 +241,7 @@ void Emitter::CreateUnaryOps() {
     return one / std::make_shared<ngraph::op::Power>(op_map_[node->inputs_[0]],
                                                      one / three);
   };
+  */
   ngraph_op_funcs_["exp"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Exp>(op_map_[node->inputs_[0]]);
   };
@@ -269,6 +273,8 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["tan"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Tan>(op_map_[node->inputs_[0]]);
   };
+  // TODO(mbrookhart): Arc trig autodiff not implemented
+  /*
   ngraph_op_funcs_["arcsin"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Asin>(op_map_[node->inputs_[0]]);
   };
@@ -278,6 +284,7 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["arctan"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Atan>(op_map_[node->inputs_[0]]);
   };
+  */
   ngraph_op_funcs_["sinh"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Sinh>(op_map_[node->inputs_[0]]);
   };
@@ -287,16 +294,18 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["tanh"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Tanh>(op_map_[node->inputs_[0]]);
   };
-  // ngraph_op_funcs_["arcsinh"] = [this](const NodePtr& node){
-  //   return ;
-  // };
-  // ngraph_op_funcs_["arccosh"] = [this](const NodePtr& node){
-  //   return ;
-  // };
-  // ngraph_op_funcs_["arctanh"] = [this](const NodePtr& node){
-  //   return ;
-  // };
-
+  // TODO(mbrookhart): Arc trig autodiff not implemented
+  /* 
+  ngraph_op_funcs_["arcsinh"] = [this](const NodePtr& node){
+    return ;
+  };
+  ngraph_op_funcs_["arccosh"] = [this](const NodePtr& node){
+    return ;
+  };
+  ngraph_op_funcs_["arctanh"] = [this](const NodePtr& node){
+    return ;
+  };
+  */
   ngraph_op_funcs_["_zeros"] = [this](const NodePtr& node) {
     return makeConstant(node, "0");
   };
