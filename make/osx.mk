@@ -31,23 +31,14 @@ DEV = 0
 DEBUG = 0
 
 # the additional link flags you want to add
-ADD_LDFLAGS = 
+ADD_LDFLAGS =
 
 # the additional compile flags you want to add
-ADD_CFLAGS =  -g 
-# 
+ADD_CFLAGS =
 
 #---------------------------------------------
 # matrix computation libraries for CPU/GPU
 #---------------------------------------------
-
-# whether to use NGRAPH during compile
-# Need to point to a version of python with ngraph installed
-USE_NGRAPH = 1
-# PY_INCLUDE = /usr/include/python2.7
-# PY_LIB = /usr/lib
-PY_INCLUDE = /usr/local/Cellar/python/2.7.13_1/Frameworks/Python.framework/Versions/2.7/include/python2.7/
-PY_LIB = /usr/local/Cellar/python/2.7.13_1/Frameworks/Python.framework/Versions/2.7/lib/
 
 # whether use CUDA during compile
 USE_CUDA = 0
@@ -75,6 +66,12 @@ USE_BLAS = apple
 # whether use lapack during compilation
 # only effective when compiled with blas versions openblas/apple/atlas/mkl
 USE_LAPACK = 1
+
+# by default, disable lapack when using MKL
+# switch on when there is a full installation of MKL available (not just MKL2017/MKL_ML)
+ifeq ($(USE_BLAS), mkl)
+USE_LAPACK = 0
+endif
 
 # add path to intel library, you may need it for MKL, if you did not add the path
 # to environment variable
