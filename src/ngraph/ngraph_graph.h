@@ -77,7 +77,7 @@ class Node {
   int dtype_ = 0;
 
   // information to store graph parsing in
-  int multi_output_index_ = -1;
+  size_t multi_output_index_ = 0;
   bool in_ngraph_ = false;
   std::string operation_ = "";
   int subgraph_ = 0;
@@ -149,8 +149,8 @@ inline std::string get_backend_name(const mxnet::Context &context) {
     return "ARGON";
     // } else if (context == mxnet::Context::GPU()) {
     //   return "GPU";
-    // } else if (context == mxnet::Context::CPU()) {
-    //   return "CPU";
+  } else if (context == mxnet::Context::CPU()) {
+    return "CPU";
   } else {
     return "INTERPRETER";
   }

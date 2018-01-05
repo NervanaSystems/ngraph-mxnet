@@ -70,14 +70,6 @@ LayerGraphs create_layer_graphs() {
   // Slice channel is an alias for split
   layer_funcs[std::string("SliceChannel")] = layer_funcs["split"];
 
-  layer_funcs[std::string("Activation")] = [](const NodePtr node) {
-    Graph tmpGraph;
-    auto act_type = node->orig_node_->attrs.dict["act_type"];
-    tmpGraph.AddNode(std::make_shared<OpNode>(node->orig_node_, node->name_,
-                                              act_type, node->inputs_));
-    return tmpGraph;
-  };
-
   return layer_funcs;
 }
 
@@ -208,7 +200,8 @@ nnvm::Graph Compiler::Compile() {
       auto sg_node = CreateNNVMNode(sg);
 
       auto matches = [&sg](nnvm::NodeEntry n) -> bool {
-        return (n.node == sg->nodes_.back()->orig_node_);
+        return (n.node == sg->nodes_.back()->orig_node_) &&
+               (n.index == sg->nodes_.back()->multi_output_index_);
       };
 
       // Replace outputs if needed

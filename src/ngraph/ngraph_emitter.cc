@@ -30,7 +30,8 @@ Emitter::Emitter() {
   CreateLayerOps();
 }
 
-int get_default(const NodePtr& node, const std::string& key, int default_val) {
+int get_default(const NodePtr& node, const std::string& key,
+                const int default_val) {
   return node->orig_node_->attrs.dict.count(key)
              ? std::stoi(node->orig_node_->attrs.dict[key])
              : default_val;
@@ -44,7 +45,7 @@ inline float get_default(const NodePtr& node, const std::string& key,
 }
 
 bool get_default(const NodePtr& node, const std::string& key,
-                 bool default_val) {
+                 const bool default_val) {
   if (node->orig_node_->attrs.dict.count(key)) {
     const std::string& val = node->orig_node_->attrs.dict[key];
     if (val == "True" || val == "1")
@@ -93,8 +94,8 @@ get_default(const NodePtr& node, const std::string& key,
  */
 inline size_t get_default_transformed_axis(const NodePtr& node,
                                            const std::string& key,
-                                           int default_val) {
-  const int shape_size = node->shape_.ndim();
+                                           const int default_val,
+                                           const int shape_size) {
   int axis = get_default(node, "axis", default_val);
   assert(abs(axis) <= shape_size);
   // convert negative axis index to postive (counting from right per mxnet
@@ -158,6 +159,10 @@ NgraphNodePtr Emitter::ReduceAxes(
 
 // unary op function generator
 void Emitter::CreateUnaryOps() {
+  ngraph_op_funcs_["Activation"] = [this](const NodePtr node) {
+    auto act_type = node->orig_node_->attrs.dict["act_type"];
+    return ngraph_op_funcs_[act_type](node);
+  };
   ngraph_op_funcs_["relu"] = [this](const NodePtr& node) {
     auto zero = makeConstant(node, "0");
     return std::make_shared<ngraph::op::Maximum>(op_map_[node->inputs_[0]],
@@ -505,10 +510,11 @@ void Emitter::CreateLayerOps() {
   // each of those outputs is a single node.  This function creates
   // the slice op for making each tensor.
   ngraph_op_funcs_["split"] = [this](const NodePtr& node) {
-    size_t axis = get_default(node, "axis", 1);
+    size_t axis = get_default_transformed_axis(node, "axis", 1,
+                                               node->inputs_[0]->shape_.ndim());
     int num_outputs = get_default(node, "num_outputs", 1);
     int index = node->multi_output_index_;
-    bool squeeze_axis = get_default(node, "squeeze_axis", 0);
+    bool squeeze_axis = get_default(node, "squeeze_axis", false);
 
     // create lower and upper bounds for slice
     auto upper = TShape_to_NShape(node->inputs_[0]->shape_);
@@ -628,7 +634,8 @@ void Emitter::CreateLayerOps() {
     const bool fix_gamma = get_default(node, "fix_gamma", true);
     const bool use_global_stats = get_default(node, "use_global_stats", false);
     // zero based channel axis
-    const size_t channel_axis = get_default_transformed_axis(node, "axis", 1);
+    const size_t channel_axis =
+        get_default_transformed_axis(node, "axis", 1, node->shape_.ndim());
 
     NgraphNodePtr ng_mean = ReduceAxes(ng_in_data, {channel_axis}, true, true,
                                        ngraph::builder::mean);
