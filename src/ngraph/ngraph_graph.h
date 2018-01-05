@@ -193,10 +193,13 @@ class Graph : public Node {
   // Add a node to the graph
   void AddNode(NodePtr node) { nodes_.emplace_back(node); }
 
-  // get the node corresponding to a name
-  NodePtr operator[](std::string name) {
+  // get the node corresponding to an orig_node
+  NodePtr operator[](nnvm::NodeEntry entry) {
     for (auto n : nodes_)
-      if (n->name_ == name) return n;
+      if ((n->orig_node_ == entry.node) && 
+          (n->multi_output_index_ == entry.index)) {
+        return n;
+      } 
     // This throw is used in constructing multi-output subgraphs
     throw "NGRAPH_BRIDGE: node not in graph";
   }

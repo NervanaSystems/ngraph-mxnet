@@ -170,12 +170,12 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
 // Main compilation function
 nnvm::Graph Compiler::Compile() {
   // Output Graphviz dot files (pre collapse) for vizualization
-  if (false) WriteSubgraphDots(ngraph_, "pre_collapse");
+  if (true) WriteSubgraphDots(ngraph_, "pre_collapse");
 
   CollapseSubgraphs(&ngraph_);
 
   // Output Graphviz dot files (post collapse) for vizualization
-  if (false) WriteSubgraphDots(ngraph_, "post_collapse");
+  if (true) WriteSubgraphDots(ngraph_, "post_collapse");
 
   for (auto node : ngraph_.nodes_) {
     // store the input variable shape for use by nnvm
@@ -316,11 +316,10 @@ void Compiler::ParseNnvmGraph() {
         const nnvm::NodeEntry& e = node->inputs[i];
         std::shared_ptr<Node> tmpnode;
         try {
-          tmpnode = this->ngraph_[e.node->attrs.name];
+          tmpnode = this->ngraph_[e];
         } catch (char const* error) {
           try {
-            auto name = e.node->attrs.name + "_" + std::to_string(e.index);
-            tmpnode = this->ngraph_[name];
+                        tmpnode = this->ngraph_[e];
           } catch (std::string& error) {
             tmpnode = std::make_shared<VariableNode>(node, e.node->attrs.name);
             this->ngraph_.AddNode(tmpnode);
