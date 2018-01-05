@@ -156,7 +156,7 @@ class Compiler {
 
  protected:
   // parse and process graph
-  void ProcessGraph(const NDArrayMap* feed_dict); 
+  void ProcessGraph(const NDArrayMap& feed_dict);
   // check nodes against ngraph operations
   void CheckInNgraph();
   // make a deep copy of the graph and graph nodes

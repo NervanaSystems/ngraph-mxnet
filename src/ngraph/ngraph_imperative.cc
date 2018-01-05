@@ -20,6 +20,7 @@
 #include <nnvm/op_attr_types.h>
 #include <nnvm/pass.h>
 #include <nnvm/symbolic.h>
+#include <algorithm>
 #include <cstring>
 #include "../executor/exec_pass.h"
 
@@ -68,7 +69,7 @@ NGImperative::NGImperative(const nnvm::NodeAttrs &attrs,
 
 // process ngraph composed of nnvm symbol graph
 void NGImperative::parse_ngraph() {
-  ProcessGraph(nullptr);
+  ProcessGraph(NDArrayMap());
   CollapseSubgraphs(&ngraph_);
   // imperative assumes graph is just one node
   for (auto n : ngraph_.nodes_)
@@ -80,13 +81,7 @@ void NGImperative::parse_ngraph() {
 }
 
 // Registers ngraph operators with nnvm
-static void InitImperativeOnce() {
-  static bool initialized = false;
-  if (initialized)
-    return;
-  else
-    initialized = true;
-
+void InitImperativeOnce() {
   static auto &fcompute_cpu =
       nnvm::Op::GetAttr<mxnet::FCompute>("FCompute<cpu>");
 
@@ -103,7 +98,7 @@ static void InitImperativeOnce() {
     auto fallback_fn = fcompute_cpu.get(&op, nullptr);
 
     // use ngraph immperative, only if fallback available.
-    if (fallback_fn)
+    if (fallback_fn) {
       op.set_attr<mxnet::FCompute>(
           "FCompute<cpu>",
           [fallback_fn](const nnvm::NodeAttrs &attrs,
@@ -137,12 +132,13 @@ static void InitImperativeOnce() {
             fallback_fn(attrs, ctx, inputs, req, outputs);
           },
           11);
+    }
   }
 }
 
 void InitImperative() {
   static std::once_flag onceFlag;
-  std::call_once(onceFlag, [] { InitImperativeOnce(); });
+  std::call_once(onceFlag, InitImperativeOnce);
 }
 
 }  // namespace ngraph_bridge

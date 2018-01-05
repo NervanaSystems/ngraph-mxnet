@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
+#ifndef TESTS_CPP_NGRAPH_TEST_NGRAPH_IMPERATIVE_H_
+#define TESTS_CPP_NGRAPH_TEST_NGRAPH_IMPERATIVE_H_
+
+#include <string>
+#include <vector>
 #include "../../src/ngraph/ngraph_imperative.h"
 #include "../../src/ngraph/ngraph_nnvm_utils.h"
 #include "test_util.h"
@@ -46,6 +51,7 @@ class testImperative : public NGImperative {
                  const std::vector<mxnet::TBlob> &inputs,
                  const std::vector<mxnet::OpReqType> *req,
                  const std::vector<mxnet::TBlob> &outputs)
-      : NGImperative(attrs, ctx, inputs, req, outputs){};
+      : NGImperative(attrs, ctx, inputs, req, outputs) {}
 };
-}
+}  // namespace ngraph_bridge
+#endif  // TESTS_CPP_NGRAPH_TEST_NGRAPH_IMPERATIVE_H_

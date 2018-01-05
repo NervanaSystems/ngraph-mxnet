@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
-#ifndef NGRAPH_IMPERATIVE_H_
-#define NGRAPH_IMPERATIVE_H_
+#ifndef MXNET_NGRAPH_NGRAPH_IMPERATIVE_H_
+#define MXNET_NGRAPH_NGRAPH_IMPERATIVE_H_
 
 #include <nnvm/op.h>
+#include <string>
+#include <vector>
 #include "ngraph_compiler.h"
 #include "ngraph_graph.h"
 
@@ -58,4 +60,4 @@ class NGImperative : public Compiler {
 };
 
 }  // namespace ngraph_bridge
-#endif  // NGRAPH_IMPERATIVE_H_
+#endif  // MXNET_NGRAPH_NGRAPH_IMPERATIVE_H_
