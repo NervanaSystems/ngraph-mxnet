@@ -212,7 +212,7 @@ class Graph : public Node {
   std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward;
 
   const mxnet::Context context_;
-  std::vector<std::shared_ptr<ngraph::runtime::Value>> cached_values;
+  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_values;
 };
 
 /**

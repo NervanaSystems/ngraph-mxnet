@@ -23,7 +23,7 @@
 
 namespace ngraph_bridge {
 
-using ValueVector = std::vector<std::shared_ptr<ngraph::runtime::Value>>;
+using TensorViewVector = std::vector<std::shared_ptr<ngraph::runtime::TensorView>>;
 using ngraph::runtime::TensorView;
 
 // Simple utility for getting the total number of bytes in a
@@ -57,10 +57,10 @@ inline std::shared_ptr<TensorView> TBlob_to_TensorView(
 // This function takes a vector of TBlobs and creates a vector of
 // equialently shaped and typed ngraph tensors, optionally
 // copied the data from the TBlobs to ngraph
-inline ValueVector make_ngraph_placeholders(
+inline TensorViewVector make_ngraph_placeholders(
     const std::vector<mxnet::TBlob>& inputs,
     std::shared_ptr<ngraph::runtime::Backend> backend, bool copy_data) {
-  ValueVector out;
+  TensorViewVector out;
   std::transform(inputs.begin(), inputs.end(), std::back_inserter(out),
                  [copy_data, backend](const mxnet::TBlob& tb) {
                    return TBlob_to_TensorView(tb, backend, copy_data);
@@ -81,8 +81,7 @@ inline void result_to_TBlob(const T& result,
   auto buffer_size =
       get_buffer_size(outputs[outnum].shape_, element_type.size());
 
-  auto TV = std::dynamic_pointer_cast<TensorView>(result);
-  TV->read(p, 0, buffer_size);
+  result->read(p, 0, buffer_size);
 }
 
 }  // namespace ngraph_bridge

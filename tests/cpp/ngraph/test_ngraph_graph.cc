@@ -64,11 +64,6 @@ TEST_F(NGRAPH_GRAPH, GRAPH_INIT) {
   EXPECT_EQ(Graph(test_name).name_, test_name);
 }
 
-TEST_F(NGRAPH_GRAPH, GRAPH_NODES_) {
-  EXPECT_ANY_THROW(empty_graph["there's no node here"]);
-  EXPECT_EQ(full_graph[test_name], test_ngraph_node);
-}
-
 TEST_F(NGRAPH_GRAPH, CYCLIC_GRAPH) {
   auto node = cyclic_graph.nodes_.back();
   EXPECT_ANY_THROW(SelectNodes(node, isop).size());
