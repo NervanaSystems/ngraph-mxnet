@@ -121,6 +121,9 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
 }
 
 // Compiler initialization
+Compiler::Compiler(const mxnet::Context& context)
+    : ngraph_("ngraph_" + randomString(6), context) {}
+
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                    const NNVMNodeVec& inputs, const BindArgBase& bindbase,
                    const mxnet::Context& context)
@@ -135,7 +138,11 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
   } else if (simplebind != nullptr) {
     Infer(simplebind);
   }
+  MakeCopiedInputs(inputs);
+  ProcessGraph(feed_dict);
+}
 
+void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
   graph_ = mxnet::exec::InferShape(std::move(graph_), std::move(shapes_),
                                    "__shape__");
   // TODO(adstraw): may or may not need error checking
@@ -152,7 +159,6 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
   //    g.GetAttr<nnvm::DTypeVector>("dtype"));
   //}
 
-  MakeCopiedInputs(inputs);
   MakeCopiedFeedDict(feed_dict);
   ParseNnvmGraph();
   CheckInNgraph();
