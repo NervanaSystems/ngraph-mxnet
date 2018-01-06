@@ -226,8 +226,10 @@ void Emitter::CreateUnaryOps() {
     auto one = makeConstant(node, "1");
     return one / std::make_shared<ngraph::op::Sqrt>(op_map_[node->inputs_[0]]);
   };
-  // TODO(mbrookhart): MXNet's tests assume that this returns a matrix of nans if some of the inputs
-  // are negative. No idea why, it should be a mix of valid and nan data, which is what ngraph returns
+  // TODO(mbrookhart): MXNet's tests assume that this returns a matrix of nans
+  // if some of the inputs
+  // are negative. No idea why, it should be a mix of valid and nan data, which
+  // is what ngraph returns
   /*
   ngraph_op_funcs_["cbrt"] = [this](const NodePtr& node) {
     auto one = makeConstant(node, "1");
@@ -295,7 +297,7 @@ void Emitter::CreateUnaryOps() {
     return std::make_shared<ngraph::op::Tanh>(op_map_[node->inputs_[0]]);
   };
   // TODO(mbrookhart): Arc trig autodiff not implemented
-  /* 
+  /*
   ngraph_op_funcs_["arcsinh"] = [this](const NodePtr& node){
     return ;
   };

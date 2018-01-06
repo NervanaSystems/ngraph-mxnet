@@ -196,10 +196,10 @@ class Graph : public Node {
   // get the node corresponding to an orig_node
   NodePtr operator[](nnvm::NodeEntry entry) {
     for (auto n : nodes_)
-      if ((n->orig_node_ == entry.node) && 
+      if ((n->orig_node_ == entry.node) &&
           (n->multi_output_index_ == entry.index)) {
         return n;
-      } 
+      }
     // This throw is used in constructing multi-output subgraphs
     throw "NGRAPH_BRIDGE: node not in graph";
   }

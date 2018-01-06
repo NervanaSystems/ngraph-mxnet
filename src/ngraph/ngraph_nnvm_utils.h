@@ -23,7 +23,8 @@
 
 namespace ngraph_bridge {
 
-using TensorViewVector = std::vector<std::shared_ptr<ngraph::runtime::TensorView>>;
+using TensorViewVector =
+    std::vector<std::shared_ptr<ngraph::runtime::TensorView>>;
 using ngraph::runtime::TensorView;
 
 // Simple utility for getting the total number of bytes in a
