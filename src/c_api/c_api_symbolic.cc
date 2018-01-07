@@ -31,9 +31,6 @@
 #include "./c_api_common.h"
 #include "../operator/operator_common.h"
 #include "../executor/exec_pass.h"
-#if MXNET_USE_NGRAPH == 1
-#include "../ngraph/ngraph_imperative.h"
-#endif
 
 namespace mxnet {
 namespace op {
@@ -78,10 +75,6 @@ int MXListAllOpNames(nn_uint *out_size,
                      const char ***out_array) {
   mxnet::op::RegisterLegacyOpProp();
   mxnet::op::RegisterLegacyNDFunc();
-#if MXNET_USE_NGRAPH == 1
-  // ngraph imperative interface
-  ngraph_bridge::InitImperative();
-#endif
   return NNListAllOpNames(out_size, out_array);
 }
 
