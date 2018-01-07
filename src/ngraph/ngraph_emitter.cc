@@ -442,8 +442,10 @@ void Emitter::CreateBinaryOps() {
   };
   */
   ngraph_op_funcs_["dot"] = [this](const NodePtr& node) {
+
     NgraphNodePtr left = op_map_[node->inputs_[0]];
     NgraphNodePtr right = op_map_[node->inputs_[1]];
+
     if (get_default(node, "transpose_a", false)) {
       auto N = left->get_shape().size();
       ngraph::AxisVector order(N - 1);
@@ -451,6 +453,7 @@ void Emitter::CreateBinaryOps() {
       order.push_back(0);
       left = ngraph::builder::numpy_transpose(left, order);
     }
+
     if (get_default(node, "transpose_b", false)) {
       auto N = right->get_shape().size();
       ngraph::AxisVector order(N - 1);
@@ -458,6 +461,7 @@ void Emitter::CreateBinaryOps() {
       order.insert(order.begin(), N - 1);
       right = ngraph::builder::numpy_transpose(right, order);
     }
+
     return std::make_shared<ngraph::op::Dot>(left, right, 1);
   };
   ngraph_op_funcs_["broadcast_add"] = [this](const NodePtr& node) {

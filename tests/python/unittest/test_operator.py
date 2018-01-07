@@ -2971,8 +2971,8 @@ def test_index2d():
 
 
 def test_cast():
-    for srctype in [np.int32, np.float32]:#, np.float16]: TODO(mbrookhart): ngraph doesn't have float16
-        for dsttype in [np.float32, np.int32]:#, np.float16]: TODO(mbrookhart): ngraph doesn't have float16
+    for srctype in [np.int32, np.float32, np.float16]:
+        for dsttype in [np.float32, np.int32, np.float16]:
             x = mx.sym.Variable('x', dtype=srctype)
             y = mx.sym.Cast(x, dtype=dsttype)
             exe = y.simple_bind(ctx=default_context(), x=(10, 10))
@@ -4395,7 +4395,7 @@ def test_unary_math_operators():
         print("Could not import scipy. Skipping unit tests for special functions")
         have_scipy = False
     shape=(9, 10)
-    dtype_l = [np.float64, np.float32]#, np.float16] TODO(mbrookhart): nGraph doesn't support float16
+    dtype_l = [np.float64, np.float32, np.float16]
     rtol_l = [1e-7, 1e-6, 1e-2]
     rtol_less_l = [1e-6, 1e-5, 1e-2]
     atol_l = [1e-7, 1e-6, 1e-2]
@@ -4592,7 +4592,7 @@ def finite_diff_binary_op(
 def test_binary_math_operators():
     np.random.seed(192837465)
     shape=(9, 10)
-    dtype_l = [np.float64, np.float32]#, np.float16] // TODO(mbrookhart): ngraph doesn't support float16
+    dtype_l = [np.float64, np.float32, np.float16]
     rtol_l = [1e-7, 1e-6, 1e-2]
     atol_l = [1e-7, 1e-6, 1e-2]
     rtol_fd = 1e-5

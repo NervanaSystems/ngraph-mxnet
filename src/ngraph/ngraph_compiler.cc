@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
-#include "ngraph_compiler.h"
+#include <mshadow/base.h>
+
 #include <nnvm/node.h>
 #include <nnvm/pass.h>
 #include <algorithm>
 #include "../executor/exec_pass.h"
+#include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
 #include "nnvm/tuple.h"
 
@@ -284,8 +286,18 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 void Compiler::CheckInNgraph() {
   for (auto node : ngraph_.nodes_)
     if (node->type_ == NodeType::kOp)
-      if (compiler_.ngraph_op_funcs_.count(node->operation_))
+      if (compiler_.ngraph_op_funcs_.count(node->operation_)) {
         node->in_ngraph_ = true;
+        if (node->dtype_ == mshadow::kFloat16) {
+          node->in_ngraph_ = false;
+        } else {
+          for (auto input : node->inputs_) {
+            if (input->dtype_ == mshadow::kFloat16) {
+              node->in_ngraph_ = false;
+            }
+          }
+        }
+      }
 }
 
 // Function that parses an nnvm Graph into an intermediary graph
