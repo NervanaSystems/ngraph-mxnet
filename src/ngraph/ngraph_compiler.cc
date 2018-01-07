@@ -284,8 +284,8 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 
 // Check nodes in NGraph
 void Compiler::CheckInNgraph() {
-  for (auto node : ngraph_.nodes_)
-    if (node->type_ == NodeType::kOp)
+  for (auto node : ngraph_.nodes_) {
+    if (node->type_ == NodeType::kOp) {
       if (compiler_.ngraph_op_funcs_.count(node->operation_)) {
         node->in_ngraph_ = true;
         if (node->dtype_ == mshadow::kFloat16) {
@@ -298,6 +298,8 @@ void Compiler::CheckInNgraph() {
           }
         }
       }
+    }
+  }
 }
 
 // Function that parses an nnvm Graph into an intermediary graph

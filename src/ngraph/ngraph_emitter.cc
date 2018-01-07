@@ -442,7 +442,6 @@ void Emitter::CreateBinaryOps() {
   };
   */
   ngraph_op_funcs_["dot"] = [this](const NodePtr& node) {
-
     NgraphNodePtr left = op_map_[node->inputs_[0]];
     NgraphNodePtr right = op_map_[node->inputs_[1]];
 
