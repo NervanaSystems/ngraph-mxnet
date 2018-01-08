@@ -122,8 +122,10 @@ NgraphNodePtr Emitter::ReduceAxes(
     const std::function<NgraphNodePtr(const NgraphNodePtr&,
                                       const ngraph::AxisSet&)>& func) {
   ngraph::AxisSet reduction_axes;
-
-  if (exclude) {
+  if (axes.size() == 0) {
+    for (size_t i = 0; i < node->get_shape().size(); ++i)
+      reduction_axes.insert(i);
+  } else if (exclude) {
     for (size_t i = 0; i < node->get_shape().size(); ++i)
       if (!in_vec(axes, i)) reduction_axes.insert(i);
   } else {
@@ -131,6 +133,10 @@ NgraphNodePtr Emitter::ReduceAxes(
   }
 
   auto output = func(node, reduction_axes);
+  if (axes.size() == 0) {
+    output = std::make_shared<ngraph::op::Reshape>(
+        output, ngraph::AxisVector{}, ngraph::Shape{1});
+  }
 
   if (keepdims) {
     auto reshape = node->get_shape();

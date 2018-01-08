@@ -104,7 +104,9 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   auto fprop_cache = ngraph::cache_fprop(f, bf, {C});
 
   if (dump) {
+    fcount += 1;
     dump_graph(fprop_cache.fprop);
+    fcount += 1;
     dump_graph(fprop_cache.bprop);
   }
 

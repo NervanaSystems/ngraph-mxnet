@@ -4031,7 +4031,6 @@ def _syevd_combined_symbol(a):
                                    transpose_b=False, name='Ut_L_U')
     return mx.sym.Group([u_ut, ut_lam_u])
 
-@unittest.skip("nGraph TensorView double free")
 def test_laop_2():
     np.random.seed(1896893923)
     dtype = np.float64
@@ -4155,7 +4154,6 @@ def _syevd_backward(grad_u, grad_l, u, l):
     temp3 = np.dot(u.T, temp2)
     return np.dot(temp3, u)
 
-@unittest.skip("nGraph TensorView double free")
 def test_laop_3():
     # Currently disabled on GPU as syevd needs cuda8
     # and MxNet builds use cuda 7.5
