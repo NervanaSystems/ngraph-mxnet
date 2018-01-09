@@ -194,7 +194,7 @@ class Graph : public Node {
   void AddNode(NodePtr node) { nodes_.emplace_back(node); }
 
   // get the node corresponding to an orig_node
-  NodePtr operator[](nnvm::NodeEntry entry) {
+  NodePtr operator[](const nnvm::NodeEntry& entry) {
     for (auto n : nodes_)
       if ((n->orig_node_ == entry.node) &&
           (n->multi_output_index_ == entry.index)) {
