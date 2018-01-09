@@ -583,12 +583,30 @@ void Emitter::CreateLayerOps() {
   ngraph_op_funcs_["FullyConnected"] = [this](const NodePtr& node) {
     auto X = op_map_[node->inputs_[0]];
     auto W = op_map_[node->inputs_[1]];
-    auto beta = op_map_[node->inputs_[2]];
-    auto dot = std::make_shared<ngraph::op::Dot>(
+    
+
+    auto flatten = get_default(node, "flatten", true);
+    auto no_bias = get_default(node, "no_bias", false);
+
+    if (flatten && X->get_shape().size() > 2) {
+      ngraph::Shape flat_shape{X->get_shape()[0],1};
+      for (size_t i = 1; i < X->get_shape().size(); ++i) {
+        flat_shape[1] *= X->get_shape()[i];
+      }
+      ngraph::AxisVector order(X->get_shape().size());
+      std::iota(order.begin(), order.end(), 0);
+      X = std::make_shared<ngraph::op::Reshape>(X, order, flat_shape);
+    }
+
+    NgraphNodePtr dot = std::make_shared<ngraph::op::Dot>(
         X, ngraph::builder::numpy_transpose(W));
 
-    return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(dot,
+    if (!no_bias){
+      auto beta = op_map_[node->inputs_[2]];
+      dot =ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(dot,
                                                                        beta);
+    }
+    return dot;
   };
 
   // flatten converts an array of shape (x0, x1, x2, ...)
