@@ -147,7 +147,10 @@ NgraphNodePtr Emitter::ReduceAxes(
 
     output = std::make_shared<ngraph::op::Reshape>(output, order, reshape);
   }
-
+  if (output->get_shape() == ngraph::Shape()) {
+    output = std::make_shared<ngraph::op::Reshape>(output, ngraph::AxisVector{},
+                                                   ngraph::Shape{1});
+  }
   return output;
 }
 
@@ -391,7 +394,6 @@ void Emitter::CreateBinaryOps() {
     return (op_map_[node->inputs_[0]] - op_map_[node->inputs_[1]]);
   };
   ngraph_op_funcs_["_mul"] = [this](const NodePtr& node) {
-    std::cout << "left: ";
     return (op_map_[node->inputs_[0]] * op_map_[node->inputs_[1]]);
   };
   ngraph_op_funcs_["_div"] = [this](const NodePtr& node) {
