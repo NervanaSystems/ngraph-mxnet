@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
-#include "ngraph_compiler.h"
+#include <mshadow/base.h>
+
 #include <nnvm/node.h>
 #include <nnvm/pass.h>
 #include <algorithm>
 #include "../executor/exec_pass.h"
+#include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
 #include "nnvm/tuple.h"
 
@@ -69,14 +71,6 @@ LayerGraphs create_layer_graphs() {
 
   // Slice channel is an alias for split
   layer_funcs[std::string("SliceChannel")] = layer_funcs["split"];
-
-  layer_funcs[std::string("Activation")] = [](const NodePtr node) {
-    Graph tmpGraph;
-    auto act_type = node->orig_node_->attrs.dict["act_type"];
-    tmpGraph.AddNode(std::make_shared<OpNode>(node->orig_node_, node->name_,
-                                              act_type, node->inputs_));
-    return tmpGraph;
-  };
 
   return layer_funcs;
 }
@@ -208,7 +202,8 @@ nnvm::Graph Compiler::Compile() {
       auto sg_node = CreateNNVMNode(sg);
 
       auto matches = [&sg](nnvm::NodeEntry n) -> bool {
-        return (n.node == sg->nodes_.back()->orig_node_);
+        return (n.node == sg->nodes_.back()->orig_node_) &&
+               (n.index == sg->nodes_.back()->multi_output_index_);
       };
 
       // Replace outputs if needed
@@ -289,10 +284,22 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 
 // Check nodes in NGraph
 void Compiler::CheckInNgraph() {
-  for (auto node : ngraph_.nodes_)
-    if (node->type_ == NodeType::kOp)
-      if (compiler_.ngraph_op_funcs_.count(node->operation_))
+  for (auto node : ngraph_.nodes_) {
+    if (node->type_ == NodeType::kOp) {
+      if (compiler_.ngraph_op_funcs_.count(node->operation_)) {
         node->in_ngraph_ = true;
+        if (node->dtype_ == mshadow::kFloat16) {
+          node->in_ngraph_ = false;
+        } else {
+          for (auto input : node->inputs_) {
+            if (input->dtype_ == mshadow::kFloat16) {
+              node->in_ngraph_ = false;
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 // Function that parses an nnvm Graph into an intermediary graph
@@ -323,12 +330,11 @@ void Compiler::ParseNnvmGraph() {
         const nnvm::NodeEntry& e = node->inputs[i];
         std::shared_ptr<Node> tmpnode;
         try {
-          tmpnode = this->ngraph_[e.node->attrs.name];
+          tmpnode = this->ngraph_[e];
         } catch (char const* error) {
           try {
-            auto name = e.node->attrs.name + "_" + std::to_string(e.index);
-            tmpnode = this->ngraph_[name];
-          } catch (std::string& error) {
+            tmpnode = this->ngraph_[e];
+          } catch (char const* error) {
             tmpnode = std::make_shared<VariableNode>(node, e.node->attrs.name);
             this->ngraph_.AddNode(tmpnode);
           }

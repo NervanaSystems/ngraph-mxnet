@@ -101,6 +101,11 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
   auto bf = std::make_shared<ngraph::Function>(dYdXs, back_parameters);
 
+  if (dump) {
+    dump_graph(f);
+    dump_graph(bf);
+  }
+
   auto fprop_cache = ngraph::cache_fprop(f, bf, {C});
 
   if (dump) {

@@ -77,7 +77,7 @@ class Node {
   int dtype_ = 0;
 
   // information to store graph parsing in
-  int multi_output_index_ = -1;
+  size_t multi_output_index_ = 0;
   bool in_ngraph_ = false;
   std::string operation_ = "";
   int subgraph_ = 0;
@@ -149,8 +149,8 @@ inline std::string get_backend_name(const mxnet::Context &context) {
     return "ARGON";
     // } else if (context == mxnet::Context::GPU()) {
     //   return "GPU";
-    // } else if (context == mxnet::Context::CPU()) {
-    //   return "CPU";
+  } else if (context == mxnet::Context::CPU()) {
+    return "CPU";
   } else {
     return "INTERPRETER";
   }
@@ -193,10 +193,13 @@ class Graph : public Node {
   // Add a node to the graph
   void AddNode(NodePtr node) { nodes_.emplace_back(node); }
 
-  // get the node corresponding to a name
-  NodePtr operator[](std::string name) {
+  // get the node corresponding to an orig_node
+  NodePtr operator[](const nnvm::NodeEntry& entry) {
     for (auto n : nodes_)
-      if (n->name_ == name) return n;
+      if ((n->orig_node_ == entry.node) &&
+          (n->multi_output_index_ == entry.index)) {
+        return n;
+      }
     // This throw is used in constructing multi-output subgraphs
     throw "NGRAPH_BRIDGE: node not in graph";
   }
@@ -209,7 +212,7 @@ class Graph : public Node {
   std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward;
 
   const mxnet::Context context_;
-  std::vector<std::shared_ptr<ngraph::runtime::Value>> cached_values;
+  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_values;
 };
 
 /**

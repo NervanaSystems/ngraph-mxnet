@@ -30,7 +30,8 @@ Emitter::Emitter() {
   CreateLayerOps();
 }
 
-int get_default(const NodePtr& node, const std::string& key, int default_val) {
+int get_default(const NodePtr& node, const std::string& key,
+                const int default_val) {
   return node->orig_node_->attrs.dict.count(key)
              ? std::stoi(node->orig_node_->attrs.dict[key])
              : default_val;
@@ -44,7 +45,7 @@ inline float get_default(const NodePtr& node, const std::string& key,
 }
 
 bool get_default(const NodePtr& node, const std::string& key,
-                 bool default_val) {
+                 const bool default_val) {
   if (node->orig_node_->attrs.dict.count(key)) {
     const std::string& val = node->orig_node_->attrs.dict[key];
     if (val == "True" || val == "1")
@@ -93,8 +94,8 @@ get_default(const NodePtr& node, const std::string& key,
  */
 inline size_t get_default_transformed_axis(const NodePtr& node,
                                            const std::string& key,
-                                           int default_val) {
-  const int shape_size = node->shape_.ndim();
+                                           const int default_val,
+                                           const int shape_size) {
   int axis = get_default(node, "axis", default_val);
   assert(abs(axis) <= shape_size);
   // convert negative axis index to postive (counting from right per mxnet
@@ -121,8 +122,10 @@ NgraphNodePtr Emitter::ReduceAxes(
     const std::function<NgraphNodePtr(const NgraphNodePtr&,
                                       const ngraph::AxisSet&)>& func) {
   ngraph::AxisSet reduction_axes;
-
-  if (exclude) {
+  if (axes.size() == 0) {
+    for (size_t i = 0; i < node->get_shape().size(); ++i)
+      reduction_axes.insert(i);
+  } else if (exclude) {
     for (size_t i = 0; i < node->get_shape().size(); ++i)
       if (!in_vec(axes, i)) reduction_axes.insert(i);
   } else {
@@ -130,6 +133,10 @@ NgraphNodePtr Emitter::ReduceAxes(
   }
 
   auto output = func(node, reduction_axes);
+  if (axes.size() == 0) {
+    output = std::make_shared<ngraph::op::Reshape>(
+        output, ngraph::AxisVector{}, ngraph::Shape{1});
+  }
 
   if (keepdims) {
     auto reshape = node->get_shape();
@@ -158,6 +165,10 @@ NgraphNodePtr Emitter::ReduceAxes(
 
 // unary op function generator
 void Emitter::CreateUnaryOps() {
+  ngraph_op_funcs_["Activation"] = [this](const NodePtr node) {
+    auto act_type = node->orig_node_->attrs.dict["act_type"];
+    return ngraph_op_funcs_[act_type](node);
+  };
   ngraph_op_funcs_["relu"] = [this](const NodePtr& node) {
     auto zero = makeConstant(node, "0");
     return std::make_shared<ngraph::op::Maximum>(op_map_[node->inputs_[0]],
@@ -221,6 +232,11 @@ void Emitter::CreateUnaryOps() {
     auto one = makeConstant(node, "1");
     return one / std::make_shared<ngraph::op::Sqrt>(op_map_[node->inputs_[0]]);
   };
+  // TODO(mbrookhart): MXNet's tests assume that this returns a matrix of nans
+  // if some of the inputs
+  // are negative. No idea why, it should be a mix of valid and nan data, which
+  // is what ngraph returns
+  /*
   ngraph_op_funcs_["cbrt"] = [this](const NodePtr& node) {
     auto one = makeConstant(node, "1");
     auto three = makeConstant(node, "3");
@@ -233,6 +249,7 @@ void Emitter::CreateUnaryOps() {
     return one / std::make_shared<ngraph::op::Power>(op_map_[node->inputs_[0]],
                                                      one / three);
   };
+  */
   ngraph_op_funcs_["exp"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Exp>(op_map_[node->inputs_[0]]);
   };
@@ -264,6 +281,8 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["tan"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Tan>(op_map_[node->inputs_[0]]);
   };
+  // TODO(mbrookhart): Arc trig autodiff not implemented
+  /*
   ngraph_op_funcs_["arcsin"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Asin>(op_map_[node->inputs_[0]]);
   };
@@ -273,6 +292,7 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["arctan"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Atan>(op_map_[node->inputs_[0]]);
   };
+  */
   ngraph_op_funcs_["sinh"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Sinh>(op_map_[node->inputs_[0]]);
   };
@@ -282,16 +302,18 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["tanh"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Tanh>(op_map_[node->inputs_[0]]);
   };
-  // ngraph_op_funcs_["arcsinh"] = [this](const NodePtr& node){
-  //   return ;
-  // };
-  // ngraph_op_funcs_["arccosh"] = [this](const NodePtr& node){
-  //   return ;
-  // };
-  // ngraph_op_funcs_["arctanh"] = [this](const NodePtr& node){
-  //   return ;
-  // };
-
+  // TODO(mbrookhart): Arc trig autodiff not implemented
+  /*
+  ngraph_op_funcs_["arcsinh"] = [this](const NodePtr& node){
+    return ;
+  };
+  ngraph_op_funcs_["arccosh"] = [this](const NodePtr& node){
+    return ;
+  };
+  ngraph_op_funcs_["arctanh"] = [this](const NodePtr& node){
+    return ;
+  };
+  */
   ngraph_op_funcs_["_zeros"] = [this](const NodePtr& node) {
     return makeConstant(node, "0");
   };
@@ -374,7 +396,7 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["_div"] = [this](const NodePtr& node) {
     return (op_map_[node->inputs_[0]] / op_map_[node->inputs_[1]]);
   };
-  // TODO(mbrookhart): Autodiff of Mod (Remainder) not implemented
+  // TODO(mbrookhart): Remainder not implemented
   // ngraph_op_funcs_["_mod"] = [this](const NodePtr& node) {
   //   return std::make_shared<ngraph::op::Remainder>(op_map_[node->inputs_[0]],
   //                                                  op_map_[node->inputs_[1]]);
@@ -428,6 +450,7 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["dot"] = [this](const NodePtr& node) {
     NgraphNodePtr left = op_map_[node->inputs_[0]];
     NgraphNodePtr right = op_map_[node->inputs_[1]];
+
     if (get_default(node, "transpose_a", false)) {
       auto N = left->get_shape().size();
       ngraph::AxisVector order(N - 1);
@@ -435,6 +458,7 @@ void Emitter::CreateBinaryOps() {
       order.push_back(0);
       left = ngraph::builder::numpy_transpose(left, order);
     }
+
     if (get_default(node, "transpose_b", false)) {
       auto N = right->get_shape().size();
       ngraph::AxisVector order(N - 1);
@@ -442,6 +466,7 @@ void Emitter::CreateBinaryOps() {
       order.insert(order.begin(), N - 1);
       right = ngraph::builder::numpy_transpose(right, order);
     }
+
     return std::make_shared<ngraph::op::Dot>(left, right, 1);
   };
   ngraph_op_funcs_["broadcast_add"] = [this](const NodePtr& node) {
@@ -456,9 +481,10 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["broadcast_div"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Divide>(node);
   };
-  ngraph_op_funcs_["broadcast_mod"] = [this](const NodePtr& node) {
-    return CreateAutoBroadcast<ngraph::op::Remainder>(node);
-  };
+  // TODO(mbrookhart): Remainder not implemented in CPU
+  // ngraph_op_funcs_["broadcast_mod"] = [this](const NodePtr& node) {
+  //   return CreateAutoBroadcast<ngraph::op::Remainder>(node);
+  // };
   ngraph_op_funcs_["broadcast_power"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Power>(node);
   };
@@ -505,10 +531,11 @@ void Emitter::CreateLayerOps() {
   // each of those outputs is a single node.  This function creates
   // the slice op for making each tensor.
   ngraph_op_funcs_["split"] = [this](const NodePtr& node) {
-    size_t axis = get_default(node, "axis", 1);
+    size_t axis = get_default_transformed_axis(node, "axis", 1,
+                                               node->inputs_[0]->shape_.ndim());
     int num_outputs = get_default(node, "num_outputs", 1);
     int index = node->multi_output_index_;
-    bool squeeze_axis = get_default(node, "squeeze_axis", 0);
+    bool squeeze_axis = get_default(node, "squeeze_axis", false);
 
     // create lower and upper bounds for slice
     auto upper = TShape_to_NShape(node->inputs_[0]->shape_);
@@ -556,12 +583,30 @@ void Emitter::CreateLayerOps() {
   ngraph_op_funcs_["FullyConnected"] = [this](const NodePtr& node) {
     auto X = op_map_[node->inputs_[0]];
     auto W = op_map_[node->inputs_[1]];
-    auto beta = op_map_[node->inputs_[2]];
-    auto dot = std::make_shared<ngraph::op::Dot>(
+    
+
+    auto flatten = get_default(node, "flatten", true);
+    auto no_bias = get_default(node, "no_bias", false);
+
+    if (flatten && X->get_shape().size() > 2) {
+      ngraph::Shape flat_shape{X->get_shape()[0],1};
+      for (size_t i = 1; i < X->get_shape().size(); ++i) {
+        flat_shape[1] *= X->get_shape()[i];
+      }
+      ngraph::AxisVector order(X->get_shape().size());
+      std::iota(order.begin(), order.end(), 0);
+      X = std::make_shared<ngraph::op::Reshape>(X, order, flat_shape);
+    }
+
+    NgraphNodePtr dot = std::make_shared<ngraph::op::Dot>(
         X, ngraph::builder::numpy_transpose(W));
 
-    return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(dot,
+    if (!no_bias){
+      auto beta = op_map_[node->inputs_[2]];
+      dot =ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(dot,
                                                                        beta);
+    }
+    return dot;
   };
 
   // flatten converts an array of shape (x0, x1, x2, ...)
@@ -628,7 +673,8 @@ void Emitter::CreateLayerOps() {
     const bool fix_gamma = get_default(node, "fix_gamma", true);
     const bool use_global_stats = get_default(node, "use_global_stats", false);
     // zero based channel axis
-    const size_t channel_axis = get_default_transformed_axis(node, "axis", 1);
+    const size_t channel_axis =
+        get_default_transformed_axis(node, "axis", 1, node->shape_.ndim());
 
     NgraphNodePtr ng_mean = ReduceAxes(ng_in_data, {channel_axis}, true, true,
                                        ngraph::builder::mean);

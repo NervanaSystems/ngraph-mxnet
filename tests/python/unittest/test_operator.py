@@ -3568,7 +3568,6 @@ def test_cbrt_op():
     data_tmp = np.random.rand(3, 4) * 10 - 5
     data = mx.symbol.Variable('data')
     test = mx.sym.cbrt(data)
-
     check_numeric_gradient(test, [data_tmp])
     check_symbolic_forward(test, [data_tmp], [np.cbrt(data_tmp)])
 
