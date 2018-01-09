@@ -79,6 +79,11 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
 
   // save nodes that match some function condition
   visitor.operation = [&outNodes, &func](NodePtr node) {
+    for (auto input : node->inputs_) {
+      if (input->subgraph_ > 0) {
+        return;
+      }
+    }
     if (func(node)) outNodes.push_back(node);
   };
 
@@ -87,7 +92,7 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
     // continue if...
     // 1) current node matches function condition
     // 2) input not visited
-    if (func(node) && !visited.count(input)) {
+    if (func(node) && !visited.count(input) && input->subgraph_ < 1) {
       visited.insert(input);
       return false;
     }
@@ -271,10 +276,13 @@ void IdentifySubgraphs(const Graph& graph,
 
       // if we found a significantly large subgraph, label it
       if (subgraph_nodes.size() > 0) {
-        for (auto node : subgraph_nodes) node->subgraph_ = sg;
+        for (auto node : subgraph_nodes) {
+          node->subgraph_ = sg;
+        }
         for (auto node : subgraph_nodes)
-          for (auto i : node->inputs_)
+          for (auto i : node->inputs_) {
             if (i->subgraph_ != sg) i->subgraph_ = -1;
+          }
 
         sg += 1;
       }
@@ -302,10 +310,10 @@ void CollapseSubgraphs(Graph* graph) {
       tmpGraph->in_ngraph_ = true;
       tmpGraph->subgraph_ = i;
       // set node name and shape based on last node in the subgraph
-      auto name = tmpGraph->nodes_.back()->name_;
-      auto shape = tmpGraph->nodes_.back()->shape_;
-      tmpGraph->shape_ = shape;
-      tmpGraph->dtype_ = tmpGraph->nodes_.back()->dtype_;
+      auto output = tmpGraph->nodes_.back();
+      tmpGraph->shape_ = output->shape_;
+      tmpGraph->dtype_ = output->dtype_;
+
       auto in_tmpGraphInputs = [&tmpGraph](NodePtr n) {
         if (!in_vec(tmpGraph->inputs_, n)) return false;
         return true;
@@ -320,12 +328,12 @@ void CollapseSubgraphs(Graph* graph) {
       // set subgraph as input to all of the nodes downline.
       for (auto n : graph->nodes_)
         for (size_t i = 0; i < n->inputs_.size(); ++i)
-          if (n->inputs_[i]->name_ == name) n->inputs_[i] = tmpGraph;
+          if (n->inputs_[i] == output) n->inputs_[i] = tmpGraph;
 
       // find the position we're replacing in the graph
-      auto it = std::find_if(
-          graph->nodes_.begin(), graph->nodes_.end(),
-          [name](NodePtr n) -> bool { return (n->name_ == name); });
+      auto it =
+          std::find_if(graph->nodes_.begin(), graph->nodes_.end(),
+                       [output](NodePtr n) -> bool { return (n == output); });
       // insert the subgraph as a node
       graph->nodes_.insert(it, tmpGraph);
     }

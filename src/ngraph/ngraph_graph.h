@@ -62,9 +62,9 @@ class Node {
   // Function to create node label, used to export graph to graphviz for debug
   virtual std::string createNodeLabel() {
     std::ostringstream stream;
-    stream << shape_ << " sg=" << subgraph_;
-    return name_ + " [label = \"" + name_ + "\n" + stream.str() +
-           "\", fillcolor = red, style = filled];";
+    stream << name_ << this << " [label = \"" << name_ << this << shape_
+           << " \n sg=" << subgraph_ << "\"];";
+    return stream.str();
   }
   // basic information about node
   const NodeType type_;
@@ -113,9 +113,9 @@ class OpNode : public Node {
   // Include operation in graphviz
   std::string createNodeLabel() override {
     std::ostringstream stream;
-    stream << shape_ << " sg=" << subgraph_;
-    std::string out = name_ + " [label=\"" + name_ + "\nOp: " + operation_ +
-                      stream.str() + "\"";
+    stream << name_ << this << " [label=\"" << name_ << this
+           << "\nOp: " << operation_ << shape_ << " sg=" << subgraph_ << "\"";
+    auto out = stream.str();
     if (in_ngraph_) out += ", fillcolor = red, style = filled";
     out += "];";
     return out;
@@ -189,12 +189,19 @@ class Graph : public Node {
   Graph(const std::string &name = "",
         const mxnet::Context &context = mxnet::Context::CPU())
       : Node(NodeType::kGraph, nullptr, name), context_(context) {}
+  // Delete the ngraph objects so we don't have a large memory leak
+  // when running multiple graphs back to back
+  void CleanUp() {
+    for (auto value : cached_values) value.reset();
+    ngraph_forward.reset();
+    ngraph_backward.reset();
+  }
 
   // Add a node to the graph
   void AddNode(NodePtr node) { nodes_.emplace_back(node); }
 
   // get the node corresponding to an orig_node
-  NodePtr operator[](const nnvm::NodeEntry& entry) {
+  NodePtr operator[](const nnvm::NodeEntry &entry) {
     for (auto n : nodes_)
       if ((n->orig_node_ == entry.node) &&
           (n->multi_output_index_ == entry.index)) {
