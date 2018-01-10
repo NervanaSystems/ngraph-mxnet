@@ -138,6 +138,7 @@ class Compiler {
   Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
            const NNVMNodeVec& inputs, const BindArgBase& bindarg,
            const mxnet::Context& context);
+  // Construct base compiler object with context only
   Compiler(const mxnet::Context& context);
   // Compile returns the compiled graph
   nnvm::Graph Compile();

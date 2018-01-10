@@ -111,6 +111,9 @@ void InitImperativeOnce() {
             auto op_ng = ngi.get_op_ngraph();
             if (op_ng && op_ng->ngraph_forward) {
               compute_forward(op_ng, inputs, outputs);
+
+// TODO(aemani): refactor using mxnet verbose log
+// convenient debug utility.
 #if 0
                 std::cout << "ngraph imperative op: " << attrs.op->name
                           << ", inputs " << std::to_string(inputs.size())
