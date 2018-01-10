@@ -134,8 +134,8 @@ NgraphNodePtr Emitter::ReduceAxes(
 
   auto output = func(node, reduction_axes);
   if (axes.size() == 0) {
-    output = std::make_shared<ngraph::op::Reshape>(
-        output, ngraph::AxisVector{}, ngraph::Shape{1});
+    output = std::make_shared<ngraph::op::Reshape>(output, ngraph::AxisVector{},
+                                                   ngraph::Shape{1});
   }
 
   if (keepdims) {
@@ -583,13 +583,12 @@ void Emitter::CreateLayerOps() {
   ngraph_op_funcs_["FullyConnected"] = [this](const NodePtr& node) {
     auto X = op_map_[node->inputs_[0]];
     auto W = op_map_[node->inputs_[1]];
-    
 
     auto flatten = get_default(node, "flatten", true);
     auto no_bias = get_default(node, "no_bias", false);
 
     if (flatten && X->get_shape().size() > 2) {
-      ngraph::Shape flat_shape{X->get_shape()[0],1};
+      ngraph::Shape flat_shape{X->get_shape()[0], 1};
       for (size_t i = 1; i < X->get_shape().size(); ++i) {
         flat_shape[1] *= X->get_shape()[i];
       }
@@ -601,10 +600,10 @@ void Emitter::CreateLayerOps() {
     NgraphNodePtr dot = std::make_shared<ngraph::op::Dot>(
         X, ngraph::builder::numpy_transpose(W));
 
-    if (!no_bias){
+    if (!no_bias) {
       auto beta = op_map_[node->inputs_[2]];
-      dot =ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(dot,
-                                                                       beta);
+      dot = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(dot,
+                                                                        beta);
     }
     return dot;
   };
