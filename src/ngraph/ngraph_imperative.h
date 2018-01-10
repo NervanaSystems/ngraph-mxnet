@@ -45,7 +45,7 @@ class NGImperative : public Compiler {
   static bool check_op_supported(std::string op_name) {
     static OpEmitter emitter_funcs = Emitter().ngraph_op_funcs_;
     static std::unordered_set<std::string> layer_and_other{
-        "split", "SliceChannel", "Activation"};
+        "split", "SliceChannel"};
     static std::unordered_set<std::string> skip_imperative{"expand_dims"};
 
     if (skip_imperative.count(op_name)) return false;

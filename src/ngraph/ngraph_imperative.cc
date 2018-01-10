@@ -107,11 +107,10 @@ void InitImperativeOnce() {
                         const std::vector<mxnet::TBlob> &inputs,
                         const std::vector<mxnet::OpReqType> &req,
                         const std::vector<mxnet::TBlob> &outputs) -> void {
-            if (attrs.op) {
-              NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
-              auto op_ng = ngi.get_op_ngraph();
-              if (op_ng && op_ng->ngraph_forward) {
-                compute_forward(op_ng, inputs, outputs);
+            NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
+            auto op_ng = ngi.get_op_ngraph();
+            if (op_ng && op_ng->ngraph_forward) {
+              compute_forward(op_ng, inputs, outputs);
 #if 0
                 std::cout << "ngraph imperative op: " << attrs.op->name
                           << ", inputs " << std::to_string(inputs.size())
@@ -121,11 +120,10 @@ void InitImperativeOnce() {
                   std::cout << "attrs.dict[" << m.first << "] = " << m.second
                             << '\n';
 #endif
-                return;
-              }
+            } else {
+              // use default mxnet compute kernel
+              fallback_fn(attrs, ctx, inputs, req, outputs);
             }
-            // use default mxnet compute kernel
-            fallback_fn(attrs, ctx, inputs, req, outputs);
           },
           11);
     }
