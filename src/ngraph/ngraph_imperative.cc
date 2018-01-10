@@ -26,6 +26,7 @@
 
 #include "../operator/operator_common.h"
 #include "ngraph_imperative.h"
+#include "ngraph_nnvm_ops.h"
 #include "ngraph_nnvm_utils.h"
 
 namespace ngraph_bridge {
@@ -110,12 +111,7 @@ void InitImperativeOnce() {
               NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
               auto op_ng = ngi.get_op_ngraph();
               if (op_ng && op_ng->ngraph_forward) {
-                auto placeholders = make_ngraph_placeholders(
-                    inputs, GetBackendFromContext(op_ng->context_), true);
-                auto results = make_ngraph_placeholders(
-                    outputs, GetBackendFromContext(op_ng->context_), false);
-                op_ng->ngraph_forward->call(placeholders, results);
-                result_to_TBlob(results[0], outputs, 0);
+                compute_forward(op_ng, inputs, outputs);
 #if 0
                 std::cout << "ngraph imperative op: " << attrs.op->name
                           << ", inputs " << std::to_string(inputs.size())

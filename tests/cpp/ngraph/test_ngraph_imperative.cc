@@ -83,6 +83,8 @@ TEST_F(NGRAPH_IMPERATIVE, INVOKE_OP) {
       outputs, GetBackendFromContext(op_ng->context_), false);
 
   EXPECT_EQ(vec3, std::vector<float>({0, 0}));
+  results.insert(results.end(), op_ng->cached_values.begin(),
+                 op_ng->cached_values.end());
   op_ng->ngraph_forward->call(placeholders, results);
   result_to_TBlob(results[0], outputs, 0);
   EXPECT_EQ(vec3, std::vector<float>({2, 6}));

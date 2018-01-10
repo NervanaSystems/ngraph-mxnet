@@ -35,6 +35,35 @@ nnvm::Op *get_subgraph_op(std::shared_ptr<Graph> graph) {
       "ngraph_" + graph->name_));
 }
 
+// function for computing forward on ngraph
+void compute_forward(std::shared_ptr<Graph> graph,
+                     const std::vector<mxnet::TBlob> &inputs,
+                     const std::vector<mxnet::TBlob> &outputs) {
+  auto backend = GetBackendFromContext(graph->context_);
+  auto placeholders = make_ngraph_placeholders(inputs, backend, true);
+  auto results = make_ngraph_placeholders(outputs, backend, false);
+  results.insert(results.end(), graph->cached_values.begin(),
+                 graph->cached_values.end());
+  graph->ngraph_forward->call(placeholders, results);
+  result_to_TBlob(results[0], outputs, 0);
+}
+
+// function for computing backward on ngraph
+void compute_backward(std::shared_ptr<Graph> graph,
+                      const std::vector<mxnet::TBlob> &inputs,
+                      const std::vector<mxnet::TBlob> &outputs) {
+  auto backend = GetBackendFromContext(graph->context_);
+  auto placeholders = make_ngraph_placeholders({inputs[0]}, backend, true);
+  auto results = make_ngraph_placeholders(outputs, backend, false);
+
+  placeholders.insert(placeholders.end(), graph->cached_values.begin(),
+                      graph->cached_values.end());
+
+  graph->ngraph_backward->call(placeholders, results);
+  for (size_t j = 0; j < outputs.size(); ++j)
+    result_to_TBlob(results[j], outputs, j);
+}
+
 void register_forward_op(std::shared_ptr<Graph> graph) {
   // register the op with nnvm
   auto &op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
@@ -147,13 +176,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
               const std::vector<mxnet::TBlob> &inputs,
               const std::vector<mxnet::OpReqType> &req,
               const std::vector<mxnet::TBlob> &outputs) -> void {
-        auto backend = GetBackendFromContext(graph->context_);
-        auto placeholders = make_ngraph_placeholders(inputs, backend, true);
-        auto results = make_ngraph_placeholders(outputs, backend, false);
-        results.insert(results.end(), graph->cached_values.begin(),
-                       graph->cached_values.end());
-        graph->ngraph_forward->call(placeholders, results);
-        result_to_TBlob(results[0], outputs, 0);
+        compute_forward(graph, inputs, outputs);
       });
 }
 
@@ -185,17 +208,7 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
               const std::vector<mxnet::TBlob> &inputs,
               const std::vector<mxnet::OpReqType> &req,
               const std::vector<mxnet::TBlob> &outputs) -> void {
-        auto backend = GetBackendFromContext(graph->context_);
-        auto placeholders =
-            make_ngraph_placeholders({inputs[0]}, backend, true);
-        auto results = make_ngraph_placeholders(outputs, backend, false);
-
-        placeholders.insert(placeholders.end(), graph->cached_values.begin(),
-                            graph->cached_values.end());
-
-        graph->ngraph_backward->call(placeholders, results);
-        for (size_t j = 0; j < outputs.size(); ++j)
-          result_to_TBlob(results[j], outputs, j);
+        compute_backward(graph, inputs, outputs);
       });
 }
 // register subgraph ops with nnvm.
