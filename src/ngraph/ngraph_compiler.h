@@ -92,6 +92,11 @@ static std::unordered_map<std::string, std::string> nameswitch({
     // broadcast
     {"broadcast_plus", "broadcast_add"},
     {"broadcast_minus", "broadcast_sub"},
+    // scalar
+    {"_AddScalar", "_add_scalar"},
+    {"_MinusScalar", "_minis_scalar"},
+    {"_MulScalar", "_mul_scalar"},
+    {"_DivScalar", "_div_scalar"},
     // Binary Basic
     {"_add", "_plus"},
     {"_Plus", "_plus"},

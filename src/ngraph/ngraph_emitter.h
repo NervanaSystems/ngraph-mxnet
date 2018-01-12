@@ -44,6 +44,8 @@ class Emitter {
   // Factory function for autobroadcasting the inputs of a node
   template <class op>
   NgraphNodePtr CreateAutoBroadcast(const NodePtr& node);
+    template <class op>
+  NgraphNodePtr CreateScalarOp(const NodePtr& node);
   // Factory function for reducing based on a reduction op function
   NgraphNodePtr ReduceAxes(
       const NgraphNodePtr& node, ngraph::AxisVector axes, bool exclude,

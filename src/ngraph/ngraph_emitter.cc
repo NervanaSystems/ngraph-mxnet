@@ -385,7 +385,13 @@ std::shared_ptr<ngraph::Node> Emitter::CreateAutoBroadcast(
   auto arg1 = op_map_[node->inputs_[1]];
   return ngraph::builder::make_with_numpy_broadcast<op>(arg0, arg1);
 }
-
+template <class op>
+std::shared_ptr<ngraph::Node> Emitter::CreateScalarOp(
+    const NodePtr& node) {
+  auto arg0 = op_map_[node->inputs_[0]];
+  auto arg1 = makeConstant(node, std::to_string(get_default(node, "scalar", 0.0f)));
+  return ngraph::builder::make_with_numpy_broadcast<op>(arg0, arg1);
+}
 // binary op generating function generator
 void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["_plus"] = [this](const NodePtr& node) {
@@ -470,6 +476,23 @@ void Emitter::CreateBinaryOps() {
     }
 
     return std::make_shared<ngraph::op::Dot>(left, right, 1);
+  };
+  ngraph_op_funcs_["reshape_like"] = [this](const NodePtr& node) {
+    auto arg0 = op_map_[node->inputs_[0]];
+    auto reshape = op_map_[node->inputs_[1]]->get_shape();
+    return std::make_shared<ngraph::op::Reshape>(arg0, pyrange(arg0->get_shape().size()), reshape);
+  };
+  ngraph_op_funcs_["_add_scalar"] = [this](const NodePtr& node) {
+    return CreateScalarOp<ngraph::op::Add>(node);
+  };
+  ngraph_op_funcs_["_minus_scalar"] = [this](const NodePtr& node) {
+    return CreateScalarOp<ngraph::op::Subtract>(node);
+  };
+  ngraph_op_funcs_["_mul_scalar"] = [this](const NodePtr& node) {
+    return CreateScalarOp<ngraph::op::Multiply>(node);
+  };
+  ngraph_op_funcs_["_div_scalar"] = [this](const NodePtr& node) {
+    return CreateScalarOp<ngraph::op::Divide>(node);
   };
   ngraph_op_funcs_["broadcast_add"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Add>(node);
@@ -586,7 +609,7 @@ void Emitter::CreateLayerOps() {
     auto flatten = get_default(node, "flatten", true);
     auto no_bias = get_default(node, "no_bias", false);
 
-    if (flatten) {
+    if (flatten && X->get_shape().size() != 2) {
       ngraph::Shape flat_shape{X->get_shape()[0], 1};
       for (size_t i = 1; i < X->get_shape().size(); ++i) {
         flat_shape[1] *= X->get_shape()[i];
