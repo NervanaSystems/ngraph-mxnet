@@ -653,76 +653,87 @@ void Emitter::CreateLayerOps() {
                                                  order, out_shape);
   };
 
-  // batch norm operation
+  // batch norm operation inference mode
   ngraph_op_funcs_["BatchNorm"] = [this](const NodePtr& node) {
-    // TODO(lfeng):
-    // - support use_global_stats (moving_mean & moving_variance), this feature
-    // requires multiple outputs.
-
-    enum InputName { kData = 0, kGamma, kBeta, kMovingMean, kMovingVar };
-    NgraphNodePtr ng_in_data = op_map_[node->inputs_[kData]];
-    NgraphNodePtr ng_in_gamma = op_map_[node->inputs_[kGamma]];
-    NgraphNodePtr ng_in_beta = op_map_[node->inputs_[kBeta]];
-    const int data_shape_size =
-        static_cast<int>(ng_in_data->get_shape().size());
-
-    // Default Batch norm parameters
-    const float eps = get_default(node, "eps", 0.001f);
-    const float momentum = get_default(node, "momentum", 0.9f);
-    const bool fix_gamma = get_default(node, "fix_gamma", true);
-    const bool use_global_stats = get_default(node, "use_global_stats", false);
-    // zero based channel axis
-    const size_t channel_axis =
-        get_default_transformed_axis(node, "axis", 1, node->shape_.ndim());
-
-    NgraphNodePtr ng_mean = ReduceAxes(ng_in_data, {channel_axis}, true, true,
-                                       ngraph::builder::mean);
-    NgraphNodePtr ng_var =
-        ReduceAxes(ng_in_data, {channel_axis}, true, true,
-                   [](const std::shared_ptr<ngraph::Node>& node,
-                      const ngraph::AxisSet& axes) {
-                     return ngraph::builder::variance(node, axes);
-                   });
-
-    using ngraph::builder::make_with_numpy_broadcast;
-
-    NgraphNodePtr ng_eps = makeConstant(node, std::to_string(eps));
-    NgraphNodePtr denom = std::make_shared<ngraph::op::Sqrt>(
-        make_with_numpy_broadcast<ngraph::op::Add>(ng_var, ng_eps));
-
-    NgraphNodePtr numerator =
-        make_with_numpy_broadcast<ngraph::op::Subtract>(ng_in_data, ng_mean);
-
-    NgraphNodePtr result =
-        make_with_numpy_broadcast<ngraph::op::Divide>(numerator, denom);
-
-    // we need to convert gamma and beta to proper shape similar to mean and
-    // variance thought ReduceAxes. Gamma and beta should already have shape
-    // like [1, C], we want to make sure it's properly shape to [C, 1] depending
-    // on the index of channel.
-    ngraph::AxisVector convert_order(ng_in_gamma->get_shape().size());
-    std::iota(begin(convert_order), end(convert_order), 0);
-    // fill the shape with (shape_size - 1) of 1s.
-    ngraph::Shape convert_shape(data_shape_size - 1, 1);
-    // number of elements for channel axis
-    size_t channel_size = ng_in_data->get_shape()[channel_axis];
-    // insert channel size at the proper index for the channel
-    convert_shape.insert(convert_shape.begin() + channel_axis, channel_size);
-
-    ng_in_gamma = std::make_shared<ngraph::op::Reshape>(
-        ng_in_gamma, convert_order, convert_shape);
-    ng_in_beta = std::make_shared<ngraph::op::Reshape>(
-        ng_in_beta, convert_order, convert_shape);
-
-    // If fix_gamma is true, we assume it to be 1, otherwise, we need to scale
-    // result with gamma
-    if (!fix_gamma) {
-      result =
-          make_with_numpy_broadcast<ngraph::op::Multiply>(result, ng_in_gamma);
-    }
-    result = make_with_numpy_broadcast<ngraph::op::Add>(result, ng_in_beta);
-    return result;
+    return BatchNorm(node, false);
+  };
+  // batch norm operation training mode
+  ngraph_op_train_funcs_["BatchNorm"] = [this](const NodePtr& node) {
+    return BatchNorm(node, true);
   };
 }
+NgraphNodePtr Emitter::BatchNorm(const NodePtr& node, const bool is_train) {
+  // TODO(lfeng):
+  // - support use_global_stats (moving_mean & moving_variance), this feature
+  // requires multiple outputs.
 
+  enum InputName { kData = 0, kGamma, kBeta, kMovingMean, kMovingVar };
+  NgraphNodePtr ng_in_data = op_map_[node->inputs_[kData]];
+  NgraphNodePtr ng_in_gamma = op_map_[node->inputs_[kGamma]];
+  NgraphNodePtr ng_in_beta = op_map_[node->inputs_[kBeta]];
+  const int data_shape_size =
+      static_cast<int>(ng_in_data->get_shape().size());
+
+  // Default Batch norm parameters
+  const float eps = get_default(node, "eps", 0.001f);
+  const float momentum = get_default(node, "momentum", 0.9f);
+  const bool fix_gamma = get_default(node, "fix_gamma", true);
+  const bool use_global_stats = get_default(node, "use_global_stats", false);
+  // zero based channel axis
+  const size_t channel_axis =
+      get_default_transformed_axis(node, "axis", 1, node->shape_.ndim());
+
+  if (is_train) {
+    //
+
+  }
+
+  NgraphNodePtr ng_mean = ReduceAxes(ng_in_data, {channel_axis}, true, true,
+                                     ngraph::builder::mean);
+  NgraphNodePtr ng_var =
+      ReduceAxes(ng_in_data, {channel_axis}, true, true,
+                 [](const std::shared_ptr<ngraph::Node>& node,
+                    const ngraph::AxisSet& axes) {
+                   return ngraph::builder::variance(node, axes);
+                 });
+
+  using ngraph::builder::make_with_numpy_broadcast;
+
+  NgraphNodePtr ng_eps = makeConstant(node, std::to_string(eps));
+  NgraphNodePtr denom = std::make_shared<ngraph::op::Sqrt>(
+      make_with_numpy_broadcast<ngraph::op::Add>(ng_var, ng_eps));
+
+  NgraphNodePtr numerator =
+      make_with_numpy_broadcast<ngraph::op::Subtract>(ng_in_data, ng_mean);
+
+  NgraphNodePtr result =
+      make_with_numpy_broadcast<ngraph::op::Divide>(numerator, denom);
+
+  // we need to convert gamma and beta to proper shape similar to mean and
+  // variance thought ReduceAxes. Gamma and beta should already have shape
+  // like [1, C], we want to make sure it's properly shape to [C, 1] depending
+  // on the index of channel.
+  ngraph::AxisVector convert_order(ng_in_gamma->get_shape().size());
+  std::iota(begin(convert_order), end(convert_order), 0);
+  // fill the shape with (shape_size - 1) of 1s.
+  ngraph::Shape convert_shape(data_shape_size - 1, 1);
+  // number of elements for channel axis
+  size_t channel_size = ng_in_data->get_shape()[channel_axis];
+  // insert channel size at the proper index for the channel
+  convert_shape.insert(convert_shape.begin() + channel_axis, channel_size);
+
+  ng_in_gamma = std::make_shared<ngraph::op::Reshape>(
+      ng_in_gamma, convert_order, convert_shape);
+  ng_in_beta = std::make_shared<ngraph::op::Reshape>(
+      ng_in_beta, convert_order, convert_shape);
+
+  // If fix_gamma is true, we assume it to be 1, otherwise, we need to scale
+  // result with gamma
+  if (!fix_gamma) {
+    result =
+        make_with_numpy_broadcast<ngraph::op::Multiply>(result, ng_in_gamma);
+  }
+  result = make_with_numpy_broadcast<ngraph::op::Add>(result, ng_in_beta);
+  return result;
+};
 }  // namespace ngraph_bridge
