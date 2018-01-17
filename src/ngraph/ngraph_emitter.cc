@@ -668,8 +668,7 @@ void Emitter::CreateLayerOps() {
     return std::make_shared<ngraph::op::Reshape>(
         op_map_[node->inputs_[0]], pyrange(in_shape.size()), out_shape);
   };
-  // TODO(mbrookhart): Causing unittest tests to fail
-  /*
+
   // batch norm operation
   ngraph_op_funcs_["BatchNorm"] = [this](const NodePtr& node) {
     // TODO(lfeng):
@@ -739,7 +738,6 @@ void Emitter::CreateLayerOps() {
     result = make_with_numpy_broadcast<ngraph::op::Add>(result, ng_in_beta);
     return result;
   };
-  */
 }
 
 }  // namespace ngraph_bridge
