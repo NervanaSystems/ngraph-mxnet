@@ -386,10 +386,10 @@ std::shared_ptr<ngraph::Node> Emitter::CreateAutoBroadcast(
   return ngraph::builder::make_with_numpy_broadcast<op>(arg0, arg1);
 }
 template <class op>
-std::shared_ptr<ngraph::Node> Emitter::CreateScalarOp(
-    const NodePtr& node) {
+std::shared_ptr<ngraph::Node> Emitter::CreateScalarOp(const NodePtr& node) {
   auto arg0 = op_map_[node->inputs_[0]];
-  auto arg1 = makeConstant(node, std::to_string(get_default(node, "scalar", 0.0f)));
+  auto arg1 =
+      makeConstant(node, std::to_string(get_default(node, "scalar", 0.0f)));
   return ngraph::builder::make_with_numpy_broadcast<op>(arg0, arg1);
 }
 // binary op generating function generator
@@ -480,7 +480,8 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["reshape_like"] = [this](const NodePtr& node) {
     auto arg0 = op_map_[node->inputs_[0]];
     auto reshape = op_map_[node->inputs_[1]]->get_shape();
-    return std::make_shared<ngraph::op::Reshape>(arg0, pyrange(arg0->get_shape().size()), reshape);
+    return std::make_shared<ngraph::op::Reshape>(
+        arg0, pyrange(arg0->get_shape().size()), reshape);
   };
   ngraph_op_funcs_["_add_scalar"] = [this](const NodePtr& node) {
     return CreateScalarOp<ngraph::op::Add>(node);
