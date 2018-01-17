@@ -106,7 +106,7 @@ UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S), Darwin)
 USE_BLAS = apple
 else
-USE_BLAS = openblas
+USE_BLAS = atlas
 endif
 
 # whether use lapack during compilation
