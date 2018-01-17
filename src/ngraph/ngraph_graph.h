@@ -160,7 +160,8 @@ inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
     const mxnet::Context &context) {
   auto backend_name = get_backend_name(context);
   if (backend_managers.count(backend_name) == 0) {
-    auto manager = ngraph::runtime::Manager::get(backend_name);
+//    auto manager = ngraph::runtime::Manager::get(backend_name);
+    auto manager = ngraph::runtime::Manager::get("INTERPRETER");
     backend_managers[backend_name] = manager;
   }
   return backend_managers[backend_name];
@@ -210,9 +211,12 @@ class Graph : public Node {
   // functions to execute this graph in ngraph
   std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward;
   std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward;
+  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward_train;
+  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward_train;
 
   const mxnet::Context context_;
   std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_values;
+  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_values_train;
 };
 
 /**

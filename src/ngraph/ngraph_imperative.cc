@@ -110,7 +110,7 @@ void InitImperativeOnce() {
             NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
             auto op_ng = ngi.get_op_ngraph();
             if (op_ng && op_ng->ngraph_forward) {
-              compute_forward(op_ng, inputs, outputs);
+              compute_forward(ctx, op_ng, inputs, outputs);
 
 // TODO(aemani): refactor using mxnet verbose log
 // convenient debug utility.

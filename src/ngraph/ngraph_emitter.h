@@ -34,7 +34,7 @@ class Emitter {
   // maps of ngraph operation generator functions
   OpEmitter ngraph_op_funcs_;
   // maps of ngraph operations specialized for training
-  OpEmitter ngraph_op_train_funcs_;
+  OpEmitter ngraph_op_funcs_train_;
 
  protected:
   // create unary operation functions
@@ -62,10 +62,8 @@ class Emitter {
   // information on compiled objects
   std::map<NodePtr, NgraphNodePtr> op_map_;
   // ops require special handling for training
-  std::map<NodePtr, NgraphNodePtr> op_train_map_;
+  std::map<NodePtr, NgraphNodePtr> op_map_train_;
   std::vector<NodePtr> placeholder_order_;
-
-  
 };
 
 }  // namespace ngraph_bridge

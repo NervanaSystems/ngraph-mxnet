@@ -658,7 +658,7 @@ void Emitter::CreateLayerOps() {
     return BatchNorm(node, false);
   };
   // batch norm operation training mode
-  ngraph_op_train_funcs_["BatchNorm"] = [this](const NodePtr& node) {
+  ngraph_op_funcs_train_["BatchNorm"] = [this](const NodePtr& node) {
     return BatchNorm(node, true);
   };
 }
