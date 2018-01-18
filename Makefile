@@ -101,11 +101,10 @@ else
 	CFLAGS+= -DMXNET_USE_OPENCV=0
 endif
 
-OMPFLAG =
 
 ifeq ($(USE_OPENMP), 1)
 	ifneq ($(UNAME_S), Darwin)
-		OMPFLAG += -fopenmp
+		CFLAGS += -fopenmp
 	endif
 endif
 
@@ -370,32 +369,32 @@ ALLX_DEP= $(ALL_DEP)
 
 build/src/%.o: src/%.cc
 	@mkdir -p $(@D)
-	$(CXX) -std=c++11 -c $(CFLAGS) $(OMPFLAG) -MMD -c $< -o $@
+	$(CXX) -std=c++11 -c $(CFLAGS) -MMD -c $< -o $@
 
 build/src/%_gpu.o: src/%.cu
 	@mkdir -p $(@D)
-	$(NVCC) $(NVCCFLAGS) $(CUDA_ARCH) -Xcompiler "$(CFLAGS) $(OMPFLAG)" -M -MT build/src/$*_gpu.o $< >build/src/$*_gpu.d
-	$(NVCC) -c -o $@ $(NVCCFLAGS) $(CUDA_ARCH) -Xcompiler "$(CFLAGS) $(OMPFLAG)" $<
+	$(NVCC) $(NVCCFLAGS) $(CUDA_ARCH) -Xcompiler "$(CFLAGS)" -M -MT build/src/$*_gpu.o $< >build/src/$*_gpu.d
+	$(NVCC) -c -o $@ $(NVCCFLAGS) $(CUDA_ARCH) -Xcompiler "$(CFLAGS)" $<
 
 # A nvcc bug cause it to generate "generic/xxx.h" dependencies from torch headers.
 # Use CXX to generate dependency instead.
 build/plugin/%_gpu.o: plugin/%.cu
 	@mkdir -p $(@D)
-	$(CXX) -std=c++11 $(CFLAGS) $(OMPFLAG) -MM -MT build/plugin/$*_gpu.o $< >build/plugin/$*_gpu.d
-	$(NVCC) -c -o $@ $(NVCCFLAGS) $(CUDA_ARCH) -Xcompiler "$(CFLAGS) $(OMPFLAG)" $<
+	$(CXX) -std=c++11 $(CFLAGS) -MM -MT build/plugin/$*_gpu.o $< >build/plugin/$*_gpu.d
+	$(NVCC) -c -o $@ $(NVCCFLAGS) $(CUDA_ARCH) -Xcompiler "$(CFLAGS)" $<
 
 build/plugin/%.o: plugin/%.cc
 	@mkdir -p $(@D)
-	$(CXX) -std=c++11 -c $(CFLAGS) $(OMPFLAG) -MMD -c $< -o $@
+	$(CXX) -std=c++11 -c $(CFLAGS) -MMD -c $< -o $@
 
 %_gpu.o: %.cu
 	@mkdir -p $(@D)
-	$(NVCC) $(NVCCFLAGS) $(CUDA_ARCH) -Xcompiler "$(CFLAGS) $(OMPFLAG) -Isrc/operator" -M -MT $*_gpu.o $< >$*_gpu.d
-	$(NVCC) -c -o $@ $(NVCCFLAGS) $(CUDA_ARCH) -Xcompiler "$(CFLAGS) $(OMPFLAG) -Isrc/operator" $<
+	$(NVCC) $(NVCCFLAGS) $(CUDA_ARCH) -Xcompiler "$(CFLAGS) -Isrc/operator" -M -MT $*_gpu.o $< >$*_gpu.d
+	$(NVCC) -c -o $@ $(NVCCFLAGS) $(CUDA_ARCH) -Xcompiler "$(CFLAGS) -Isrc/operator" $<
 
 %.o: %.cc $(CORE_INC)
 	@mkdir -p $(@D)
-	$(CXX) -std=c++11 -c $(CFLAGS) $(OMPFLAG) -MMD -Isrc/operator -c $< -o $@
+	$(CXX) -std=c++11 -c $(CFLAGS) -MMD -Isrc/operator -c $< -o $@
 
 # NOTE: to statically link libmxnet.a we need the option
 # --Wl,--whole-archive -lmxnet --Wl,--no-whole-archive
@@ -405,7 +404,7 @@ lib/libmxnet.a: $(ALLX_DEP)
 
 lib/libmxnet.so: $(ALLX_DEP)
 	@mkdir -p $(@D)
-	$(CXX) $(CFLAGS) -shared -o $@ $(filter-out %libnnvm.a, $(filter %.o %.a, $^)) $(LDFLAGS) \
+	$(CXX) $(filter-out -fopenmp, $(CFLAGS)) -shared -o $@ $(filter-out %libnnvm.a, $(filter %.o %.a, $^)) $(filter-out -fopenmp, $(LDFLAGS)) \
 	-Wl,${WHOLE_ARCH} $(filter %libnnvm.a, $^) -Wl,${NO_WHOLE_ARCH}
 
 $(PS_PATH)/build/libps.a: PSLITE
@@ -510,26 +509,26 @@ scalaclean:
 scalapkg:
 	(cd $(ROOTDIR)/scala-package; \
 		mvn package -P$(SCALA_PKG_PROFILE) -Dcxx="$(CXX)" \
-			-Dcflags="$(CFLAGS) $(OMPFLAG)" -Dldflags="$(LDFLAGS)" \
+			-Dcflags="$(CFLAGS)" -Dldflags="$(LDFLAGS)" \
 			-Dcurrent_libdir="$(ROOTDIR)/lib" \
 			-Dlddeps="$(LIB_DEP) $(ROOTDIR)/lib/libmxnet.a")
 
 scalatest:
 	(cd $(ROOTDIR)/scala-package; \
 		mvn verify -P$(SCALA_PKG_PROFILE) -Dcxx="$(CXX)" \
-			-Dcflags="$(CFLAGS) $(OMPFLAG)" -Dldflags="$(LDFLAGS)" \
+			-Dcflags="$(CFLAGS)" -Dldflags="$(LDFLAGS)" \
 			-Dlddeps="$(LIB_DEP) $(ROOTDIR)/lib/libmxnet.a" $(SCALA_TEST_ARGS))
 
 scalainstall:
 	(cd $(ROOTDIR)/scala-package; \
 		mvn install -P$(SCALA_PKG_PROFILE) -DskipTests -Dcxx="$(CXX)" \
-			-Dcflags="$(CFLAGS) $(OMPFLAG)" -Dldflags="$(LDFLAGS)" \
+			-Dcflags="$(CFLAGS)" -Dldflags="$(LDFLAGS)" \
 			-Dlddeps="$(LIB_DEP) $(ROOTDIR)/lib/libmxnet.a")
 
 scaladeploy:
 	(cd $(ROOTDIR)/scala-package; \
 		mvn deploy -Prelease,$(SCALA_PKG_PROFILE) -DskipTests -Dcxx="$(CXX)" \
-			-Dcflags="$(CFLAGS) $(OMPFLAG)" -Dldflags="$(LDFLAGS)" \
+			-Dcflags="$(CFLAGS)" -Dldflags="$(LDFLAGS)" \
 			-Dlddeps="$(LIB_DEP) $(ROOTDIR)/lib/libmxnet.a")
 
 jnilint:
