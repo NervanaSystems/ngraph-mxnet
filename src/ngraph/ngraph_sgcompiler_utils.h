@@ -88,8 +88,8 @@ inline std::shared_ptr<ngraph::Node> makeConstant(const NodePtr& node,
   return val;
 }
 
-// Create a runtime typed constant from the type and shape of a node
-// along with a string representing the number
+// Create a runtime typed constant defined by type, shape, and a string
+// representing the number
 inline std::shared_ptr<ngraph::Node> makeConstant(const ngraph::element::Type& type,
                                                   const ngraph::Shape& shape,
                                                   const std::string& num) {
