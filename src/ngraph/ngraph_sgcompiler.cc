@@ -144,7 +144,6 @@ void SGCompiler::CompileSubgraphForOpMap(const std::vector<NodePtr>& nodes,
 }
 // Compile a Subgraph into ngraph forward and backward call frames
 void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
-//  std::cout << "operation: " << sub_graph->nodes_.back()->operation_ << " " << sub_graph->operation_ << std::endl;
   // initalize a placeholder order vector for this subgraph
   for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
 

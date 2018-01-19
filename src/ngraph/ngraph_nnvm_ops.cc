@@ -49,7 +49,6 @@ void compute_forward(const mxnet::OpContext &ctx,
     results.insert(results.end(), graph->cached_values[kTrain].begin(),
                    graph->cached_values[kTrain].end());
     graph->ngraph_forward[kTrain]->call(placeholders, results);
-    std::cout << "is train, op: " << graph->operation_ << std::endl;
   }
   else {
     results.insert(results.end(), graph->cached_aux_values[kInfer].begin(),
@@ -57,19 +56,8 @@ void compute_forward(const mxnet::OpContext &ctx,
     results.insert(results.end(), graph->cached_values[kInfer].begin(),
                    graph->cached_values[kInfer].end());
     graph->ngraph_forward[kInfer]->call(placeholders, results);
-    std::cout << "not train, op: " << graph->operation_ << std::endl;
   }
 
-  if (ctx.is_train && graph->ngraph_forward[kTrain] && graph->cached_aux_values[kTrain].size() == 2) {
-    for (int i = 0; i < 3; ++i) {
-      auto vec = results[i]->get_vector<float>();
-      std::cout << "result " << i << std::endl;
-      for (auto v : vec) {
-        std::cout << v << " ";
-      }
-      std::cout << std::endl;
-    }
-  }
   // default result output
   result_to_TBlob(results[0], outputs, 0);
 
