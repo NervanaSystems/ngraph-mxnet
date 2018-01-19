@@ -222,14 +222,10 @@ class Graph : public Node {
   // functions to execute this graph in ngraph
   std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward[kGraphExeModeSize];
   std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward[kGraphExeModeSize];
-//  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward_train;
-//  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward_train;
 
   const mxnet::Context context_;
   std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_values[kGraphExeModeSize];
-//  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_values_train;
   std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_aux_values[kGraphExeModeSize];
-//  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_aux_values_train;
 };
 
 /**
