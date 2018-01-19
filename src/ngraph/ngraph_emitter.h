@@ -32,9 +32,7 @@ class Emitter {
  public:
   Emitter();
   // maps of ngraph operation generator functions
-  OpEmitter ngraph_op_funcs_;
-  // maps of ngraph operations specialized for training
-  OpEmitter ngraph_op_funcs_train_;
+  OpEmitter ngraph_op_funcs_[kGraphExeModeSize];
 
  protected:
   // create unary operation functions
@@ -57,18 +55,44 @@ class Emitter {
       const std::function<NgraphNodePtr(const NgraphNodePtr&,
                                         const ngraph::AxisSet&)>& func);
 
+  /// initialize node operator configuration
+  void InitOpConfig(OpNodePtr op_node) const;
+
+  // information on compiled objects
+  std::map<NodePtr, NgraphNodePtr> op_map_[kGraphExeModeSize];
+  std::map<NodePtr, NgraphNodePtr> aux_op_map_[kGraphExeModeSize];
+  std::vector<NodePtr> placeholder_order_;
+
+  // batch norm
+  class BatchNormOpConfig : public OpNode::OpConfig {
+   public:
+    enum AuxKey {kMovingMean = 0, kMovingVar};
+    BatchNormOpConfig() {
+      // set up dummy aux nodes for values we want
+      aux_nodes_.push_back(std::make_shared<AuxNode>(nullptr, "moving_mean"));
+      aux_nodes_.push_back(std::make_shared<AuxNode>(nullptr, "moving_var"));
+      // map the aux index to input index
+      aux_to_input_[kMovingMean] = 3; // input mean index
+      aux_to_input_[kMovingVar] = 4; // input variance index
+    }
+
+    const std::vector<NodePtr>& AuxNodes() const override {
+      return aux_nodes_;
+    }
+
+    int MapAuxToInput(int i) const override {
+      return aux_to_input_.at(i);
+    };
+
+   private:
+    std::vector<NodePtr> aux_nodes_;
+    std::map<int, int> aux_to_input_;
+  };
+
   NgraphNodePtr BatchNorm(const NodePtr& node,
                           std::map<NodePtr, NgraphNodePtr>& op_map,
                           std::map<NodePtr, NgraphNodePtr>& aux_op_map,
                           const bool is_train);
-
-  // information on compiled objects
-  std::map<NodePtr, NgraphNodePtr> op_map_;
-  // ops require special handling for training
-  std::map<NodePtr, NgraphNodePtr> op_map_train_;
-  std::vector<NodePtr> placeholder_order_;
-  std::map<NodePtr, NgraphNodePtr> aux_op_map_;
-  std::map<NodePtr, NgraphNodePtr> aux_op_map_train_;
 };
 
 }  // namespace ngraph_bridge

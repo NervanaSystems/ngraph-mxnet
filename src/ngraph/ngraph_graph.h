@@ -43,6 +43,7 @@ using nnvmNodePtr = std::shared_ptr<nnvm::Node>;
 
 // Possible Types of nodes in Current Version
 enum class NodeType { kVariable, kAux, kOp, kGraph };
+enum GraphExecutionMode {kInfer = 0, kTrain, kGraphExeModeSize};
 
 // Base class for Nodes in Intermediary Analysis Graph
 class Node {
@@ -71,7 +72,6 @@ class Node {
   const nnvmNodePtr orig_node_;
   const std::string name_;
   std::vector<NodePtr> inputs_;
-  std::vector<NodePtr> auxilliary_;
 
   // mxnet type information
   nnvm::TShape shape_;
@@ -133,6 +133,16 @@ class OpNode : public Node {
       : Node(NodeType::kOp, node, name, inputs) {
     operation_ = operation;
   }
+
+  // Operator specific setups
+  class OpConfig {
+   public:
+    virtual const std::vector<NodePtr>& AuxNodes() const = 0;
+    virtual int MapAuxToInput(int i) const = 0;
+  };
+
+  std::shared_ptr<OpConfig> config_;
+
 };
 
 // makes sure you have only one manager of one type
@@ -210,16 +220,16 @@ class Graph : public Node {
   // nodes in this graph
   std::vector<NodePtr> nodes_;
   // functions to execute this graph in ngraph
-  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward;
-  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward;
-  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward_train;
-  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward_train;
+  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward[kGraphExeModeSize];
+  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward[kGraphExeModeSize];
+//  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward_train;
+//  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward_train;
 
   const mxnet::Context context_;
-  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_values;
-  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_values_train;
-  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_aux_values;
-  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_aux_values_train;
+  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_values[kGraphExeModeSize];
+//  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_values_train;
+  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_aux_values[kGraphExeModeSize];
+//  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_aux_values_train;
 };
 
 /**

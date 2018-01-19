@@ -43,7 +43,7 @@ class NGImperative : public Compiler {
 
   // check for ops supported by ngraph_bridge and imperative interface
   static bool check_op_supported(std::string op_name) {
-    static OpEmitter emitter_funcs = Emitter().ngraph_op_funcs_;
+    static OpEmitter emitter_funcs = Emitter().ngraph_op_funcs_[kInfer];
     static std::unordered_set<std::string> layer_and_other{
         "split", "SliceChannel"};
     static std::unordered_set<std::string> skip_imperative{"expand_dims"};

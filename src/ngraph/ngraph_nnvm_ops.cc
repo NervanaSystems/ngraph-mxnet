@@ -43,24 +43,24 @@ void compute_forward(const mxnet::OpContext &ctx,
   auto backend = GetBackendFromContext(graph->context_);
   auto placeholders = make_ngraph_placeholders(inputs, backend, true);
   auto results = make_ngraph_placeholders(outputs, backend, false);
-  if (ctx.is_train && graph->ngraph_forward_train) {
-    results.insert(results.end(), graph->cached_aux_values_train.begin(),
-                   graph->cached_aux_values_train.end());
-    results.insert(results.end(), graph->cached_values_train.begin(),
-                   graph->cached_values_train.end());
-    graph->ngraph_forward_train->call(placeholders, results);
-//    std::cout << "is train, op: " << graph->operation_ << std::endl;
+  if (ctx.is_train && graph->ngraph_forward[kTrain]) {
+    results.insert(results.end(), graph->cached_aux_values[kTrain].begin(),
+                   graph->cached_aux_values[kTrain].end());
+    results.insert(results.end(), graph->cached_values[kTrain].begin(),
+                   graph->cached_values[kTrain].end());
+    graph->ngraph_forward[kTrain]->call(placeholders, results);
+    std::cout << "is train, op: " << graph->operation_ << std::endl;
   }
   else {
-    results.insert(results.end(), graph->cached_aux_values.begin(),
-                   graph->cached_aux_values.end());
-    results.insert(results.end(), graph->cached_values.begin(),
-                   graph->cached_values.end());
-    graph->ngraph_forward->call(placeholders, results);
-//    std::cout << "not train, op: " << graph->operation_ << std::endl;
+    results.insert(results.end(), graph->cached_aux_values[kInfer].begin(),
+                   graph->cached_aux_values[kInfer].end());
+    results.insert(results.end(), graph->cached_values[kInfer].begin(),
+                   graph->cached_values[kInfer].end());
+    graph->ngraph_forward[kInfer]->call(placeholders, results);
+    std::cout << "not train, op: " << graph->operation_ << std::endl;
   }
 
-  if (ctx.is_train && graph->ngraph_forward_train && graph->cached_aux_values_train.size() == 2) {
+  if (ctx.is_train && graph->ngraph_forward[kTrain] && graph->cached_aux_values[kTrain].size() == 2) {
     for (int i = 0; i < 3; ++i) {
       auto vec = results[i]->get_vector<float>();
       std::cout << "result " << i << std::endl;
@@ -70,11 +70,19 @@ void compute_forward(const mxnet::OpContext &ctx,
       std::cout << std::endl;
     }
   }
+  // default result output
   result_to_TBlob(results[0], outputs, 0);
 
-  if (ctx.is_train && graph->ngraph_forward_train && graph->cached_aux_values_train.size() == 2) {
-    result_to_TBlob(results[1], inputs, 3);
-    result_to_TBlob(results[2], inputs, 4);
+  // aux result outputs mapped to inputs
+  OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(graph->nodes_.back());
+  auto op_config = op_node->config_;
+  if (op_config) {
+    if (ctx.is_train && !op_config->AuxNodes().empty()) {
+      const int resultOffset = 1;
+      for (int i = 0; i < op_config->AuxNodes().size(); ++i) {
+        result_to_TBlob(results[resultOffset+i], inputs, op_config->MapAuxToInput(i));
+      }
+    }
   }
 }
 
@@ -87,16 +95,9 @@ void compute_backward(const mxnet::OpContext &ctx,
   auto placeholders = make_ngraph_placeholders({inputs[0]}, backend, true);
   auto results = make_ngraph_placeholders(outputs, backend, false);
 
-  if (ctx.is_train && graph->ngraph_backward_train) {
-    placeholders.insert(placeholders.end(), graph->cached_values_train.begin(),
-                        graph->cached_values_train.end());
-    graph->ngraph_backward_train->call(placeholders, results);
-  }
-  else {
-    placeholders.insert(placeholders.end(), graph->cached_values.begin(),
-                        graph->cached_values.end());
-    graph->ngraph_backward->call(placeholders, results);
-  }
+  placeholders.insert(placeholders.end(), graph->cached_values[kInfer].begin(),
+                      graph->cached_values[kInfer].end());
+  graph->ngraph_backward[kInfer]->call(placeholders, results);
 
   for (size_t j = 0; j < outputs.size(); ++j)
     result_to_TBlob(results[j], outputs, j);

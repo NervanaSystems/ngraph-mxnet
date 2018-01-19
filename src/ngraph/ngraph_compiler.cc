@@ -292,7 +292,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 void Compiler::CheckInNgraph() {
   for (auto node : ngraph_.nodes_) {
     if (node->type_ == NodeType::kOp) {
-      if (compiler_.ngraph_op_funcs_.count(node->operation_)) {
+      if (compiler_.ngraph_op_funcs_[kInfer].count(node->operation_)) {
         node->in_ngraph_ = true;
         if (node->dtype_ == mshadow::kFloat16) {
           node->in_ngraph_ = false;
