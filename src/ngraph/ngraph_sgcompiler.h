@@ -32,6 +32,14 @@ class SGCompiler : public Emitter {
   // compile the graph nodes into ngraph objects
   void CompileNodes(NodePtr node, const std::shared_ptr<Graph> sub_graph);
   void ClearOpMap();
+  void CompileSubgraphForOpMap(const std::vector<NodePtr>& nodes,
+                               const mxnet::Context& context,
+                               std::shared_ptr<ngraph::runtime::CallFrame>& ngraph_forward,
+                               std::shared_ptr<ngraph::runtime::CallFrame>& ngraph_backward,
+                               std::vector<std::shared_ptr<ngraph::runtime::TensorView>>& cached_values,
+                               std::vector<std::shared_ptr<ngraph::runtime::TensorView>>& cached_aux_values,
+                               const std::map<NodePtr, NgraphNodePtr>& op_map,
+                               const std::map<NodePtr, NgraphNodePtr>& aux_op_map);
 };
 
 }  // namespace ngraph_bridge

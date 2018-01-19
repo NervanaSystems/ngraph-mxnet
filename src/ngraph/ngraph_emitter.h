@@ -57,13 +57,18 @@ class Emitter {
       const std::function<NgraphNodePtr(const NgraphNodePtr&,
                                         const ngraph::AxisSet&)>& func);
 
-  NgraphNodePtr BatchNorm(const NodePtr& node, const bool is_train);
+  NgraphNodePtr BatchNorm(const NodePtr& node,
+                          std::map<NodePtr, NgraphNodePtr>& op_map,
+                          std::map<NodePtr, NgraphNodePtr>& aux_op_map,
+                          const bool is_train);
 
   // information on compiled objects
   std::map<NodePtr, NgraphNodePtr> op_map_;
   // ops require special handling for training
   std::map<NodePtr, NgraphNodePtr> op_map_train_;
   std::vector<NodePtr> placeholder_order_;
+  std::map<NodePtr, NgraphNodePtr> aux_op_map_;
+  std::map<NodePtr, NgraphNodePtr> aux_op_map_train_;
 };
 
 }  // namespace ngraph_bridge

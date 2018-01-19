@@ -63,17 +63,18 @@ void SGCompiler::ClearOpMap() {
   placeholder_order_.clear();
 }
 
-void CompileSubgraphForOpMap(const std::vector<NodePtr>& nodes,
-                             const mxnet::Context& context,
-                             std::shared_ptr<ngraph::runtime::CallFrame>& ngraph_forward,
-                             std::shared_ptr<ngraph::runtime::CallFrame>& ngraph_backward,
-                             std::vector<std::shared_ptr<ngraph::runtime::TensorView>>& cached_values,
-                             const std::map<NodePtr, NgraphNodePtr>& op_map,
-                             const std::vector<NodePtr>& placeholder_order) {
+void SGCompiler::CompileSubgraphForOpMap(const std::vector<NodePtr>& nodes,
+                                         const mxnet::Context& context,
+                                         std::shared_ptr<ngraph::runtime::CallFrame>& ngraph_forward,
+                                         std::shared_ptr<ngraph::runtime::CallFrame>& ngraph_backward,
+                                         std::vector<std::shared_ptr<ngraph::runtime::TensorView>>& cached_values,
+                                         std::vector<std::shared_ptr<ngraph::runtime::TensorView>>& cached_aux_values,
+                                         const std::map<NodePtr, NgraphNodePtr>& op_map,
+                                         const std::map<NodePtr, NgraphNodePtr>& aux_op_map) {
   ngraph::op::Parameters parameters;
   ngraph::Nodes param_nodes;
 
-  for (auto input : placeholder_order) {
+  for (const auto input : placeholder_order_) {
     // get the parameters
     parameters.push_back(
         std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map.at(input)));
@@ -83,8 +84,24 @@ void CompileSubgraphForOpMap(const std::vector<NodePtr>& nodes,
   // calcuate the shape and return type of the subgraph
   auto Y = op_map.at(nodes.back());
 
+  auto manager = GetManagerFromContext(context);
+  auto backend = GetBackendFromContext(context);
+
   // create the Forward Function object representing the graph
-  auto f = std::make_shared<ngraph::Function>(Y, parameters);
+  std::shared_ptr<ngraph::Function> f;
+  if (nodes.back()->operation_ == "BatchNorm" &&
+      aux_op_map.find(nodes.back()->auxilliary_[0]) != aux_op_map.end() &&
+      aux_op_map.find(nodes.back()->auxilliary_[1]) != aux_op_map.end()) {
+    f = std::make_shared<ngraph::Function>(ngraph::Nodes{Y, aux_op_map.at(nodes.back()->auxilliary_[0]),
+                                               aux_op_map.at(nodes.back()->auxilliary_[1])}, parameters);
+    cached_aux_values.push_back(backend->make_primary_tensor_view(aux_op_map.at(nodes.back()->auxilliary_[0])->get_element_type(),
+                                                                  aux_op_map.at(nodes.back()->auxilliary_[0])->get_shape()));
+    cached_aux_values.push_back(backend->make_primary_tensor_view(aux_op_map.at(nodes.back()->auxilliary_[1])->get_element_type(),
+                                                                  aux_op_map.at(nodes.back()->auxilliary_[1])->get_shape()));
+  }
+  else {
+    f = std::make_shared<ngraph::Function>(Y, parameters);
+  }
 
   // Create the Backward Pass
   auto C = std::make_shared<ngraph::op::Parameter>(Y->get_element_type(),
@@ -113,9 +130,6 @@ void CompileSubgraphForOpMap(const std::vector<NodePtr>& nodes,
     dump_graph(fprop_cache.bprop);
   }
 
-  auto manager = GetManagerFromContext(context);
-  auto backend = GetBackendFromContext(context);
-
   auto forward_external = manager->compile(fprop_cache.fprop);
   ngraph_forward = backend->make_call_frame(forward_external);
 
@@ -129,7 +143,7 @@ void CompileSubgraphForOpMap(const std::vector<NodePtr>& nodes,
 }
 // Compile a Subgraph into ngraph forward and backward call frames
 void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
-  std::cout << "operation: " << sub_graph->nodes_.back()->operation_ << " " << sub_graph->operation_ << std::endl;
+//  std::cout << "operation: " << sub_graph->nodes_.back()->operation_ << " " << sub_graph->operation_ << std::endl;
   // initalize a placeholder order vector for this subgraph
   for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
 
@@ -141,8 +155,9 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
                           sub_graph->ngraph_forward,
                           sub_graph->ngraph_backward,
                           sub_graph->cached_values,
+                          sub_graph->cached_aux_values,
                           op_map_,
-                          placeholder_order_);
+                          aux_op_map_);
 
   if (ngraph_op_funcs_train_.find(sub_graph->nodes_.back()->operation_) != ngraph_op_funcs_train_.end()) {
     CompileSubgraphForOpMap(sub_graph->nodes_,
@@ -150,8 +165,9 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
                             sub_graph->ngraph_forward_train,
                             sub_graph->ngraph_backward_train,
                             sub_graph->cached_values_train,
+                            sub_graph->cached_aux_values_train,
                             op_map_train_,
-                            placeholder_order_);
+                            aux_op_map_train_);
   }
 }
 
@@ -174,6 +190,10 @@ void SGCompiler::CompileNodes(NodePtr node,
         this->CompileInput(node);
       } else {
         this->op_map_[node] = this->ngraph_op_funcs_[node->operation_](node);
+        if (node->operation_ == "BatchNorm") {
+          node->auxilliary_.push_back(std::make_shared<AuxNode>(nullptr, "moving_mean"));
+          node->auxilliary_.push_back(std::make_shared<AuxNode>(nullptr, "moving_var"));
+        }
         // check if the node operation has special function for training
         if (ngraph_op_funcs_train_.find(node->operation_) != ngraph_op_funcs_train_.end()) {
           this->op_map_train_[node] = this->ngraph_op_funcs_train_[node->operation_](node);

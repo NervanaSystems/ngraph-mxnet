@@ -71,6 +71,7 @@ class Node {
   const nnvmNodePtr orig_node_;
   const std::string name_;
   std::vector<NodePtr> inputs_;
+  std::vector<NodePtr> auxilliary_;
 
   // mxnet type information
   nnvm::TShape shape_;
@@ -217,6 +218,8 @@ class Graph : public Node {
   const mxnet::Context context_;
   std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_values;
   std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_values_train;
+  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_aux_values;
+  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_aux_values_train;
 };
 
 /**

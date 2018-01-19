@@ -88,6 +88,23 @@ inline std::shared_ptr<ngraph::Node> makeConstant(const NodePtr& node,
   return val;
 }
 
+// Create a runtime typed constant from the type and shape of a node
+// along with a string representing the number
+inline std::shared_ptr<ngraph::Node> makeConstant(const ngraph::element::Type& type,
+                                                  const ngraph::Shape& shape,
+                                                  const std::string& num) {
+  NgraphNodePtr val = std::make_shared<ngraph::op::Constant>(
+      type, ngraph::Shape{}, std::vector<std::string>{num});
+
+  if (shape.size() > 0) {
+    ngraph::AxisSet axes;
+    for (size_t i = 0; i < shape.size(); i++) axes.insert(i);
+    val = std::make_shared<ngraph::op::Broadcast>(val, shape, axes);
+  }
+
+  return val;
+}
+
 // This function expects the input string to be of the form
 // "(1,2,3)" with optional spaces between the numbers, i.e.
 // "(1,2 , 3)". This is the standard format MXNet uses to represent things

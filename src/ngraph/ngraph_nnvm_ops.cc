@@ -44,19 +44,38 @@ void compute_forward(const mxnet::OpContext &ctx,
   auto placeholders = make_ngraph_placeholders(inputs, backend, true);
   auto results = make_ngraph_placeholders(outputs, backend, false);
   if (ctx.is_train && graph->ngraph_forward_train) {
+    results.insert(results.end(), graph->cached_aux_values_train.begin(),
+                   graph->cached_aux_values_train.end());
     results.insert(results.end(), graph->cached_values_train.begin(),
                    graph->cached_values_train.end());
     graph->ngraph_forward_train->call(placeholders, results);
-    std::cout << "is train, op: " << graph->operation_ << std::endl;
+//    std::cout << "is train, op: " << graph->operation_ << std::endl;
   }
   else {
+    results.insert(results.end(), graph->cached_aux_values.begin(),
+                   graph->cached_aux_values.end());
     results.insert(results.end(), graph->cached_values.begin(),
                    graph->cached_values.end());
     graph->ngraph_forward->call(placeholders, results);
-    std::cout << "not train, op: " << graph->operation_ << std::endl;
+//    std::cout << "not train, op: " << graph->operation_ << std::endl;
   }
 
+  if (ctx.is_train && graph->ngraph_forward_train && graph->cached_aux_values_train.size() == 2) {
+    for (int i = 0; i < 3; ++i) {
+      auto vec = results[i]->get_vector<float>();
+      std::cout << "result " << i << std::endl;
+      for (auto v : vec) {
+        std::cout << v << " ";
+      }
+      std::cout << std::endl;
+    }
+  }
   result_to_TBlob(results[0], outputs, 0);
+
+  if (ctx.is_train && graph->ngraph_forward_train && graph->cached_aux_values_train.size() == 2) {
+    result_to_TBlob(results[1], inputs, 3);
+    result_to_TBlob(results[2], inputs, 4);
+  }
 }
 
 // function for computing backward on ngraph
