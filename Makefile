@@ -66,7 +66,14 @@ else
 	CFLAGS += -O3 -DNDEBUG=1
 endif
 CFLAGS += -I$(ROOTDIR)/mshadow/ -I$(ROOTDIR)/dmlc-core/include -fPIC -I$(NNVM_PATH)/include -I$(DLPACK_PATH)/include -Iinclude $(MSHADOW_CFLAGS)
-LDFLAGS = -pthread $(MSHADOW_LDFLAGS) $(DMLC_LDFLAGS)
+
+LDFLAGS = 
+ifeq ($(USE_NGRAPH),1)
+        CFLAGS += -I$(ROOTDIR)/src/ngraph -I$(NGRAPH_DIR)/include -DMXNET_USE_NGRAPH=1
+        LDFLAGS += -L$(NGRAPH_DIR)/lib -liomp5 -lmkldnn -lngraph -lmklml_intel -Wl,--as-needed
+endif
+
+LDFLAGS += -pthread $(MSHADOW_LDFLAGS) $(DMLC_LDFLAGS)
 ifeq ($(DEBUG), 1)
 	NVCCFLAGS += -std=c++11 -Xcompiler -D_FORCE_INLINES -g -G -O0 -ccbin $(CXX) $(MSHADOW_NVCCFLAGS)
 else
@@ -111,10 +118,6 @@ endif
 ifeq ($(USE_NNPACK), 1)
 	CFLAGS += -DMXNET_USE_NNPACK=1
 	LDFLAGS += -lnnpack
-endif
-ifeq ($(USE_NGRAPH),1)
-        CFLAGS += -I$(ROOTDIR)/src/ngraph -I$(NGRAPH_DIR)/include -DMXNET_USE_NGRAPH=1
-        LDFLAGS += -L$(NGRAPH_DIR)/lib -lngraph -liomp5 -Wl,--as-needed
 endif
 ifeq ($(USE_MKL2017), 1)
 	CFLAGS += -DMXNET_USE_MKL2017=1
@@ -404,7 +407,7 @@ lib/libmxnet.a: $(ALLX_DEP)
 
 lib/libmxnet.so: $(ALLX_DEP)
 	@mkdir -p $(@D)
-	$(CXX) $(filter-out -fopenmp, $(CFLAGS)) -shared -o $@ $(filter-out %libnnvm.a, $(filter %.o %.a, $^)) $(filter-out -fopenmp, $(LDFLAGS)) \
+	$(CXX) $(CFLAGS) -shared -o $@ $(filter-out %libnnvm.a, $(filter %.o %.a, $^)) $(LDFLAGS) \
 	-Wl,${WHOLE_ARCH} $(filter %libnnvm.a, $^) -Wl,${NO_WHOLE_ARCH}
 
 $(PS_PATH)/build/libps.a: PSLITE
