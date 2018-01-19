@@ -64,12 +64,10 @@ void compute_forward(const mxnet::OpContext &ctx,
   // aux result outputs mapped to inputs
   OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(graph->nodes_.back());
   auto op_config = op_node->config_;
-  if (op_config) {
-    if (ctx.is_train && !op_config->AuxNodes().empty()) {
-      const int resultOffset = 1;
-      for (int i = 0; i < op_config->AuxNodes().size(); ++i) {
-        result_to_TBlob(results[resultOffset+i], inputs, op_config->MapAuxToInput(i));
-      }
+  if (op_config && !op_config->AuxNodes().empty()) {
+    const int resultOffset = 1;
+    for (int i = 0; i < op_config->AuxNodes().size(); ++i) {
+      result_to_TBlob(results[resultOffset+i], inputs, op_config->MapAuxToInput(i));
     }
   }
 }
