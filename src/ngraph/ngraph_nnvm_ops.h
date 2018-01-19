@@ -27,6 +27,14 @@ namespace ngraph_bridge {
 nnvm::Op* get_subgraph_op(std::shared_ptr<Graph> graph);
 // function for registering subgraph operation with nnvm
 void register_subgraph(std::shared_ptr<Graph> graph);
+// function for computing forward on ngraph
+void compute_forward(std::shared_ptr<Graph> graph,
+                     const std::vector<mxnet::TBlob>& inputs,
+                     const std::vector<mxnet::TBlob>& outputs);
+// function for computing backward on ngraph
+void compute_backward(std::shared_ptr<Graph> graph,
+                      const std::vector<mxnet::TBlob>& inputs,
+                      const std::vector<mxnet::TBlob>& outputs);
 
 // dummy parameter struct to match mxnet API
 struct NGraphParam {
