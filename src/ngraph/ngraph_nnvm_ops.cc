@@ -43,20 +43,16 @@ void compute_forward(const mxnet::OpContext &ctx,
   auto backend = GetBackendFromContext(graph->context_);
   auto placeholders = make_ngraph_placeholders(inputs, backend, true);
   auto results = make_ngraph_placeholders(outputs, backend, false);
+
+  GraphExecutionMode mode = kInfer;
   if (ctx.is_train && graph->ngraph_forward[kTrain]) {
-    results.insert(results.end(), graph->cached_aux_values[kTrain].begin(),
-                   graph->cached_aux_values[kTrain].end());
-    results.insert(results.end(), graph->cached_values[kTrain].begin(),
-                   graph->cached_values[kTrain].end());
-    graph->ngraph_forward[kTrain]->call(placeholders, results);
+    mode = kTrain;
   }
-  else {
-    results.insert(results.end(), graph->cached_aux_values[kInfer].begin(),
-                   graph->cached_aux_values[kInfer].end());
-    results.insert(results.end(), graph->cached_values[kInfer].begin(),
-                   graph->cached_values[kInfer].end());
-    graph->ngraph_forward[kInfer]->call(placeholders, results);
-  }
+  results.insert(results.end(), graph->cached_aux_values[mode].begin(),
+                 graph->cached_aux_values[mode].end());
+  results.insert(results.end(), graph->cached_values[mode].begin(),
+                 graph->cached_values[mode].end());
+  graph->ngraph_forward[mode]->call(placeholders, results);
 
   // default result output
   result_to_TBlob(results[0], outputs, 0);
