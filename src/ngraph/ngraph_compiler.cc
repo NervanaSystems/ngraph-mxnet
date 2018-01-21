@@ -36,6 +36,8 @@ nnvm::NodeEntry CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
     node->inputs.emplace_back(nnvm::NodeEntry{input->orig_node_, 0, 0});
   // create dummy node parameters
   NGraphParam op;
+  op.g = subgraph;
+
   node->attrs.parsed = std::move(op);
 
   // init and return NodeEntry
@@ -205,6 +207,7 @@ nnvm::Graph Compiler::Compile() {
       // register compiled subgraph with nnvm
       register_subgraph(sg);
       // create nnvm node
+
       auto sg_node = CreateNNVMNode(sg);
 
       auto matches = [&sg](nnvm::NodeEntry n) -> bool {
