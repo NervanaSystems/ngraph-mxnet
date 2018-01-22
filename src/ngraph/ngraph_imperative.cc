@@ -91,7 +91,8 @@ void InitImperativeOnce() {
     auto op_name = unique_op->name;
 
     // skip ops not supported by ngraph imperative
-    if ((op_name.substr(0, 9) == "_backward") || !NGImperative::check_op_supported(op_name))
+    if ((op_name.substr(0, 9) == "_backward") ||
+        !NGImperative::check_op_supported(op_name))
       continue;
 
     nnvm::Op &op =
@@ -115,10 +116,10 @@ void InitImperativeOnce() {
             auto op_key = get_ngiop_key(attrs, ctx.run_ctx.ctx, inputs);
             auto op_ng = ngicache[op_key];
             if (!op_ng) {
-              if (ngraph_log_verbose)
-                LOG(INFO) << "Caching... " << attrs.op->name;
               NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
               op_ng = ngicache[op_key] = ngi.get_op_ngraph();
+              if (ngraph_log_verbose && op_ng)
+                LOG(INFO) << "Caching... " << attrs.op->name;
             }
             if (op_ng && op_ng->ngraph_forward) {
               compute_forward(op_ng, inputs, outputs);
