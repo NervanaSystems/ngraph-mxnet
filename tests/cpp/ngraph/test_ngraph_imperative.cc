@@ -100,4 +100,21 @@ TEST_F(NGRAPH_IMPERATIVE, CHECKOPS) {
   EXPECT_FALSE(NGImperative::check_op_supported("IdentityAttachKLSparseReg"));
 }
 
+TEST_F(NGRAPH_IMPERATIVE, CACHE_OP) {
+  auto op_key = get_ngiop_key(attrs, mxnet::Context::CPU(), inputs);
+  nnvm::NodeAttrs attrs_op2;
+  attrs_op2.op = nnvm::Op::Get("_zeros");
+  auto op_key2 = get_ngiop_key(attrs_op2, mxnet::Context::CPU(), inputs);
+  EXPECT_NE(op_key, op_key2);
+  auto op_key3 = get_ngiop_key(attrs, mxnet::Context::NNP(), inputs);
+  EXPECT_NE(op_key, op_key3);
+  
+  static thread_local NGIOpCache ngicache;
+  testImperative test(attrs, mxnet::Context::CPU(), inputs, nullptr, outputs);
+  auto op_ng = test.get_op_ngraph();
+  ngicache[op_key] = op_ng;
+  auto op_key_new = get_ngiop_key(attrs, mxnet::Context::CPU(), inputs);
+  EXPECT_EQ(ngicache[op_key_new], op_ng);
+}
+
 }  // namespace ngraph_bridge

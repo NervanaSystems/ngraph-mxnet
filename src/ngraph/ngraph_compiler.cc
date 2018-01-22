@@ -20,6 +20,7 @@
 #include "../executor/exec_pass.h"
 #include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
+#include "ngraph_utils.h"
 #include "nnvm/tuple.h"
 
 namespace ngraph_bridge {
@@ -180,12 +181,12 @@ void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
 // Main compilation function
 nnvm::Graph Compiler::Compile() {
   // Output Graphviz dot files (pre collapse) for vizualization
-  if (false) WriteSubgraphDots(ngraph_, "pre_collapse");
+  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, "pre_collapse");
 
   CollapseSubgraphs(&ngraph_);
 
   // Output Graphviz dot files (post collapse) for vizualization
-  if (false) WriteSubgraphDots(ngraph_, "post_collapse");
+  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, "post_collapse");
 
   for (auto node : ngraph_.nodes_) {
     // store the input variable shape for use by nnvm

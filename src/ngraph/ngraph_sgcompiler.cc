@@ -26,12 +26,11 @@
 #include <ngraph/serializer.hpp>
 
 #include "ngraph_sgcompiler_utils.h"
+#include "ngraph_utils.h"
 
 namespace ngraph_bridge {
 
 static int fcount = 0;
-
-static bool dump = false;
 
 void dump_graph(std::shared_ptr<ngraph::Function> f) {
   std::stringstream fname;
@@ -101,14 +100,14 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
   auto bf = std::make_shared<ngraph::Function>(dYdXs, back_parameters);
 
-  if (dump) {
+  if (ngraph_log_graph) {
     dump_graph(f);
     dump_graph(bf);
   }
 
   auto fprop_cache = ngraph::cache_fprop(f, bf, {C});
 
-  if (dump) {
+  if (ngraph_log_graph) {
     dump_graph(fprop_cache.fprop);
     dump_graph(fprop_cache.bprop);
   }
