@@ -95,9 +95,6 @@ class Emitter {
     std::vector<NodePtr> aux_nodes_;
     std::map<int, int> aux_to_input_;
   };
-
-  NgraphNodePtr BatchNorm(const NodePtr& node,
-                          const bool is_train);
 };
 
 }  // namespace ngraph_bridge

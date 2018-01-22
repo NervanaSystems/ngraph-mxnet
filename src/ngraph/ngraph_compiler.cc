@@ -220,7 +220,7 @@ nnvm::Graph Compiler::Compile() {
       };
 
       // Replace outputs if needed
-      for (auto &output : graph_.outputs)
+      for (auto& output : graph_.outputs)
         if (matches(output)) output = sg_node;
 
       // use nnvm depth first search to fix node connections in nnvm
