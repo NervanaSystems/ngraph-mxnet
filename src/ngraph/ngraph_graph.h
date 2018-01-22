@@ -173,8 +173,7 @@ inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
     const mxnet::Context &context) {
   auto backend_name = get_backend_name(context);
   if (backend_managers.count(backend_name) == 0) {
-//    auto manager = ngraph::runtime::Manager::get(backend_name);
-    auto manager = ngraph::runtime::Manager::get("INTERPRETER");
+    auto manager = ngraph::runtime::Manager::get(backend_name);
     backend_managers[backend_name] = manager;
   }
   return backend_managers[backend_name];
