@@ -206,9 +206,11 @@ class Graph : public Node {
   // Delete the ngraph objects so we don't have a large memory leak
   // when running multiple graphs back to back
   void CleanUp() {
-    for (auto value : cached_values) value.reset();
-    ngraph_forward.reset();
-    ngraph_backward.reset();
+    for (int i = 0; i < kGraphExeModeCount; ++i) {
+      for (auto value : cached_values[i]) value.reset();
+      ngraph_forward[i].reset();
+      ngraph_backward[i].reset();
+    }
   }
 
   // Add a node to the graph

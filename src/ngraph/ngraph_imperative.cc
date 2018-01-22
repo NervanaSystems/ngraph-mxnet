@@ -28,6 +28,7 @@
 #include "ngraph_imperative.h"
 #include "ngraph_nnvm_ops.h"
 #include "ngraph_nnvm_utils.h"
+#include "../../include/mxnet/op_attr_types.h"
 
 namespace ngraph_bridge {
 
@@ -109,7 +110,11 @@ void InitImperativeOnce() {
                         const std::vector<mxnet::TBlob> &outputs) -> void {
             NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
             auto op_ng = ngi.get_op_ngraph();
-            if (op_ng && op_ng->ngraph_forward) {
+            int mode = static_cast<int>(GraphExeMode::kInfer);
+            if (ctx.is_train) {
+              mode = static_cast<int>(GraphExeMode::kTrain);
+            }
+            if (op_ng && op_ng->ngraph_forward[mode]) {
               compute_forward(ctx, op_ng, inputs, outputs);
 
 // TODO(aemani): refactor using mxnet verbose log
