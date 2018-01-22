@@ -56,6 +56,14 @@ void Emitter::InitOpConfig(OpNodePtr op_node) const {
   }
 }
 
+ngraph::AxisVector pyrange(size_t start, size_t stop) {
+  ngraph::AxisVector out(stop - start);
+  std::iota(out.begin(), out.end(), start);
+  return out;
+}
+
+ngraph::AxisVector pyrange(size_t stop) { return pyrange(0, stop); }
+
 int get_default(const NodePtr& node, const std::string& key,
                 const int default_val) {
   return node->orig_node_->attrs.dict.count(key)
@@ -168,12 +176,14 @@ NgraphNodePtr Emitter::ReduceAxes(
     auto reshape = node->get_shape();
     for (auto i : reduction_axes) reshape[i] = 1;
 
-    ngraph::AxisVector order(output->get_shape().size());
-    std::iota(order.begin(), order.end(), 0);
-
-    output = std::make_shared<ngraph::op::Reshape>(output, order, reshape);
+    output = std::make_shared<ngraph::op::Reshape>(
+        output, pyrange(output->get_shape().size()), reshape);
   }
 
+  if (output->get_shape() == ngraph::Shape()) {
+    output = std::make_shared<ngraph::op::Reshape>(output, ngraph::AxisVector{},
+                                                   ngraph::Shape{1});
+  }
   return output;
 }
 
@@ -182,11 +192,10 @@ NgraphNodePtr Emitter::ReduceAxes(
     const std::function<NgraphNodePtr(const NgraphNodePtr&,
                                       const ngraph::AxisSet&)>& func) {
   auto input = op_map_[node->inputs_[0]];
-  ngraph::AxisVector axes_numbers(input->get_shape().size());
-  std::iota(axes_numbers.begin(), axes_numbers.end(), 0);
-  return ReduceAxes(input, get_default(node, "axis", axes_numbers),
-                    get_default(node, "exclude", false),
-                    get_default(node, "keepdims", false), func);
+  return ReduceAxes(
+      input, get_default(node, "axis", pyrange(input->get_shape().size())),
+      get_default(node, "exclude", false), get_default(node, "keepdims", false),
+      func);
 }
 
 // unary op function generator
@@ -353,23 +362,18 @@ void Emitter::CreateUnaryOps() {
     auto oneeighty = makeConstant(node, "180");
     return op_map_[node->inputs_[0]] * (pi / oneeighty);
   };
-  ngraph_op_funcs_["reshape"] = [this](const NodePtr& node) {
+  ngraph_op_funcs_["reshape"] = [this](const NodePtr& node) -> NgraphNodePtr {
     auto new_shape = TShape_to_NShape(node->shape_);
 
     auto input = op_map_[node->inputs_[0]];
     // ngraph++'s reshape wouldn't like an empty shape
     if (new_shape.size() == 0) {
-      // std::shared_ptr<ngraph::Node> is needed to reconciale
-      // ngraph::op::Constant and ngraph::op::Reshape return types
-      return std::shared_ptr<ngraph::Node>(
-          std::make_shared<ngraph::op::Constant>(input->get_element_type(),
-                                                 ngraph::Shape{}, "0"));
+      return std::make_shared<ngraph::op::Constant>(input->get_element_type(),
+                                                    ngraph::Shape{}, "0");
     }
 
-    ngraph::AxisVector order(input->get_shape().size());
-    std::iota(begin(order), end(order), 0);
-    return std::shared_ptr<ngraph::Node>(
-        std::make_shared<ngraph::op::Reshape>(input, order, new_shape));
+    return std::make_shared<ngraph::op::Reshape>(
+        input, pyrange(input->get_shape().size()), new_shape);
   };
 
   // ngraph_op_funcs_["gamma"] = [this](const NodePtr& node){
@@ -407,7 +411,13 @@ std::shared_ptr<ngraph::Node> Emitter::CreateAutoBroadcast(
   auto arg1 = op_map_[node->inputs_[1]];
   return ngraph::builder::make_with_numpy_broadcast<op>(arg0, arg1);
 }
-
+template <class op>
+std::shared_ptr<ngraph::Node> Emitter::CreateScalarOp(const NodePtr& node) {
+  auto arg0 = op_map_[node->inputs_[0]];
+  auto arg1 =
+      makeConstant(node, std::to_string(get_default(node, "scalar", 0.0f)));
+  return ngraph::builder::make_with_numpy_broadcast<op>(arg0, arg1);
+}
 // binary op generating function generator
 void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["_plus"] = [this](const NodePtr& node) {
@@ -479,21 +489,37 @@ void Emitter::CreateBinaryOps() {
 
     if (get_default(node, "transpose_a", false)) {
       auto N = left->get_shape().size();
-      ngraph::AxisVector order(N - 1);
-      std::iota(order.begin(), order.end(), 1);
+      auto order = pyrange(1, N);
       order.push_back(0);
       left = ngraph::builder::numpy_transpose(left, order);
     }
 
     if (get_default(node, "transpose_b", false)) {
       auto N = right->get_shape().size();
-      ngraph::AxisVector order(N - 1);
-      std::iota(order.begin(), order.end(), 0);
+      auto order = pyrange(N - 1);
       order.insert(order.begin(), N - 1);
       right = ngraph::builder::numpy_transpose(right, order);
     }
 
     return std::make_shared<ngraph::op::Dot>(left, right, 1);
+  };
+  ngraph_op_funcs_["reshape_like"] = [this](const NodePtr& node) {
+    auto arg0 = op_map_[node->inputs_[0]];
+    auto reshape = op_map_[node->inputs_[1]]->get_shape();
+    return std::make_shared<ngraph::op::Reshape>(
+        arg0, pyrange(arg0->get_shape().size()), reshape);
+  };
+  ngraph_op_funcs_["_add_scalar"] = [this](const NodePtr& node) {
+    return CreateScalarOp<ngraph::op::Add>(node);
+  };
+  ngraph_op_funcs_["_minus_scalar"] = [this](const NodePtr& node) {
+    return CreateScalarOp<ngraph::op::Subtract>(node);
+  };
+  ngraph_op_funcs_["_mul_scalar"] = [this](const NodePtr& node) {
+    return CreateScalarOp<ngraph::op::Multiply>(node);
+  };
+  ngraph_op_funcs_["_div_scalar"] = [this](const NodePtr& node) {
+    return CreateScalarOp<ngraph::op::Divide>(node);
   };
   ngraph_op_funcs_["broadcast_add"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Add>(node);
@@ -580,11 +606,8 @@ void Emitter::CreateLayerOps() {
       for (size_t i = 0; i < upper.size(); ++i)
         if (i != axis) reshape.push_back(upper[i]);
 
-      // can this be a reshape default?
-      ngraph::AxisVector order(upper.size());
-      std::iota(order.begin(), order.end(), 0);
-
-      op = std::make_shared<ngraph::op::Reshape>(op, order, reshape);
+      op = std::make_shared<ngraph::op::Reshape>(op, pyrange(upper.size()),
+                                                 reshape);
     }
 
     return op;
@@ -613,14 +636,18 @@ void Emitter::CreateLayerOps() {
     auto flatten = get_default(node, "flatten", true);
     auto no_bias = get_default(node, "no_bias", false);
 
-    if (flatten && X->get_shape().size() > 2) {
+    if (flatten && X->get_shape().size() != 2) {
       ngraph::Shape flat_shape{X->get_shape()[0], 1};
       for (size_t i = 1; i < X->get_shape().size(); ++i) {
         flat_shape[1] *= X->get_shape()[i];
       }
-      ngraph::AxisVector order(X->get_shape().size());
-      std::iota(order.begin(), order.end(), 0);
-      X = std::make_shared<ngraph::op::Reshape>(X, order, flat_shape);
+      X = std::make_shared<ngraph::op::Reshape>(
+          X, pyrange(X->get_shape().size()), flat_shape);
+    } else if (X->get_shape().back() != W->get_shape()[1]) {
+      ngraph::Shape shape = X->get_shape();
+      shape.push_back(W->get_shape()[1]);
+      X = std::make_shared<ngraph::op::Reshape>(
+          X, pyrange(X->get_shape().size()), shape);
     }
 
     NgraphNodePtr dot = std::make_shared<ngraph::op::Dot>(
@@ -641,14 +668,9 @@ void Emitter::CreateLayerOps() {
     auto out_shape = ngraph::Shape({in_shape[0], 1});
     out_shape[1] = std::accumulate(in_shape.begin() + 1, in_shape.end(), 1,
                                    std::multiplies<int>());
-    // Create a range vector indicating that
-    // Reshape should take the axes in order
-    // these two lines are use all over the place
-    ngraph::AxisVector order(in_shape.size());
-    std::iota(order.begin(), order.end(), 0);
 
-    return std::make_shared<ngraph::op::Reshape>(op_map_[node->inputs_[0]],
-                                                 order, out_shape);
+    return std::make_shared<ngraph::op::Reshape>(
+        op_map_[node->inputs_[0]], pyrange(in_shape.size()), out_shape);
   };
 
   // Implement transpose with a utility function that returns
@@ -665,20 +687,16 @@ void Emitter::CreateLayerOps() {
 
     auto in_shape = TShape_to_NShape(node->inputs_[0]->shape_);
 
-    // Create a range vector indicating that
-    // Reshape should take the axes in order
-    ngraph::AxisVector order(in_shape.size());
-    std::iota(order.begin(), order.end(), 0);
-
     // copy the shape and insert a 1 at the axis position to expand the
     // dimension
     auto out_shape = in_shape;
     out_shape.insert(out_shape.begin() + axis, 1);
 
-    return std::make_shared<ngraph::op::Reshape>(op_map_[node->inputs_[0]],
-                                                 order, out_shape);
+    return std::make_shared<ngraph::op::Reshape>(
+        op_map_[node->inputs_[0]], pyrange(in_shape.size()), out_shape);
   };
 
+  // batch norm operation
   ngraph_op_funcs_["BatchNorm"] = [this](const NodePtr& node) {
     enum InputName { kData = 0, kGamma, kBeta, kMovingMean, kMovingVar };
     NgraphNodePtr ng_in_data = op_map_[node->inputs_[kData]];
@@ -707,8 +725,7 @@ void Emitter::CreateLayerOps() {
     // variance through ReduceAxes. They should already have shape
     // like [1, C], we want to make sure it's properly shape to [C, 1] depending
     // on the index of channel.
-    ngraph::AxisVector convert_order(ng_in_gamma->get_shape().size());
-    std::iota(begin(convert_order), end(convert_order), 0);
+    auto convert_order = pyrange(ng_in_gamma->get_shape().size());
     // fill the shape with (shape_size - 1) of 1s.
     ngraph::Shape convert_shape(data_shape_size - 1, 1);
     // number of elements for channel axis

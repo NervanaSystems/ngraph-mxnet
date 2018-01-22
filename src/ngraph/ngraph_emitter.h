@@ -39,6 +39,8 @@ class Emitter {
   void ClearOpMap();
   template <class op>
   NgraphNodePtr CreateAutoBroadcast(const NodePtr& node);
+  template <class op>
+  NgraphNodePtr CreateScalarOp(const NodePtr& node);
   // Factory function for reducing based on a reduction op function
   NgraphNodePtr ReduceAxes(
       const NgraphNodePtr& node, ngraph::AxisVector axes, bool exclude,

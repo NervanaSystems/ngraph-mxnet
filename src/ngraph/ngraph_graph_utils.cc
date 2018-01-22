@@ -30,11 +30,11 @@ void WriteDot(const Graph& graph, const std::string& fname) {
   // Loop over inputs, write graph connections
   for (auto n : graph.nodes_)
     for (auto i : n->inputs_) {
-      dotfile << i->name_ << " -> " << n->name_ << ";" << std::endl;
+      dotfile << i->name_ << i.get() << " -> " << n->name_ << n.get() << ";"
+              << std::endl;
     }
   // Loop over nodes and write labels
-  for (auto n : graph.nodes_)
-    if (!n->name_.empty()) dotfile << n->createNodeLabel() << std::endl;
+  for (auto n : graph.nodes_) dotfile << n->createNodeLabel() << std::endl;
   // Finish file.
   dotfile << "}" << std::endl;
   dotfile.close();

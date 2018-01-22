@@ -66,7 +66,14 @@ else
 	CFLAGS += -O3 -DNDEBUG=1
 endif
 CFLAGS += -I$(ROOTDIR)/mshadow/ -I$(ROOTDIR)/dmlc-core/include -fPIC -I$(NNVM_PATH)/include -I$(DLPACK_PATH)/include -Iinclude $(MSHADOW_CFLAGS)
-LDFLAGS = -pthread $(MSHADOW_LDFLAGS) $(DMLC_LDFLAGS)
+
+LDFLAGS = 
+ifeq ($(USE_NGRAPH),1)
+        CFLAGS += -I$(ROOTDIR)/src/ngraph -I$(NGRAPH_DIR)/include -DMXNET_USE_NGRAPH=1
+        LDFLAGS += -L$(NGRAPH_DIR)/lib -liomp5 -lmkldnn -lngraph -lmklml_intel -Wl,--as-needed
+endif
+
+LDFLAGS += -pthread $(MSHADOW_LDFLAGS) $(DMLC_LDFLAGS)
 ifeq ($(DEBUG), 1)
 	NVCCFLAGS += -std=c++11 -Xcompiler -D_FORCE_INLINES -g -G -O0 -ccbin $(CXX) $(MSHADOW_NVCCFLAGS)
 else
@@ -101,6 +108,7 @@ else
 	CFLAGS+= -DMXNET_USE_OPENCV=0
 endif
 
+
 ifeq ($(USE_OPENMP), 1)
 	ifneq ($(UNAME_S), Darwin)
 		CFLAGS += -fopenmp
@@ -110,10 +118,6 @@ endif
 ifeq ($(USE_NNPACK), 1)
 	CFLAGS += -DMXNET_USE_NNPACK=1
 	LDFLAGS += -lnnpack
-endif
-ifeq ($(USE_NGRAPH),1)
-        CFLAGS += -I$(ROOTDIR)/src/ngraph -I$(NGRAPH_DIR)/include -DMXNET_USE_NGRAPH=1
-        LDFLAGS += -L$(NGRAPH_DIR)/lib -lngraph
 endif
 ifeq ($(USE_MKL2017), 1)
 	CFLAGS += -DMXNET_USE_MKL2017=1
