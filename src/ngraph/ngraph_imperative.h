@@ -17,9 +17,9 @@
 
 #include <nnvm/op.h>
 #include <string>
-#include <vector>
 #include <tuple>
 #include <utility>
+#include <vector>
 #include "ngraph_compiler.h"
 #include "ngraph_graph.h"
 
@@ -48,7 +48,8 @@ class NGImperative : public Compiler {
     static OpEmitter emitter_funcs = Emitter().ngraph_op_funcs_;
     static std::unordered_set<std::string> layer_and_other{"split",
                                                            "SliceChannel"};
-    static std::unordered_set<std::string> skip_imperative{"expand_dims"};
+    static std::unordered_set<std::string> skip_imperative{"expand_dims",
+                                                           "_copy", "_zeros"};
 
     if (skip_imperative.count(op_name)) return false;
 

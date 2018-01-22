@@ -108,7 +108,7 @@ TEST_F(NGRAPH_IMPERATIVE, CACHE_OP) {
   EXPECT_NE(op_key, op_key2);
   auto op_key3 = get_ngiop_key(attrs, mxnet::Context::NNP(), inputs);
   EXPECT_NE(op_key, op_key3);
-  
+
   static thread_local NGIOpCache ngicache;
   testImperative test(attrs, mxnet::Context::CPU(), inputs, nullptr, outputs);
   auto op_ng = test.get_op_ngraph();

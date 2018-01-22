@@ -90,8 +90,8 @@ void InitImperativeOnce() {
   for (auto unique_op : dmlc::Registry<nnvm::Op>::List()) {
     auto op_name = unique_op->name;
 
-    // skip ops not supported by ngraph imperative, and auxiliary ops.
-    if ((op_name[0] == '_') || (!NGImperative::check_op_supported(op_name)))
+    // skip ops not supported by ngraph imperative
+    if ((op_name.substr(0, 9) == "_backward") || !NGImperative::check_op_supported(op_name))
       continue;
 
     nnvm::Op &op =
@@ -166,7 +166,8 @@ size_t NGIOpHash::operator()(const NGIOpKey &key) const {
 bool NGIOpEqual::operator()(const NGIOpKey &t1, const NGIOpKey &t2) const {
   return (std::get<0>(t1) == std::get<0>(t2) &&
           std::get<1>(t1) == std::get<1>(t2) &&
-          std::get<2>(t1) == std::get<2>(t2));
+          std::get<2>(t1) == std::get<2>(t2) &&
+          std::get<3>(t1) == std::get<3>(t2));
 }
 
 NGIOpKey get_ngiop_key(const nnvm::NodeAttrs &attrs, const mxnet::Context &ctx,
