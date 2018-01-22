@@ -23,8 +23,19 @@
 namespace ngraph_bridge {
 
 // Compiter initialization
-Emitter::Emitter()
-: exe_mode_(GraphExeMode::kInfer) {
+Emitter::Emitter() {
+  setExeMode(GraphExeMode::kInfer);
+}
+
+
+void Emitter::setExeMode(GraphExeMode exe_mode) {
+  exe_mode_ = exe_mode;
+  InitOpFuncs();
+}
+
+void Emitter::InitOpFuncs() {
+  ngraph_op_funcs_.clear();
+  aux_op_map_.clear();
   // Create Operation Maps
   CreateUnaryOps();
   CreateBinaryOps();

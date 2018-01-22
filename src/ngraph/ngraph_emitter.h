@@ -34,16 +34,10 @@ class Emitter {
   // maps of ngraph operation generator functions
   OpEmitter ngraph_op_funcs_;
 
-  void setExeMode(GraphExeMode exe_mode) { exe_mode_ = exe_mode; }
+  void setExeMode(GraphExeMode exe_mode);
 
  protected:
-  // create unary operation functions
-  void CreateUnaryOps();
-  // create binary operation functions
-  void CreateBinaryOps();
-  // create larger MXNet layer operations
-  void CreateLayerOps();
-  // Factory function for autobroadcasting the inputs of a node
+
   template <class op>
   NgraphNodePtr CreateAutoBroadcast(const NodePtr& node);
   // Factory function for reducing based on a reduction op function
@@ -66,6 +60,17 @@ class Emitter {
   std::vector<NodePtr> placeholder_order_;
   GraphExeMode exe_mode_;
 
+ private:
+  void InitOpFuncs();
+  // create unary operation functions
+  void CreateUnaryOps();
+  // create binary operation functions
+  void CreateBinaryOps();
+  // create larger MXNet layer operations
+  void CreateLayerOps();
+  // Factory function for autobroadcasting the inputs of a node
+
+ protected:
   // batch norm
   class BatchNormOpConfig : public OpNode::OpConfig {
    public:
