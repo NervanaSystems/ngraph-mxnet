@@ -36,10 +36,18 @@ void Emitter::setExeMode(GraphExeMode exe_mode) {
 void Emitter::InitOpFuncs() {
   ngraph_op_funcs_.clear();
   aux_op_map_.clear();
+  // clear the op_map_ and placeholder_order
+  ClearOpMap();
   // Create Operation Maps
   CreateUnaryOps();
   CreateBinaryOps();
   CreateLayerOps();
+}
+
+void Emitter::ClearOpMap() {
+  // delete the temporary storage
+  op_map_.clear();
+  placeholder_order_.clear();
 }
 
 void Emitter::InitOpConfig(OpNodePtr op_node) const {

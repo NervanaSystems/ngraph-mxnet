@@ -33,11 +33,10 @@ class Emitter {
   Emitter();
   // maps of ngraph operation generator functions
   OpEmitter ngraph_op_funcs_;
-
   void setExeMode(GraphExeMode exe_mode);
 
  protected:
-
+  void ClearOpMap();
   template <class op>
   NgraphNodePtr CreateAutoBroadcast(const NodePtr& node);
   // Factory function for reducing based on a reduction op function

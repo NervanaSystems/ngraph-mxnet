@@ -55,12 +55,6 @@ std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
   return sg;
 }
 
-void SGCompiler::ClearOpMap() {
-  // delete the temporary storage
-  op_map_.clear();
-  placeholder_order_.clear();
-}
-
 // Compile a Subgraph into ngraph forward and backward call frames
 void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // initalize a placeholder order vector for this subgraph
