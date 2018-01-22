@@ -23,10 +23,7 @@
 namespace ngraph_bridge {
 
 // Compiter initialization
-Emitter::Emitter() {
-  setExeMode(GraphExeMode::kInfer);
-}
-
+Emitter::Emitter() { setExeMode(GraphExeMode::kInfer); }
 
 void Emitter::setExeMode(GraphExeMode exe_mode) {
   exe_mode_ = exe_mode;
@@ -52,7 +49,8 @@ void Emitter::ClearOpMap() {
 
 void Emitter::InitOpConfig(OpNodePtr op_node) const {
   if (op_node->operation_ == "BatchNorm") {
-    op_node->config_ = std::dynamic_pointer_cast<OpNode::OpConfig>(std::make_shared<BatchNormOpConfig>());
+    op_node->config_ = std::dynamic_pointer_cast<OpNode::OpConfig>(
+        std::make_shared<BatchNormOpConfig>());
   }
 }
 
@@ -721,8 +719,8 @@ void Emitter::CreateLayerOps() {
 
     using ngraph::builder::make_with_numpy_broadcast;
 
-    // we need to convert some of the input data to proper shape similar to mean and
-    // variance through ReduceAxes. They should already have shape
+    // we need to convert some of the input data to proper shape similar to mean
+    // and variance through ReduceAxes. They should already have shape
     // like [1, C], we want to make sure it's properly shape to [C, 1] depending
     // on the index of channel.
     auto convert_order = pyrange(ng_in_gamma->get_shape().size());
@@ -736,30 +734,38 @@ void Emitter::CreateLayerOps() {
     if (exe_mode_ == GraphExeMode::kTrain && !use_global_stats) {
       ng_mean = ReduceAxes(ng_in_data, {channel_axis}, true, true,
                            ngraph::builder::mean);
-      ng_var =
-        ReduceAxes(ng_in_data, {channel_axis}, true, true,
-                   [](const std::shared_ptr<ngraph::Node>& node,
-                      const ngraph::AxisSet& axes) {
-                     return ngraph::builder::variance(node, axes);
-                   });
+      ng_var = ReduceAxes(ng_in_data, {channel_axis}, true, true,
+                          [](const std::shared_ptr<ngraph::Node>& node,
+                             const ngraph::AxisSet& axes) {
+                            return ngraph::builder::variance(node, axes);
+                          });
       ngraph::AxisVector order(ng_mean->get_shape().size());
       std::iota(order.begin(), order.end(), 0);
-      auto ng_mean_temp = std::make_shared<ngraph::op::Reshape>(ng_mean, order, ng_in_moving_mean->get_shape());
-      auto ng_var_temp = std::make_shared<ngraph::op::Reshape>(ng_var, order, ng_in_moving_var->get_shape());
+      auto ng_mean_temp = std::make_shared<ngraph::op::Reshape>(
+          ng_mean, order, ng_in_moving_mean->get_shape());
+      auto ng_var_temp = std::make_shared<ngraph::op::Reshape>(
+          ng_var, order, ng_in_moving_var->get_shape());
 
       // update running averages
       OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(node);
       const std::vector<NodePtr>& aux_nodes = op_node->config_->AuxNodes();
-      NgraphNodePtr ng_one = makeConstant(ng_in_moving_mean->get_element_type(), ng_in_moving_mean->get_shape(), "1");
-      NgraphNodePtr ng_momentum = makeConstant(ng_in_moving_var->get_element_type(), ng_in_moving_var->get_shape(), std::to_string(momentum));
+      NgraphNodePtr ng_one = makeConstant(ng_in_moving_mean->get_element_type(),
+                                          ng_in_moving_mean->get_shape(), "1");
+      NgraphNodePtr ng_momentum =
+          makeConstant(ng_in_moving_var->get_element_type(),
+                       ng_in_moving_var->get_shape(), std::to_string(momentum));
       ngraph::Shape s = ng_in_moving_mean->get_shape();
-      aux_op_map_[aux_nodes[BatchNormOpConfig::kMovingMean]] = ng_in_moving_mean * ng_momentum + ng_mean_temp * (ng_one - ng_momentum);
-      aux_op_map_[aux_nodes[BatchNormOpConfig::kMovingVar]] = ng_in_moving_var * ng_momentum  + ng_var_temp * (ng_one - ng_momentum);
-    }
-    else {
+      aux_op_map_[aux_nodes[BatchNormOpConfig::kMovingMean]] =
+          ng_in_moving_mean * ng_momentum +
+          ng_mean_temp * (ng_one - ng_momentum);
+      aux_op_map_[aux_nodes[BatchNormOpConfig::kMovingVar]] =
+          ng_in_moving_var * ng_momentum + ng_var_temp * (ng_one - ng_momentum);
+    } else {
       // we expect to use global stats with inference
-      ng_mean = std::make_shared<ngraph::op::Reshape>(ng_in_moving_mean, convert_order, convert_shape);
-      ng_var = std::make_shared<ngraph::op::Reshape>(ng_in_moving_var, convert_order, convert_shape);
+      ng_mean = std::make_shared<ngraph::op::Reshape>(
+          ng_in_moving_mean, convert_order, convert_shape);
+      ng_var = std::make_shared<ngraph::op::Reshape>(
+          ng_in_moving_var, convert_order, convert_shape);
     }
 
     NgraphNodePtr ng_eps = makeConstant(node, std::to_string(eps));

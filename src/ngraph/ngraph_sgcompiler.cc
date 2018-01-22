@@ -82,21 +82,24 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   const int mode = static_cast<int>(exe_mode_);
 
   // build ngraph function outputs based on default and aux nodes
-  OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(sub_graph->nodes_.back());
+  OpNodePtr op_node =
+      std::dynamic_pointer_cast<OpNode>(sub_graph->nodes_.back());
   // default output
-  ngraph::Nodes outputs {Y};
+  ngraph::Nodes outputs{Y};
   // push additional aux outputs
   if (op_node->config_ && !aux_op_map_.empty()) {
     for (auto aux_node : op_node->config_->AuxNodes()) {
       NgraphNodePtr ngraph_node = aux_op_map_.at(aux_node);
       outputs.push_back(ngraph_node);
-      sub_graph->cached_aux_values[mode].push_back(backend->make_primary_tensor_view(ngraph_node->get_element_type(),
-                                                                    ngraph_node->get_shape()));
+      sub_graph->cached_aux_values[mode].push_back(
+          backend->make_primary_tensor_view(ngraph_node->get_element_type(),
+                                            ngraph_node->get_shape()));
     }
   }
 
   // create the Forward Function object representing the graph
-  std::shared_ptr<ngraph::Function> f = std::make_shared<ngraph::Function>(outputs, parameters);
+  std::shared_ptr<ngraph::Function> f =
+      std::make_shared<ngraph::Function>(outputs, parameters);
 
   // Create the Backward Pass
   auto C = std::make_shared<ngraph::op::Parameter>(Y->get_element_type(),
@@ -129,7 +132,8 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   sub_graph->ngraph_forward[mode] = backend->make_call_frame(forward_external);
 
   auto backward_external = manager->compile(fprop_cache.bprop);
-  sub_graph->ngraph_backward[mode] = backend->make_call_frame(backward_external);
+  sub_graph->ngraph_backward[mode] =
+      backend->make_call_frame(backward_external);
 
   for (auto node : fprop_cache.fprop_output_nodes) {
     sub_graph->cached_values[mode].push_back(backend->make_primary_tensor_view(
@@ -156,7 +160,8 @@ void SGCompiler::CompileNodes(NodePtr node,
         this->CompileInput(node);
       } else {
         InitOpConfig(std::dynamic_pointer_cast<OpNode>(node));
-        assert(ngraph_op_funcs_.find(node->operation_) != ngraph_op_funcs_.end());
+        assert(ngraph_op_funcs_.find(node->operation_) !=
+               ngraph_op_funcs_.end());
         this->op_map_[node] = this->ngraph_op_funcs_[node->operation_](node);
       }
     }

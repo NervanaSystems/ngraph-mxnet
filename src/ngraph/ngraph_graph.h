@@ -43,7 +43,7 @@ using nnvmNodePtr = std::shared_ptr<nnvm::Node>;
 
 // Possible Types of nodes in Current Version
 enum class NodeType { kVariable, kAux, kOp, kGraph };
-enum class GraphExeMode {kInfer = 0, kTrain};
+enum class GraphExeMode { kInfer = 0, kTrain };
 constexpr int kGraphExeModeCount = static_cast<int>(GraphExeMode::kTrain) -
                                    static_cast<int>(GraphExeMode::kInfer) + 1;
 
@@ -139,12 +139,11 @@ class OpNode : public Node {
   // Operator specific setups
   class OpConfig {
    public:
-    virtual const std::vector<NodePtr>& AuxNodes() const = 0;
+    virtual const std::vector<NodePtr> &AuxNodes() const = 0;
     virtual int MapAuxToInput(int i) const = 0;
   };
 
   std::shared_ptr<OpConfig> config_;
-
 };
 
 // makes sure you have only one manager of one type
@@ -230,12 +229,16 @@ class Graph : public Node {
   // nodes in this graph
   std::vector<NodePtr> nodes_;
   // functions to execute this graph in ngraph
-  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward[kGraphExeModeCount];
-  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward[kGraphExeModeCount];
+  std::shared_ptr<ngraph::runtime::CallFrame>
+      ngraph_forward[kGraphExeModeCount];
+  std::shared_ptr<ngraph::runtime::CallFrame>
+      ngraph_backward[kGraphExeModeCount];
 
   const mxnet::Context context_;
-  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_values[kGraphExeModeCount];
-  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_aux_values[kGraphExeModeCount];
+  std::vector<std::shared_ptr<ngraph::runtime::TensorView>>
+      cached_values[kGraphExeModeCount];
+  std::vector<std::shared_ptr<ngraph::runtime::TensorView>>
+      cached_aux_values[kGraphExeModeCount];
 };
 
 /**

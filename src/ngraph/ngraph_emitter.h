@@ -75,23 +75,19 @@ class Emitter {
   // batch norm
   class BatchNormOpConfig : public OpNode::OpConfig {
    public:
-    enum AuxKey {kMovingMean = 0, kMovingVar};
+    enum AuxKey { kMovingMean = 0, kMovingVar };
     BatchNormOpConfig() {
       // set up dummy aux nodes for values we want
       aux_nodes_.push_back(std::make_shared<AuxNode>(nullptr, "moving_mean"));
       aux_nodes_.push_back(std::make_shared<AuxNode>(nullptr, "moving_var"));
       // map the aux index to input index
-      aux_to_input_[kMovingMean] = 3; // input mean index
-      aux_to_input_[kMovingVar] = 4; // input variance index
+      aux_to_input_[kMovingMean] = 3;  // input mean index
+      aux_to_input_[kMovingVar] = 4;   // input variance index
     }
 
-    const std::vector<NodePtr>& AuxNodes() const override {
-      return aux_nodes_;
-    }
+    const std::vector<NodePtr>& AuxNodes() const override { return aux_nodes_; }
 
-    int MapAuxToInput(int i) const override {
-      return aux_to_input_.at(i);
-    };
+    int MapAuxToInput(int i) const override { return aux_to_input_.at(i); };
 
    private:
     std::vector<NodePtr> aux_nodes_;

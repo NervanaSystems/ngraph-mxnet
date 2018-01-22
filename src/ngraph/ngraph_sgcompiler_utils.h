@@ -73,9 +73,9 @@ inline ngraph::Shape TShape_to_NShape(const nnvm::TShape& inshape) {
 
 // Create a runtime typed constant defined by type, shape, and a string
 // representing the number
-inline std::shared_ptr<ngraph::Node> makeConstant(const ngraph::element::Type& type,
-                                                  const ngraph::Shape& shape,
-                                                  const std::string& num) {
+inline std::shared_ptr<ngraph::Node> makeConstant(
+    const ngraph::element::Type& type, const ngraph::Shape& shape,
+    const std::string& num) {
   NgraphNodePtr val = std::make_shared<ngraph::op::Constant>(
       type, ngraph::Shape{}, std::vector<std::string>{num});
 
@@ -92,7 +92,8 @@ inline std::shared_ptr<ngraph::Node> makeConstant(const ngraph::element::Type& t
 // along with a string representing the number
 inline std::shared_ptr<ngraph::Node> makeConstant(const NodePtr& node,
                                                   const std::string& num) {
-  return makeConstant(getType(node->dtype_), TShape_to_NShape(node->shape_), num);
+  return makeConstant(getType(node->dtype_), TShape_to_NShape(node->shape_),
+                      num);
 }
 
 // This function expects the input string to be of the form

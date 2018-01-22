@@ -219,7 +219,7 @@ nnvm::Graph Compiler::Compile() {
 
       auto matches = [&sg](nnvm::NodeEntry n) -> bool {
         return (n.node == sg->nodes_.back()->orig_node_) &&
-            (n.index == sg->nodes_.back()->multi_output_index_);
+               (n.index == sg->nodes_.back()->multi_output_index_);
       };
 
       // Replace outputs if needed
@@ -236,8 +236,7 @@ nnvm::Graph Compiler::Compile() {
               if (it != node->inputs.end()) {
                 node->inputs.insert(it, sg_node);
                 node->inputs.erase(std::remove_if(node->inputs.begin(),
-                                                  node->inputs.end(),
-                                                  matches),
+                                                  node->inputs.end(), matches),
                                    node->inputs.end());
               }
             }
