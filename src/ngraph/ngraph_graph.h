@@ -43,7 +43,9 @@ using nnvmNodePtr = std::shared_ptr<nnvm::Node>;
 
 // Possible Types of nodes in Current Version
 enum class NodeType { kVariable, kAux, kOp, kGraph };
-enum GraphExecutionMode {kInfer = 0, kTrain, kGraphExeModeSize};
+enum class GraphExeMode {kInfer = 0, kTrain};
+constexpr int kGraphExeModeCount = static_cast<int>(GraphExeMode::kTrain) -
+                                   static_cast<int>(GraphExeMode::kInfer) + 1;
 
 // Base class for Nodes in Intermediary Analysis Graph
 class Node {
@@ -220,12 +222,12 @@ class Graph : public Node {
   // nodes in this graph
   std::vector<NodePtr> nodes_;
   // functions to execute this graph in ngraph
-  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward[kGraphExeModeSize];
-  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward[kGraphExeModeSize];
+  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward[kGraphExeModeCount];
+  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward[kGraphExeModeCount];
 
   const mxnet::Context context_;
-  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_values[kGraphExeModeSize];
-  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_aux_values[kGraphExeModeSize];
+  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_values[kGraphExeModeCount];
+  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_aux_values[kGraphExeModeCount];
 };
 
 /**

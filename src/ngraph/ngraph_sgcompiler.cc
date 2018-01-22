@@ -57,46 +57,46 @@ std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
 
 void SGCompiler::ClearOpMap() {
   // delete the temporary storage
-  for (int i = 0; i < kGraphExeModeSize; ++i) {
-    op_map_[i].clear();
-  }
+  op_map_.clear();
   placeholder_order_.clear();
 }
 
-void SGCompiler::CompileSubgraphForOpMap(const std::vector<NodePtr>& nodes,
-                                         const mxnet::Context& context,
-                                         std::shared_ptr<ngraph::runtime::CallFrame>& ngraph_forward,
-                                         std::shared_ptr<ngraph::runtime::CallFrame>& ngraph_backward,
-                                         std::vector<std::shared_ptr<ngraph::runtime::TensorView>>& cached_values,
-                                         std::vector<std::shared_ptr<ngraph::runtime::TensorView>>& cached_aux_values,
-                                         const std::map<NodePtr, NgraphNodePtr>& op_map,
-                                         const std::map<NodePtr, NgraphNodePtr>& aux_op_map) {
+// Compile a Subgraph into ngraph forward and backward call frames
+void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
+  // initalize a placeholder order vector for this subgraph
+  for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
+
+  // compile all the ndoes in the graph
+  CompileNodes(sub_graph->nodes_.back(), sub_graph);
+
   ngraph::op::Parameters parameters;
   ngraph::Nodes param_nodes;
 
   for (const auto input : placeholder_order_) {
     // get the parameters
     parameters.push_back(
-        std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map.at(input)));
-    param_nodes.push_back(op_map.at(input));
+        std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_.at(input)));
+    param_nodes.push_back(op_map_.at(input));
   }
 
   // calcuate the shape and return type of the subgraph
-  auto Y = op_map.at(nodes.back());
+  auto Y = op_map_.at(sub_graph->nodes_.back());
 
-  auto manager = GetManagerFromContext(context);
-  auto backend = GetBackendFromContext(context);
+  auto manager = GetManagerFromContext(sub_graph->context_);
+  auto backend = GetBackendFromContext(sub_graph->context_);
+
+  const int mode = static_cast<int>(exe_mode_);
 
   // build ngraph function outputs based on default and aux nodes
-  OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(nodes.back());
+  OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(sub_graph->nodes_.back());
   // default output
   ngraph::Nodes outputs {Y};
   // push additional aux outputs
-  if (op_node->config_ && !aux_op_map.empty()) {
+  if (op_node->config_ && !aux_op_map_.empty()) {
     for (auto aux_node : op_node->config_->AuxNodes()) {
-      NgraphNodePtr ngraph_node = aux_op_map.at(aux_node);
+      NgraphNodePtr ngraph_node = aux_op_map_.at(aux_node);
       outputs.push_back(ngraph_node);
-      cached_aux_values.push_back(backend->make_primary_tensor_view(ngraph_node->get_element_type(),
+      sub_graph->cached_aux_values[mode].push_back(backend->make_primary_tensor_view(ngraph_node->get_element_type(),
                                                                     ngraph_node->get_shape()));
     }
   }
@@ -132,35 +132,14 @@ void SGCompiler::CompileSubgraphForOpMap(const std::vector<NodePtr>& nodes,
   }
 
   auto forward_external = manager->compile(fprop_cache.fprop);
-  ngraph_forward = backend->make_call_frame(forward_external);
+  sub_graph->ngraph_forward[mode] = backend->make_call_frame(forward_external);
 
   auto backward_external = manager->compile(fprop_cache.bprop);
-  ngraph_backward = backend->make_call_frame(backward_external);
+  sub_graph->ngraph_backward[mode] = backend->make_call_frame(backward_external);
 
   for (auto node : fprop_cache.fprop_output_nodes) {
-    cached_values.push_back(backend->make_primary_tensor_view(
+    sub_graph->cached_values[mode].push_back(backend->make_primary_tensor_view(
         node->get_element_type(), node->get_shape()));
-  }
-}
-// Compile a Subgraph into ngraph forward and backward call frames
-void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
-  // initalize a placeholder order vector for this subgraph
-  for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
-
-  // compile all the ndoes in the graph
-  CompileNodes(sub_graph->nodes_.back(), sub_graph);
-
-  for (int i = 0; i < kGraphExeModeSize; ++i) {
-    if (ngraph_op_funcs_[i].find(sub_graph->nodes_.back()->operation_) != ngraph_op_funcs_[i].end()) {
-      CompileSubgraphForOpMap(sub_graph->nodes_,
-                              sub_graph->context_,
-                              sub_graph->ngraph_forward[i],
-                              sub_graph->ngraph_backward[i],
-                              sub_graph->cached_values[i],
-                              sub_graph->cached_aux_values[i],
-                              op_map_[i],
-                              aux_op_map_[i]);
-    }
   }
 }
 
@@ -177,20 +156,14 @@ void SGCompiler::CompileNodes(NodePtr node,
   // if the node is part of the subrraph
   // we capture this so we can save the outputs to the SGCompiler op_map_
   visitor.operation = [this, &sub_graph](NodePtr node) {
-    if (!op_map_[kInfer].count(node)) {
+    if (!op_map_.count(node)) {
       // if it's not in the graph, it's an input, compile it as an input
       if (!in_vec(sub_graph->nodes_, node)) {
         this->CompileInput(node);
       } else {
         InitOpConfig(std::dynamic_pointer_cast<OpNode>(node));
-
-        for (int i = 0; i < kGraphExeModeSize; ++i) {
-          // check if the node operation has special function for training
-          if (ngraph_op_funcs_[i].find(node->operation_) != ngraph_op_funcs_[i].end()) {
-            this->op_map_[i][node] =
-                this->ngraph_op_funcs_[i][node->operation_](node);
-          }
-        }
+        assert(ngraph_op_funcs_.find(node->operation_) != ngraph_op_funcs_.end());
+        this->op_map_[node] = this->ngraph_op_funcs_[node->operation_](node);
       }
     }
   };
@@ -216,12 +189,8 @@ void SGCompiler::CompileInput(NodePtr input) {
   auto shape = TShape_to_NShape(input->shape_);
   // make a shaped and typed parameter based on the input node
   // store it in the op_map_
-  op_map_[kInfer][input] =
+  op_map_[input] =
       std::make_shared<ngraph::op::Parameter>(getType(input->dtype_), shape);
-  for (int i = 1; i < kGraphExeModeSize; ++i) {
-    // other modes shares the same input parameters
-    op_map_[i][input] = op_map_[kInfer][input];
-  }
 }
 
 }  // namespace ngraph_bridge

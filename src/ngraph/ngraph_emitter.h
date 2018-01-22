@@ -32,7 +32,9 @@ class Emitter {
  public:
   Emitter();
   // maps of ngraph operation generator functions
-  OpEmitter ngraph_op_funcs_[kGraphExeModeSize];
+  OpEmitter ngraph_op_funcs_;
+
+  void setExeMode(GraphExeMode exe_mode) { exe_mode_ = exe_mode; }
 
  protected:
   // create unary operation functions
@@ -59,9 +61,10 @@ class Emitter {
   void InitOpConfig(OpNodePtr op_node) const;
 
   // information on compiled objects
-  std::map<NodePtr, NgraphNodePtr> op_map_[kGraphExeModeSize];
-  std::map<NodePtr, NgraphNodePtr> aux_op_map_[kGraphExeModeSize];
+  std::map<NodePtr, NgraphNodePtr> op_map_;
+  std::map<NodePtr, NgraphNodePtr> aux_op_map_;
   std::vector<NodePtr> placeholder_order_;
+  GraphExeMode exe_mode_;
 
   // batch norm
   class BatchNormOpConfig : public OpNode::OpConfig {
@@ -90,8 +93,6 @@ class Emitter {
   };
 
   NgraphNodePtr BatchNorm(const NodePtr& node,
-                          std::map<NodePtr, NgraphNodePtr>& op_map,
-                          std::map<NodePtr, NgraphNodePtr>& aux_op_map,
                           const bool is_train);
 };
 

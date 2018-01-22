@@ -44,9 +44,9 @@ void compute_forward(const mxnet::OpContext &ctx,
   auto placeholders = make_ngraph_placeholders(inputs, backend, true);
   auto results = make_ngraph_placeholders(outputs, backend, false);
 
-  GraphExecutionMode mode = kInfer;
-  if (ctx.is_train && graph->ngraph_forward[kTrain]) {
-    mode = kTrain;
+  int mode = static_cast<int>(GraphExeMode::kInfer);
+  if (ctx.is_train && graph->ngraph_forward[static_cast<int>(GraphExeMode::kTrain)]) {
+    mode = static_cast<int>(GraphExeMode::kTrain);
   }
   results.insert(results.end(), graph->cached_aux_values[mode].begin(),
                  graph->cached_aux_values[mode].end());
@@ -77,9 +77,10 @@ void compute_backward(const mxnet::OpContext &ctx,
   auto placeholders = make_ngraph_placeholders({inputs[0]}, backend, true);
   auto results = make_ngraph_placeholders(outputs, backend, false);
 
-  placeholders.insert(placeholders.end(), graph->cached_values[kInfer].begin(),
-                      graph->cached_values[kInfer].end());
-  graph->ngraph_backward[kInfer]->call(placeholders, results);
+  const int mode = static_cast<int>(GraphExeMode::kTrain);
+  placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
+                      graph->cached_values[mode].end());
+  graph->ngraph_backward[mode]->call(placeholders, results);
 
   for (size_t j = 0; j < outputs.size(); ++j)
     result_to_TBlob(results[j], outputs, j);

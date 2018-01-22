@@ -207,13 +207,20 @@ nnvm::Graph Compiler::Compile() {
       // create nnvm node
       auto sg_node = CreateNNVMNode(sg);
 
+      // compile subgraph in other execution modes,
+      for (int i = 1; i < kGraphExeModeCount; ++i) {
+        // set graph execution mode
+        compiler_.setExeMode(static_cast<GraphExeMode>(i));
+        compiler_.Compile(n);
+      }
+
       auto matches = [&sg](nnvm::NodeEntry n) -> bool {
         return (n.node == sg->nodes_.back()->orig_node_) &&
-               (n.index == sg->nodes_.back()->multi_output_index_);
+            (n.index == sg->nodes_.back()->multi_output_index_);
       };
 
       // Replace outputs if needed
-      for (auto& output : graph_.outputs)
+      for (auto &output : graph_.outputs)
         if (matches(output)) output = sg_node;
 
       // use nnvm depth first search to fix node connections in nnvm
@@ -226,7 +233,8 @@ nnvm::Graph Compiler::Compile() {
               if (it != node->inputs.end()) {
                 node->inputs.insert(it, sg_node);
                 node->inputs.erase(std::remove_if(node->inputs.begin(),
-                                                  node->inputs.end(), matches),
+                                                  node->inputs.end(),
+                                                  matches),
                                    node->inputs.end());
               }
             }
@@ -292,7 +300,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 void Compiler::CheckInNgraph() {
   for (auto node : ngraph_.nodes_) {
     if (node->type_ == NodeType::kOp) {
-      if (compiler_.ngraph_op_funcs_[kInfer].count(node->operation_)) {
+      if (compiler_.ngraph_op_funcs_.count(node->operation_)) {
         node->in_ngraph_ = true;
         if (node->dtype_ == mshadow::kFloat16) {
           node->in_ngraph_ = false;
