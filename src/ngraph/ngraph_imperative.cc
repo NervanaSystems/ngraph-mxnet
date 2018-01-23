@@ -127,6 +127,7 @@ void InitImperativeOnce() {
             }
             if (op_ng && op_ng->ngraph_forward[mode]) {
               compute_forward(ctx, op_ng, inputs, outputs);
+
               if (ngraph_log_verbose_detail) {
                 LOG(INFO) << "ngraph imperative op: " << attrs.op->name
                           << ", inputs " << std::to_string(inputs.size())
