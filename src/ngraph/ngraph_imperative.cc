@@ -121,8 +121,13 @@ void InitImperativeOnce() {
               if (ngraph_log_verbose && op_ng)
                 LOG(INFO) << "Caching... " << attrs.op->name;
             }
-            if (op_ng && op_ng->ngraph_forward) {
-              compute_forward(op_ng, inputs, outputs);
+            int mode = static_cast<int>(GraphExeMode::kInfer);
+            if (ctx.is_train) {
+              mode = static_cast<int>(GraphExeMode::kTrain);
+            }
+            if (op_ng && op_ng->ngraph_forward[mode]) {
+              compute_forward(ctx, op_ng, inputs, outputs);
+
               if (ngraph_log_verbose_detail) {
                 LOG(INFO) << "ngraph imperative op: " << attrs.op->name
                           << ", inputs " << std::to_string(inputs.size())

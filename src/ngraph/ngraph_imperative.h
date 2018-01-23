@@ -88,7 +88,7 @@ using NGIOpCache =
 
 // generates hash for any standard type val, and combines with seed.
 template <typename T>
-inline std::size_t hash_combine(std::size_t const &seed, T const &val) {
+inline std::size_t hash_combine(const std::size_t &seed, const T &val) {
   return seed + std::hash<T>()(val) + (seed << 1);
 }
 
