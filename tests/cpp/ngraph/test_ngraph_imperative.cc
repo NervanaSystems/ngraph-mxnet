@@ -13,12 +13,13 @@
 // ----------------------------------------------------------------------------
 
 #include "test_ngraph_imperative.h"
+#include "../../src/ngraph/ngraph_nnvm_ops.h"
 
 namespace ngraph_bridge {
 
 TEST_F(NGRAPH_IMPERATIVE, CREATE_IMPERATIVE) {
   testImperative test(attrs, mxnet::Context::CPU(), inputs, nullptr, outputs);
-  EXPECT_FALSE(test.ngraph_.ngraph_forward);
+  EXPECT_FALSE(test.ngraph_.ngraph_forward[static_cast<int>(GraphExeMode::kInfer)]);
   EXPECT_EQ(test.ngraph_.context_, mxnet::Context::CPU());
   EXPECT_EQ(test.GetInputs().size(), inputs.size());
   EXPECT_EQ(test.graph_.outputs.size(), outputs.size());
@@ -71,22 +72,15 @@ TEST_F(NGRAPH_IMPERATIVE, UNSUPPORTED_OP) {
 }
 
 TEST_F(NGRAPH_IMPERATIVE, INVOKE_OP) {
-  testImperative test(attrs, mxnet::Context::CPU(), inputs, nullptr, outputs);
+  auto ctx = mxnet::Context::CPU();
+  mxnet::OpContext opctx{false, {ctx,nullptr}, mxnet::engine::CallbackOnComplete(), {}};
+  testImperative test(attrs, ctx, inputs, nullptr, outputs);
   auto op_ng = test.get_op_ngraph();
 
   EXPECT_TRUE(op_ng);
   EXPECT_TRUE(test.op_ngraph_->ngraph_forward);
-
-  auto placeholders = make_ngraph_placeholders(
-      inputs, GetBackendFromContext(op_ng->context_), true);
-  auto results = make_ngraph_placeholders(
-      outputs, GetBackendFromContext(op_ng->context_), false);
-
   EXPECT_EQ(vec3, std::vector<float>({0, 0}));
-  results.insert(results.end(), op_ng->cached_values.begin(),
-                 op_ng->cached_values.end());
-  op_ng->ngraph_forward->call(placeholders, results);
-  result_to_TBlob(results[0], outputs, 0);
+  compute_forward(opctx, op_ng, inputs, outputs);
   EXPECT_EQ(vec3, std::vector<float>({2, 6}));
 }
 
