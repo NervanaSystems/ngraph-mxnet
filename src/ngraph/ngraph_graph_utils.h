@@ -24,8 +24,10 @@ namespace ngraph_bridge {
 
 // Forward Delcaration for type aliases
 class Node;
+class OpNode;
 class Graph;
 using NodePtr = std::shared_ptr<Node>;
+using OpNodePtr = std::shared_ptr<OpNode>;
 using GraphPtr = std::shared_ptr<Graph>;
 
 // create a random string to avoid subgraph name collisions

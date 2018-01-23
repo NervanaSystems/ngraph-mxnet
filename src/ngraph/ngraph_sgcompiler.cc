@@ -49,16 +49,9 @@ std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
   // cast the graph
   auto sg = std::dynamic_pointer_cast<Graph>(sub_graph);
 
-  // compile the subgraph into a python computation
   CompileSubgraph(sg);
 
   return sg;
-}
-
-void SGCompiler::ClearOpMap() {
-  // delete the temporary storage
-  op_map_.clear();
-  placeholder_order_.clear();
 }
 
 // Compile a Subgraph into ngraph forward and backward call frames
@@ -72,18 +65,40 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   ngraph::op::Parameters parameters;
   ngraph::Nodes param_nodes;
 
-  for (auto input : placeholder_order_) {
+  for (const auto input : placeholder_order_) {
     // get the parameters
     parameters.push_back(
-        std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_[input]));
-    param_nodes.push_back(op_map_[input]);
+        std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_.at(input)));
+    param_nodes.push_back(op_map_.at(input));
   }
 
   // calcuate the shape and return type of the subgraph
-  auto Y = op_map_[sub_graph->nodes_.back()];
+  auto Y = op_map_.at(sub_graph->nodes_.back());
+
+  auto manager = GetManagerFromContext(sub_graph->context_);
+  auto backend = GetBackendFromContext(sub_graph->context_);
+
+  const int mode = static_cast<int>(exe_mode_);
+
+  // build ngraph function outputs based on default and aux nodes
+  OpNodePtr op_node =
+      std::dynamic_pointer_cast<OpNode>(sub_graph->nodes_.back());
+  // default output
+  ngraph::Nodes outputs{Y};
+  // push additional aux outputs
+  if (op_node->config_ && !aux_op_map_.empty()) {
+    for (auto aux_node : op_node->config_->AuxNodes()) {
+      NgraphNodePtr ngraph_node = aux_op_map_.at(aux_node);
+      outputs.push_back(ngraph_node);
+      sub_graph->cached_aux_values[mode].push_back(
+          backend->make_primary_tensor_view(ngraph_node->get_element_type(),
+                                            ngraph_node->get_shape()));
+    }
+  }
 
   // create the Forward Function object representing the graph
-  auto f = std::make_shared<ngraph::Function>(Y, parameters);
+  std::shared_ptr<ngraph::Function> f =
+      std::make_shared<ngraph::Function>(outputs, parameters);
 
   // Create the Backward Pass
   auto C = std::make_shared<ngraph::op::Parameter>(Y->get_element_type(),
@@ -112,17 +127,15 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     dump_graph(fprop_cache.bprop);
   }
 
-  auto manager = GetManagerFromContext(sub_graph->context_);
-  auto backend = GetBackendFromContext(sub_graph->context_);
-
   auto forward_external = manager->compile(fprop_cache.fprop);
-  sub_graph->ngraph_forward = backend->make_call_frame(forward_external);
+  sub_graph->ngraph_forward[mode] = backend->make_call_frame(forward_external);
 
   auto backward_external = manager->compile(fprop_cache.bprop);
-  sub_graph->ngraph_backward = backend->make_call_frame(backward_external);
+  sub_graph->ngraph_backward[mode] =
+      backend->make_call_frame(backward_external);
 
   for (auto node : fprop_cache.fprop_output_nodes) {
-    sub_graph->cached_values.push_back(backend->make_primary_tensor_view(
+    sub_graph->cached_values[mode].push_back(backend->make_primary_tensor_view(
         node->get_element_type(), node->get_shape()));
   }
 }
@@ -145,6 +158,9 @@ void SGCompiler::CompileNodes(NodePtr node,
       if (!in_vec(sub_graph->nodes_, node)) {
         this->CompileInput(node);
       } else {
+        InitOpConfig(std::dynamic_pointer_cast<OpNode>(node));
+        assert(ngraph_op_funcs_.find(node->operation_) !=
+               ngraph_op_funcs_.end());
         this->op_map_[node] = this->ngraph_op_funcs_[node->operation_](node);
       }
     }

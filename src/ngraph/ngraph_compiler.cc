@@ -211,6 +211,13 @@ nnvm::Graph Compiler::Compile() {
 
       auto sg_node = CreateNNVMNode(sg);
 
+      // compile subgraph in other execution modes,
+      for (int i = 1; i < kGraphExeModeCount; ++i) {
+        // set graph execution mode
+        compiler_.setExeMode(static_cast<GraphExeMode>(i));
+        compiler_.Compile(n);
+      }
+
       auto matches = [&sg](nnvm::NodeEntry n) -> bool {
         return (n.node == sg->nodes_.back()->orig_node_) &&
                (n.index == sg->nodes_.back()->multi_output_index_);

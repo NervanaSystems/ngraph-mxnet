@@ -36,30 +36,52 @@ nnvm::Op *get_subgraph_op(std::shared_ptr<Graph> graph) {
 }
 
 // function for computing forward on ngraph
-void compute_forward(std::shared_ptr<Graph> graph,
+void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                      const std::vector<mxnet::TBlob> &inputs,
                      const std::vector<mxnet::TBlob> &outputs) {
   auto backend = GetBackendFromContext(graph->context_);
   auto placeholders = make_ngraph_placeholders(inputs, backend, true);
   auto results = make_ngraph_placeholders(outputs, backend, false);
-  results.insert(results.end(), graph->cached_values.begin(),
-                 graph->cached_values.end());
-  graph->ngraph_forward->call(placeholders, results);
+
+  int mode = static_cast<int>(GraphExeMode::kInfer);
+  if (ctx.is_train &&
+      graph->ngraph_forward[static_cast<int>(GraphExeMode::kTrain)]) {
+    mode = static_cast<int>(GraphExeMode::kTrain);
+  }
+  results.insert(results.end(), graph->cached_aux_values[mode].begin(),
+                 graph->cached_aux_values[mode].end());
+  results.insert(results.end(), graph->cached_values[mode].begin(),
+                 graph->cached_values[mode].end());
+  graph->ngraph_forward[mode]->call(placeholders, results);
+
+  // default result output
   result_to_TBlob(results[0], outputs, 0);
+
+  // aux result outputs mapped to inputs
+  OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(graph->nodes_.back());
+  auto op_config = op_node->config_;
+  if (op_config && !op_config->AuxNodes().empty()) {
+    const int resultOffset = 1;
+    for (size_t i = 0; i < op_config->AuxNodes().size(); ++i) {
+      result_to_TBlob(results[resultOffset + i], inputs,
+                      op_config->MapAuxToInput(i));
+    }
+  }
 }
 
 // function for computing backward on ngraph
-void compute_backward(std::shared_ptr<Graph> graph,
+void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                       const std::vector<mxnet::TBlob> &inputs,
                       const std::vector<mxnet::TBlob> &outputs) {
   auto backend = GetBackendFromContext(graph->context_);
   auto placeholders = make_ngraph_placeholders({inputs[0]}, backend, true);
   auto results = make_ngraph_placeholders(outputs, backend, false);
 
-  placeholders.insert(placeholders.end(), graph->cached_values.begin(),
-                      graph->cached_values.end());
+  const int mode = static_cast<int>(GraphExeMode::kTrain);
+  placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
+                      graph->cached_values[mode].end());
+  graph->ngraph_backward[mode]->call(placeholders, results);
 
-  graph->ngraph_backward->call(placeholders, results);
   for (size_t j = 0; j < outputs.size(); ++j)
     result_to_TBlob(results[j], outputs, j);
 }
@@ -176,7 +198,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
               const std::vector<mxnet::TBlob> &inputs,
               const std::vector<mxnet::OpReqType> &req,
               const std::vector<mxnet::TBlob> &outputs) -> void {
-        compute_forward(graph, inputs, outputs);
+        compute_forward(ctx, graph, inputs, outputs);
       });
 }
 
@@ -208,7 +230,7 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
               const std::vector<mxnet::TBlob> &inputs,
               const std::vector<mxnet::OpReqType> &req,
               const std::vector<mxnet::TBlob> &outputs) -> void {
-        compute_backward(graph, inputs, outputs);
+        compute_backward(ctx, graph, inputs, outputs);
       });
 }
 // register subgraph ops with nnvm.
