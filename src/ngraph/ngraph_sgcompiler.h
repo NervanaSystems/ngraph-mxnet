@@ -31,7 +31,6 @@ class SGCompiler : public Emitter {
   void CompileInput(NodePtr input);
   // compile the graph nodes into ngraph objects
   void CompileNodes(NodePtr node, const std::shared_ptr<Graph> sub_graph);
-  void ClearOpMap();
 };
 
 }  // namespace ngraph_bridge

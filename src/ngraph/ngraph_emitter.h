@@ -33,15 +33,10 @@ class Emitter {
   Emitter();
   // maps of ngraph operation generator functions
   OpEmitter ngraph_op_funcs_;
+  void setExeMode(GraphExeMode exe_mode);
 
  protected:
-  // create unary operation functions
-  void CreateUnaryOps();
-  // create binary operation functions
-  void CreateBinaryOps();
-  // create larger MXNet layer operations
-  void CreateLayerOps();
-  // Factory function for autobroadcasting the inputs of a node
+  void ClearOpMap();
   template <class op>
   NgraphNodePtr CreateAutoBroadcast(const NodePtr& node);
   template <class op>
@@ -56,9 +51,48 @@ class Emitter {
       const NodePtr& node,
       const std::function<NgraphNodePtr(const NgraphNodePtr&,
                                         const ngraph::AxisSet&)>& func);
+
+  /// initialize node operator configuration
+  void InitOpConfig(OpNodePtr op_node) const;
+
   // information on compiled objects
   std::map<NodePtr, NgraphNodePtr> op_map_;
+  std::map<NodePtr, NgraphNodePtr> aux_op_map_;
   std::vector<NodePtr> placeholder_order_;
+  GraphExeMode exe_mode_;
+
+ private:
+  void InitOpFuncs();
+  // create unary operation functions
+  void CreateUnaryOps();
+  // create binary operation functions
+  void CreateBinaryOps();
+  // create larger MXNet layer operations
+  void CreateLayerOps();
+  // Factory function for autobroadcasting the inputs of a node
+
+ protected:
+  // batch norm
+  class BatchNormOpConfig : public OpNode::OpConfig {
+   public:
+    enum AuxKey { kMovingMean = 0, kMovingVar };
+    BatchNormOpConfig() {
+      // set up dummy aux nodes for values we want
+      aux_nodes_.push_back(std::make_shared<AuxNode>(nullptr, "moving_mean"));
+      aux_nodes_.push_back(std::make_shared<AuxNode>(nullptr, "moving_var"));
+      // map the aux index to input index
+      aux_to_input_[kMovingMean] = 3;  // input mean index
+      aux_to_input_[kMovingVar] = 4;   // input variance index
+    }
+
+    const std::vector<NodePtr>& AuxNodes() const override { return aux_nodes_; }
+
+    int MapAuxToInput(int i) const override { return aux_to_input_.at(i); };
+
+   private:
+    std::vector<NodePtr> aux_nodes_;
+    std::map<int, int> aux_to_input_;
+  };
 };
 
 }  // namespace ngraph_bridge

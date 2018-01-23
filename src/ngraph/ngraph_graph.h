@@ -43,6 +43,9 @@ using nnvmNodePtr = std::shared_ptr<nnvm::Node>;
 
 // Possible Types of nodes in Current Version
 enum class NodeType { kVariable, kAux, kOp, kGraph };
+enum class GraphExeMode { kInfer = 0, kTrain };
+constexpr int kGraphExeModeCount = static_cast<int>(GraphExeMode::kTrain) -
+                                   static_cast<int>(GraphExeMode::kInfer) + 1;
 
 // Base class for Nodes in Intermediary Analysis Graph
 class Node {
@@ -132,6 +135,15 @@ class OpNode : public Node {
       : Node(NodeType::kOp, node, name, inputs) {
     operation_ = operation;
   }
+
+  // Operator specific setups
+  class OpConfig {
+   public:
+    virtual const std::vector<NodePtr> &AuxNodes() const = 0;
+    virtual int MapAuxToInput(int i) const = 0;
+  };
+
+  std::shared_ptr<OpConfig> config_;
 };
 
 // makes sure you have only one manager of one type
@@ -192,9 +204,11 @@ class Graph : public Node {
   // Delete the ngraph objects so we don't have a large memory leak
   // when running multiple graphs back to back
   void CleanUp() {
-    for (auto value : cached_values) value.reset();
-    ngraph_forward.reset();
-    ngraph_backward.reset();
+    for (int i = 0; i < kGraphExeModeCount; ++i) {
+      for (auto& value : cached_values[i]) value.reset();
+      ngraph_forward[i].reset();
+      ngraph_backward[i].reset();
+    }
   }
 
   // Add a node to the graph
@@ -215,11 +229,16 @@ class Graph : public Node {
   // nodes in this graph
   std::vector<NodePtr> nodes_;
   // functions to execute this graph in ngraph
-  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_forward;
-  std::shared_ptr<ngraph::runtime::CallFrame> ngraph_backward;
+  std::shared_ptr<ngraph::runtime::CallFrame>
+      ngraph_forward[kGraphExeModeCount];
+  std::shared_ptr<ngraph::runtime::CallFrame>
+      ngraph_backward[kGraphExeModeCount];
 
   const mxnet::Context context_;
-  std::vector<std::shared_ptr<ngraph::runtime::TensorView>> cached_values;
+  std::vector<std::shared_ptr<ngraph::runtime::TensorView>>
+      cached_values[kGraphExeModeCount];
+  std::vector<std::shared_ptr<ngraph::runtime::TensorView>>
+      cached_aux_values[kGraphExeModeCount];
 };
 
 /**
