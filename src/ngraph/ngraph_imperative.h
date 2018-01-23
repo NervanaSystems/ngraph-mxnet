@@ -17,6 +17,8 @@
 
 #include <nnvm/op.h>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 #include "ngraph_compiler.h"
 #include "ngraph_graph.h"
@@ -46,7 +48,9 @@ class NGImperative : public Compiler {
     static OpEmitter emitter_funcs = Emitter().ngraph_op_funcs_;
     static std::unordered_set<std::string> layer_and_other{"split",
                                                            "SliceChannel"};
-    static std::unordered_set<std::string> skip_imperative{"expand_dims"};
+
+    static std::unordered_set<std::string> skip_imperative{"expand_dims",
+                                                           "_copy", "_zeros"};
 
     if (skip_imperative.count(op_name)) return false;
 
@@ -61,6 +65,32 @@ class NGImperative : public Compiler {
   std::shared_ptr<Graph> op_ngraph_;
   void parse_ngraph();
 };
+
+// op signature: tuple of opname, dev/id, attrs.dict and input dims/types.
+using NGIOpKey = std::tuple<const std::string, const std::pair<int, int>,
+                            const std::unordered_map<std::string, std::string>,
+                            const std::vector<int>>;
+
+// create NGIOpKey for a given NNVM FCompute kernel.
+NGIOpKey get_ngiop_key(const nnvm::NodeAttrs &attrs, const mxnet::Context &ctx,
+                       const std::vector<mxnet::TBlob> &inputs);
+
+// ngraph cache for imperative ops
+// TODO(aemani): potential optimizations w/ LRU, fixed size.
+struct NGIOpHash {
+  size_t operator()(const NGIOpKey &key) const;
+};
+struct NGIOpEqual {
+  bool operator()(const NGIOpKey &t1, const NGIOpKey &t2) const;
+};
+using NGIOpCache =
+    std::unordered_map<NGIOpKey, std::shared_ptr<Graph>, NGIOpHash, NGIOpEqual>;
+
+// generates hash for any standard type val, and combines with seed.
+template <typename T>
+inline std::size_t hash_combine(std::size_t const &seed, T const &val) {
+  return seed + std::hash<T>()(val) + (seed << 1);
+}
 
 }  // namespace ngraph_bridge
 #endif  // MXNET_NGRAPH_NGRAPH_IMPERATIVE_H_

@@ -28,6 +28,7 @@
 #include "ngraph_imperative.h"
 #include "ngraph_nnvm_ops.h"
 #include "ngraph_nnvm_utils.h"
+#include "ngraph_utils.h"
 
 namespace ngraph_bridge {
 
@@ -90,7 +91,9 @@ void InitImperativeOnce() {
     auto op_name = unique_op->name;
 
     // skip ops not supported by ngraph imperative
-    if (!NGImperative::check_op_supported(op_name)) continue;
+    if ((op_name.substr(0, 9) == "_backward") ||
+        !NGImperative::check_op_supported(op_name))
+      continue;
 
     nnvm::Op &op =
         ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(op_name);
@@ -107,26 +110,27 @@ void InitImperativeOnce() {
                         const std::vector<mxnet::TBlob> &inputs,
                         const std::vector<mxnet::OpReqType> &req,
                         const std::vector<mxnet::TBlob> &outputs) -> void {
-            NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
-            auto op_ng = ngi.get_op_ngraph();
-            int mode = static_cast<int>(GraphExeMode::kInfer);
-            if (ctx.is_train) {
-              mode = static_cast<int>(GraphExeMode::kTrain);
-            }
-            if (op_ng && op_ng->ngraph_forward[mode]) {
-              compute_forward(ctx, op_ng, inputs, outputs);
+            // thread local cache for ngraph op
+            static thread_local NGIOpCache ngicache;
 
-// TODO(aemani): refactor using mxnet verbose log
-// convenient debug utility.
-#if 0
-                std::cout << "ngraph imperative op: " << attrs.op->name
+            auto op_key = get_ngiop_key(attrs, ctx.run_ctx.ctx, inputs);
+            auto op_ng = ngicache[op_key];
+            if (!op_ng) {
+              NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
+              op_ng = ngicache[op_key] = ngi.get_op_ngraph();
+              if (ngraph_log_verbose && op_ng)
+                LOG(INFO) << "Caching... " << attrs.op->name;
+            }
+            if (op_ng && op_ng->ngraph_forward) {
+              compute_forward(op_ng, inputs, outputs);
+              if (ngraph_log_verbose_detail) {
+                LOG(INFO) << "ngraph imperative op: " << attrs.op->name
                           << ", inputs " << std::to_string(inputs.size())
-                          << ", outputs " << std::to_string(outputs.size())
-                          << std::endl;
+                          << ", outputs " << std::to_string(outputs.size());
+
                 for (const auto &m : attrs.dict)
-                  std::cout << "attrs.dict[" << m.first << "] = " << m.second
-                            << '\n';
-#endif
+                  LOG(INFO) << "attrs.dict[" << m.first << "] = " << m.second;
+              }
             } else {
               // use default mxnet compute kernel
               fallback_fn(attrs, ctx, inputs, req, outputs);
@@ -138,8 +142,45 @@ void InitImperativeOnce() {
 }
 
 void InitImperative() {
+  if (!ngraph_gluon_enable) return;
   static std::once_flag onceFlag;
   std::call_once(onceFlag, InitImperativeOnce);
+}
+
+size_t NGIOpHash::operator()(const NGIOpKey &key) const {
+  std::size_t myhash = std::hash<std::string>()(std::get<0>(key));
+  auto ctx = std::get<1>(key);
+  myhash = hash_combine(myhash, std::get<0>(ctx));
+  myhash = hash_combine(myhash, std::get<1>(ctx));
+
+  auto attrs = std::get<2>(key);
+  std::vector<std::string> attrs_keys;
+  for (const auto &i : attrs) attrs_keys.push_back(i.first);
+  sort(begin(attrs_keys), end(attrs_keys));
+  for (const auto &i : attrs_keys) myhash = hash_combine(myhash, i + attrs[i]);
+
+  auto inputs = std::get<3>(key);
+  for (const auto &i : inputs) myhash = hash_combine(myhash, i);
+  return myhash;
+}
+
+bool NGIOpEqual::operator()(const NGIOpKey &t1, const NGIOpKey &t2) const {
+  return (std::get<0>(t1) == std::get<0>(t2) &&
+          std::get<1>(t1) == std::get<1>(t2) &&
+          std::get<2>(t1) == std::get<2>(t2) &&
+          std::get<3>(t1) == std::get<3>(t2));
+}
+
+NGIOpKey get_ngiop_key(const nnvm::NodeAttrs &attrs, const mxnet::Context &ctx,
+                       const std::vector<mxnet::TBlob> &inputs) {
+  std::vector<int> in;
+  for (const auto &i : inputs) {
+    in.push_back(i.type_flag_);
+    for (size_t ii = 0; ii < i.shape_.ndim(); ++ii) in.push_back(i.shape_[ii]);
+  }
+  return NGIOpKey(attrs.op->name, {static_cast<int>(ctx.dev_type),
+                                   static_cast<int>(ctx.dev_id)},
+                  attrs.dict, in);
 }
 
 }  // namespace ngraph_bridge
