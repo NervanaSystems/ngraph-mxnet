@@ -204,6 +204,7 @@ nnvm::Graph Compiler::Compile() {
   for (auto n : ngraph_.nodes_) {
     if (n->type_ == NodeType::kGraph) {
       // extract and compile subgraph
+      compiler_.setExeMode(GraphExeMode::kInfer);
       auto sg = compiler_.Compile(n);
       // register compiled subgraph with nnvm
       register_subgraph(sg);
