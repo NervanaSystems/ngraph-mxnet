@@ -22,6 +22,14 @@
 
 namespace ngraph_bridge {
 
+void pshape(std::string s, std::vector<size_t> V) {
+  std::cout << s << " shape = ";
+  for (auto v : V) {
+    std::cout << v << " ";
+  }
+  std::cout << "\n";
+}
+
 // Compiter initialization
 Emitter::Emitter() { setExeMode(GraphExeMode::kInfer); }
 
@@ -791,6 +799,72 @@ void Emitter::CreateLayerOps() {
     }
     result = make_with_numpy_broadcast<ngraph::op::Add>(result, ng_in_beta);
     return result;
+  };
+
+  ngraph_op_funcs_["Convolution"] = [this](const NodePtr& node) {
+    enum InputName { kData = 0, kWeight, kBias };
+
+    // data: (batch_size, channel, height, width)
+    NgraphNodePtr data = op_map_[node->inputs_[kData]];
+    pshape("data", data->get_shape());
+
+    // weight: (num_filter, channel, kernel[0], kernel[1])
+    NgraphNodePtr filter = op_map_[node->inputs_[kWeight]];
+    pshape("filt", filter->get_shape());
+
+    // bias:  (num_filter,)
+    NgraphNodePtr bias = op_map_[node->inputs_[kBias]];
+    pshape("bias", bias->get_shape());
+
+    // only for debug
+    if (node->orig_node_->attrs.dict.count("kernel")) {
+      std::string kernel = node->orig_node_->attrs.dict["kernel"];
+      std::cout << "kernel        = " << kernel << "\n";
+    }
+    if (node->orig_node_->attrs.dict.count("num_filter")) {
+      std::string num_filter = node->orig_node_->attrs.dict["num_filter"];
+      std::cout << "num_filter    = " << num_filter << "\n";
+    }
+
+    ngraph::CoordinateDiff padding(data->get_shape().size() - 2, 0);
+    ngraph::Strides filter_stride(data->get_shape().size() - 2, 1);
+    ngraph::Strides filter_dilation(data->get_shape().size() - 2, 1);
+    size_t groups = get_default(node, "num_groups", 1);
+
+    if (node->orig_node_->attrs.dict.count("stride")) {
+      std::cout << "filter stride = " << node->orig_node_->attrs.dict["stride"]
+                << "\n";
+      filter_stride = GetIntVectorFromString<size_t>(
+          node->orig_node_->attrs.dict["stride"]);
+    }
+    if (node->orig_node_->attrs.dict.count("dilate")) {
+      std::cout << "filter dilate = " << node->orig_node_->attrs.dict["dilate"]
+                << "\n";
+      filter_dilation = GetIntVectorFromString<size_t>(
+          node->orig_node_->attrs.dict["dilate"]);
+    }
+    if (node->orig_node_->attrs.dict.count("pad")) {
+      std::cout << "padding       = " << node->orig_node_->attrs.dict["pad"]
+        << "\n";
+      padding = GetIntVectorFromString<std::ptrdiff_t>(
+        node->orig_node_->attrs.dict["pad"]);
+    }
+
+    std::cout << "\n";
+    
+    auto convolution = std::make_shared<ngraph::op::Convolution>(
+        data, filter, filter_stride, filter_dilation, padding, padding);
+
+    pshape("conv", convolution->get_shape());
+
+    ngraph::Shape bias_shape(data->get_shape().size(), 1);
+    bias_shape[1] = bias->get_shape()[0];
+    ngraph::AxisVector order(1, 0);
+    auto reshape_bias = std::make_shared<ngraph::op::Reshape>(bias, order, bias_shape);
+
+    pshape("rshp", reshape_bias->get_shape());
+
+    return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(convolution, reshape_bias);
   };
 }
 
