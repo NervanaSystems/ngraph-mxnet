@@ -143,8 +143,9 @@ class Compiler {
   Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
            const NNVMNodeVec& inputs, const BindArgBase& bindarg,
            const mxnet::Context& context);
-  // Construct base compiler object with context only
-  Compiler(const mxnet::Context& context);
+  // Construct base compiler object with context and optionally disable fprop
+  // cache
+  Compiler(const mxnet::Context& context, const bool enable_fprop_cache = false);
   // Compile returns the compiled graph
   nnvm::Graph Compile();
   // parse the nnvm graph into an intermediate represenation
