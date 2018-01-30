@@ -22,14 +22,6 @@
 
 namespace ngraph_bridge {
 
-void pshape(std::string s, std::vector<size_t> V) {
-  std::cout << s << " shape = ";
-  for (auto v : V) {
-    std::cout << v << " ";
-  }
-  std::cout << "\n";
-}
-
 // Compiter initialization
 Emitter::Emitter() { setExeMode(GraphExeMode::kInfer); }
 
