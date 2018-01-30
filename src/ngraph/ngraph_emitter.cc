@@ -801,6 +801,16 @@ void Emitter::CreateLayerOps() {
     return result;
   };
 
+  /*
+  Error in operator convolution0: [16:08:13]
+  src/operator/./convolution-inl.h:509: Check failed: param_.num_filter %
+  param_.num_group == 0U (2 vs. 0) output num_filter must divide group size
+
+  Error in operator convolution0: [16:56:27]
+  src/operator/./convolution-inl.h:507: Check failed: dshape[1] %
+  param_.num_group == 0U (2 vs. 0) input num_filter must divide group size
+  */
+
   ngraph_op_funcs_["Convolution"] = [this](const NodePtr& node) {
     enum InputName { kData = 0, kWeight, kBias };
 
@@ -819,19 +829,38 @@ void Emitter::CreateLayerOps() {
         get_default<size_t>(node, "stride", default_stride);
     ngraph::Strides dilation =
         get_default<size_t>(node, "dialte", default_dilation);
-    size_t groups = get_default(node, "num_groups", 1);
+    size_t groups = get_default(node, "num_group", 1);
 
-    auto convolution = std::make_shared<ngraph::op::Convolution>(
-        data, filter, stride, dilation, pad, pad);
+    std::vector<NgraphNodePtr> convolutions(groups);
+    for (size_t g = 0; g < groups; ++g) {
+      ngraph::Coordinate data_lower(data->get_shape().size(), 0);
+      ngraph::Coordinate data_upper = data->get_shape();
+      data_lower[1] = g * (data->get_shape()[1] / groups);
+      data_upper[1] = (g + 1) * (data->get_shape()[1] / groups);
+      auto data_slice =
+          std::make_shared<ngraph::op::Slice>(data, data_lower, data_upper);
 
-    ngraph::Shape bias_shape(data->get_shape().size(), 1);
+      ngraph::Coordinate filter_lower(filter->get_shape().size(), 0);
+      ngraph::Coordinate filter_upper = filter->get_shape();
+      filter_lower[0] = g * (filter->get_shape()[0] / groups);
+      filter_upper[0] = (g + 1) * (filter->get_shape()[0] / groups);
+      auto filter_slice = std::make_shared<ngraph::op::Slice>(
+          filter, filter_lower, filter_upper);
+
+      convolutions[g] = std::make_shared<ngraph::op::Convolution>(
+          data_slice, filter_slice, stride, dilation, pad, pad);
+    }
+
+    auto concat = std::make_shared<ngraph::op::Concat>(convolutions, 1);
+
+    ngraph::Shape bias_shape(data->get_shape().size(), 1);  // TODO: d + 1?
     bias_shape[1] = bias->get_shape()[0];
     ngraph::AxisVector order(1, 0);
     auto reshape_bias =
         std::make_shared<ngraph::op::Reshape>(bias, order, bias_shape);
 
     return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(
-        convolution, reshape_bias);
+        concat, reshape_bias);
   };
 }
 
