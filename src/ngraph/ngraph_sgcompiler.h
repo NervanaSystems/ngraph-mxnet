@@ -23,10 +23,6 @@ namespace ngraph_bridge {
 class SGCompiler : public Emitter {
  public:
   std::shared_ptr<Graph> Compile(NodePtr sub_graph);
-  // compiler with optional fprop cache
-  SGCompiler(const bool enable_fprop_cache = false)
-      : enable_fprop_cache(enable_fprop_cache) {}
-  const bool enable_fprop_cache;
 
  protected:
   // compile subgraph into ngraph objects

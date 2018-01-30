@@ -145,7 +145,7 @@ class Compiler {
            const mxnet::Context& context);
   // Construct base compiler object with context and optionally disable fprop
   // cache
-  Compiler(const mxnet::Context& context, const bool enable_fprop_cache = false);
+  Compiler(const mxnet::Context& context);
   // Compile returns the compiled graph
   nnvm::Graph Compile();
   // parse the nnvm graph into an intermediate represenation

@@ -124,14 +124,13 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
 }
 
 // Compiler initialization
-Compiler::Compiler(const mxnet::Context& context, const bool enable_fprop_cache)
-    : compiler_(enable_fprop_cache),
-      ngraph_("ngraph_" + randomString(6), context) {}
+Compiler::Compiler(const mxnet::Context& context)
+    : ngraph_("ngraph_" + randomString(6), context, false) {}
 
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                    const NNVMNodeVec& inputs, const BindArgBase& bindbase,
                    const mxnet::Context& context)
-    : compiler_(true), ngraph_("ngraph_" + randomString(6), context) {
+    : ngraph_("ngraph_" + randomString(6), context) {
   DeepCopy(graph);
 
   // infer nnvm::Graph shape and type

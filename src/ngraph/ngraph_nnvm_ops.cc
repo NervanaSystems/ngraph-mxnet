@@ -74,7 +74,9 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                       const std::vector<mxnet::TBlob> &inputs,
                       const std::vector<mxnet::TBlob> &outputs) {
   auto backend = GetBackendFromContext(graph->context_);
-  auto placeholders = make_ngraph_placeholders({inputs[0]}, backend, true);
+  auto placeholders = graph->enable_fprop_cache
+                          ? make_ngraph_placeholders({inputs[0]}, backend, true)
+                          : make_ngraph_placeholders(inputs, backend, true);
   auto results = make_ngraph_placeholders(outputs, backend, false);
 
   const int mode = static_cast<int>(GraphExeMode::kTrain);

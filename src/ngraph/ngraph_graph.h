@@ -198,9 +198,10 @@ TODO: Refactor into Graph and subgraph?
 */
 class Graph : public Node {
  public:
+  // compiler with optional fprop cache
   Graph(const std::string &name = "",
-        const mxnet::Context &context = mxnet::Context::CPU())
-      : Node(NodeType::kGraph, nullptr, name), context_(context) {}
+        const mxnet::Context &context = mxnet::Context::CPU(), const bool enable_fprop_cache = false)
+      : Node(NodeType::kGraph, nullptr, name), context_(context), enable_fprop_cache(enable_fprop_cache) {}
   // Delete the ngraph objects so we don't have a large memory leak
   // when running multiple graphs back to back
   void CleanUp() {
@@ -239,6 +240,7 @@ class Graph : public Node {
       cached_values[kGraphExeModeCount];
   std::vector<std::shared_ptr<ngraph::runtime::TensorView>>
       cached_aux_values[kGraphExeModeCount];
+  const bool enable_fprop_cache;
 };
 
 /**

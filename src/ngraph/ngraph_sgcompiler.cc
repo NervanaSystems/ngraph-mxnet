@@ -120,7 +120,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     dump_graph(bf);
   }
 
-  if (enable_fprop_cache) {
+  if (sub_graph->enable_fprop_cache) {
     auto fprop_cache = ngraph::cache_fprop(f, bf, {C});
 
     if (ngraph_log_graph) {
