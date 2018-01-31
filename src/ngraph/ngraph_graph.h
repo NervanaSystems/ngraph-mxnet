@@ -172,7 +172,8 @@ inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
     const mxnet::Context &context) {
   auto backend_name = get_backend_name(context);
   if (backend_managers.count(backend_name) == 0) {
-    auto manager = ngraph::runtime::Manager::get(backend_name);
+//    auto manager = ngraph::runtime::Manager::get(backend_name);
+    auto manager = ngraph::runtime::Manager::get("INTERPRETER");
     backend_managers[backend_name] = manager;
   }
   return backend_managers[backend_name];
@@ -225,6 +226,7 @@ class Graph : public Node {
     throw "NGRAPH_BRIDGE: node not in graph";
   }
 
+  bool forward_train_computed{false};
   int num_outputs = 1;
   // nodes in this graph
   std::vector<NodePtr> nodes_;
