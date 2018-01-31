@@ -793,7 +793,8 @@ void Emitter::CreateLayerOps() {
     return result;
   };
 
-  ngraph_op_funcs_["Convolution"] = [this](const NodePtr& node) {
+  ngraph_op_funcs_["Convolution"] =
+      [this](const NodePtr& node) -> NgraphNodePtr {
     enum InputName { kData = 0, kWeight, kBias };
 
     NgraphNodePtr data = op_map_[node->inputs_[kData]];
@@ -844,6 +845,23 @@ void Emitter::CreateLayerOps() {
     // N, channel_out, d'1,...,d'n
     auto concat = std::make_shared<ngraph::op::Concat>(convolutions, 1);
 
+    if (node->inputs_.size() <= kBias) {
+      return concat;
+    }
+
+    // 1, channel_out, 1,...,1
+    ngraph::Shape bias_shape(data_shape.size(), 1);
+    bias_shape[1] = data_shape[1];
+
+    auto bias = op_map_[node->inputs_[kBias]];
+    ngraph::AxisVector order(1, 0);
+    auto bias_reshape =
+        std::make_shared<ngraph::op::Reshape>(bias, order, bias_shape);
+
+    return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(
+        concat, bias_reshape);
+
+    /*
     // 1, channel_out, 1,...,1
     ngraph::Shape bias_shape(data_shape.size(), 1);
     bias_shape[1] = data_shape[1];
@@ -861,6 +879,7 @@ void Emitter::CreateLayerOps() {
     // broadcast add concatenated convolutions to reshaped bias
     return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(concat,
                                                                        bias);
+    */
   };
 }
 
