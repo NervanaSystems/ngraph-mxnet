@@ -84,9 +84,9 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                       const std::vector<mxnet::TBlob> &outputs) {
   // only expect backward is called in training mode
   assert(ctx.is_train);
+  auto backend = GetBackendFromContext(graph->context_);
   const int mode = static_cast<int>(GraphExeMode::kTrain);
   if (!graph->forward_train_computed) {
-    auto backend = GetBackendFromContext(graph->context_);
     // forward inputs
     std::vector<mxnet::TBlob> fwd_inputs(inputs.begin()+graph->num_outputs,
                                          inputs.end());
@@ -100,7 +100,6 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     // call forward
     graph->ngraph_forward[mode]->call(placeholders, results);
   }
-  auto backend = GetBackendFromContext(graph->context_);
   auto placeholders = make_ngraph_placeholders({inputs[0]}, backend, true);
   auto results = make_ngraph_placeholders(outputs, backend, false);
   placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
