@@ -86,6 +86,9 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   assert(ctx.is_train);
   auto backend = GetBackendFromContext(graph->context_);
   const int mode = static_cast<int>(GraphExeMode::kTrain);
+
+  // check forward has been executed, if not we need to run forward to
+  // generate valid data in fprop cache
   if (!graph->forward_train_computed) {
     // forward inputs
     std::vector<mxnet::TBlob> fwd_inputs(inputs.begin()+graph->num_outputs,
@@ -94,12 +97,14 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     // forward outputs
     auto shape = TShape_to_NShape(graph->nodes_.back()->shape_);
     const auto& element_type = getType(graph->nodes_.back()->dtype_);
-    auto TV = backend->make_primary_tensor_view(element_type, shape);
-    TensorViewVector results{TV};
+    auto output_tv = backend->make_primary_tensor_view(element_type, shape);
+    TensorViewVector results{output_tv};
     append_cached_to_forward(results, graph, mode);
     // call forward
     graph->ngraph_forward[mode]->call(placeholders, results);
   }
+
+  // backward op
   auto placeholders = make_ngraph_placeholders({inputs[0]}, backend, true);
   auto results = make_ngraph_placeholders(outputs, backend, false);
   placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
