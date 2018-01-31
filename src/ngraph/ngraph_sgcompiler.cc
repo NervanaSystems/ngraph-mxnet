@@ -90,9 +90,10 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     for (auto aux_node : op_node->config_->AuxNodes()) {
       NgraphNodePtr ngraph_node = aux_op_map_.at(aux_node);
       outputs.push_back(ngraph_node);
-      sub_graph->cached_aux_values[mode].push_back(
-          backend->make_primary_tensor_view(ngraph_node->get_element_type(),
-                                            ngraph_node->get_shape()));
+      if (sub_graph->enable_fprop_cache)
+        sub_graph->cached_aux_values[mode].push_back(
+            backend->make_primary_tensor_view(ngraph_node->get_element_type(),
+                                              ngraph_node->get_shape()));
     }
   }
 
@@ -140,10 +141,13 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
                                             node->get_shape()));
     }
   } else {
-    sub_graph->ngraph_forward[mode] =
-        backend->make_call_frame(manager->compile(f));
-    sub_graph->ngraph_backward[mode] =
-        backend->make_call_frame(manager->compile(bf));
+    try {
+      sub_graph->ngraph_forward[mode] =
+          backend->make_call_frame(manager->compile(f));
+      sub_graph->ngraph_backward[mode] =
+          backend->make_call_frame(manager->compile(bf));
+    } catch (std::exception &e) {
+    }
   }
 }
 
