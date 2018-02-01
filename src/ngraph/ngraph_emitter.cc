@@ -817,23 +817,27 @@ void Emitter::CreateLayerOps() {
 
     std::vector<NgraphNodePtr> convolutions(groups);
     for (size_t g = 0; g < groups; ++g) {
-      // slice data on channel_in
-      // N, channel_in/groups, d1,...,dn
-      ngraph::Coordinate data_lower(data_shape.size(), 0);
-      ngraph::Coordinate data_upper = data_shape;
-      data_lower[1] = g * (data_shape[1] / groups);
-      data_upper[1] = (g + 1) * (data_shape[1] / groups);
-      auto data_slice =
-          std::make_shared<ngraph::op::Slice>(data, data_lower, data_upper);
+      auto data_slice = data;
+      auto filter_slice = filter;
+      if (groups > 1) {
+        // slice data on channel_in
+        // N, channel_in/groups, d1,...,dn
+        ngraph::Coordinate data_lower(data_shape.size(), 0);
+        ngraph::Coordinate data_upper = data_shape;
+        data_lower[1] = g * (data_shape[1] / groups);
+        data_upper[1] = (g + 1) * (data_shape[1] / groups);
+        data_slice =
+            std::make_shared<ngraph::op::Slice>(data, data_lower, data_upper);
 
-      // slice filter on channel_out
-      // channel_out/groups, channel_in/groups, f1,...,fn
-      ngraph::Coordinate filter_lower(filter_shape.size(), 0);
-      ngraph::Coordinate filter_upper = filter_shape;
-      filter_lower[0] = g * (filter_shape[0] / groups);
-      filter_upper[0] = (g + 1) * (filter_shape[0] / groups);
-      auto filter_slice = std::make_shared<ngraph::op::Slice>(
-          filter, filter_lower, filter_upper);
+        // slice filter on channel_out
+        // channel_out/groups, channel_in/groups, f1,...,fn
+        ngraph::Coordinate filter_lower(filter_shape.size(), 0);
+        ngraph::Coordinate filter_upper = filter_shape;
+        filter_lower[0] = g * (filter_shape[0] / groups);
+        filter_upper[0] = (g + 1) * (filter_shape[0] / groups);
+        filter_slice = std::make_shared<ngraph::op::Slice>(filter, filter_lower,
+                                                           filter_upper);
+      }
 
       // convolve sliced data and filter
       // N, channel_out/groups, d'1,...,d'n
@@ -841,17 +845,22 @@ void Emitter::CreateLayerOps() {
           data_slice, filter_slice, stride, dilate, pad, pad);
     }
 
-    // concatenate convolutions on channel_out
-    // N, channel_out, d'1,...,d'n
-    auto concat = std::make_shared<ngraph::op::Concat>(convolutions, 1);
+    auto concat_convolution = convolutions[0];
+
+    if (groups > 1) {
+      // concatenate convolutions on channel_out
+      // N, channel_out, d'1,...,d'n
+      concat_convolution =
+          std::make_shared<ngraph::op::Concat>(convolutions, 1);
+    }
 
     if (node->inputs_.size() <= kBias) {
-      return concat;
+      return concat_convolution;
     }
 
     // 1, channel_out, 1,...,1
-    ngraph::Shape bias_shape(data_shape.size(), 1);
-    bias_shape[1] = data_shape[1];
+    ngraph::Shape bias_shape(filter_shape.size(), 1);
+    bias_shape[1] = filter_shape[0];
 
     auto bias = op_map_[node->inputs_[kBias]];
     ngraph::AxisVector order(1, 0);
@@ -859,27 +868,7 @@ void Emitter::CreateLayerOps() {
         std::make_shared<ngraph::op::Reshape>(bias, order, bias_shape);
 
     return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(
-        concat, bias_reshape);
-
-    /*
-    // 1, channel_out, 1,...,1
-    ngraph::Shape bias_shape(data_shape.size(), 1);
-    bias_shape[1] = data_shape[1];
-
-    NgraphNodePtr bias = nullptr;
-    if (node->inputs_.size() > kBias) {
-      ngraph::AxisVector order(1, 0);
-      auto biasparam = op_map_[node->inputs_[kBias]];
-      bias =
-          std::make_shared<ngraph::op::Reshape>(biasparam, order, bias_shape);
-    } else {
-      bias = makeConstant(data->get_element_type(), bias_shape, "0");
-    }
-
-    // broadcast add concatenated convolutions to reshaped bias
-    return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(concat,
-                                                                       bias);
-    */
+        concat_convolution, bias_reshape);
   };
 }
 
