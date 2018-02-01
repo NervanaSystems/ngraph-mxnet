@@ -90,9 +90,10 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     for (auto aux_node : op_node->config_->AuxNodes()) {
       NgraphNodePtr ngraph_node = aux_op_map_.at(aux_node);
       outputs.push_back(ngraph_node);
-      sub_graph->cached_aux_values[mode].push_back(
-          backend->make_primary_tensor_view(ngraph_node->get_element_type(),
-                                            ngraph_node->get_shape()));
+      if (sub_graph->enable_fprop_cache)
+        sub_graph->cached_aux_values[mode].push_back(
+            backend->make_primary_tensor_view(ngraph_node->get_element_type(),
+                                              ngraph_node->get_shape()));
     }
   }
 
@@ -120,23 +121,30 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     dump_graph(bf);
   }
 
-  auto fprop_cache = ngraph::cache_fprop(f, bf, {C});
+  if (sub_graph->enable_fprop_cache) {
+    auto fprop_cache = ngraph::cache_fprop(f, bf, {C});
 
-  if (ngraph_log_graph) {
-    dump_graph(fprop_cache.fprop);
-    dump_graph(fprop_cache.bprop);
-  }
+    if (ngraph_log_graph) {
+      dump_graph(fprop_cache.fprop);
+      dump_graph(fprop_cache.bprop);
+    }
 
-  auto forward_external = manager->compile(fprop_cache.fprop);
-  sub_graph->ngraph_forward[mode] = backend->make_call_frame(forward_external);
-
-  auto backward_external = manager->compile(fprop_cache.bprop);
-  sub_graph->ngraph_backward[mode] =
-      backend->make_call_frame(backward_external);
-
-  for (auto node : fprop_cache.fprop_output_nodes) {
-    sub_graph->cached_values[mode].push_back(backend->make_primary_tensor_view(
-        node->get_element_type(), node->get_shape()));
+    auto forward_external = manager->compile(fprop_cache.fprop);
+    sub_graph->ngraph_forward[mode] =
+        backend->make_call_frame(forward_external);
+    auto backward_external = manager->compile(fprop_cache.bprop);
+    sub_graph->ngraph_backward[mode] =
+        backend->make_call_frame(backward_external);
+    for (auto node : fprop_cache.fprop_output_nodes) {
+      sub_graph->cached_values[mode].push_back(
+          backend->make_primary_tensor_view(node->get_element_type(),
+                                            node->get_shape()));
+    }
+  } else {
+    sub_graph->ngraph_backward[mode] =
+        backend->make_call_frame(manager->compile(bf));
+    sub_graph->ngraph_forward[mode] =
+        backend->make_call_frame(manager->compile(f));
   }
 }
 

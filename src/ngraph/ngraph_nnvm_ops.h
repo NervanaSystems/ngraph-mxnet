@@ -15,6 +15,7 @@
 #ifndef MXNET_NGRAPH_NGRAPH_NNVM_OPS_H_
 #define MXNET_NGRAPH_NGRAPH_NNVM_OPS_H_
 
+#include <mxnet/op_attr_types.h>
 #include <nnvm/op.h>
 
 #include <string>
