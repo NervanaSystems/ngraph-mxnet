@@ -141,11 +141,11 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
                                             node->get_shape()));
     }
   } else {
+      sub_graph->ngraph_backward[mode] =
+          backend->make_call_frame(manager->compile(bf));
     try {
       sub_graph->ngraph_forward[mode] =
           backend->make_call_frame(manager->compile(f));
-      sub_graph->ngraph_backward[mode] =
-          backend->make_call_frame(manager->compile(bf));
     } catch (std::exception &e) {
     }
   }
