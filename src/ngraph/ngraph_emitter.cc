@@ -879,6 +879,50 @@ void Emitter::CreateLayerOps() {
     return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(
         concat_convolution, bias_reshape);
   };
+  ngraph_op_funcs_["Pooling"] = [this](const NodePtr& node) -> NgraphNodePtr {
+    auto type = get_default(node, "pool_type", std::string("max"))
+    if (type == "max") {
+      return ngraph_op_funcs_["max_pooling"](node);
+    } else if (type == "avg") {
+      return ngraph_op_funcs_["avg_pooling"](node);
+    } else if (type == "sum") {
+      size_t filt_size = 1;
+      for (auto x : get_default(node, "kernel", std::vector<size_t>()))
+        filt_size *= x;
+      auto op = ngraph_op_funcs_["avg_pooling"](node);
+      return op * makeConstant(op->get_element_type(), op->get_shape(),
+                               std::to_string(filt_size));
+    }
+  };
+  ngraph_op_funcs_["max_pooling"] = [this](const NodePtr& node) {
+    auto input = op_map_[node->inputs_[0]];
+    auto input_shape = input->shape;
+
+    auto pooling_convention = get_default(node, "pooling_convention", std::string("valid"));
+    auto kernel = get_default(node, "kernel", std::vector<size_t>());
+    auto stride = get_default(node, "stride", std::vector<size_t>(input_shape.size() - 2, 1));
+    auto pad = get_default(node, "pad", std::vector<size_t>(input_shape.size() - 2, 1));
+
+
+    return ngraph::builder::numpy_transpose(op_map_[node->inputs_[0]],
+                                            axes_order);
+  };
+  ngraph_op_funcs_["avg_pooling"] = [this](const NodePtr& node) {
+    auto input = op_map_[node->inputs_[0]];
+    auto input_shape = input->shape;
+
+    auto pooling_convention = get_default(node, "pooling_convention", std::string("valid"));
+    auto kernel = get_default(node, "kernel", std::vector<size_t>());
+    auto stride = get_default(node, "stride", std::vector<size_t>(input_shape.size() - 2, 1));
+    auto pad = get_default(node, "pad", std::vector<size_t>(input_shape.size() - 2, 1));
+
+    if (pooling_convention == "valid") {
+
+    }
+
+    return ngraph::builder::numpy_transpose(op_map_[node->inputs_[0]],
+                                            axes_order);
+  };
 }
 
 }  // namespace ngraph_bridge
