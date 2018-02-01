@@ -815,15 +815,19 @@ void Emitter::CreateLayerOps() {
     auto dilate = get_default<size_t>(node, "dilate", default_dilate);
     size_t groups = get_default(node, "num_group", 1);
 
+    // since we do not slice unless groups > 1
+    auto data_slice = data;
+    auto filter_slice = filter;
+
     std::vector<NgraphNodePtr> convolutions(groups);
     for (size_t g = 0; g < groups; ++g) {
-      auto data_slice = data;
-      auto filter_slice = filter;
       if (groups > 1) {
         // slice data on channel_in
         // N, channel_in/groups, d1,...,dn
         ngraph::Coordinate data_lower(data_shape.size(), 0);
         ngraph::Coordinate data_upper = data_shape;
+
+        // data_shape[1] % groups = 0 guaranteed by MXNet
         data_lower[1] = g * (data_shape[1] / groups);
         data_upper[1] = (g + 1) * (data_shape[1] / groups);
         data_slice =
@@ -833,6 +837,8 @@ void Emitter::CreateLayerOps() {
         // channel_out/groups, channel_in/groups, f1,...,fn
         ngraph::Coordinate filter_lower(filter_shape.size(), 0);
         ngraph::Coordinate filter_upper = filter_shape;
+
+        // filter_shape[0] % groups = 0 guaranteed by MXNet
         filter_lower[0] = g * (filter_shape[0] / groups);
         filter_upper[0] = (g + 1) * (filter_shape[0] / groups);
         filter_slice = std::make_shared<ngraph::op::Slice>(filter, filter_lower,
@@ -845,6 +851,7 @@ void Emitter::CreateLayerOps() {
           data_slice, filter_slice, stride, dilate, pad, pad);
     }
 
+    // since we do not concat unless groups > 1
     auto concat_convolution = convolutions[0];
 
     if (groups > 1) {
@@ -854,15 +861,17 @@ void Emitter::CreateLayerOps() {
           std::make_shared<ngraph::op::Concat>(convolutions, 1);
     }
 
+    // no bias param, return
     if (node->inputs_.size() <= kBias) {
       return concat_convolution;
     }
+
+    NgraphNodePtr bias = op_map_[node->inputs_[kBias]];
 
     // 1, channel_out, 1,...,1
     ngraph::Shape bias_shape(filter_shape.size(), 1);
     bias_shape[1] = filter_shape[0];
 
-    auto bias = op_map_[node->inputs_[kBias]];
     ngraph::AxisVector order(1, 0);
     auto bias_reshape =
         std::make_shared<ngraph::op::Reshape>(bias, order, bias_shape);
