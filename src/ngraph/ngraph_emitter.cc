@@ -812,7 +812,7 @@ void Emitter::CreateLayerOps() {
 
     auto pad = get_default<ptrdiff_t>(node, "pad", default_pad);
     auto stride = get_default<size_t>(node, "stride", default_stride);
-    auto dilate = get_default<size_t>(node, "dialte", default_dilate);
+    auto dilate = get_default<size_t>(node, "dilate", default_dilate);
     size_t groups = get_default(node, "num_group", 1);
 
     std::vector<NgraphNodePtr> convolutions(groups);
