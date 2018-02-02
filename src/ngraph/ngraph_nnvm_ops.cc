@@ -85,6 +85,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // only expect backward is called in training mode
   assert(ctx.is_train);
   auto backend = GetBackendFromContext(graph->context_);
+
   const int mode = static_cast<int>(GraphExeMode::kTrain);
 
   // check forward has been executed, if not we need to run forward to
@@ -105,7 +106,10 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   }
 
   // backward op
-  auto placeholders = make_ngraph_placeholders({inputs[0]}, backend, true);
+  auto placeholders = graph->enable_fprop_cache
+                          ? make_ngraph_placeholders({inputs[0]}, backend, true)
+                          : make_ngraph_placeholders(inputs, backend, true);
+
   auto results = make_ngraph_placeholders(outputs, backend, false);
   placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
                       graph->cached_values[mode].end());

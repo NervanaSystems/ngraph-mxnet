@@ -123,10 +123,11 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
   }
 }
 
-// Compiler initialization
+// Compiler initialization with fprop cache disabled
 Compiler::Compiler(const mxnet::Context& context)
-    : ngraph_("ngraph_" + randomString(6), context) {}
+    : ngraph_("ngraph_" + randomString(6), context, false) {}
 
+// Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                    const NNVMNodeVec& inputs, const BindArgBase& bindbase,
                    const mxnet::Context& context)
