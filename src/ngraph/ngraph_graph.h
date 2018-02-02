@@ -225,6 +225,7 @@ class Graph : public Node {
     throw "NGRAPH_BRIDGE: node not in graph";
   }
 
+  bool forward_train_computed{false};
   int num_outputs = 1;
   // nodes in this graph
   std::vector<NodePtr> nodes_;

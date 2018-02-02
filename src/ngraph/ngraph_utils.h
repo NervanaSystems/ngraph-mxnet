@@ -69,7 +69,7 @@ class Timer {
 
  private:
   struct tval {
-    std::chrono::system_clock::time_point start;
+    std::chrono::high_resolution_clock::time_point start;
     std::chrono::duration<double> csum;
     std::chrono::duration<double> sum;
     size_t loops;
