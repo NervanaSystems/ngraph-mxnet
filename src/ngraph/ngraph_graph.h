@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------
-// Copyright 2017 Nervana Systems Inc.
+// Copyright 2018 Nervana Systems Inc.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -229,6 +229,7 @@ class Graph : public Node {
     throw "NGRAPH_BRIDGE: node not in graph";
   }
 
+  bool forward_train_computed{false};
   int num_outputs = 1;
   // nodes in this graph
   std::vector<NodePtr> nodes_;
