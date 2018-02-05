@@ -110,7 +110,7 @@ def add_fit_args(parser):
                        help='threshold for 2bit gradient compression')
     return train
 
-def fit(args, network, data_loader, **kwargs):
+def fit(args, network, data_loader,is_nnp=False, **kwargs):
     """
     train a model
     args : argparse returns
@@ -159,6 +159,8 @@ def fit(args, network, data_loader, **kwargs):
     devs = mx.cpu() if args.gpus is None or args.gpus is '' else [
         mx.gpu(int(i)) for i in args.gpus.split(',')]
 
+    if is_nnp:
+        devs = mx.nnp()
     # learning rate
     lr, lr_scheduler = _get_lr_scheduler(args, kv)
 
