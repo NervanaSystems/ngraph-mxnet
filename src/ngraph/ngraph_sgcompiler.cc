@@ -24,6 +24,8 @@
 #include <vector>
 
 #include <ngraph/serializer.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <ngraph/pass/reshape_elimination.hpp>
 
 #include "ngraph_sgcompiler_utils.h"
 #include "ngraph_utils.h"
@@ -54,6 +56,30 @@ std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
   return sg;
 }
 
+void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
+                            std::shared_ptr<ngraph::Function> f,
+                            std::shared_ptr<ngraph::Function> bf,
+                            GraphExeMode exe_mode) {
+  
+  const int mode = static_cast<int>(exe_mode);
+  
+  auto manager = GetManagerFromContext(sub_graph->context_);
+  auto backend = GetBackendFromContext(sub_graph->context_);
+
+  sub_graph->ngraph_backward[mode] =
+      backend->make_call_frame(manager->compile(bf));
+  sub_graph->ngraph_forward[mode] =
+      backend->make_call_frame(manager->compile(f));
+
+}
+
+void OptimizeGraph(std::shared_ptr<ngraph::Function> f) {
+  ngraph::pass::Manager pass_manager;
+  pass_manager.register_pass<ngraph::pass::ReshapeElimination>();
+
+  pass_manager.run_passes(f);
+}
+
 // Compile a Subgraph into ngraph forward and backward call frames
 void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // initalize a placeholder order vector for this subgraph
@@ -75,7 +101,6 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // calcuate the shape and return type of the subgraph
   auto Y = op_map_.at(sub_graph->nodes_.back());
 
-  auto manager = GetManagerFromContext(sub_graph->context_);
   auto backend = GetBackendFromContext(sub_graph->context_);
 
   const int mode = static_cast<int>(exe_mode_);
@@ -101,7 +126,9 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   std::shared_ptr<ngraph::Function> f =
       std::make_shared<ngraph::Function>(outputs, parameters);
 
-  // Create the Backward Pass
+  OptimizeGraph(f);
+
+  // Create the Adjoint
   auto C = std::make_shared<ngraph::op::Parameter>(Y->get_element_type(),
                                                    Y->get_shape());
 
@@ -116,6 +143,8 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
   auto bf = std::make_shared<ngraph::Function>(dYdXs, back_parameters);
 
+  OptimizeGraph(bf);
+
   if (ngraph_log_graph) {
     dump_graph(f);
     dump_graph(bf);
@@ -129,22 +158,17 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
       dump_graph(fprop_cache.bprop);
     }
 
-    auto forward_external = manager->compile(fprop_cache.fprop);
-    sub_graph->ngraph_forward[mode] =
-        backend->make_call_frame(forward_external);
-    auto backward_external = manager->compile(fprop_cache.bprop);
-    sub_graph->ngraph_backward[mode] =
-        backend->make_call_frame(backward_external);
+    CompileForwardBackward(sub_graph, fprop_cache.fprop, fprop_cache.bprop,
+                           exe_mode_);
+
     for (auto node : fprop_cache.fprop_output_nodes) {
       sub_graph->cached_values[mode].push_back(
           backend->make_primary_tensor_view(node->get_element_type(),
                                             node->get_shape()));
     }
+
   } else {
-    sub_graph->ngraph_backward[mode] =
-        backend->make_call_frame(manager->compile(bf));
-    sub_graph->ngraph_forward[mode] =
-        backend->make_call_frame(manager->compile(f));
+    CompileForwardBackward(sub_graph, f, bf, exe_mode_);
   }
 }
 
