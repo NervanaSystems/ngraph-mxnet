@@ -62,6 +62,13 @@ ngraph::AxisVector pyrange(size_t start, size_t stop) {
 
 ngraph::AxisVector pyrange(size_t stop) { return pyrange(0, stop); }
 
+std::string get_default(const NodePtr& node, const std::string& key,
+                        const std::string default_val) {
+  return node->orig_node_->attrs.dict.count(key)
+             ? node->orig_node_->attrs.dict[key]
+             : default_val;
+}
+
 int get_default(const NodePtr& node, const std::string& key,
                 const int default_val) {
   return node->orig_node_->attrs.dict.count(key)
@@ -574,6 +581,26 @@ void Emitter::CreateBinaryOps() {
   */
 }
 
+struct PoolingParams {
+  PoolingParams(const NodePtr& node, const NgraphNodePtr& input) {
+    pooling_convention =
+        get_default(node, "pooling_convention", std::string("valid"));
+    global_pool = get_default(node, "global_pool", false);
+    auto pool_dim = input->get_shape().size() - 2;
+    auto default_ones = std::vector<size_t>(pool_dim, 1);
+    auto default_zeros = std::vector<size_t>(pool_dim, 0);
+    kernel = get_default(node, "kernel", default_ones);
+    stride = get_default(node, "stride", default_ones);
+    pad = get_default(node, "pad", default_zeros);
+  }
+
+  std::string pooling_convention;
+  bool global_pool;
+  std::vector<size_t> kernel;
+  std::vector<size_t> stride;
+  std::vector<size_t> pad;
+};
+
 // MXNet high level ops generating function
 void Emitter::CreateLayerOps() {
   // In mxnet, split takes a tensor and creates multiple tensors from
@@ -880,48 +907,69 @@ void Emitter::CreateLayerOps() {
         concat_convolution, bias_reshape);
   };
   ngraph_op_funcs_["Pooling"] = [this](const NodePtr& node) -> NgraphNodePtr {
-    auto type = get_default(node, "pool_type", std::string("max"))
+    NgraphNodePtr op;
+    std::string type = get_default(node, "pool_type", std::string("max"));
     if (type == "max") {
-      return ngraph_op_funcs_["max_pooling"](node);
+      op = ngraph_op_funcs_["max_pooling"](node); 
+      for (auto x : op->get_shape()) {
+        std::cout << x << " ";
+      }
+      std:: cout << std::endl;
+      for (auto x : node->shape_) {
+        std::cout << x << " ";
+      }
+      std:: cout << std::endl;
     } else if (type == "avg") {
-      return ngraph_op_funcs_["avg_pooling"](node);
+      op = ngraph_op_funcs_["avg_pooling"](node); 
+      for (auto x : op->get_shape()) {
+        std::cout << x << " ";
+      }
+      std:: cout << std::endl;
+      for (auto x : node->shape_) {
+        std::cout << x << " ";
+      }
+      std:: cout << std::endl;
     } else if (type == "sum") {
-      size_t filt_size = 1;
-      for (auto x : get_default(node, "kernel", std::vector<size_t>()))
-        filt_size *= x;
-      auto op = ngraph_op_funcs_["avg_pooling"](node);
-      return op * makeConstant(op->get_element_type(), op->get_shape(),
-                               std::to_string(filt_size));
+      throw "NGRAPH_BRIDGE: Sum pooling not yet supported";
     }
+    return op;
   };
-  ngraph_op_funcs_["max_pooling"] = [this](const NodePtr& node) {
+
+  auto asymetric_padding =
+      [](ngraph::Shape input_shape, PoolingParams params) {
+        auto top_pad = params.pad;
+        if (params.pooling_convention == "full") {
+          for (size_t i = 2; i < input_shape.size(); ++i) {
+            // TODO(mbrookhart): I'm not sure this math is 100% correct,
+            // MXNet doesn't have very good Pooling tests.
+            size_t padded_dim = input_shape[i] + 2 * top_pad[i - 2];
+            size_t stride = params.stride[i - 2];
+            auto num_strides = (size_t)ceil(
+                (float)(padded_dim - params.kernel[i - 2]) / (float)stride);
+            size_t extra_pad =
+                num_strides * stride + params.kernel[i - 2] - padded_dim;
+            top_pad[i - 2] += extra_pad;
+          }
+        }
+        return top_pad;
+      };
+
+  ngraph_op_funcs_["max_pooling"] = [this,
+                                     &asymetric_padding](const NodePtr& node) {
     auto input = op_map_[node->inputs_[0]];
-    auto input_shape = input->shape;
+    auto params = PoolingParams(node, input);
 
-    auto pooling_convention = get_default(node, "pooling_convention", std::string("valid"));
-    auto kernel = get_default(node, "kernel", std::vector<size_t>());
-    auto stride = get_default(node, "stride", std::vector<size_t>(input_shape.size() - 2, 1));
-    auto pad = get_default(node, "pad", std::vector<size_t>(input_shape.size() - 2, 1));
-
-
-    return ngraph::builder::numpy_transpose(op_map_[node->inputs_[0]],
-                                            axes_order);
+    return std::make_shared<ngraph::op::MaxPool>(
+        input, params.kernel, params.stride, params.pad,
+        asymetric_padding(input->get_shape(), params));
   };
-  ngraph_op_funcs_["avg_pooling"] = [this](const NodePtr& node) {
+  ngraph_op_funcs_["avg_pooling"] = [this, &asymetric_padding](const NodePtr& node) {
     auto input = op_map_[node->inputs_[0]];
-    auto input_shape = input->shape;
+    auto params = PoolingParams(node, input);
 
-    auto pooling_convention = get_default(node, "pooling_convention", std::string("valid"));
-    auto kernel = get_default(node, "kernel", std::vector<size_t>());
-    auto stride = get_default(node, "stride", std::vector<size_t>(input_shape.size() - 2, 1));
-    auto pad = get_default(node, "pad", std::vector<size_t>(input_shape.size() - 2, 1));
-
-    if (pooling_convention == "valid") {
-
-    }
-
-    return ngraph::builder::numpy_transpose(op_map_[node->inputs_[0]],
-                                            axes_order);
+    return std::make_shared<ngraph::op::AvgPool>(
+        input, params.kernel, params.stride, params.pad,
+        asymetric_padding(input->get_shape(), params));
   };
 }
 
