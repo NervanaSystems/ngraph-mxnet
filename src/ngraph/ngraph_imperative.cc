@@ -126,7 +126,7 @@ void InitImperativeOnce() {
               mode = static_cast<int>(GraphExeMode::kTrain);
             }
             if (op_ng && op_ng->ngraph_forward[mode]) {
-              compute_forward(ctx, op_ng, inputs, outputs);
+              compute_forward(ctx, op_ng, inputs, req, outputs);
 
               if (ngraph_log_verbose_detail) {
                 LOG(INFO) << "ngraph imperative op: " << attrs.op->name

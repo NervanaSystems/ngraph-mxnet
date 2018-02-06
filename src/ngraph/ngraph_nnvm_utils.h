@@ -75,16 +75,42 @@ inline TensorViewVector make_ngraph_placeholders(
 // once?
 template <typename T>
 inline void result_to_TBlob(const T& result,
+                            const std::vector<mxnet::OpReqType>& req,
                             const std::vector<mxnet::TBlob>& outputs,
                             int outnum) {
-  void* p = outputs[outnum].dptr_;
   const auto& element_type = getType(outputs[outnum].type_flag_);
   auto buffer_size =
       get_buffer_size(outputs[outnum].shape_, element_type.size());
 
-  result->read(p, 0, buffer_size);
-}
+  void* temp = malloc(buffer_size);
+  result->read(temp, 0, buffer_size);
 
+  void* p = outputs[outnum].dptr_;
+  if (req[outnum] == mxnet::kAddTo) {
+    for (size_t i = 0; i < (buffer_size / element_type.size()); ++i) {
+
+      if(element_type == ngraph::element::f32)
+        *(((float*)p) + i) += *(((float*)temp) + i);
+      else if(element_type == ngraph::element::f64) 
+        *(((double*)p) + i) += *(((double*)temp) + i);
+      else if(element_type == ngraph::element::i8)
+        *(((int8_t*)p) + i) += *(((int8_t*)temp) + i);
+      else if (element_type == ngraph::element::i16)
+        *(((int16_t*)p) + i) += *(((int16_t*)temp) + i);
+      else if (element_type == ngraph::element::i32)
+        *(((int32_t*)p) + i) += *(((int32_t*)temp) + i);
+      else if (element_type == ngraph::element::i64)
+        *(((int64_t*)p) + i) += *(((int64_t*)temp) + i);
+      else if (element_type == ngraph::element::u8)
+        *(((uint8_t*)p) + i) += *(((uint8_t*)temp) + i);
+
+    }
+  } else {
+    memcpy(p, temp, buffer_size);
+  }
+
+  free(temp);
+}
 }  // namespace ngraph_bridge
 
 #endif  // MXNET_NGRAPH_NGRAPH_NNVM_UTILS_H_

@@ -36,6 +36,7 @@ inline const ngraph::element::Type& getType(int type) {
       {mshadow::kFloat64, &ngraph::element::f64},
       {mshadow::kUint8, &ngraph::element::u8},
       {mshadow::kInt8, &ngraph::element::i8},
+      {mshadow::kInt16, &ngraph::element::i16},
       {mshadow::kInt32, &ngraph::element::i32},
       {mshadow::kInt64, &ngraph::element::i64}};
 

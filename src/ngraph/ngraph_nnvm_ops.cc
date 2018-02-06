@@ -35,8 +35,8 @@ nnvm::Op *get_subgraph_op(std::shared_ptr<Graph> graph) {
       "ngraph_" + graph->name_));
 }
 
-void append_cached_to_forward(TensorViewVector& results,
-                              const std::shared_ptr<Graph>& graph,
+void append_cached_to_forward(TensorViewVector &results,
+                              const std::shared_ptr<Graph> &graph,
                               const int mode) {
   results.insert(results.end(), graph->cached_aux_values[mode].begin(),
                  graph->cached_aux_values[mode].end());
@@ -47,6 +47,7 @@ void append_cached_to_forward(TensorViewVector& results,
 // function for computing forward on ngraph
 void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                      const std::vector<mxnet::TBlob> &inputs,
+                     const std::vector<mxnet::OpReqType> &req,
                      const std::vector<mxnet::TBlob> &outputs) {
   auto backend = GetBackendFromContext(graph->context_);
   auto placeholders = make_ngraph_placeholders(inputs, backend, true);
@@ -62,7 +63,7 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   graph->ngraph_forward[mode]->call(placeholders, results);
 
   // default result output
-  result_to_TBlob(results[0], outputs, 0);
+  result_to_TBlob(results[0], req, outputs, 0);
 
   // aux result outputs mapped to inputs
   OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(graph->nodes_.back());
@@ -72,7 +73,7 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     // expecting this to be 1
     assert(resultOffset == 1);
     for (size_t i = 0; i < op_config->AuxNodes().size(); ++i) {
-      result_to_TBlob(results[resultOffset + i], inputs,
+      result_to_TBlob(results[resultOffset + i], req, inputs,
                       op_config->MapAuxToInput(i));
     }
   }
@@ -81,6 +82,7 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 // function for computing backward on ngraph
 void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                       const std::vector<mxnet::TBlob> &inputs,
+                      const std::vector<mxnet::OpReqType> &req,
                       const std::vector<mxnet::TBlob> &outputs) {
   // only expect backward is called in training mode
   assert(ctx.is_train);
@@ -92,12 +94,12 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // generate valid data in fprop cache
   if (!graph->forward_train_computed) {
     // forward inputs
-    std::vector<mxnet::TBlob> fwd_inputs(inputs.begin()+graph->num_outputs,
+    std::vector<mxnet::TBlob> fwd_inputs(inputs.begin() + graph->num_outputs,
                                          inputs.end());
     auto placeholders = make_ngraph_placeholders(fwd_inputs, backend, true);
     // forward outputs
     auto shape = TShape_to_NShape(graph->nodes_.back()->shape_);
-    const auto& element_type = getType(graph->nodes_.back()->dtype_);
+    const auto &element_type = getType(graph->nodes_.back()->dtype_);
     auto output_tv = backend->make_primary_tensor_view(element_type, shape);
     TensorViewVector results{output_tv};
     append_cached_to_forward(results, graph, mode);
@@ -118,7 +120,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // updated data from forward
   graph->forward_train_computed = false;
   for (size_t j = 0; j < outputs.size(); ++j)
-    result_to_TBlob(results[j], outputs, j);
+    result_to_TBlob(results[j], req, outputs, j);
 }
 
 void register_forward_op(std::shared_ptr<Graph> graph) {
@@ -233,7 +235,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
               const std::vector<mxnet::TBlob> &inputs,
               const std::vector<mxnet::OpReqType> &req,
               const std::vector<mxnet::TBlob> &outputs) -> void {
-        compute_forward(ctx, graph, inputs, outputs);
+        compute_forward(ctx, graph, inputs, req, outputs);
       });
 }
 
@@ -265,7 +267,7 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
               const std::vector<mxnet::TBlob> &inputs,
               const std::vector<mxnet::OpReqType> &req,
               const std::vector<mxnet::TBlob> &outputs) -> void {
-        compute_backward(ctx, graph, inputs, outputs);
+        compute_backward(ctx, graph, inputs, req, outputs);
       });
 }
 // register subgraph ops with nnvm.
