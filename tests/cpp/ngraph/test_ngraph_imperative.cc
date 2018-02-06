@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // ----------------------------------------------------------------------------
 
-#include "../../src/ngraph/ngraph_nnvm_ops.h"
 #include "test_ngraph_imperative.h"
+#include "../../src/ngraph/ngraph_nnvm_ops.h"
 
 namespace ngraph_bridge {
 
