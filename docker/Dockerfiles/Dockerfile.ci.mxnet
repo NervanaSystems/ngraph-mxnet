@@ -12,22 +12,38 @@ ENV socks_proxy="socks://proxy-us.intel.com:1080"
 
 #Install MxNet Dependencies:
 RUN apt-get update && apt-get install -y build-essential git \
-	libopencv-dev \
-	curl \
-	gcc \
-	libatlas-base-dev \
-	python \
-	python-pip \
-	python-dev \
-	python-opencv \
-	graphviz \
-	python-scipy \
-	python-sklearn \
-	libopenblas-dev \
-	gcc-4.8 \
-	clang 3.9 \
-	clang-format 3.9\
-	virtualenv \
-	cmake
+        libopencv-dev \
+        curl \
+        gcc \
+        libatlas-base-dev \
+        python \
+        python-pip \
+        python3-pip  \
+        python-dev \
+        python-opencv \
+        graphviz \
+        python-scipy \
+        python-sklearn \
+        libopenblas-dev \
+        gcc-4.8 \
+        clang-3.9 \
+        clang-format-3.9 \
+        virtualenv \
+        cmake \
+        sudo
 
-WORKDIR /tmp
+RUN pip install --upgrade pip
+RUN pip install numpy
+
+# We include pytest so the Docker image can be used for daily validation
+RUN pip install --upgrade pytest
+
+# We include pytest-xdist to speed up the testing
+RUN pip install pytest-xdist
+
+# Copy in the run-as-user.sh script
+# This will allow the builds, which are done in a mounted directory, to
+# be run as the user who runs "docker run".  This then allows the mounted
+# directory to be properly deleted by the user later (e.g. by jenkins).
+WORKDIR /home
+ADD scripts/run-as-user.sh /home/run-as-user.sh
