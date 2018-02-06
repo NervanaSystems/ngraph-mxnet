@@ -510,6 +510,23 @@ void HandleInferStorageTypeError(const size_t num_forward_inputs,
              << oss.str();
 }
 
+#if MXNET_USE_NGRAPH==1
+bool multi_context_check(const Context& default_ctx,
+                         const std::vector<Context>& in_arg_ctxes,
+                         const std::vector<Context>& arg_grad_ctxes,
+                         const std::vector<Context>& aux_state_ctxes) {
+  bool multi_context = false;
+  for (auto contexts : {in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes}) {
+    for (auto context : contexts) {
+      if (context != default_ctx) {
+        multi_context = true;
+      }
+    }
+  }
+  return multi_context;
+}
+#endif
+
 /*!
  * \brief GraphExecutor initializer for regular bind flow in which
  * input arguments and gradients are provided by users. This initializer
@@ -542,16 +559,26 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                             arg_grad_ctxes, aux_state_ctxes, grad_req_types);
 
 #if MXNET_USE_NGRAPH == 1
+  //TODO(mbrookhart) : Remove this when hetr can handle multiple contexts
+  auto multi_context = multi_context_check(default_ctx, in_arg_ctxes,
+                                           arg_grad_ctxes, aux_state_ctxes);
+
   ngraph_bridge::BindArg bind(num_forward_inputs_, in_args, aux_states);
   ngraph_bridge::Compiler compiler(
-      g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), bind, default_ctx);
-  saved_states_ = compiler.CopySavedStates(saved_states_);
-  g = compiler.Compile();
+      g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), bind,
+      default_ctx);
+  if (!multi_context) {
+    saved_states_ = compiler.CopySavedStates(saved_states_);
+    g = compiler.Compile();
 
-  // create "device" and "context" attrs for the graph
-  g = InitFullGraph(g, compiler.GetInputs(), grad_req_types);
+    // create "device" and "context" attrs for the graph
+    g = InitFullGraph(g, compiler.GetInputs(), grad_req_types);
+  } else {
+    g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), grad_req_types);
+  }
   g = AssignContext(g, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
-                    aux_state_ctxes, grad_req_types, num_forward_inputs_, num_forward_outputs_);
+                    aux_state_ctxes, grad_req_types, num_forward_inputs_,
+                    num_forward_outputs_);
 #endif
 
   // create arg_shapes and arg_dtypes for shape and type inferences
@@ -633,7 +660,11 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // This function can be called by regular bind
   // operation flow as well.
 #if MXNET_USE_NGRAPH == 1
-  FinishInitGraph(symbol, g, shared_exec, compiler.GetFeedDict());
+  if (multi_context) {
+    FinishInitGraph(symbol, g, shared_exec, compiler.GetFeedDict());
+  } else {
+    FinishInitGraph(symbol, g, shared_exec, feed_dict);
+  }
 #else
   FinishInitGraph(symbol, g, shared_exec, feed_dict);
 #endif
@@ -1004,21 +1035,30 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   std::unordered_map<std::string, int> arg_dtype_map = arg_dtype_mapRef;
 
 #if MXNET_USE_NGRAPH == 1
+  //TODO(mbrookhart) : Remove this when hetr can handle multiple contexts
+  auto multi_context = multi_context_check(default_ctx, in_arg_ctxes,
+                                           arg_grad_ctxes, aux_state_ctxes);
   ngraph_bridge::SimpleBindArg simplebind(num_forward_inputs_, arg_shape_map,
                                           arg_dtype_map);
   ngraph_bridge::Compiler compiler(
-      g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), simplebind, default_ctx);
-  saved_states_ = compiler.CopySavedStates(saved_states_);
-  g = compiler.Compile();
+      g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), simplebind,
+      default_ctx);
+  if (!multi_context) {
+    saved_states_ = compiler.CopySavedStates(saved_states_);
+    g = compiler.Compile();
 
-  // create "device" and "context" attrs for the graph
-  g = InitFullGraph(g, compiler.GetInputs(), grad_req_types);
-  g = AssignContext(g, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
-                    aux_state_ctxes, grad_req_types, num_forward_inputs_, num_forward_outputs_);
+    // modify shape / dtype with ngraph version
+    arg_shape_map = compiler.GetNgraphShape();
+    arg_dtype_map = compiler.GetNgraphDtype();
 
-  // modify shape / dtype with ngraph version
-  arg_shape_map = compiler.GetNgraphShape();
-  arg_dtype_map = compiler.GetNgraphDtype();
+    // create "device" and "context" attrs for the graph
+    g = InitFullGraph(g, compiler.GetInputs(), grad_req_types);
+  } else {
+    g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), grad_req_types);
+  }
+    g = AssignContext(g, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
+                      aux_state_ctxes, grad_req_types, num_forward_inputs_,
+                      num_forward_outputs_);
 #endif
 
   // The following code of shape and dtype inferences and argument
@@ -1098,7 +1138,11 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // This function can be called by regular bind
   // operation flow as well.
 #if MXNET_USE_NGRAPH == 1
-  FinishInitGraph(symbol, g, shared_exec, compiler.GetFeedDict());
+  if (!multi_context) {
+    FinishInitGraph(symbol, g, shared_exec, compiler.GetFeedDict());
+  } else {
+    FinishInitGraph(symbol, g, shared_exec, feed_dict);
+  }
 #else
   FinishInitGraph(symbol, g, shared_exec, feed_dict);
 #endif
