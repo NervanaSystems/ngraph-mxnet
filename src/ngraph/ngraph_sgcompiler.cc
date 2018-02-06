@@ -61,9 +61,8 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
                             std::shared_ptr<ngraph::Function> f,
                             std::shared_ptr<ngraph::Function> bf,
                             GraphExeMode exe_mode) {
-  
   const int mode = static_cast<int>(exe_mode);
-  
+
   auto manager = GetManagerFromContext(sub_graph->context_);
   auto backend = GetBackendFromContext(sub_graph->context_);
 
@@ -71,7 +70,6 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
       backend->make_call_frame(manager->compile(bf));
   sub_graph->ngraph_forward[mode] =
       backend->make_call_frame(manager->compile(f));
-
 }
 
 void OptimizeGraph(std::shared_ptr<ngraph::Function> f) {
@@ -149,10 +147,10 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     auto combined_outputs = outputs;
     combined_outputs.insert(combined_outputs.end(), dYdXs.begin(), dYdXs.end());
     auto combined_parameters = parameters;
-    combined_parameters.insert(combined_parameters.end(), back_parameters.begin(),
-                               back_parameters.end());
-    auto combinedf =
-          std::make_shared<ngraph::Function>(combined_outputs, combined_parameters);
+    combined_parameters.insert(combined_parameters.end(),
+                               back_parameters.begin(), back_parameters.end());
+    auto combinedf = std::make_shared<ngraph::Function>(combined_outputs,
+                                                        combined_parameters);
     ngraph::pass::Manager pass_manager;
     pass_manager.register_pass<ngraph::pass::ReshapeElimination>();
     pass_manager.register_pass<ngraph::pass::CPUFusion>();
