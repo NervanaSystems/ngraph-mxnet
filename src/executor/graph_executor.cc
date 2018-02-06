@@ -510,6 +510,23 @@ void HandleInferStorageTypeError(const size_t num_forward_inputs,
              << oss.str();
 }
 
+#if MXNET_USE_NGRAPH==1
+bool multi_context_check(const Context& default_ctx,
+                         const std::vector<Context>& in_arg_ctxes,
+                         const std::vector<Context>& arg_grad_ctxes,
+                         const std::vector<Context>& aux_state_ctxes) {
+  bool multi_context = false;
+  for (auto contexts : {in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes}) {
+    for (auto context : contexts) {
+      if (context != default_ctx) {
+        multi_context = true;
+      }
+    }
+  }
+  return multi_context;
+}
+#endif
+
 /*!
  * \brief GraphExecutor initializer for regular bind flow in which
  * input arguments and gradients are provided by users. This initializer
@@ -543,14 +560,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
 
 #if MXNET_USE_NGRAPH == 1
   //TODO(mbrookhart) : Remove this when hetr can handle multiple contexts
-  bool multi_context = false;
-  for (auto contexts : {in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes}) {
-    for (auto context : contexts) {
-      if (context != default_ctx) {
-        multi_context = true;
-      }
-    }
-  }
+  auto multi_context = multi_context_check(default_ctx, in_arg_ctxes,
+                                           arg_grad_ctxes, aux_state_ctxes);
 
   ngraph_bridge::BindArg bind(num_forward_inputs_, in_args, aux_states);
   ngraph_bridge::Compiler compiler(
@@ -1025,15 +1036,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
 
 #if MXNET_USE_NGRAPH == 1
   //TODO(mbrookhart) : Remove this when hetr can handle multiple contexts
-  bool multi_context = false;
-  for (auto contexts : {in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes}) {
-    for (auto context : contexts) {
-      if (context != default_ctx) {
-        multi_context = true;
-      }
-    }
-  }
-
+  auto multi_context = multi_context_check(default_ctx, in_arg_ctxes,
+                                           arg_grad_ctxes, aux_state_ctxes);
   ngraph_bridge::SimpleBindArg simplebind(num_forward_inputs_, arg_shape_map,
                                           arg_dtype_map);
   ngraph_bridge::Compiler compiler(
