@@ -910,49 +910,48 @@ void Emitter::CreateLayerOps() {
     NgraphNodePtr op;
     std::string type = get_default(node, "pool_type", std::string("max"));
     if (type == "max") {
-      op = ngraph_op_funcs_["max_pooling"](node); 
+      op = ngraph_op_funcs_["max_pooling"](node);
       for (auto x : op->get_shape()) {
         std::cout << x << " ";
       }
-      std:: cout << std::endl;
+      std::cout << std::endl;
       for (auto x : node->shape_) {
         std::cout << x << " ";
       }
-      std:: cout << std::endl;
+      std::cout << std::endl;
     } else if (type == "avg") {
-      op = ngraph_op_funcs_["avg_pooling"](node); 
+      op = ngraph_op_funcs_["avg_pooling"](node);
       for (auto x : op->get_shape()) {
         std::cout << x << " ";
       }
-      std:: cout << std::endl;
+      std::cout << std::endl;
       for (auto x : node->shape_) {
         std::cout << x << " ";
       }
-      std:: cout << std::endl;
+      std::cout << std::endl;
     } else if (type == "sum") {
       throw "NGRAPH_BRIDGE: Sum pooling not yet supported";
     }
     return op;
   };
 
-  auto asymetric_padding =
-      [](ngraph::Shape input_shape, PoolingParams params) {
-        auto top_pad = params.pad;
-        if (params.pooling_convention == "full") {
-          for (size_t i = 2; i < input_shape.size(); ++i) {
-            // TODO(mbrookhart): I'm not sure this math is 100% correct,
-            // MXNet doesn't have very good Pooling tests.
-            size_t padded_dim = input_shape[i] + 2 * top_pad[i - 2];
-            size_t stride = params.stride[i - 2];
-            auto num_strides = (size_t)ceil(
-                (float)(padded_dim - params.kernel[i - 2]) / (float)stride);
-            size_t extra_pad =
-                num_strides * stride + params.kernel[i - 2] - padded_dim;
-            top_pad[i - 2] += extra_pad;
-          }
-        }
-        return top_pad;
-      };
+  auto asymetric_padding = [](ngraph::Shape input_shape, PoolingParams params) {
+    auto top_pad = params.pad;
+    if (params.pooling_convention == "full") {
+      for (size_t i = 2; i < input_shape.size(); ++i) {
+        // TODO(mbrookhart): I'm not sure this math is 100% correct,
+        // MXNet doesn't have very good Pooling tests.
+        size_t padded_dim = input_shape[i] + 2 * top_pad[i - 2];
+        size_t stride = params.stride[i - 2];
+        auto num_strides = (size_t)ceil(
+            (float)(padded_dim - params.kernel[i - 2]) / (float)stride);
+        size_t extra_pad =
+            num_strides * stride + params.kernel[i - 2] - padded_dim;
+        top_pad[i - 2] += extra_pad;
+      }
+    }
+    return top_pad;
+  };
 
   ngraph_op_funcs_["max_pooling"] = [this,
                                      &asymetric_padding](const NodePtr& node) {
@@ -963,7 +962,8 @@ void Emitter::CreateLayerOps() {
         input, params.kernel, params.stride, params.pad,
         asymetric_padding(input->get_shape(), params));
   };
-  ngraph_op_funcs_["avg_pooling"] = [this, &asymetric_padding](const NodePtr& node) {
+  ngraph_op_funcs_["avg_pooling"] = [this,
+                                     &asymetric_padding](const NodePtr& node) {
     auto input = op_map_[node->inputs_[0]];
     auto params = PoolingParams(node, input);
 
