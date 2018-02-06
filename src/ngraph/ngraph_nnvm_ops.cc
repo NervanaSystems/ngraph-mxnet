@@ -35,8 +35,8 @@ nnvm::Op *get_subgraph_op(std::shared_ptr<Graph> graph) {
       "ngraph_" + graph->name_));
 }
 
-void append_cached_to_forward(TensorViewVector& results,
-                              const std::shared_ptr<Graph>& graph,
+void append_cached_to_forward(TensorViewVector &results,
+                              const std::shared_ptr<Graph> &graph,
                               const int mode) {
   results.insert(results.end(), graph->cached_aux_values[mode].begin(),
                  graph->cached_aux_values[mode].end());
@@ -92,12 +92,12 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // generate valid data in fprop cache
   if (!graph->forward_train_computed) {
     // forward inputs
-    std::vector<mxnet::TBlob> fwd_inputs(inputs.begin()+graph->num_outputs,
+    std::vector<mxnet::TBlob> fwd_inputs(inputs.begin() + graph->num_outputs,
                                          inputs.end());
     auto placeholders = make_ngraph_placeholders(fwd_inputs, backend, true);
     // forward outputs
     auto shape = TShape_to_NShape(graph->nodes_.back()->shape_);
-    const auto& element_type = getType(graph->nodes_.back()->dtype_);
+    const auto &element_type = getType(graph->nodes_.back()->dtype_);
     auto output_tv = backend->make_primary_tensor_view(element_type, shape);
     TensorViewVector results{output_tv};
     append_cached_to_forward(results, graph, mode);

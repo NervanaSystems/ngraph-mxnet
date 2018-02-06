@@ -23,9 +23,9 @@
 #include <sstream>
 #include <vector>
 
-#include <ngraph/serializer.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/reshape_elimination.hpp>
+#include <ngraph/serializer.hpp>
 
 #include "ngraph_sgcompiler_utils.h"
 #include "ngraph_utils.h"
@@ -60,9 +60,8 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
                             std::shared_ptr<ngraph::Function> f,
                             std::shared_ptr<ngraph::Function> bf,
                             GraphExeMode exe_mode) {
-  
   const int mode = static_cast<int>(exe_mode);
-  
+
   auto manager = GetManagerFromContext(sub_graph->context_);
   auto backend = GetBackendFromContext(sub_graph->context_);
 
@@ -70,7 +69,6 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
       backend->make_call_frame(manager->compile(bf));
   sub_graph->ngraph_forward[mode] =
       backend->make_call_frame(manager->compile(f));
-
 }
 
 void OptimizeGraph(std::shared_ptr<ngraph::Function> f) {
