@@ -1,12 +1,6 @@
 TEST_SRC = $(shell find tests/cpp/ -name "*.cc")
 ifneq ($(USE_NGRAPH),1)
     TEST_SRC := $(foreach f,$(TEST_SRC),$(if $(findstring tests/cpp/ngraph,$f),,$f))
-else
-	# Remove other tests for faster development
-	# TODO: remove this before release
-	TEST_SRC := $(foreach f,$(TEST_SRC),$(if $(findstring tests/cpp/operator,$f),,$f))
-	TEST_SRC := $(foreach f,$(TEST_SRC),$(if $(findstring tests/cpp/engine,$f),,$f))
-	TEST_SRC := $(foreach f,$(TEST_SRC),$(if $(findstring tests/cpp/storage,$f),,$f))
 endif
 TEST_OBJ = $(patsubst %.cc, build/%.o, $(TEST_SRC))
 TEST = build/tests/cpp/mxnet_unit_tests
@@ -62,6 +56,6 @@ testclean:
 -include build/tests/cpp/operator/*.d
 -include build/tests/cpp/storage/*.d
 -include build/tests/cpp/engine/*.d
-ifneq ($(USE_NGRAPH),1)
+ifeq ($(USE_NGRAPH),1)
     -include build/tests/cpp/ngraph/*.d
 endif
