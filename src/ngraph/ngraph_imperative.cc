@@ -108,7 +108,7 @@ void InitImperativeOnce() {
           [fallback_fn](const nnvm::NodeAttrs &attrs,
                         const mxnet::OpContext &ctx,
                         const std::vector<mxnet::TBlob> &inputs,
-                        const std::vector<mxnet::OpReqType> &req,
+                        const std::vector<mxnet::OpReqType> &grad_req,
                         const std::vector<mxnet::TBlob> &outputs) -> void {
             // thread local cache for ngraph op
             static thread_local NGIOpCache ngicache;
@@ -116,7 +116,7 @@ void InitImperativeOnce() {
             auto op_key = get_ngiop_key(attrs, ctx.run_ctx.ctx, inputs);
             auto op_ng = ngicache[op_key];
             if (!op_ng) {
-              NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
+              NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &grad_req, outputs);
               op_ng = ngicache[op_key] = ngi.get_op_ngraph();
               if (ngraph_log_verbose && op_ng)
                 LOG(INFO) << "Caching... " << attrs.op->name;
@@ -126,7 +126,7 @@ void InitImperativeOnce() {
               mode = static_cast<int>(GraphExeMode::kTrain);
             }
             if (op_ng && op_ng->ngraph_forward[mode]) {
-              compute_forward(ctx, op_ng, inputs, req, outputs);
+              compute_forward(ctx, op_ng, inputs, grad_req, outputs);
 
               if (ngraph_log_verbose_detail) {
                 LOG(INFO) << "ngraph imperative op: " << attrs.op->name
@@ -138,7 +138,7 @@ void InitImperativeOnce() {
               }
             } else {
               // use default mxnet compute kernel
-              fallback_fn(attrs, ctx, inputs, req, outputs);
+              fallback_fn(attrs, ctx, inputs, grad_req, outputs);
             }
           },
           11);
@@ -189,3 +189,4 @@ NGIOpKey get_ngiop_key(const nnvm::NodeAttrs &attrs, const mxnet::Context &ctx,
 }
 
 }  // namespace ngraph_bridge
+
