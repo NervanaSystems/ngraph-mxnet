@@ -31,12 +31,12 @@ void register_subgraph(std::shared_ptr<Graph> graph);
 // function for computing forward on ngraph
 void compute_forward(const mxnet::OpContext& ctx, std::shared_ptr<Graph> graph,
                      const std::vector<mxnet::TBlob>& inputs,
-                     const std::vector<mxnet::OpReqType>& grad_req,
+                     const std::vector<mxnet::OpReqType>& req,
                      const std::vector<mxnet::TBlob>& outputs);
 // function for computing backward on ngraph
 void compute_backward(const mxnet::OpContext& ctx, std::shared_ptr<Graph> graph,
                       const std::vector<mxnet::TBlob>& inputs,
-                      const std::vector<mxnet::OpReqType>& grad_req,
+                      const std::vector<mxnet::OpReqType>& req,
                       const std::vector<mxnet::TBlob>& outputs);
 
 // dummy parameter struct to match mxnet API
