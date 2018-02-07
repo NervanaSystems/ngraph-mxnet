@@ -81,32 +81,33 @@ inline void result_to_TBlob(const std::vector<std::shared_ptr<T>>& results,
     const auto& element_type = getType(outputs[i].type_flag_);
     auto buffer_size = get_buffer_size(outputs[i].shape_, element_type.size());
 
-    void* ngraph_tv = malloc(buffer_size);
-    results[i]->read(ngraph_tv, 0, buffer_size);
-
     void* mxnet_tblob = outputs[i].dptr_;
     if (grad_req[i] == mxnet::kAddTo) {
-      for (size_t i = 0; i < (buffer_size / element_type.size()); ++i) {
+      void* ngraph_tv = malloc(buffer_size);
+      results[i]->read(ngraph_tv, 0, buffer_size);
+
+      for (size_t j = 0; j < (buffer_size / element_type.size()); ++j) {
         if (element_type == ngraph::element::f32)
-          *(((float*)mxnet_tblob) + i) += *(((float*)ngraph_tv) + i);
+          *(((float*)mxnet_tblob) + j) += *(((float*)ngraph_tv) + j);
         else if (element_type == ngraph::element::f64)
-          *(((double*)mxnet_tblob) + i) += *(((double*)ngraph_tv) + i);
+          *(((double*)mxnet_tblob) + j) += *(((double*)ngraph_tv) + j);
         else if (element_type == ngraph::element::u8)
-          *(((uint8_t*)mxnet_tblob) + i) += *(((uint8_t*)ngraph_tv) + i);
+          *(((uint8_t*)mxnet_tblob) + j) += *(((uint8_t*)ngraph_tv) + j);
         else if (element_type == ngraph::element::i8)
-          *(((int8_t*)mxnet_tblob) + i) += *(((int8_t*)ngraph_tv) + i);
+          *(((int8_t*)mxnet_tblob) + j) += *(((int8_t*)ngraph_tv) + j);
         else if (element_type == ngraph::element::i32)
-          *(((int32_t*)mxnet_tblob) + i) += *(((int32_t*)ngraph_tv) + i);
+          *(((int32_t*)mxnet_tblob) + j) += *(((int32_t*)ngraph_tv) + j);
         else if (element_type == ngraph::element::i64)
-          *(((int64_t*)mxnet_tblob) + i) += *(((int64_t*)ngraph_tv) + i);
+          *(((int64_t*)mxnet_tblob) + j) += *(((int64_t*)ngraph_tv) + j);
       }
+
+      free(ngraph_tv);
     }
     // TODO: Add support for kWriteInplace
     else {
-      memcpy(mxnet_tblob, ngraph_tv, buffer_size);
+      results[i]->read(mxnet_tblob, 0, buffer_size);
     }
 
-    free(ngraph_tv);
   }
 }
 }  // namespace ngraph_bridge
