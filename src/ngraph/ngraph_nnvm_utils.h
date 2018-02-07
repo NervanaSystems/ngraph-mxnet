@@ -69,47 +69,43 @@ inline TensorViewVector make_ngraph_placeholders(
   return out;
 }
 
-// Utility function that copies the outnum'th result from an
-// ngraph computation into the outnum'th output TBlob in mxnet
-// TODO(mbrookhart): Make this loop over the outputs to copy all results at
-// once?
+// Utility function that copies all results from an
+// ngraph computation into the output TBlobs in mxnet
 template <typename T>
-inline void result_to_TBlob(const T& result,
+inline void result_to_TBlob(const std::vector<std::shared_ptr<T>>& results,
                             const std::vector<mxnet::OpReqType>& req,
-                            const std::vector<mxnet::TBlob>& outputs,
-                            int outnum) {
-  const auto& element_type = getType(outputs[outnum].type_flag_);
-  auto buffer_size =
-      get_buffer_size(outputs[outnum].shape_, element_type.size());
+                            const std::vector<mxnet::TBlob>& outputs) {
+  for (size_t i = 0; i < outputs.size(); ++i) {
+    if (req[i] == mxnet::kNullOp) continue;
 
-  void* temp = malloc(buffer_size);
-  result->read(temp, 0, buffer_size);
+    const auto& element_type = getType(outputs[i].type_flag_);
+    auto buffer_size = get_buffer_size(outputs[i].shape_, element_type.size());
 
-  void* p = outputs[outnum].dptr_;
-  if (req[outnum] == mxnet::kAddTo) {
-    for (size_t i = 0; i < (buffer_size / element_type.size()); ++i) {
+    void* temp = malloc(buffer_size);
+    results[i]->read(temp, 0, buffer_size);
 
-      if(element_type == ngraph::element::f32)
-        *(((float*)p) + i) += *(((float*)temp) + i);
-      else if(element_type == ngraph::element::f64) 
-        *(((double*)p) + i) += *(((double*)temp) + i);
-      else if(element_type == ngraph::element::i8)
-        *(((int8_t*)p) + i) += *(((int8_t*)temp) + i);
-      else if (element_type == ngraph::element::i16)
-        *(((int16_t*)p) + i) += *(((int16_t*)temp) + i);
-      else if (element_type == ngraph::element::i32)
-        *(((int32_t*)p) + i) += *(((int32_t*)temp) + i);
-      else if (element_type == ngraph::element::i64)
-        *(((int64_t*)p) + i) += *(((int64_t*)temp) + i);
-      else if (element_type == ngraph::element::u8)
-        *(((uint8_t*)p) + i) += *(((uint8_t*)temp) + i);
-
+    void* p = outputs[i].dptr_;
+    if (req[i] == mxnet::kAddTo) {
+      for (size_t i = 0; i < (buffer_size / element_type.size()); ++i) {
+        if (element_type == ngraph::element::f32)
+          *(((float*)p) + i) += *(((float*)temp) + i);
+        else if (element_type == ngraph::element::f64)
+          *(((double*)p) + i) += *(((double*)temp) + i);
+        else if (element_type == ngraph::element::u8)
+          *(((uint8_t*)p) + i) += *(((uint8_t*)temp) + i);
+        else if (element_type == ngraph::element::i8)
+          *(((int8_t*)p) + i) += *(((int8_t*)temp) + i);
+        else if (element_type == ngraph::element::i32)
+          *(((int32_t*)p) + i) += *(((int32_t*)temp) + i);
+        else if (element_type == ngraph::element::i64)
+          *(((int64_t*)p) + i) += *(((int64_t*)temp) + i);
+      }
+    } else {
+      memcpy(p, temp, buffer_size);
     }
-  } else {
-    memcpy(p, temp, buffer_size);
-  }
 
-  free(temp);
+    free(temp);
+  }
 }
 }  // namespace ngraph_bridge
 

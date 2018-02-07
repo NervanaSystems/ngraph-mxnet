@@ -46,9 +46,9 @@ void append_cached_to_forward(TensorViewVector &results,
 
 // function for computing forward on ngraph
 void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
-                     const std::vector<mxnet::TBlob> &inputs,
-                     const std::vector<mxnet::OpReqType> &req,
-                     const std::vector<mxnet::TBlob> &outputs) {
+  const std::vector<mxnet::TBlob> &inputs,
+  const std::vector<mxnet::OpReqType> &req,
+  const std::vector<mxnet::TBlob> &outputs) {
   auto backend = GetBackendFromContext(graph->context_);
   auto placeholders = make_ngraph_placeholders(inputs, backend, true);
   auto results = make_ngraph_placeholders(outputs, backend, false);
@@ -62,21 +62,19 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   append_cached_to_forward(results, graph, mode);
   graph->ngraph_forward[mode]->call(placeholders, results);
 
-  // default result output
-  result_to_TBlob(results[0], req, outputs, 0);
+  std::vector<mxnet::TBlob> outs = { outputs[0] };
 
   // aux result outputs mapped to inputs
   OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(graph->nodes_.back());
   auto op_config = op_node->config_;
   if (op_config && !op_config->AuxNodes().empty()) {
-    const int resultOffset = graph->num_outputs;
-    // expecting this to be 1
-    assert(resultOffset == 1);
     for (size_t i = 0; i < op_config->AuxNodes().size(); ++i) {
-      result_to_TBlob(results[resultOffset + i], req, inputs,
-                      op_config->MapAuxToInput(i));
+      // TODO: reqs.push_back(kWriteTo) ?
+      outs.push_back(inputs[op_config->MapAuxToInput(i)]);
     }
   }
+
+  result_to_TBlob(results, req, outs);
 }
 
 // function for computing backward on ngraph
@@ -119,8 +117,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // reset the forward training compute flag to ensure backward always have
   // updated data from forward
   graph->forward_train_computed = false;
-  for (size_t j = 0; j < outputs.size(); ++j)
-    result_to_TBlob(results[j], req, outputs, j);
+  result_to_TBlob(results, req, outputs);
 }
 
 void register_forward_op(std::shared_ptr<Graph> graph) {
