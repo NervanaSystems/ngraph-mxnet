@@ -82,7 +82,7 @@ TEST_F(NGRAPH_IMPERATIVE, INVOKE_OP) {
   EXPECT_TRUE(op_ng);
   EXPECT_TRUE(test.op_ngraph_->ngraph_forward);
   EXPECT_EQ(vec3, std::vector<float>({0, 0}));
-  compute_forward(opctx, op_ng, inputs, outputs);
+  compute_forward(opctx, op_ng, inputs, req, outputs);
   EXPECT_EQ(vec3, std::vector<float>({2, 6}));
 }
 

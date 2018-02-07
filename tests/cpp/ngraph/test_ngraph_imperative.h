@@ -20,6 +20,7 @@
 #include "../../src/ngraph/ngraph_imperative.h"
 #include "../../src/ngraph/ngraph_nnvm_utils.h"
 #include "test_util.h"
+
 namespace ngraph_bridge {
 
 class NGRAPH_IMPERATIVE : public ::testing::Test {
@@ -39,6 +40,7 @@ class NGRAPH_IMPERATIVE : public ::testing::Test {
   std::vector<float> vec3{0, 0};
   std::vector<mxnet::TBlob> inputs;
   std::vector<mxnet::TBlob> outputs;
+  std::vector<mxnet::OpReqType> req{mxnet::kWriteTo};
 };
 
 class testImperative : public NGImperative {

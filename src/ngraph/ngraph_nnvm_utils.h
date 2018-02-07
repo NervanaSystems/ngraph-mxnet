@@ -19,6 +19,7 @@
 #include <functional>
 #include <vector>
 
+#include <mxnet/op_attr_types.h>
 #include "ngraph_sgcompiler_utils.h"
 
 namespace ngraph_bridge {
