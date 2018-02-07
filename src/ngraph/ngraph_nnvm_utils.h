@@ -69,22 +69,54 @@ inline TensorViewVector make_ngraph_placeholders(
   return out;
 }
 
-// Utility function that copies the outnum'th result from an
-// ngraph computation into the outnum'th output TBlob in mxnet
-// TODO(mbrookhart): Make this loop over the outputs to copy all results at
-// once?
-template <typename T>
-inline void result_to_TBlob(const T& result,
-                            const std::vector<mxnet::TBlob>& outputs,
-                            int outnum) {
-  void* p = outputs[outnum].dptr_;
-  const auto& element_type = getType(outputs[outnum].type_flag_);
-  auto buffer_size =
-      get_buffer_size(outputs[outnum].shape_, element_type.size());
-
-  result->read(p, 0, buffer_size);
+template <class T>
+inline void result_plus_TBlob(void* mxnet_tblob, void* ngraph_tv,
+                              size_t buffer_size) {
+  T* mxnet_tblob_tptr = static_cast<T*>(mxnet_tblob);
+  T* ngraph_tv_tptr = static_cast<T*>(ngraph_tv);
+  for (size_t i = 0; i < (buffer_size / sizeof(T)); ++i) {
+    *(mxnet_tblob_tptr + i) += *(ngraph_tv_tptr + i);
+  }
 }
 
+// Utility function that copies all results from an
+// ngraph computation into the output TBlobs in mxnet
+inline void result_to_TBlob(
+    const std::vector<std::shared_ptr<ngraph::runtime::TensorView>>& results,
+    const std::vector<mxnet::OpReqType>& req,
+    const std::vector<mxnet::TBlob>& outputs) {
+  for (size_t i = 0; i < outputs.size(); ++i) {
+    if (req[i] == mxnet::kNullOp) continue;
+
+    const auto& element_type = getType(outputs[i].type_flag_);
+    auto buffer_size = get_buffer_size(outputs[i].shape_, element_type.size());
+
+    void* mxnet_tblob = outputs[i].dptr_;
+    if (req[i] == mxnet::kAddTo) {
+      void* ngraph_tv = malloc(buffer_size);
+      results[i]->read(ngraph_tv, 0, buffer_size);
+
+      if (element_type == ngraph::element::f32)
+        result_plus_TBlob<float>(mxnet_tblob, ngraph_tv, buffer_size);
+      else if (element_type == ngraph::element::f64)
+        result_plus_TBlob<double>(mxnet_tblob, ngraph_tv, buffer_size);
+      else if (element_type == ngraph::element::u8)
+        result_plus_TBlob<uint8_t>(mxnet_tblob, ngraph_tv, buffer_size);
+      else if (element_type == ngraph::element::i8)
+        result_plus_TBlob<int8_t>(mxnet_tblob, ngraph_tv, buffer_size);
+      else if (element_type == ngraph::element::i32)
+        result_plus_TBlob<int32_t>(mxnet_tblob, ngraph_tv, buffer_size);
+      else if (element_type == ngraph::element::i64)
+        result_plus_TBlob<int64_t>(mxnet_tblob, ngraph_tv, buffer_size);
+
+      free(ngraph_tv);
+    }
+    // TODO: Add support for kWriteInplace
+    else {
+      results[i]->read(mxnet_tblob, 0, buffer_size);
+    }
+  }
+}
 }  // namespace ngraph_bridge
 
 #endif  // MXNET_NGRAPH_NGRAPH_NNVM_UTILS_H_
