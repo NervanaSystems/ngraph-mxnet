@@ -73,8 +73,10 @@ TEST_F(NGRAPH_SGCOMPILER, COMPILE_NODE2) {
 
 TEST_F(NGRAPH_SGCOMPILER, COMPILE_SUBGRAPH) {
   testSGCompiler test;
-  EXPECT_FALSE(subgraph->ngraph_forward[static_cast<int>(GraphExeMode::kInfer)]);
-  EXPECT_FALSE(subgraph->ngraph_backward[static_cast<int>(GraphExeMode::kInfer)]);
+  EXPECT_FALSE(
+      subgraph->ngraph_forward[static_cast<int>(GraphExeMode::kInfer)]);
+  EXPECT_FALSE(
+      subgraph->ngraph_backward[static_cast<int>(GraphExeMode::kInfer)]);
   EXPECT_FALSE(test.count(in1));
   EXPECT_FALSE(test.count(in2));
   EXPECT_FALSE(test.count(in3));
