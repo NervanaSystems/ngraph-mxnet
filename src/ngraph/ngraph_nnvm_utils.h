@@ -69,12 +69,21 @@ inline TensorViewVector make_ngraph_placeholders(
   return out;
 }
 
+template <class T>
+inline void write_add(void* mxnet_tblob, void* ngraph_tv, size_t buffer_size) {
+  T* mxnet_tblob_tptr = static_cast<T*>(mxnet_tblob);
+  T* ngraph_tv_tptr = static_cast<T*>(ngraph_tv);
+  for (size_t i = 0; i < (buffer_size / sizeof(T)); ++i) {
+    *(mxnet_tblob_tptr + i) += *(ngraph_tv_tptr + i);
+  }
+}
+
 // Utility function that copies all results from an
 // ngraph computation into the output TBlobs in mxnet
-template <typename T>
-inline void result_to_TBlob(const std::vector<std::shared_ptr<T>>& results,
-                            const std::vector<mxnet::OpReqType>& grad_req,
-                            const std::vector<mxnet::TBlob>& outputs) {
+inline void result_to_TBlob(
+    const std::vector<std::shared_ptr<ngraph::runtime::TensorView>>& results,
+    const std::vector<mxnet::OpReqType>& grad_req,
+    const std::vector<mxnet::TBlob>& outputs) {
   for (size_t i = 0; i < outputs.size(); ++i) {
     if (grad_req[i] == mxnet::kNullOp) continue;
 
@@ -86,20 +95,18 @@ inline void result_to_TBlob(const std::vector<std::shared_ptr<T>>& results,
       void* ngraph_tv = malloc(buffer_size);
       results[i]->read(ngraph_tv, 0, buffer_size);
 
-      for (size_t j = 0; j < (buffer_size / element_type.size()); ++j) {
-        if (element_type == ngraph::element::f32)
-          *(((float*)mxnet_tblob) + j) += *(((float*)ngraph_tv) + j);
-        else if (element_type == ngraph::element::f64)
-          *(((double*)mxnet_tblob) + j) += *(((double*)ngraph_tv) + j);
-        else if (element_type == ngraph::element::u8)
-          *(((uint8_t*)mxnet_tblob) + j) += *(((uint8_t*)ngraph_tv) + j);
-        else if (element_type == ngraph::element::i8)
-          *(((int8_t*)mxnet_tblob) + j) += *(((int8_t*)ngraph_tv) + j);
-        else if (element_type == ngraph::element::i32)
-          *(((int32_t*)mxnet_tblob) + j) += *(((int32_t*)ngraph_tv) + j);
-        else if (element_type == ngraph::element::i64)
-          *(((int64_t*)mxnet_tblob) + j) += *(((int64_t*)ngraph_tv) + j);
-      }
+      if (element_type == ngraph::element::f32)
+        write_add<float>(mxnet_tblob, ngraph_tv, buffer_size);
+      else if (element_type == ngraph::element::f64)
+        write_add<double>(mxnet_tblob, ngraph_tv, buffer_size);
+      else if (element_type == ngraph::element::u8)
+        write_add<uint8_t>(mxnet_tblob, ngraph_tv, buffer_size);
+      else if (element_type == ngraph::element::i8)
+        write_add<int8_t>(mxnet_tblob, ngraph_tv, buffer_size);
+      else if (element_type == ngraph::element::i32)
+        write_add<int32_t>(mxnet_tblob, ngraph_tv, buffer_size);
+      else if (element_type == ngraph::element::i64)
+        write_add<int64_t>(mxnet_tblob, ngraph_tv, buffer_size);
 
       free(ngraph_tv);
     }
@@ -107,7 +114,6 @@ inline void result_to_TBlob(const std::vector<std::shared_ptr<T>>& results,
     else {
       results[i]->read(mxnet_tblob, 0, buffer_size);
     }
-
   }
 }
 }  // namespace ngraph_bridge
