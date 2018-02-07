@@ -305,10 +305,17 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 void Compiler::CheckInNgraph() {
   for (auto node : ngraph_.nodes_) {
     if (node->type_ == NodeType::kOp) {
+
       if (compiler_.ngraph_op_funcs_.count(node->operation_)) {
         node->in_ngraph_ = true;
+        if ((node->operation_ == "Pooling") &&
+            (get_default(node, "pooling_convention", std::string("valid")) ==
+             "sum")) {
+          node->in_ngraph_ = false;
+        }
         if (node->dtype_ == mshadow::kFloat16) {
           node->in_ngraph_ = false;
+
         } else {
           for (auto input : node->inputs_) {
             if (input->dtype_ == mshadow::kFloat16) {

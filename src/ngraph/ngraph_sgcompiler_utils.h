@@ -96,23 +96,5 @@ inline std::shared_ptr<ngraph::Node> makeConstant(const NodePtr& node,
                       num);
 }
 
-// This function expects the input string to be of the form
-// "(1,2,3)" with optional spaces between the numbers, i.e.
-// "(1,2 , 3)". This is the standard format MXNet uses to represent things
-// like stride/padding/reshape ordering
-template <typename T>
-inline std::vector<T> GetIntVectorFromString(std::string input) {
-  for (char c : {' ', ')', '(', ']', '['})
-    input.erase(std::remove(input.begin(), input.end(), c), input.end());
-  std::stringstream ss(input);
-  std::vector<T> vect;
-  T i;
-  while (ss >> i) {
-    vect.push_back(i);
-    if (ss.peek() == ',') ss.ignore();
-  }
-  return vect;
-}
-
 }  // namespace ngraph_bridge
 #endif  // MXNET_NGRAPH_NGRAPH_SGCOMPILER_UTILS_H_

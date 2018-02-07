@@ -13,6 +13,7 @@
 // ----------------------------------------------------------------------------
 
 #include "ngraph_emitter.h"
+#include "ngraph_utils.h"
 
 #include <functional>
 #include <string>
@@ -54,77 +55,6 @@ void Emitter::InitOpConfig(OpNodePtr op_node) const {
   }
 }
 
-ngraph::AxisVector pyrange(size_t start, size_t stop) {
-  ngraph::AxisVector out(stop - start);
-  std::iota(out.begin(), out.end(), start);
-  return out;
-}
-
-ngraph::AxisVector pyrange(size_t stop) { return pyrange(0, stop); }
-
-std::string get_default(const NodePtr& node, const std::string& key,
-                        const std::string default_val) {
-  return node->orig_node_->attrs.dict.count(key)
-             ? node->orig_node_->attrs.dict[key]
-             : default_val;
-}
-
-int get_default(const NodePtr& node, const std::string& key,
-                const int default_val) {
-  return node->orig_node_->attrs.dict.count(key)
-             ? std::stoi(node->orig_node_->attrs.dict[key])
-             : default_val;
-}
-
-inline float get_default(const NodePtr& node, const std::string& key,
-                         const float default_val) {
-  return node->orig_node_->attrs.dict.count(key)
-             ? std::stof(node->orig_node_->attrs.dict[key])
-             : default_val;
-}
-
-bool get_default(const NodePtr& node, const std::string& key,
-                 const bool default_val) {
-  if (node->orig_node_->attrs.dict.count(key)) {
-    const std::string& val = node->orig_node_->attrs.dict[key];
-    if (val == "True" || val == "1")
-      return true;
-    else
-      return false;
-  }
-  return default_val;
-}
-
-template <typename T>
-typename std::enable_if<!std::is_unsigned<T>::value, std::vector<T>>::type
-get_default(const NodePtr& node, const std::string& key,
-            const std::vector<T>& default_val) {
-  return node->orig_node_->attrs.dict.count(key)
-             ? GetIntVectorFromString<T>(node->orig_node_->attrs.dict[key])
-             : default_val;
-}
-
-template <typename T>
-typename std::enable_if<std::is_unsigned<T>::value, std::vector<T>>::type
-get_default(const NodePtr& node, const std::string& key,
-            const std::vector<T>& default_val) {
-  std::vector<T> out;
-  if (node->orig_node_->attrs.dict.count(key)) {
-    auto tmp = GetIntVectorFromString<int>(node->orig_node_->attrs.dict[key]);
-    for (auto val : tmp) {
-      if (val >= 0) {
-        out.push_back(val);
-      } else {
-        throw std::string(
-            "NGRAPH_BRIDGE: expected unsigned integers but got ") +
-            std::to_string(val);
-      }
-    }
-  } else {
-    out = default_val;
-  }
-  return out;
-}
 
 /**
  * Transforms input axis attribute with name in key based on MXNet convention (0
@@ -586,12 +516,23 @@ struct PoolingParams {
     pooling_convention =
         get_default(node, "pooling_convention", std::string("valid"));
     global_pool = get_default(node, "global_pool", false);
-    auto pool_dim = input->get_shape().size() - 2;
+    
+    auto input_shape = input->get_shape();
+    auto pool_dim = input_shape.size() - 2;
     auto default_ones = std::vector<size_t>(pool_dim, 1);
     auto default_zeros = std::vector<size_t>(pool_dim, 0);
+
     kernel = get_default(node, "kernel", default_ones);
     stride = get_default(node, "stride", default_ones);
     pad = get_default(node, "pad", default_zeros);
+
+    if (global_pool) {
+      kernel = std::vector<size_t>();
+      for (size_t i = 2; i < input_shape.size(); ++i) {
+        kernel.push_back(input_shape[i]);
+      }
+    }
+
   }
 
   std::string pooling_convention;
@@ -911,26 +852,10 @@ void Emitter::CreateLayerOps() {
     std::string type = get_default(node, "pool_type", std::string("max"));
     if (type == "max") {
       op = ngraph_op_funcs_["max_pooling"](node);
-      for (auto x : op->get_shape()) {
-        std::cout << x << " ";
-      }
-      std::cout << std::endl;
-      for (auto x : node->shape_) {
-        std::cout << x << " ";
-      }
-      std::cout << std::endl;
     } else if (type == "avg") {
       op = ngraph_op_funcs_["avg_pooling"](node);
-      for (auto x : op->get_shape()) {
-        std::cout << x << " ";
-      }
-      std::cout << std::endl;
-      for (auto x : node->shape_) {
-        std::cout << x << " ";
-      }
-      std::cout << std::endl;
     } else if (type == "sum") {
-      throw "NGRAPH_BRIDGE: Sum pooling not yet supported";
+      throw "NGRAPH_BRIDGE: Sum pooling not supported";
     }
     return op;
   };
