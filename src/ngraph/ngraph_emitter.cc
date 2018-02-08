@@ -212,13 +212,28 @@ void Emitter::CreateUnaryOps() {
     return (one / (one + std::make_shared<ngraph::op::Exp>(
                              -op_map_[node->inputs_[0]])));
   };
-  // ngraph_op_funcs_["softmax"] = [this](const NodePtr& node) {
-  //   auto numer =
-  //   std::make_shared<ngraph::op::Exp>(op_map_[node->inputs_[0]]); auto denom
-  //   = std::make_shared<ngraph::op::Sum>(numer, ngraph::AxisSet{1}); return ;
-  // };
+  ngraph_op_funcs_["softmax"] = [this](const NodePtr& node) {
+    auto input = op_map_[node->inputs_[0]];
+    auto exp = std::make_shared<ngraph::op::Exp>(input);
+    auto axis = get_default(node, "axis", -1);
+    if (axis < 0) {
+      axis = axis + input->get_shape().size();
+    }
+    auto sum = ReduceAxes(
+        exp, ngraph::AxisVector{static_cast<size_t>(axis)}, false, true,
+        [](const NgraphNodePtr& node, const ngraph::AxisSet& reduction_axes) {
+          return std::make_shared<ngraph::op::Sum>(node, reduction_axes);
+        });
+    return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Divide>(
+        exp, sum);
+  };
+  // TODO(mbrookahrt): This isn't quite passing unit tests because the softmax
+  // op isn't completely numerically stable.
   // ngraph_op_funcs_["log_softmax"] = [this](const NodePtr& node){
-  //   return ;
+  //   NgraphNodePtr softmax = ngraph_op_funcs_["softmax"](node);
+  //   softmax = softmax + makeConstant(softmax->get_element_type(),
+  //                                    softmax->get_shape(), "1e-20");
+  //   return std::make_shared<ngraph::op::Log>(softmax);
   // };
   ngraph_op_funcs_["_copy"] = [this](const NodePtr& node) {
     return op_map_[node->inputs_[0]];
