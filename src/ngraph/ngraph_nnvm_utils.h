@@ -15,11 +15,12 @@
 #ifndef MXNET_NGRAPH_NGRAPH_NNVM_UTILS_H_
 #define MXNET_NGRAPH_NGRAPH_NNVM_UTILS_H_
 
+#include <mxnet/op_attr_types.h>
+
 #include <algorithm>
 #include <functional>
 #include <vector>
 
-#include <mxnet/op_attr_types.h>
 #include "ngraph_sgcompiler_utils.h"
 
 namespace ngraph_bridge {
@@ -111,9 +112,8 @@ inline void result_to_TBlob(
         result_plus_TBlob<int64_t>(mxnet_tblob, ngraph_tv, buffer_size);
 
       free(ngraph_tv);
-    }
-    // TODO: Add support for kWriteInplace
-    else {
+    } else {
+      // TODO(adstraw): Add support for kWriteInplace
       results[i]->read(mxnet_tblob, 0, buffer_size);
     }
   }

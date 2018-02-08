@@ -189,4 +189,3 @@ NGIOpKey get_ngiop_key(const nnvm::NodeAttrs &attrs, const mxnet::Context &ctx,
 }
 
 }  // namespace ngraph_bridge
-
