@@ -17,6 +17,7 @@
 #include <functional>
 #include <string>
 #include <vector>
+#include <utility>
 
 #include "ngraph_sgcompiler_utils.h"
 
@@ -481,10 +482,8 @@ void Emitter::CreateBinaryOps() {
                                                 op_map_[node->inputs_[1]]);
   };
   */
-  ngraph_op_funcs_["dot"] = [this](const NodePtr& node) {
-    NgraphNodePtr left = op_map_[node->inputs_[0]];
-    NgraphNodePtr right = op_map_[node->inputs_[1]];
-
+  auto dot_transpose = [this](const NodePtr& node, NgraphNodePtr left,
+                              NgraphNodePtr right) {
     if (get_default(node, "transpose_a", false)) {
       auto N = left->get_shape().size();
       auto order = pyrange(1, N);
@@ -498,8 +497,59 @@ void Emitter::CreateBinaryOps() {
       order.insert(order.begin(), N - 1);
       right = ngraph::builder::numpy_transpose(right, order);
     }
+    return std::pair<NgraphNodePtr, NgraphNodePtr>{left, right};
+  };
+  ngraph_op_funcs_["dot"] = [this, dot_transpose](const NodePtr& node) {
+    NgraphNodePtr left = op_map_[node->inputs_[0]];
+    NgraphNodePtr right = op_map_[node->inputs_[1]];
+    auto args = dot_transpose(node, left, right);
+    return std::make_shared<ngraph::op::Dot>(args.first, args.second, 1);
+  };
+  ngraph_op_funcs_["batch_dot"] = [this, dot_transpose](const NodePtr& node) {
+    NgraphNodePtr left = op_map_[node->inputs_[0]];
+    NgraphNodePtr right = op_map_[node->inputs_[1]];
 
-    return std::make_shared<ngraph::op::Dot>(left, right, 1);
+    auto left_shape = left->get_shape();
+    auto right_shape = right->get_shape();
+
+    size_t groups = left->get_shape()[0];
+    std::vector<NgraphNodePtr> dots(groups);
+
+    auto slice_data = [](NgraphNodePtr data, size_t g) {
+      // slice data on batch channel
+      ngraph::Coordinate lower(data->get_shape().size(), 0);
+      ngraph::Coordinate upper = data->get_shape();
+
+      lower[0] = g;
+      upper[0] = g + 1;
+
+      std::vector<size_t> out_shape;
+      for (size_t i = 1; i < data->get_shape().size(); ++i) {
+        out_shape.push_back(data->get_shape()[i]);
+      }
+
+      auto slice = std::make_shared<ngraph::op::Slice>(data, lower, upper);
+      return std::make_shared<ngraph::op::Reshape>(
+          slice, pyrange(data->get_shape().size()), out_shape);
+    };
+
+    for (size_t g = 0; g < groups; ++g) {
+      auto sliced_left = slice_data(left, g);
+      auto sliced_right = slice_data(right, g);
+
+      auto args = dot_transpose(node, sliced_left, sliced_right);
+      auto dot = std::make_shared<ngraph::op::Dot>(args.first, args.second, 1);
+
+      std::vector<size_t> out_shape{1};
+      out_shape.insert(out_shape.end(), dot->get_shape().begin(),
+                       dot->get_shape().end());
+
+      dots[g] = std::make_shared<ngraph::op::Reshape>(
+          dot, pyrange(sliced_left->get_shape().size()), out_shape);
+    }
+
+    // concatenate convolutions on batch channel
+    return std::make_shared<ngraph::op::Concat>(dots, 0);
   };
   ngraph_op_funcs_["reshape_like"] = [this](const NodePtr& node) {
     auto arg0 = op_map_[node->inputs_[0]];
