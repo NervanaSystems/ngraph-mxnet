@@ -523,6 +523,11 @@ bool multi_context_check(const Context& default_ctx,
       }
     }
   }
+  // TODO(mbrookhart): Ngraph doesn't support GPU yet, remove when the GPU Transformer is read
+  // When that happens, we probably also need to create collapsed nodes with FCompute<gpu>
+  if (default_ctx == Context::GPU()) {
+    multi_context = true;
+  }
   return multi_context;
 }
 #endif
