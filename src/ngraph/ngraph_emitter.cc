@@ -16,8 +16,8 @@
 
 #include <functional>
 #include <string>
-#include <vector>
 #include <utility>
+#include <vector>
 
 #include "ngraph_sgcompiler_utils.h"
 
