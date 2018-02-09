@@ -1,16 +1,18 @@
-// ----------------------------------------------------------------------------
-// Copyright 2018 Nervana Systems Inc.
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// ----------------------------------------------------------------------------
+/*******************************************************************************
+* Copyright 2018 Intel Corporation
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*******************************************************************************/
 
 #include "ngraph_emitter.h"
 #include "ngraph_utils.h"
@@ -783,13 +785,13 @@ void Emitter::CreateLayerOps() {
     auto dilate = get_default<size_t>(node, "dilate", default_dilate);
     size_t groups = get_default(node, "num_group", 1);
 
-    // since we do not slice unless groups > 1
-    auto data_slice = data;
-    auto filter_slice = filter;
-
-    std::vector<NgraphNodePtr> convolutions(groups);
-    for (size_t g = 0; g < groups; ++g) {
-      if (groups > 1) {
+    NgraphNodePtr convolution = nullptr;
+    if (groups == 1) {
+      convolution = std::make_shared<ngraph::op::Convolution>(
+          data, filter, stride, dilate, pad, pad);
+    } else {
+      std::vector<NgraphNodePtr> convolutions(groups);
+      for (size_t g = 0; g < groups; ++g) {
         // slice data on channel_in
         // N, channel_in/groups, d1,...,dn
         ngraph::Coordinate data_lower(data_shape.size(), 0);
@@ -798,7 +800,7 @@ void Emitter::CreateLayerOps() {
         // data_shape[1] % groups = 0 guaranteed by MXNet
         data_lower[1] = g * (data_shape[1] / groups);
         data_upper[1] = (g + 1) * (data_shape[1] / groups);
-        data_slice =
+        auto data_slice =
             std::make_shared<ngraph::op::Slice>(data, data_lower, data_upper);
 
         // slice filter on channel_out
@@ -809,29 +811,23 @@ void Emitter::CreateLayerOps() {
         // filter_shape[0] % groups = 0 guaranteed by MXNet
         filter_lower[0] = g * (filter_shape[0] / groups);
         filter_upper[0] = (g + 1) * (filter_shape[0] / groups);
-        filter_slice = std::make_shared<ngraph::op::Slice>(filter, filter_lower,
-                                                           filter_upper);
+        auto filter_slice = std::make_shared<ngraph::op::Slice>(
+            filter, filter_lower, filter_upper);
+
+        // convolve sliced data and filter
+        // N, channel_out/groups, d'1,...,d'n
+        convolutions[g] = std::make_shared<ngraph::op::Convolution>(
+            data_slice, filter_slice, stride, dilate, pad, pad);
       }
 
-      // convolve sliced data and filter
-      // N, channel_out/groups, d'1,...,d'n
-      convolutions[g] = std::make_shared<ngraph::op::Convolution>(
-          data_slice, filter_slice, stride, dilate, pad, pad);
-    }
-
-    // since we do not concat unless groups > 1
-    auto concat_convolution = convolutions[0];
-
-    if (groups > 1) {
       // concatenate convolutions on channel_out
       // N, channel_out, d'1,...,d'n
-      concat_convolution =
-          std::make_shared<ngraph::op::Concat>(convolutions, 1);
+      convolution = std::make_shared<ngraph::op::Concat>(convolutions, 1);
     }
 
     // no bias param, return
     if (node->inputs_.size() <= kBias) {
-      return concat_convolution;
+      return convolution;
     }
 
     NgraphNodePtr bias = op_map_[node->inputs_[kBias]];
@@ -845,7 +841,7 @@ void Emitter::CreateLayerOps() {
         std::make_shared<ngraph::op::Reshape>(bias, order, bias_shape);
 
     return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(
-        concat_convolution, bias_reshape);
+        convolution, bias_reshape);
   };
   ngraph_op_funcs_["Pooling"] = [this](const NodePtr& node) -> NgraphNodePtr {
     NgraphNodePtr op;

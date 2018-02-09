@@ -1,16 +1,18 @@
-// ----------------------------------------------------------------------------
-// Copyright 2018 Nervana Systems Inc.
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// ----------------------------------------------------------------------------
+/*******************************************************************************
+* Copyright 2018 Intel Corporation
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*******************************************************************************/
 
 #include "test_ngraph_imperative.h"
 #include "../../src/ngraph/ngraph_nnvm_ops.h"
@@ -82,7 +84,7 @@ TEST_F(NGRAPH_IMPERATIVE, INVOKE_OP) {
   EXPECT_TRUE(op_ng);
   EXPECT_TRUE(test.op_ngraph_->ngraph_forward);
   EXPECT_EQ(vec3, std::vector<float>({0, 0}));
-  compute_forward(opctx, op_ng, inputs, outputs);
+  compute_forward(opctx, op_ng, inputs, req, outputs);
   EXPECT_EQ(vec3, std::vector<float>({2, 6}));
 }
 

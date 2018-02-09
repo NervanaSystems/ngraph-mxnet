@@ -1,16 +1,18 @@
-// ----------------------------------------------------------------------------
-// Copyright 2018 Nervana Systems Inc.
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// ----------------------------------------------------------------------------
+/*******************************************************************************
+* Copyright 2018 Intel Corporation
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*******************************************************************************/
 
 #ifndef TESTS_CPP_NGRAPH_TEST_NGRAPH_IMPERATIVE_H_
 #define TESTS_CPP_NGRAPH_TEST_NGRAPH_IMPERATIVE_H_
@@ -20,6 +22,7 @@
 #include "../../src/ngraph/ngraph_imperative.h"
 #include "../../src/ngraph/ngraph_nnvm_utils.h"
 #include "test_util.h"
+
 namespace ngraph_bridge {
 
 class NGRAPH_IMPERATIVE : public ::testing::Test {
@@ -39,6 +42,7 @@ class NGRAPH_IMPERATIVE : public ::testing::Test {
   std::vector<float> vec3{0, 0};
   std::vector<mxnet::TBlob> inputs;
   std::vector<mxnet::TBlob> outputs;
+  std::vector<mxnet::OpReqType> req{mxnet::kWriteTo};
 };
 
 class testImperative : public NGImperative {
