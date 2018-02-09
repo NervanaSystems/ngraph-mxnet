@@ -13,12 +13,16 @@ cd googletest/ && cmake . && make -j$(nproc) && sudo make install
 
 ### Clone ngraph-cpp
 Compile and install with cmake according to the readme.
+
 This will install ngraph-cpp to $HOME/ngraph_dist
+
 Set the path to the ngraph libraries
+
 export LD_LIBRARY_PATH=$HOME/ngraph_dist/lib/
 
 ### Clone the ngraph-mxnet repository recursively and checkout the ngraph-integration-dev branch
 Edit make/config.mk file to use_ngraph and point to your ngraph installation
+
 USE_NGRAPH = 1
 
 NGRAPH_DIR = $(HOME)/ngraph_dist
@@ -30,10 +34,13 @@ Compile mxnet with make -j $(nproc)
 ### Set up a virtual environment
 
 Python 2: virtualenv -p python2.7 .venv && . .venv/bin/activate
+
 Python 3: python3 -m venv .venv && . .venv/bin/activate
+
 ### Install the python package
 
 cd python && pip install -e . && cd ../
+
 ### Run mnist
 
 python example/image-classification/train_mnist.py
