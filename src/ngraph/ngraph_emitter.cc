@@ -869,7 +869,7 @@ void Emitter::CreateLayerOps() {
         auto data_slice =
             slice_data(data, g * slice_step, slice_step, 1, false);
         auto filter_slice =
-            slice_data(filter, g * slice_step, slice_step, 1, false);
+            slice_data(filter, g * slice_step, slice_step, 0, false);
 
         // convolve sliced data and filter
         // N, channel_out/groups, d'1,...,d'n
