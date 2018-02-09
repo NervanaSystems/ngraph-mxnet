@@ -1,25 +1,28 @@
-// ----------------------------------------------------------------------------
-// Copyright 2018 Nervana Systems Inc.
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// ----------------------------------------------------------------------------
+/*******************************************************************************
+* Copyright 2018 Intel Corporation
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*******************************************************************************/
 
 #ifndef MXNET_NGRAPH_NGRAPH_NNVM_UTILS_H_
 #define MXNET_NGRAPH_NGRAPH_NNVM_UTILS_H_
+
+#include <mxnet/op_attr_types.h>
 
 #include <algorithm>
 #include <functional>
 #include <vector>
 
-#include <mxnet/op_attr_types.h>
 #include "ngraph_sgcompiler_utils.h"
 
 namespace ngraph_bridge {
@@ -111,9 +114,8 @@ inline void result_to_TBlob(
         result_plus_TBlob<int64_t>(mxnet_tblob, ngraph_tv, buffer_size);
 
       free(ngraph_tv);
-    }
-    // TODO: Add support for kWriteInplace
-    else {
+    } else {
+      // TODO(adstraw): Add support for kWriteInplace
       results[i]->read(mxnet_tblob, 0, buffer_size);
     }
   }

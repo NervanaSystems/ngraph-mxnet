@@ -1,16 +1,18 @@
-// ----------------------------------------------------------------------------
-// Copyright 2018 Nervana Systems Inc.
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// ----------------------------------------------------------------------------
+/*******************************************************************************
+* Copyright 2018 Intel Corporation
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*******************************************************************************/
 #include <mshadow/base.h>
 #include <mshadow/tensor.h>
 #include <mxnet/operator.h>
@@ -35,12 +37,15 @@ nnvm::Op *get_subgraph_op(std::shared_ptr<Graph> graph) {
       "ngraph_" + graph->name_));
 }
 
-void append_cached_to_forward(TensorViewVector &results,
+void append_cached_to_forward(TensorViewVector* results,
                               const std::shared_ptr<Graph> &graph,
                               const int mode) {
-  results.insert(results.end(), graph->cached_aux_values[mode].begin(),
+  if (results == nullptr) {
+    throw "NGRAPH_BRIDGE: append_cached_to_forward recieved nullptr results";
+  }
+  results->insert(results->end(), graph->cached_aux_values[mode].begin(),
                  graph->cached_aux_values[mode].end());
-  results.insert(results.end(), graph->cached_values[mode].begin(),
+  results->insert(results->end(), graph->cached_values[mode].begin(),
                  graph->cached_values[mode].end());
 }
 
@@ -59,7 +64,7 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     graph->forward_train_computed = true;
   }
   assert(graph->ngraph_forward[mode] != nullptr);
-  append_cached_to_forward(results, graph, mode);
+  append_cached_to_forward(&results, graph, mode);
   graph->ngraph_forward[mode]->call(placeholders, results);
 
   std::vector<mxnet::TBlob> outs = {outputs[0]};
@@ -69,7 +74,7 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   auto op_config = op_node->config_;
   if (op_config && !op_config->AuxNodes().empty()) {
     for (size_t i = 0; i < op_config->AuxNodes().size(); ++i) {
-      // TODO: req.push_back(kWriteTo) ?
+      // TODO(adstraw): req.push_back(kWriteTo) ?
       outs.push_back(inputs[op_config->MapAuxToInput(i)]);
     }
   }
@@ -100,7 +105,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     const auto &element_type = getType(graph->nodes_.back()->dtype_);
     auto output_tv = backend->make_primary_tensor_view(element_type, shape);
     TensorViewVector results{output_tv};
-    append_cached_to_forward(results, graph, mode);
+    append_cached_to_forward(&results, graph, mode);
     // call forward
     graph->ngraph_forward[mode]->call(placeholders, results);
   }
