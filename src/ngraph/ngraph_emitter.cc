@@ -418,10 +418,10 @@ std::shared_ptr<ngraph::Node> Emitter::CreateScalarOp(const NodePtr& node) {
   return ngraph::builder::make_with_numpy_broadcast<op>(arg0, arg1);
 }
 
-NgraphNodePtr slice_data(NgraphNodePtr data, size_t starting_loc,
-                         size_t step_size = 1, size_t axis = 0,
-                         bool flatten = true) {
-  // slice data on batch channel
+NgraphNodePtr slice_data_on_axis(NgraphNodePtr data, size_t starting_loc,
+                                 size_t step_size = 1, size_t axis = 0,
+                                 bool flatten = true) {
+  // slice data on given axis
   ngraph::Coordinate lower(data->get_shape().size(), 0);
   ngraph::Coordinate upper = data->get_shape();
 
@@ -543,8 +543,8 @@ void Emitter::CreateBinaryOps() {
     std::vector<NgraphNodePtr> dots(groups);
 
     for (size_t g = 0; g < groups; ++g) {
-      auto sliced_left = slice_data(left, g);
-      auto sliced_right = slice_data(right, g);
+      auto sliced_left = slice_data_on_axis(left, g);
+      auto sliced_right = slice_data_on_axis(right, g);
 
       auto args = dot_transpose(node, sliced_left, sliced_right);
       auto dot = std::make_shared<ngraph::op::Dot>(args.first, args.second, 1);
@@ -557,7 +557,7 @@ void Emitter::CreateBinaryOps() {
           dot, pyrange(sliced_left->get_shape().size()), out_shape);
     }
 
-    // concatenate convolutions on batch channel
+    // concatenate dots on batch channel
     return std::make_shared<ngraph::op::Concat>(dots, 0);
   };
   ngraph_op_funcs_["reshape_like"] = [this](const NodePtr& node) {
@@ -649,7 +649,7 @@ void Emitter::CreateLayerOps() {
     auto input = op_map_[node->inputs_[0]];
     auto input_shape = input->get_shape();
     size_t slice_step = input_shape[axis] / num_outputs;
-    return slice_data(input, index * slice_step, slice_step, axis,
+    return slice_data_on_axis(input, index * slice_step, slice_step, axis,
                       squeeze_axis && (slice_step == 1));
   };
 
@@ -867,9 +867,9 @@ void Emitter::CreateLayerOps() {
         // slice data on channel_in
         size_t slice_step = data_shape[1] / groups;
         auto data_slice =
-            slice_data(data, g * slice_step, slice_step, 1, false);
+            slice_data_on_axis(data, g * slice_step, slice_step, 1, false);
         auto filter_slice =
-            slice_data(filter, g * slice_step, slice_step, 0, false);
+            slice_data_on_axis(filter, g * slice_step, slice_step, 0, false);
 
         // convolve sliced data and filter
         // N, channel_out/groups, d'1,...,d'n
