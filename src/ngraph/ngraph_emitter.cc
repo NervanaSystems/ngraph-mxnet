@@ -386,7 +386,6 @@ void Emitter::CreateUnaryOps() {
     std::swap(axes[dim1], axes[dim2]);
 
     auto new_shape = TShape_to_NShape(node->shape_);
-    std::swap(new_shape[dim1], new_shape[dim2]);
 
     return std::make_shared<ngraph::op::Reshape>(input, axes, new_shape);
   };
