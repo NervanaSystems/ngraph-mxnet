@@ -571,6 +571,11 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                                            arg_grad_ctxes, aux_state_ctxes);
 
   ngraph_bridge::BindArg bind(num_forward_inputs_, in_args, aux_states);
+
+  // assign default context
+  g.attrs["context"] = std::make_shared<nnvm::any>(
+      ContextVector(g.indexed_graph().num_nodes(), default_ctx));
+
   ngraph_bridge::Compiler compiler(
       g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), bind,
       default_ctx);
@@ -1045,8 +1050,14 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // TODO(mbrookhart): Remove this when hetr can handle multiple contexts
   auto multi_context = multi_context_check(default_ctx, in_arg_ctxes,
                                            arg_grad_ctxes, aux_state_ctxes);
+
   ngraph_bridge::SimpleBindArg simplebind(num_forward_inputs_, arg_shape_map,
-                                          arg_dtype_map);
+                                          arg_dtype_map, arg_stype_map);
+
+  // assign default context
+  g.attrs["context"] = std::make_shared<nnvm::any>(
+      ContextVector(g.indexed_graph().num_nodes(), default_ctx));
+
   ngraph_bridge::Compiler compiler(
       g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), simplebind,
       default_ctx);
@@ -1738,3 +1749,4 @@ Executor *Executor::Bind(nnvm::Symbol symbol,
   return exec;
 }
 }  // namespace mxnet
+

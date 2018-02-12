@@ -1,18 +1,18 @@
 /*******************************************************************************
-* Copyright 2018 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+ * Copyright 2018 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
 
 #include <mshadow/base.h>
 
@@ -91,17 +91,20 @@ void Compiler::Infer(const BindArg* bind) {
     if (mutable_nodes.count(nid)) {
       shapes_.push_back(bind->aux_states_[aux_top].shape());
       dtypes_.push_back(bind->aux_states_[aux_top].dtype());
+      stypes_.push_back(bind->aux_states_[aux_top].storage_type());
       ++aux_top;
     } else {
       shapes_.push_back(bind->in_args_[arg_top].shape());
       dtypes_.push_back(bind->in_args_[arg_top].dtype());
+      stypes_.push_back(bind->in_args_[arg_top].storage_type());
       ++arg_top;
     }
   }
 
-  // append default shapes / dtypes so that vector size = graph size
+  // append default shapes / types so that vector size = graph size
   shapes_.resize(idx.input_nodes().size(), nnvm::TShape());
   dtypes_.resize(idx.input_nodes().size(), -1);
+  stypes_.resize(idx.input_nodes().size(), mxnet::kUndefinedStorage);
 }
 
 // infer nnvm::Graph shape and dtype for simple bind case
@@ -110,6 +113,7 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
   const auto& idx = graph_.indexed_graph();
   shapes_.resize(idx.input_nodes().size(), nnvm::TShape());
   dtypes_.resize(idx.input_nodes().size(), -1);
+  stypes_.resize(idx.input_nodes().size(), mxnet::kUndefinedStorage);
   size_t arg_top = 0, aux_top = 0;
   for (size_t i = 0; i < simplebind->kNumForwardInputs; ++i) {
     const uint32_t nid = idx.input_nodes().at(i);
@@ -121,6 +125,10 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
     auto it2 = simplebind->dtype_map_.find(name);
     if (simplebind->dtype_map_.end() != it2) {
       dtypes_[i] = it2->second;
+    }
+    auto it3 = simplebind->stype_map_.find(name);
+    if (simplebind->stype_map_.end() != it3) {
+      dtypes_[i] = it3->second;
     }
   }
 }
@@ -151,19 +159,13 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
 void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
   graph_ = mxnet::exec::InferShape(std::move(graph_), std::move(shapes_),
                                    "__shape__");
-  // TODO(adstraw): may or may not need error checking
-  // if (g.GetAttr<size_t>("shape_num_unknown_nodes") != 0U) {
-  //  HandleInferShapeError(num_forward_inputs, g.indexed_graph(),
-  //    g.GetAttr<nnvm::ShapeVector>("shape"));
-  //}
-
   graph_ = mxnet::exec::InferType(std::move(graph_), std::move(dtypes_),
                                   "__dtype__");
-  // TODO(adstraw): may or may not need error checking
-  // if (g.GetAttr<size_t>("dtype_num_unknown_nodes") != 0U) {
-  //  HandleInferTypeError(num_forward_inputs, g.indexed_graph(),
-  //    g.GetAttr<nnvm::DTypeVector>("dtype"));
-  //}
+  
+  graph_.attrs["storage_type"] =
+      std::make_shared<dmlc::any>(std::move(stypes_));
+  mxnet::StorageTypeVector stv;
+  graph_ = mxnet::exec::InferStorageType(std::move(graph_), std::move(stv), "");
 
   MakeCopiedFeedDict(feed_dict);
   ParseNnvmGraph();
@@ -298,6 +300,8 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
     for (auto& input : kv.second->inputs)
       input.node = node_map_[input.node.get()];
 
+  graph_.attrs = graph.attrs;
+
   // set the output graph to use the copied nodes
   graph_.outputs = graph.outputs;
   for (auto& out : graph_.outputs) out.node = node_map_[out.node.get()];
@@ -309,11 +313,13 @@ void Compiler::CheckInNgraph() {
     if (node->type_ == NodeType::kOp) {
       if (compiler_.ngraph_op_funcs_.count(node->operation_)) {
         node->in_ngraph_ = true;
-        if (node->dtype_ == mshadow::kFloat16) {
+        if (node->dtype_ == mshadow::kFloat16 ||
+            node->stype_ != mxnet::kDefaultStorage) {
           node->in_ngraph_ = false;
         } else {
           for (auto input : node->inputs_) {
-            if (input->dtype_ == mshadow::kFloat16) {
+            if (input->dtype_ == mshadow::kFloat16 ||
+                input->stype_ != mxnet::kDefaultStorage) {
               node->in_ngraph_ = false;
             }
           }
@@ -392,11 +398,13 @@ void Compiler::ParseNnvmGraph() {
   const auto inferred_shapes =
       graph_.GetAttr<std::vector<nnvm::TShape>>("shape");
   const auto inferred_dtypes = graph_.GetAttr<std::vector<int>>("dtype");
+  const auto inferred_stypes = graph_.GetAttr<std::vector<int>>("storage_type");
   for (auto node : this->ngraph_.nodes_) {
     const uint32_t nid = idx.node_id(node->orig_node_.get());
     const uint32_t eid = idx.entry_id(nid, 0);
     node->shape_ = inferred_shapes[eid];
     node->dtype_ = inferred_dtypes[eid];
+    node->stype_ = inferred_stypes[eid];
   }
 }
 

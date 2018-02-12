@@ -1,18 +1,18 @@
 /*******************************************************************************
-* Copyright 2018 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+ * Copyright 2018 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
 
 #ifndef MXNET_NGRAPH_NGRAPH_COMPILER_H_
 #define MXNET_NGRAPH_NGRAPH_COMPILER_H_
@@ -41,6 +41,7 @@ using NodeMap = std::map<const nnvm::Node*, std::shared_ptr<nnvm::Node>>;
 using NNVMNodeVec = std::vector<nnvm::NodePtr>;
 using NgraphShape = std::unordered_map<std::string, nnvm::TShape>;
 using NgraphDType = std::unordered_map<std::string, int>;
+using NgraphSType = std::unordered_map<std::string, int>;
 using NDArrayMap = nnvm::NodeEntryMap<mxnet::NDArray>;
 using StateMap = std::unordered_map<const nnvm::Node*, mxnet::OpStatePtr>;
 
@@ -71,14 +72,17 @@ struct BindArg : public BindArgBase {
 
 // SimpleBind
 struct SimpleBindArg : public BindArgBase {
-  SimpleBindArg(size_t numforward,
-                const std::unordered_map<std::string, nnvm::TShape>& shapes,
-                const std::unordered_map<std::string, int>& dtypes)
-      : BindArgBase(numforward), shape_map_(shapes), dtype_map_(dtypes) {}
+  SimpleBindArg(size_t numforward, const NgraphShape& shapes,
+                const NgraphDType& dtypes, const NgraphSType& stypes)
+      : BindArgBase(numforward),
+        shape_map_(shapes),
+        dtype_map_(dtypes),
+        stype_map_(stypes) {}
 
   // simple bind arguments
   const NgraphShape shape_map_;
   const NgraphDType dtype_map_;
+  const NgraphSType stype_map_;
 };
 
 // This is a compile-time hash map that contains information on
@@ -200,6 +204,8 @@ class Compiler {
   nnvm::ShapeVector shapes_;
   // inferred nnvm::Graph dtype
   nnvm::DTypeVector dtypes_;
+  // inferred nnvm::Graph stype
+  nnvm::StorageVector stypes_;
 };
 
 }  // namespace ngraph_bridge
