@@ -1155,7 +1155,7 @@ def gen_binary_data_int(dummy):
 
 
 def check_binary_op_forward(symbol, baseline, gen_data, rtol=1e-3, atol=1e-5, mx_nd_func=None):
-    sample_num = 20
+    sample_num = 200
     for i in range(sample_num):
         d = gen_data(i)
         x = baseline(d[0], d[1])
