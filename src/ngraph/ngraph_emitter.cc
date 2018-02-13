@@ -1,21 +1,24 @@
-// ----------------------------------------------------------------------------
-// Copyright 2018 Nervana Systems Inc.
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// ----------------------------------------------------------------------------
+/*******************************************************************************
+* Copyright 2018 Intel Corporation
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*******************************************************************************/
 
 #include "ngraph_emitter.h"
 
 #include <functional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "ngraph_sgcompiler_utils.h"
@@ -416,6 +419,33 @@ std::shared_ptr<ngraph::Node> Emitter::CreateScalarOp(const NodePtr& node) {
       makeConstant(node, std::to_string(get_default(node, "scalar", 0.0f)));
   return ngraph::builder::make_with_numpy_broadcast<op>(arg0, arg1);
 }
+
+NgraphNodePtr slice_data_on_axis(NgraphNodePtr data, size_t starting_loc,
+                                 size_t step_size = 1, size_t axis = 0,
+                                 bool flatten = true) {
+  // slice data on given axis
+  ngraph::Coordinate lower(data->get_shape().size(), 0);
+  ngraph::Coordinate upper = data->get_shape();
+
+  lower[axis] = starting_loc;
+  upper[axis] = starting_loc + step_size;
+
+  NgraphNodePtr slice = std::make_shared<ngraph::op::Slice>(data, lower, upper);
+
+  if (flatten && (step_size == 1)) {
+    std::vector<size_t> out_shape;
+    for (size_t i = 0; i < slice->get_shape().size(); ++i) {
+      if (i != axis) {
+        out_shape.push_back(slice->get_shape()[i]);
+      }
+    }
+    slice = std::make_shared<ngraph::op::Reshape>(
+        slice, pyrange(data->get_shape().size()), out_shape);
+  }
+
+  return slice;
+}
+
 // binary op generating function generator
 void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["_plus"] = [this](const NodePtr& node) {
@@ -481,10 +511,8 @@ void Emitter::CreateBinaryOps() {
                                                 op_map_[node->inputs_[1]]);
   };
   */
-  ngraph_op_funcs_["dot"] = [this](const NodePtr& node) {
-    NgraphNodePtr left = op_map_[node->inputs_[0]];
-    NgraphNodePtr right = op_map_[node->inputs_[1]];
-
+  auto dot_transpose = [this](const NodePtr& node, NgraphNodePtr left,
+                              NgraphNodePtr right) {
     if (get_default(node, "transpose_a", false)) {
       auto N = left->get_shape().size();
       auto order = pyrange(1, N);
@@ -498,8 +526,41 @@ void Emitter::CreateBinaryOps() {
       order.insert(order.begin(), N - 1);
       right = ngraph::builder::numpy_transpose(right, order);
     }
+    return std::pair<NgraphNodePtr, NgraphNodePtr>{left, right};
+  };
+  ngraph_op_funcs_["dot"] = [this, dot_transpose](const NodePtr& node) {
+    NgraphNodePtr left = op_map_[node->inputs_[0]];
+    NgraphNodePtr right = op_map_[node->inputs_[1]];
+    auto args = dot_transpose(node, left, right);
+    return std::make_shared<ngraph::op::Dot>(args.first, args.second, 1);
+  };
+  ngraph_op_funcs_["batch_dot"] = [this, dot_transpose](const NodePtr& node) {
+    NgraphNodePtr left = op_map_[node->inputs_[0]];
+    NgraphNodePtr right = op_map_[node->inputs_[1]];
 
-    return std::make_shared<ngraph::op::Dot>(left, right, 1);
+    auto left_shape = left->get_shape();
+    auto right_shape = right->get_shape();
+
+    size_t groups = left->get_shape()[0];
+    std::vector<NgraphNodePtr> dots(groups);
+
+    for (size_t g = 0; g < groups; ++g) {
+      auto sliced_left = slice_data_on_axis(left, g);
+      auto sliced_right = slice_data_on_axis(right, g);
+
+      auto args = dot_transpose(node, sliced_left, sliced_right);
+      auto dot = std::make_shared<ngraph::op::Dot>(args.first, args.second, 1);
+
+      std::vector<size_t> out_shape{1};
+      out_shape.insert(out_shape.end(), dot->get_shape().begin(),
+                       dot->get_shape().end());
+
+      dots[g] = std::make_shared<ngraph::op::Reshape>(
+          dot, pyrange(sliced_left->get_shape().size()), out_shape);
+    }
+
+    // concatenate dots on batch channel
+    return std::make_shared<ngraph::op::Concat>(dots, 0);
   };
   ngraph_op_funcs_["reshape_like"] = [this](const NodePtr& node) {
     auto arg0 = op_map_[node->inputs_[0]];
@@ -587,28 +648,11 @@ void Emitter::CreateLayerOps() {
     int index = node->multi_output_index_;
     bool squeeze_axis = get_default(node, "squeeze_axis", false);
 
-    // create lower and upper bounds for slice
-    auto upper = TShape_to_NShape(node->inputs_[0]->shape_);
-    std::vector<size_t> lower(upper.size(), 0);
-
-    lower[axis] = index * upper[axis] / num_outputs;
-    upper[axis] = (index + 1) * upper[axis] / num_outputs;
-
-    // perform the slice
-    std::shared_ptr<ngraph::Node> op = std::make_shared<ngraph::op::Slice>(
-        op_map_[node->inputs_[0]], lower, upper);
-
-    // remove dimension 1 axis if needed
-    if (squeeze_axis && ((upper[axis] - lower[axis]) == 1)) {
-      std::vector<size_t> reshape;
-      for (size_t i = 0; i < upper.size(); ++i)
-        if (i != axis) reshape.push_back(upper[i]);
-
-      op = std::make_shared<ngraph::op::Reshape>(op, pyrange(upper.size()),
-                                                 reshape);
-    }
-
-    return op;
+    auto input = op_map_[node->inputs_[0]];
+    auto input_shape = input->get_shape();
+    size_t slice_step = input_shape[axis] / num_outputs;
+    return slice_data_on_axis(input, index * slice_step, slice_step, axis,
+                      squeeze_axis && (slice_step == 1));
   };
 
   // concat takes a list of tensors of equal shape and
@@ -815,55 +859,34 @@ void Emitter::CreateLayerOps() {
     auto dilate = get_default<size_t>(node, "dilate", default_dilate);
     size_t groups = get_default(node, "num_group", 1);
 
-    // since we do not slice unless groups > 1
-    auto data_slice = data;
-    auto filter_slice = filter;
-
-    std::vector<NgraphNodePtr> convolutions(groups);
-    for (size_t g = 0; g < groups; ++g) {
-      if (groups > 1) {
+    NgraphNodePtr convolution = nullptr;
+    if (groups == 1) {
+      convolution = std::make_shared<ngraph::op::Convolution>(
+          data, filter, stride, dilate, pad, pad);
+    } else {
+      std::vector<NgraphNodePtr> convolutions(groups);
+      for (size_t g = 0; g < groups; ++g) {
         // slice data on channel_in
-        // N, channel_in/groups, d1,...,dn
-        ngraph::Coordinate data_lower(data_shape.size(), 0);
-        ngraph::Coordinate data_upper = data_shape;
+        size_t slice_step = data_shape[1] / groups;
+        auto data_slice =
+            slice_data_on_axis(data, g * slice_step, slice_step, 1, false);
+        auto filter_slice =
+            slice_data_on_axis(filter, g * slice_step, slice_step, 0, false);
 
-        // data_shape[1] % groups = 0 guaranteed by MXNet
-        data_lower[1] = g * (data_shape[1] / groups);
-        data_upper[1] = (g + 1) * (data_shape[1] / groups);
-        data_slice =
-            std::make_shared<ngraph::op::Slice>(data, data_lower, data_upper);
-
-        // slice filter on channel_out
-        // channel_out/groups, channel_in/groups, f1,...,fn
-        ngraph::Coordinate filter_lower(filter_shape.size(), 0);
-        ngraph::Coordinate filter_upper = filter_shape;
-
-        // filter_shape[0] % groups = 0 guaranteed by MXNet
-        filter_lower[0] = g * (filter_shape[0] / groups);
-        filter_upper[0] = (g + 1) * (filter_shape[0] / groups);
-        filter_slice = std::make_shared<ngraph::op::Slice>(filter, filter_lower,
-                                                           filter_upper);
+        // convolve sliced data and filter
+        // N, channel_out/groups, d'1,...,d'n
+        convolutions[g] = std::make_shared<ngraph::op::Convolution>(
+            data_slice, filter_slice, stride, dilate, pad, pad);
       }
 
-      // convolve sliced data and filter
-      // N, channel_out/groups, d'1,...,d'n
-      convolutions[g] = std::make_shared<ngraph::op::Convolution>(
-          data_slice, filter_slice, stride, dilate, pad, pad);
-    }
-
-    // since we do not concat unless groups > 1
-    auto concat_convolution = convolutions[0];
-
-    if (groups > 1) {
       // concatenate convolutions on channel_out
       // N, channel_out, d'1,...,d'n
-      concat_convolution =
-          std::make_shared<ngraph::op::Concat>(convolutions, 1);
+      convolution = std::make_shared<ngraph::op::Concat>(convolutions, 1);
     }
 
     // no bias param, return
     if (node->inputs_.size() <= kBias) {
-      return concat_convolution;
+      return convolution;
     }
 
     NgraphNodePtr bias = op_map_[node->inputs_[kBias]];
@@ -877,7 +900,7 @@ void Emitter::CreateLayerOps() {
         std::make_shared<ngraph::op::Reshape>(bias, order, bias_shape);
 
     return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(
-        concat_convolution, bias_reshape);
+        convolution, bias_reshape);
   };
 }
 

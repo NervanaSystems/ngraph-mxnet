@@ -1,16 +1,18 @@
-// ----------------------------------------------------------------------------
-// Copyright 2018 Nervana Systems Inc.
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// ----------------------------------------------------------------------------
+/*******************************************************************************
+* Copyright 2018 Intel Corporation
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*******************************************************************************/
 
 #include "test_util.h"
 
@@ -115,17 +117,20 @@ TEST(NGRAPH_NNVM, copy_TBlobs) {
   /*                     placeholders[1]) */
   /*                     ->get_vector<float>()); */
   std::vector<float> vec3{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  std::vector<float> vec4{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  std::vector<float> vec4{1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
   mxnet::TBlob TBlob3(vec3.data(), shape, 0);
   mxnet::TBlob TBlob4(vec4.data(), shape, 0);
   std::vector<mxnet::TBlob> outblobs;
   outblobs.push_back(TBlob3);
   outblobs.push_back(TBlob4);
 
-  result_to_TBlob(placeholders[0], outblobs, 0);
-  result_to_TBlob(placeholders[1], outblobs, 1);
+  // test 1: kWriteTo - vec3 = vec1
+  // test 2: kAddTo - vec4 += vec2
+  std::vector<mxnet::OpReqType> req{mxnet::kWriteTo, mxnet::kAddTo};
+  result_to_TBlob(placeholders, req, outblobs);
   EXPECT_EQ(vec1, vec3);
-  EXPECT_EQ(vec2, vec4);
+  std::vector<float> vec4_plus_vec2{12, 13, 14, 15, 16, 17, 18, 19, 20, 11};
+  EXPECT_EQ(vec4_plus_vec2, vec4);
 }
 
 }  // namespace ngraph_bridge
