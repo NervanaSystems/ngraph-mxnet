@@ -1,16 +1,18 @@
-// ----------------------------------------------------------------------------
-// Copyright 2018 Nervana Systems Inc.
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// ----------------------------------------------------------------------------
+/*******************************************************************************
+* Copyright 2018 Intel Corporation
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*******************************************************************************/
 
 #include "test_ngraph_sgcompiler.h"
 
@@ -73,8 +75,10 @@ TEST_F(NGRAPH_SGCOMPILER, COMPILE_NODE2) {
 
 TEST_F(NGRAPH_SGCOMPILER, COMPILE_SUBGRAPH) {
   testSGCompiler test;
-  EXPECT_FALSE(subgraph->ngraph_forward[static_cast<int>(GraphExeMode::kInfer)]);
-  EXPECT_FALSE(subgraph->ngraph_backward[static_cast<int>(GraphExeMode::kInfer)]);
+  EXPECT_FALSE(
+      subgraph->ngraph_forward[static_cast<int>(GraphExeMode::kInfer)]);
+  EXPECT_FALSE(
+      subgraph->ngraph_backward[static_cast<int>(GraphExeMode::kInfer)]);
   EXPECT_FALSE(test.count(in1));
   EXPECT_FALSE(test.count(in2));
   EXPECT_FALSE(test.count(in3));
