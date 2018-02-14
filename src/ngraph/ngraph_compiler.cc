@@ -104,7 +104,7 @@ void Compiler::Infer(const BindArg* bind) {
   // append default shapes / types so that vector size = graph size
   shapes_.resize(idx.input_nodes().size(), nnvm::TShape());
   dtypes_.resize(idx.input_nodes().size(), -1);
-  stypes_.resize(idx.input_nodes().size(), mxnet::kUndefinedStorage);
+  stypes_.resize(idx.num_node_entries(), mxnet::kDefaultStorage);
 }
 
 // infer nnvm::Graph shape and dtype for simple bind case
@@ -113,7 +113,7 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
   const auto& idx = graph_.indexed_graph();
   shapes_.resize(idx.input_nodes().size(), nnvm::TShape());
   dtypes_.resize(idx.input_nodes().size(), -1);
-  stypes_.resize(idx.input_nodes().size(), mxnet::kUndefinedStorage);
+  stypes_.resize(idx.num_node_entries(), mxnet::kDefaultStorage);
   size_t arg_top = 0, aux_top = 0;
   for (size_t i = 0; i < simplebind->kNumForwardInputs; ++i) {
     const uint32_t nid = idx.input_nodes().at(i);
@@ -128,7 +128,7 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
     }
     auto it3 = simplebind->stype_map_.find(name);
     if (simplebind->stype_map_.end() != it3) {
-      dtypes_[i] = it3->second;
+      stypes_[i] = it3->second;
     }
   }
 }
@@ -143,6 +143,9 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                    const mxnet::Context& context)
     : ngraph_("ngraph_" + randomString(6), context) {
   DeepCopy(graph);
+
+  graph_.attrs["context"] = std::make_shared<nnvm::any>(
+      mxnet::exec::ContextVector(graph_.indexed_graph().num_nodes(), context));
 
   // infer nnvm::Graph shape and type
   auto bind = dynamic_cast<const BindArg*>(&bindbase);
@@ -161,10 +164,12 @@ void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
                                    "__shape__");
   graph_ = mxnet::exec::InferType(std::move(graph_), std::move(dtypes_),
                                   "__dtype__");
-  
+
+  mxnet::StorageTypeVector stv = stypes_;
   graph_.attrs["storage_type"] =
       std::make_shared<dmlc::any>(std::move(stypes_));
-  mxnet::StorageTypeVector stv;
+
+  stv = stypes_;
   graph_ = mxnet::exec::InferStorageType(std::move(graph_), std::move(stv), "");
 
   MakeCopiedFeedDict(feed_dict);
@@ -404,7 +409,7 @@ void Compiler::ParseNnvmGraph() {
     const uint32_t eid = idx.entry_id(nid, 0);
     node->shape_ = inferred_shapes[eid];
     node->dtype_ = inferred_dtypes[eid];
-    node->stype_ = inferred_stypes[eid];
+    node->stype_ = inferred_stypes[nid]; // <- TODO: nid or eid?
   }
 }
 

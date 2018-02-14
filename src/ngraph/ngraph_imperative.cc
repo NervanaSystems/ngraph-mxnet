@@ -1,18 +1,18 @@
 /*******************************************************************************
-* Copyright 2018 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+ * Copyright 2018 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
 
 #include <mshadow/base.h>
 #include <mshadow/tensor.h>
@@ -65,9 +65,14 @@ NGImperative::NGImperative(const nnvm::NodeAttrs &attrs,
   for (auto i : inputs) {
     shapes_.push_back(i.shape_);
     dtypes_.push_back(i.type_flag_);
+    stypes_.push_back(mxnet::kDefaultStorage); // <- TODO
   }
   // initialize ngraph
   DeepCopy(g);
+
+  graph_.attrs["context"] = std::make_shared<nnvm::any>(
+      mxnet::exec::ContextVector(graph_.indexed_graph().num_nodes(), ctx));
+  
   MakeCopiedInputs(sym.ListInputs(nnvm::Symbol::kReadOnlyArgs));
 }
 

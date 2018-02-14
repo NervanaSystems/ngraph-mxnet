@@ -572,10 +572,6 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
 
   ngraph_bridge::BindArg bind(num_forward_inputs_, in_args, aux_states);
 
-  // assign default context
-  g.attrs["context"] = std::make_shared<nnvm::any>(
-      ContextVector(g.indexed_graph().num_nodes(), default_ctx));
-
   ngraph_bridge::Compiler compiler(
       g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), bind,
       default_ctx);
@@ -1053,10 +1049,6 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
 
   ngraph_bridge::SimpleBindArg simplebind(num_forward_inputs_, arg_shape_map,
                                           arg_dtype_map, arg_stype_map);
-
-  // assign default context
-  g.attrs["context"] = std::make_shared<nnvm::any>(
-      ContextVector(g.indexed_graph().num_nodes(), default_ctx));
 
   ngraph_bridge::Compiler compiler(
       g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), simplebind,

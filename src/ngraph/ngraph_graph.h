@@ -81,7 +81,7 @@ class Node {
   // mxnet type information
   nnvm::TShape shape_;
   int dtype_ = 0;
-  int stype_ = mxnet::kUndefinedStorage;
+  int stype_ = mxnet::kDefaultStorage;
 
   // information to store graph parsing in
   size_t multi_output_index_ = 0;
