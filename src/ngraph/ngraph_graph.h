@@ -142,7 +142,8 @@ class OpNode : public Node {
   class OpConfig {
    public:
     virtual const std::vector<NodePtr> &AuxNodes() const = 0;
-    virtual int MapAuxToInput(int i) const = 0;
+    virtual size_t MapAuxToInput(size_t i) const = 0;
+    virtual size_t MapAuxToOutput(size_t i) const = 0;
   };
 
   std::shared_ptr<OpConfig> config_;
@@ -174,7 +175,8 @@ inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
     const mxnet::Context &context) {
   auto backend_name = get_backend_name(context);
   if (backend_managers.count(backend_name) == 0) {
-    auto manager = ngraph::runtime::Manager::get(backend_name);
+    //auto manager = ngraph::runtime::Manager::get(backend_name);
+    auto manager = ngraph::runtime::Manager::get("INTERPRETER");
     backend_managers[backend_name] = manager;
   }
   return backend_managers[backend_name];
