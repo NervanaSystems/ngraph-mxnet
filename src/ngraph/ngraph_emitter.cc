@@ -860,8 +860,6 @@ void Emitter::CreateLayerOps() {
     auto top_pad = params.pad;
     if (params.pooling_convention == "full") {
       for (size_t i = 2; i < input_shape.size(); ++i) {
-        // TODO(mbrookhart): I'm not sure this math is 100% correct,
-        // MXNet doesn't have very good Pooling tests.
         size_t padded_dim = input_shape[i] + 2 * top_pad[i - 2];
         size_t stride = params.stride[i - 2];
         auto num_strides = (size_t)ceil(
@@ -885,6 +883,8 @@ void Emitter::CreateLayerOps() {
   };
   ngraph_op_funcs_["avg_pooling"] = [this,
                                      &asymetric_padding](const NodePtr& node) {
+    //TODO(mbrookhart): Re-enable average pooling when supported in nGraph
+    throw "NGRAPH_BRIDGE: nGraph doesn't yet support MXNet's avg pooling convention with padding";
     auto input = op_map_[node->inputs_[0]];
     auto params = PoolingParams(node, input);
 

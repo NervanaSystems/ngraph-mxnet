@@ -310,9 +310,10 @@ void Compiler::CheckInNgraph() {
 
       if (compiler_.ngraph_op_funcs_.count(node->operation_)) {
         node->in_ngraph_ = true;
+        // TODO(mbrookhart): Enable average and sum Pooling
         if ((node->operation_ == "Pooling") &&
-            (get_default(node, "pooling_convention", std::string("valid")) ==
-             "sum")) {
+            (get_default(node, "pooling_convention", std::string("valid")) !=
+             "max")) {
           node->in_ngraph_ = false;
         }
         if (node->dtype_ == mshadow::kFloat16) {
