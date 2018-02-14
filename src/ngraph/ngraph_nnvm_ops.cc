@@ -68,7 +68,6 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   graph->ngraph_forward[mode]->call(placeholders, results);
 
   std::vector<mxnet::TBlob> outs = {outputs[0]};
-
   result_to_TBlob(results, req, outs);
 }
 
@@ -79,7 +78,6 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                       const std::vector<mxnet::TBlob> &outputs) {
   // only expect backward is called in training mode
   assert(ctx.is_train);
-
   auto backend = GetBackendFromContext(graph->context_);
 
   const int mode = static_cast<int>(GraphExeMode::kTrain);
@@ -103,8 +101,8 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
   // backward op
   auto placeholders = graph->enable_fprop_cache
-                      ? make_ngraph_placeholders({inputs[0]}, backend, true)
-                      : make_ngraph_placeholders(inputs, backend, true);
+                          ? make_ngraph_placeholders({inputs[0]}, backend, true)
+                          : make_ngraph_placeholders(inputs, backend, true);
 
   auto results = make_ngraph_placeholders(outputs, backend, false);
   placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
