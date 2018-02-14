@@ -353,6 +353,9 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["_zeros"] = [this](const NodePtr& node) {
     return makeConstant(node, "0");
   };
+  ngraph_op_funcs_["zeros_like"] = [this](const NodePtr& node) {
+    return makeConstant(node->inputs_[0], "0");
+  };
   ngraph_op_funcs_["degrees"] = [this](const NodePtr& node) {
     auto pi = makeConstant(node, "3.14159265359");
     auto oneeighty = makeConstant(node, "180");
@@ -375,6 +378,19 @@ void Emitter::CreateUnaryOps() {
 
     return std::make_shared<ngraph::op::Reshape>(
         input, pyrange(input->get_shape().size()), new_shape);
+  };
+  ngraph_op_funcs_["swapaxes"] = [this](const NodePtr& node) -> NgraphNodePtr {
+    auto input = op_map_[node->inputs_[0]];
+
+    size_t dim1 = get_default(node, "dim1", 0);
+    size_t dim2 = get_default(node, "dim2", 0);
+
+    auto axes = pyrange(input->get_shape().size());
+    std::swap(axes[dim1], axes[dim2]);
+
+    auto new_shape = TShape_to_NShape(node->shape_);
+
+    return std::make_shared<ngraph::op::Reshape>(input, axes, new_shape);
   };
 
   // ngraph_op_funcs_["gamma"] = [this](const NodePtr& node){
@@ -591,6 +607,12 @@ void Emitter::CreateBinaryOps() {
   };
   ngraph_op_funcs_["broadcast_div"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Divide>(node);
+  };
+  ngraph_op_funcs_["broadcast_not_equal"] = [this](const NodePtr& node) {
+    auto op = CreateAutoBroadcast<ngraph::op::NotEqual>(node);
+    // TODO(aemani): remove conversion if NotEqual op returns same type
+    return std::make_shared<ngraph::op::Convert>(op,
+                                                 getType(node->dtype_));
   };
   // TODO(mbrookhart): Remainder not implemented in CPU
   // ngraph_op_funcs_["broadcast_mod"] = [this](const NodePtr& node) {
