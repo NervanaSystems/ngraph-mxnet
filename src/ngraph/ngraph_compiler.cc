@@ -307,7 +307,6 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 void Compiler::CheckInNgraph() {
   for (auto node : ngraph_.nodes_) {
     if (node->type_ == NodeType::kOp) {
-
       if (compiler_.ngraph_op_funcs_.count(node->operation_)) {
         node->in_ngraph_ = true;
         // TODO(mbrookhart): Enable average and sum Pooling

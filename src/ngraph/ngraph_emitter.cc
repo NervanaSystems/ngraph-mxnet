@@ -58,7 +58,6 @@ void Emitter::InitOpConfig(OpNodePtr op_node) const {
   }
 }
 
-
 /**
  * Transforms input axis attribute with name in key based on MXNet convention (0
  * based index), where
@@ -577,7 +576,7 @@ struct PoolingParams {
     pooling_convention =
         get_default(node, "pooling_convention", std::string("valid"));
     global_pool = get_default(node, "global_pool", false);
-    
+
     auto input_shape = input->get_shape();
     auto pool_dim = input_shape.size() - 2;
     auto default_ones = std::vector<size_t>(pool_dim, 1);
@@ -593,7 +592,6 @@ struct PoolingParams {
         kernel.push_back(input_shape[i]);
       }
     }
-
   }
 
   std::string pooling_convention;
@@ -620,7 +618,7 @@ void Emitter::CreateLayerOps() {
     auto input_shape = input->get_shape();
     size_t slice_step = input_shape[axis] / num_outputs;
     return slice_data_on_axis(input, index * slice_step, slice_step, axis,
-                      squeeze_axis && (slice_step == 1));
+                              squeeze_axis && (slice_step == 1));
   };
 
   // concat takes a list of tensors of equal shape and
@@ -889,8 +887,9 @@ void Emitter::CreateLayerOps() {
       for (size_t i = 2; i < input_shape.size(); ++i) {
         size_t padded_dim = input_shape[i] + 2 * top_pad[i - 2];
         size_t stride = params.stride[i - 2];
-        auto num_strides = (size_t)ceil(
-            (float)(padded_dim - params.kernel[i - 2]) / (float)stride);
+        auto num_strides = static_cast<size_t>(
+            ceil(static_cast<float>(padded_dim - params.kernel[i - 2]) /
+                 static_cast<float>(stride)));
         size_t extra_pad =
             num_strides * stride + params.kernel[i - 2] - padded_dim;
         top_pad[i - 2] += extra_pad;
@@ -910,7 +909,7 @@ void Emitter::CreateLayerOps() {
   };
   ngraph_op_funcs_["avg_pooling"] = [this,
                                      &asymetric_padding](const NodePtr& node) {
-    //TODO(mbrookhart): Re-enable average pooling when supported in nGraph
+    // TODO(mbrookhart): Re-enable average pooling when supported in nGraph
     throw "NGRAPH_BRIDGE: nGraph doesn't yet support MXNet's avg pooling convention with padding";
     auto input = op_map_[node->inputs_[0]];
     auto params = PoolingParams(node, input);

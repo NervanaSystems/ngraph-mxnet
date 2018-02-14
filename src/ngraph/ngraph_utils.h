@@ -20,6 +20,7 @@
 #include <iostream>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "ngraph_graph.h"
 
@@ -113,14 +114,14 @@ inline ngraph::AxisVector pyrange(size_t start, size_t stop) {
 inline ngraph::AxisVector pyrange(size_t stop) { return pyrange(0, stop); }
 
 inline std::string get_default(const NodePtr& node, const std::string& key,
-                        const std::string default_val) {
+                               const std::string default_val) {
   return node->orig_node_->attrs.dict.count(key)
              ? node->orig_node_->attrs.dict[key]
              : default_val;
 }
 
 inline int get_default(const NodePtr& node, const std::string& key,
-                const int default_val) {
+                       const int default_val) {
   return node->orig_node_->attrs.dict.count(key)
              ? std::stoi(node->orig_node_->attrs.dict[key])
              : default_val;
@@ -134,7 +135,7 @@ inline float get_default(const NodePtr& node, const std::string& key,
 }
 
 inline bool get_default(const NodePtr& node, const std::string& key,
-                 const bool default_val) {
+                        const bool default_val) {
   if (node->orig_node_->attrs.dict.count(key)) {
     const std::string& val = node->orig_node_->attrs.dict[key];
     if (val == "True" || val == "1")
@@ -146,9 +147,10 @@ inline bool get_default(const NodePtr& node, const std::string& key,
 }
 
 template <typename T>
-inline typename std::enable_if<!std::is_unsigned<T>::value, std::vector<T>>::type
-get_default(const NodePtr& node, const std::string& key,
-            const std::vector<T>& default_val) {
+inline
+    typename std::enable_if<!std::is_unsigned<T>::value, std::vector<T>>::type
+    get_default(const NodePtr& node, const std::string& key,
+                const std::vector<T>& default_val) {
   return node->orig_node_->attrs.dict.count(key)
              ? GetIntVectorFromString<T>(node->orig_node_->attrs.dict[key])
              : default_val;

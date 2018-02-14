@@ -37,16 +37,16 @@ nnvm::Op *get_subgraph_op(std::shared_ptr<Graph> graph) {
       "ngraph_" + graph->name_));
 }
 
-void append_cached_to_forward(TensorViewVector* results,
+void append_cached_to_forward(TensorViewVector *results,
                               const std::shared_ptr<Graph> &graph,
                               const int mode) {
   if (results == nullptr) {
     throw "NGRAPH_BRIDGE: append_cached_to_forward recieved nullptr results";
   }
   results->insert(results->end(), graph->cached_aux_values[mode].begin(),
-                 graph->cached_aux_values[mode].end());
+                  graph->cached_aux_values[mode].end());
   results->insert(results->end(), graph->cached_values[mode].begin(),
-                 graph->cached_values[mode].end());
+                  graph->cached_values[mode].end());
 }
 
 // function for computing forward on ngraph
