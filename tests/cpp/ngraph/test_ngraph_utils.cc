@@ -16,6 +16,7 @@
 
 #include "test_util.h"
 
+#include "../../src/ngraph/ngraph_utils.h"
 #include "../../src/ngraph/ngraph_graph_utils.h"
 #include "../../src/ngraph/ngraph_nnvm_utils.h"
 #include "../../src/ngraph/ngraph_sgcompiler_utils.h"
