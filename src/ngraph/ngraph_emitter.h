@@ -83,16 +83,20 @@ class Emitter {
       aux_nodes_.push_back(std::make_shared<AuxNode>(nullptr, "moving_mean"));
       aux_nodes_.push_back(std::make_shared<AuxNode>(nullptr, "moving_var"));
       // map the aux index to input index
-      aux_to_input_[kMovingMean] = 3;  // input mean index
-      aux_to_input_[kMovingVar] = 4;   // input variance index
+      aux_to_input_[kMovingMean] = 3;   // input mean index
+      aux_to_input_[kMovingVar] = 4;    // input variance index
       aux_to_output_[kMovingMean] = 3;  // output mean index
       aux_to_output_[kMovingVar] = 4;   // output variance index
     }
 
     const std::vector<NodePtr>& AuxNodes() const override { return aux_nodes_; }
 
-    size_t MapAuxToInput(size_t i) const override { return aux_to_input_.at(i); };
-    size_t MapAuxToOutput(size_t i) const override { return aux_to_output_.at(i); };
+    size_t MapAuxToInput(size_t i) const override {
+      return aux_to_input_.at(i);
+    };
+    size_t MapAuxToOutput(size_t i) const override {
+      return aux_to_output_.at(i);
+    };
 
    private:
     std::vector<NodePtr> aux_nodes_;
