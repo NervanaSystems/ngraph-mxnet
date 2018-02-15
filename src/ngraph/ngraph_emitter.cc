@@ -578,6 +578,8 @@ struct PoolingParams {
     global_pool = get_default(node, "global_pool", false);
 
     auto input_shape = input->get_shape();
+    // first two tensor axes are batch and channel, rest are image channels
+    // get the number of image channels for pooling
     auto pool_dim = input_shape.size() - 2;
     auto default_ones = std::vector<size_t>(pool_dim, 1);
     auto default_zeros = std::vector<size_t>(pool_dim, 0);
@@ -586,8 +588,11 @@ struct PoolingParams {
     stride = get_default(node, "stride", default_ones);
     pad = get_default(node, "pad", default_zeros);
 
+    // if global pooling is true, reset the pooling kernel to the 
+    // input image size
     if (global_pool) {
       kernel = std::vector<size_t>();
+      // get all of the image dimensions for kernel
       for (size_t i = 2; i < input_shape.size(); ++i) {
         kernel.push_back(input_shape[i]);
       }
@@ -887,6 +892,7 @@ void Emitter::CreateLayerOps() {
       for (size_t i = 2; i < input_shape.size(); ++i) {
         size_t padded_dim = input_shape[i] + 2 * top_pad[i - 2];
         size_t stride = params.stride[i - 2];
+        // calculate extra padding
         auto num_strides = static_cast<size_t>(
             ceil(static_cast<float>(padded_dim - params.kernel[i - 2]) /
                  static_cast<float>(stride)));
