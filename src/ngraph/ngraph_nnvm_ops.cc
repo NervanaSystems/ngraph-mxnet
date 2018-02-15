@@ -37,16 +37,16 @@ nnvm::Op *get_subgraph_op(std::shared_ptr<Graph> graph) {
       "ngraph_" + graph->name_));
 }
 
-void append_cached_to_forward(TensorViewVector* results,
+void append_cached_to_forward(TensorViewVector *results,
                               const std::shared_ptr<Graph> &graph,
                               const int mode) {
   if (results == nullptr) {
     throw "NGRAPH_BRIDGE: append_cached_to_forward recieved nullptr results";
   }
   results->insert(results->end(), graph->cached_aux_values[mode].begin(),
-                 graph->cached_aux_values[mode].end());
+                  graph->cached_aux_values[mode].end());
   results->insert(results->end(), graph->cached_values[mode].begin(),
-                 graph->cached_values[mode].end());
+                  graph->cached_values[mode].end());
 }
 
 // function for computing forward on ngraph
@@ -68,17 +68,6 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   graph->ngraph_forward[mode]->call(placeholders, results);
 
   std::vector<mxnet::TBlob> outs = {outputs[0]};
-
-  // aux result outputs mapped to inputs
-  OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(graph->nodes_.back());
-  auto op_config = op_node->config_;
-  if (op_config && !op_config->AuxNodes().empty()) {
-    for (size_t i = 0; i < op_config->AuxNodes().size(); ++i) {
-      // TODO(adstraw): req.push_back(kWriteTo) ?
-      outs.push_back(inputs[op_config->MapAuxToInput(i)]);
-    }
-  }
-
   result_to_TBlob(results, req, outs);
 }
 
@@ -123,6 +112,21 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // updated data from forward
   graph->forward_train_computed = false;
   result_to_TBlob(results, req, outputs);
+
+  // overwrite aux data if they exist
+  // aux result outputs mapped to outputs
+  const size_t cached_aux_count = graph->cached_aux_values[mode].size();
+  if (cached_aux_count > 0) {
+    std::vector<mxnet::OpReqType> aux_req;
+    std::vector<mxnet::TBlob> aux_outs;
+    OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(graph->nodes_.back());
+    auto op_config = op_node->config_;
+    for (size_t i = 0; i < cached_aux_count; ++i) {
+      aux_outs.push_back(outputs[op_config->MapAuxToOutput(i)]);
+      aux_req.push_back(mxnet::kWriteTo);
+    }
+    result_to_TBlob(graph->cached_aux_values[mode], aux_req, aux_outs);
+  }
 }
 
 void register_forward_op(std::shared_ptr<Graph> graph) {

@@ -142,7 +142,7 @@ class OpNode : public Node {
   class OpConfig {
    public:
     virtual const std::vector<NodePtr> &AuxNodes() const = 0;
-    virtual int MapAuxToInput(int i) const = 0;
+    virtual size_t MapAuxToOutput(size_t i) const = 0;
   };
 
   std::shared_ptr<OpConfig> config_;
