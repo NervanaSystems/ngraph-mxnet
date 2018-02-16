@@ -25,6 +25,7 @@
 #include <sstream>
 #include <vector>
 
+#include <ngraph/graph_util.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/reshape_elimination.hpp>
 #include <ngraph/runtime/cpu/pass/cpu_fusion.hpp>
@@ -47,6 +48,57 @@ void dump_graph(std::shared_ptr<ngraph::Function> f) {
   file.close();
 }
 
+void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
+                            std::shared_ptr<ngraph::Function> f,
+                            std::shared_ptr<ngraph::Function> bf,
+                            GraphExeMode exe_mode) {
+  const int mode = static_cast<int>(exe_mode);
+
+  auto manager = GetManagerFromContext(sub_graph->context_);
+  auto backend = GetBackendFromContext(sub_graph->context_);
+
+  ngraph::NodeMap fmap;
+  ngraph::NodeMap bfmap;
+
+  sub_graph->ngraph_forward[mode] = backend->make_call_frame(
+      manager->compile(ngraph::clone_function(f, fmap)));
+  sub_graph->ngraph_backward[mode] = backend->make_call_frame(
+      manager->compile(ngraph::clone_function(bf, bfmap)));
+}
+
+void OptimizeGraph(std::shared_ptr<Graph> sub_graph, std::shared_ptr<ngraph::Function> f,
+                   std::shared_ptr<ngraph::Function> bf) {
+  ngraph::pass::Manager pass_manager;
+  pass_manager.register_pass<ngraph::pass::ReshapeElimination>();
+
+  pass_manager.run_passes(f);
+  pass_manager.run_passes(bf);
+
+  if (sub_graph->context_ == mxnet::Context::CPU()) {
+    ngraph::Nodes dYdXs;
+    for (size_t i = 0; i < bf->get_output_size(); ++i) {
+      dYdXs.push_back(bf->get_output_op(i));
+    }
+    ngraph::Nodes combined_outputs{f->get_output_op(0)};
+    combined_outputs.insert(combined_outputs.end(), dYdXs.begin(), dYdXs.end());
+
+    std::vector<std::shared_ptr<ngraph::op::Parameter>> combined_parameters =
+        f->get_parameters();
+    std::vector<std::shared_ptr<ngraph::op::Parameter>> back_parameters =
+        bf->get_parameters();
+
+    combined_parameters.insert(combined_parameters.end(),
+                               back_parameters.begin(), back_parameters.end());
+    auto combinedf = std::make_shared<ngraph::Function>(combined_outputs,
+                                                        combined_parameters);
+
+    ngraph::pass::Manager pass_manager;
+    pass_manager.register_pass<ngraph::pass::ReshapeElimination>();
+    pass_manager.register_pass<ngraph::runtime::cpu::pass::CPUFusion>();
+    pass_manager.run_passes(combinedf);
+  }
+}
+
 // Main compilation function
 std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
   // clear the op_map_ and placeholder_order
@@ -59,50 +111,18 @@ std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
   return sg;
 }
 
-void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
-                            std::shared_ptr<ngraph::Function> f,
-                            std::shared_ptr<ngraph::Function> bf,
-                            GraphExeMode exe_mode) {
-  const int mode = static_cast<int>(exe_mode);
-
-  auto manager = GetManagerFromContext(sub_graph->context_);
-  auto backend = GetBackendFromContext(sub_graph->context_);
-
-  sub_graph->ngraph_backward[mode] =
-      backend->make_call_frame(manager->compile(bf));
-  sub_graph->ngraph_forward[mode] =
-      backend->make_call_frame(manager->compile(f));
-}
-
-void OptimizeGraph(std::shared_ptr<ngraph::Function> f) {
-  ngraph::pass::Manager pass_manager;
-  pass_manager.register_pass<ngraph::pass::ReshapeElimination>();
-
-  pass_manager.run_passes(f);
-}
-
-// Compile a Subgraph into ngraph forward and backward call frames
-void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
-  // initalize a placeholder order vector for this subgraph
-  for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
-
-  // compile all the ndoes in the graph
-  CompileNodes(sub_graph->nodes_.back(), sub_graph);
-
+std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
+    std::shared_ptr<Graph> sub_graph) {
   ngraph::op::Parameters parameters;
-  ngraph::Nodes param_nodes;
 
   for (const auto input : placeholder_order_) {
     // get the parameters
     parameters.push_back(
         std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_.at(input)));
-    param_nodes.push_back(op_map_.at(input));
   }
 
   // calcuate the shape and return type of the subgraph
   auto Y = op_map_.at(sub_graph->nodes_.back());
-
-  auto backend = GetBackendFromContext(sub_graph->context_);
 
   const int mode = static_cast<int>(exe_mode_);
 
@@ -111,53 +131,66 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
       std::dynamic_pointer_cast<OpNode>(sub_graph->nodes_.back());
   // default output
   ngraph::Nodes outputs{Y};
+
+  auto backend = GetBackendFromContext(sub_graph->context_);
   // push additional aux outputs
-  if (op_node->config_ && !aux_op_map_.empty()) {
+  if (exe_mode_ == GraphExeMode::kTrain && op_node->config_ &&
+      !aux_op_map_.empty()) {
     for (auto aux_node : op_node->config_->AuxNodes()) {
       NgraphNodePtr ngraph_node = aux_op_map_.at(aux_node);
       outputs.push_back(ngraph_node);
-      if (sub_graph->enable_fprop_cache)
+
+      // cache aux node
+      if (sub_graph->enable_fprop_cache) {
         sub_graph->cached_aux_values[mode].push_back(
             backend->make_primary_tensor_view(ngraph_node->get_element_type(),
                                               ngraph_node->get_shape()));
+      }
     }
   }
 
   // create the Forward Function object representing the graph
-  std::shared_ptr<ngraph::Function> f =
-      std::make_shared<ngraph::Function>(outputs, parameters);
+  return std::make_shared<ngraph::Function>(outputs, parameters);
+}
 
-  OptimizeGraph(f);
+std::shared_ptr<ngraph::Function> SGCompiler::MakeBackwardFunction(
+    std::shared_ptr<Graph> sub_graph, std::shared_ptr<ngraph::Function> f) {
+  // Get the output
+  auto Y = f->get_output_op(0);
 
   // Create the Adjoint
   auto C = std::make_shared<ngraph::op::Parameter>(Y->get_element_type(),
                                                    Y->get_shape());
-
+  // get parameters
+  std::vector<std::shared_ptr<ngraph::op::Parameter>> back_parameters =
+      f->get_parameters();
   // Perform autodiff
-  std::vector<NgraphNodePtr> dYdXs(parameters.size());
-  transform(parameters.begin(), parameters.end(), dYdXs.begin(),
+  std::vector<NgraphNodePtr> dYdXs(back_parameters.size());
+  transform(back_parameters.begin(), back_parameters.end(), dYdXs.begin(),
             [C, Y](const NgraphNodePtr &X) { return Y->backprop_node(X, C); });
 
   // create the backward function
-  auto back_parameters = parameters;
   back_parameters.insert(back_parameters.begin(), C);
 
-  auto bf = std::make_shared<ngraph::Function>(dYdXs, back_parameters);
+  return std::make_shared<ngraph::Function>(dYdXs, back_parameters);
+}
 
-  OptimizeGraph(bf);
-  if (sub_graph->context_ == mxnet::Context::CPU()) {
-    auto combined_outputs = outputs;
-    combined_outputs.insert(combined_outputs.end(), dYdXs.begin(), dYdXs.end());
-    auto combined_parameters = parameters;
-    combined_parameters.insert(combined_parameters.end(),
-                               back_parameters.begin(), back_parameters.end());
-    auto combinedf = std::make_shared<ngraph::Function>(combined_outputs,
-                                                        combined_parameters);
-    ngraph::pass::Manager pass_manager;
-    pass_manager.register_pass<ngraph::pass::ReshapeElimination>();
-    pass_manager.register_pass<ngraph::pass::CPUFusion>();
-    pass_manager.run_passes(combinedf);
-  }
+// Compile a Subgraph into ngraph forward and backward call frames
+void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
+  auto backend = GetBackendFromContext(sub_graph->context_);
+
+  // initalize a placeholder order vector for this subgraph
+  for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
+
+  // compile all the ndoes in the graph
+  CompileNodes(sub_graph->nodes_.back(), sub_graph);
+
+  auto f = MakeForwardFunction(sub_graph);
+  auto bf = MakeBackwardFunction(sub_graph, f);
+
+#if 0
+  OptimizeGraph(sub_graph, f, bf);
+#endif
 
   if (ngraph_log_graph) {
     dump_graph(f);
@@ -165,7 +198,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   if (sub_graph->enable_fprop_cache) {
-    auto fprop_cache = ngraph::cache_fprop(f, bf, {C});
+    auto fprop_cache = ngraph::cache_fprop(f, bf, {bf->get_parameters()[0]});
 
     if (ngraph_log_graph) {
       dump_graph(fprop_cache.fprop);
@@ -176,7 +209,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
                            exe_mode_);
 
     for (auto node : fprop_cache.fprop_output_nodes) {
-      sub_graph->cached_values[mode].push_back(
+      sub_graph->cached_values[static_cast<int>(exe_mode_)].push_back(
           backend->make_primary_tensor_view(node->get_element_type(),
                                             node->get_shape()));
     }
