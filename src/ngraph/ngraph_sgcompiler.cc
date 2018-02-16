@@ -201,7 +201,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     dump_graph(bf);
   }
 
-  if (sub_graph->enable_fprop_cache) {
+  if (sub_graph->enable_fprop_cache && exe_mode_ == GraphExeMode::kTrain) {
     auto fprop_cache = ngraph::cache_fprop(f, bf, {bf->get_parameters()[0]});
 
     if (ngraph_log_graph) {
