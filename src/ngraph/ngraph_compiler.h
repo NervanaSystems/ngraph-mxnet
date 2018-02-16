@@ -124,6 +124,7 @@ static std::unordered_map<std::string, std::string> nameswitch({
     {"Flatten", "flatten"},
     // Unary Ops
     {"Reshape", "reshape"},
+    {"SwapAxis", "swapaxes"},
     {"Cast", "cast"},
     {"sum_axis", "sum"},
 });

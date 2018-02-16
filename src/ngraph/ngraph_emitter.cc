@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include "ngraph_emitter.h"
+#include "ngraph_utils.h"
 
 #include <functional>
 #include <string>
@@ -55,71 +56,6 @@ void Emitter::InitOpConfig(OpNodePtr op_node) const {
     op_node->config_ = std::dynamic_pointer_cast<OpNode::OpConfig>(
         std::make_shared<BatchNormOpConfig>());
   }
-}
-
-ngraph::AxisVector pyrange(size_t start, size_t stop) {
-  ngraph::AxisVector out(stop - start);
-  std::iota(out.begin(), out.end(), start);
-  return out;
-}
-
-ngraph::AxisVector pyrange(size_t stop) { return pyrange(0, stop); }
-
-int get_default(const NodePtr& node, const std::string& key,
-                const int default_val) {
-  return node->orig_node_->attrs.dict.count(key)
-             ? std::stoi(node->orig_node_->attrs.dict[key])
-             : default_val;
-}
-
-inline float get_default(const NodePtr& node, const std::string& key,
-                         const float default_val) {
-  return node->orig_node_->attrs.dict.count(key)
-             ? std::stof(node->orig_node_->attrs.dict[key])
-             : default_val;
-}
-
-bool get_default(const NodePtr& node, const std::string& key,
-                 const bool default_val) {
-  if (node->orig_node_->attrs.dict.count(key)) {
-    const std::string& val = node->orig_node_->attrs.dict[key];
-    if (val == "True" || val == "1")
-      return true;
-    else
-      return false;
-  }
-  return default_val;
-}
-
-template <typename T>
-typename std::enable_if<!std::is_unsigned<T>::value, std::vector<T>>::type
-get_default(const NodePtr& node, const std::string& key,
-            const std::vector<T>& default_val) {
-  return node->orig_node_->attrs.dict.count(key)
-             ? GetIntVectorFromString<T>(node->orig_node_->attrs.dict[key])
-             : default_val;
-}
-
-template <typename T>
-typename std::enable_if<std::is_unsigned<T>::value, std::vector<T>>::type
-get_default(const NodePtr& node, const std::string& key,
-            const std::vector<T>& default_val) {
-  std::vector<T> out;
-  if (node->orig_node_->attrs.dict.count(key)) {
-    auto tmp = GetIntVectorFromString<int>(node->orig_node_->attrs.dict[key]);
-    for (auto val : tmp) {
-      if (val >= 0) {
-        out.push_back(val);
-      } else {
-        throw std::string(
-            "NGRAPH_BRIDGE: expected unsigned integers but got ") +
-            std::to_string(val);
-      }
-    }
-  } else {
-    out = default_val;
-  }
-  return out;
 }
 
 /**
@@ -353,6 +289,9 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["_zeros"] = [this](const NodePtr& node) {
     return makeConstant(node, "0");
   };
+  ngraph_op_funcs_["zeros_like"] = [this](const NodePtr& node) {
+    return makeConstant(node->inputs_[0], "0");
+  };
   ngraph_op_funcs_["degrees"] = [this](const NodePtr& node) {
     auto pi = makeConstant(node, "3.14159265359");
     auto oneeighty = makeConstant(node, "180");
@@ -375,6 +314,19 @@ void Emitter::CreateUnaryOps() {
 
     return std::make_shared<ngraph::op::Reshape>(
         input, pyrange(input->get_shape().size()), new_shape);
+  };
+  ngraph_op_funcs_["swapaxes"] = [this](const NodePtr& node) -> NgraphNodePtr {
+    auto input = op_map_[node->inputs_[0]];
+
+    size_t dim1 = get_default(node, "dim1", 0);
+    size_t dim2 = get_default(node, "dim2", 0);
+
+    auto axes = pyrange(input->get_shape().size());
+    std::swap(axes[dim1], axes[dim2]);
+
+    auto new_shape = TShape_to_NShape(node->shape_);
+
+    return std::make_shared<ngraph::op::Reshape>(input, axes, new_shape);
   };
 
   // ngraph_op_funcs_["gamma"] = [this](const NodePtr& node){
@@ -592,6 +544,12 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["broadcast_div"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Divide>(node);
   };
+  ngraph_op_funcs_["broadcast_not_equal"] = [this](const NodePtr& node) {
+    auto op = CreateAutoBroadcast<ngraph::op::NotEqual>(node);
+    // TODO(aemani): remove conversion if NotEqual op returns same type
+    return std::make_shared<ngraph::op::Convert>(op,
+                                                 getType(node->dtype_));
+  };
   // TODO(mbrookhart): Remainder not implemented in CPU
   // ngraph_op_funcs_["broadcast_mod"] = [this](const NodePtr& node) {
   //   return CreateAutoBroadcast<ngraph::op::Remainder>(node);
@@ -635,6 +593,41 @@ void Emitter::CreateBinaryOps() {
   */
 }
 
+struct PoolingParams {
+  PoolingParams(const NodePtr& node, const NgraphNodePtr& input) {
+    pooling_convention =
+        get_default(node, "pooling_convention", std::string("valid"));
+    global_pool = get_default(node, "global_pool", false);
+
+    auto input_shape = input->get_shape();
+    // first two tensor axes are batch and channel, rest are image channels
+    // get the number of image channels for pooling
+    auto pool_dim = input_shape.size() - 2;
+    auto default_ones = std::vector<size_t>(pool_dim, 1);
+    auto default_zeros = std::vector<size_t>(pool_dim, 0);
+
+    kernel = get_default(node, "kernel", default_ones);
+    stride = get_default(node, "stride", default_ones);
+    pad = get_default(node, "pad", default_zeros);
+
+    // if global pooling is true, reset the pooling kernel to the 
+    // input image size
+    if (global_pool) {
+      kernel = std::vector<size_t>();
+      // get all of the image dimensions for kernel
+      for (size_t i = 2; i < input_shape.size(); ++i) {
+        kernel.push_back(input_shape[i]);
+      }
+    }
+  }
+
+  std::string pooling_convention;
+  bool global_pool;
+  std::vector<size_t> kernel;
+  std::vector<size_t> stride;
+  std::vector<size_t> pad;
+};
+
 // MXNet high level ops generating function
 void Emitter::CreateLayerOps() {
   // In mxnet, split takes a tensor and creates multiple tensors from
@@ -652,7 +645,7 @@ void Emitter::CreateLayerOps() {
     auto input_shape = input->get_shape();
     size_t slice_step = input_shape[axis] / num_outputs;
     return slice_data_on_axis(input, index * slice_step, slice_step, axis,
-                      squeeze_axis && (slice_step == 1));
+                              squeeze_axis && (slice_step == 1));
   };
 
   // concat takes a list of tensors of equal shape and
@@ -901,6 +894,57 @@ void Emitter::CreateLayerOps() {
 
     return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(
         convolution, bias_reshape);
+  };
+  ngraph_op_funcs_["Pooling"] = [this](const NodePtr& node) -> NgraphNodePtr {
+    NgraphNodePtr op;
+    std::string type = get_default(node, "pool_type", std::string("max"));
+    if (type == "max") {
+      op = ngraph_op_funcs_["max_pooling"](node);
+    } else if (type == "avg") {
+      op = ngraph_op_funcs_["avg_pooling"](node);
+    } else if (type == "sum") {
+      throw "NGRAPH_BRIDGE: Sum pooling not supported";
+    }
+    return op;
+  };
+
+  auto asymetric_padding = [](ngraph::Shape input_shape, PoolingParams params) {
+    auto top_pad = params.pad;
+    if (params.pooling_convention == "full") {
+      for (size_t i = 2; i < input_shape.size(); ++i) {
+        size_t padded_dim = input_shape[i] + 2 * top_pad[i - 2];
+        size_t stride = params.stride[i - 2];
+        // calculate extra padding
+        auto num_strides = static_cast<size_t>(
+            ceil(static_cast<float>(padded_dim - params.kernel[i - 2]) /
+                 static_cast<float>(stride)));
+        size_t extra_pad =
+            num_strides * stride + params.kernel[i - 2] - padded_dim;
+        top_pad[i - 2] += extra_pad;
+      }
+    }
+    return top_pad;
+  };
+
+  ngraph_op_funcs_["max_pooling"] = [this,
+                                     &asymetric_padding](const NodePtr& node) {
+    auto input = op_map_[node->inputs_[0]];
+    auto params = PoolingParams(node, input);
+
+    return std::make_shared<ngraph::op::MaxPool>(
+        input, params.kernel, params.stride, params.pad,
+        asymetric_padding(input->get_shape(), params));
+  };
+  ngraph_op_funcs_["avg_pooling"] = [this,
+                                     &asymetric_padding](const NodePtr& node) {
+    // TODO(mbrookhart): Re-enable average pooling when supported in nGraph
+    throw "NGRAPH_BRIDGE: nGraph doesn't yet support MXNet's avg pooling convention with padding";
+    auto input = op_map_[node->inputs_[0]];
+    auto params = PoolingParams(node, input);
+
+    return std::make_shared<ngraph::op::AvgPool>(
+        input, params.kernel, params.stride, params.pad,
+        asymetric_padding(input->get_shape(), params));
   };
 }
 
