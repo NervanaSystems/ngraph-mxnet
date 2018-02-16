@@ -165,13 +165,8 @@ void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
   graph_ = mxnet::exec::InferType(std::move(graph_), std::move(dtypes_),
                                   "__dtype__");
 
-  // TODO: this method does not match executor exactly
-  mxnet::StorageTypeVector stv = stypes_;
-  graph_.attrs["storage_type"] =
-      std::make_shared<dmlc::any>(std::move(stypes_));
-
-  stv = stypes_;
-  graph_ = mxnet::exec::InferStorageType(std::move(graph_), std::move(stv), "");
+  graph_.attrs["storage_type"] = std::make_shared<dmlc::any>(std::move(stypes_));
+  graph_ = mxnet::exec::InferStorageType(std::move(graph_), std::move(mxnet::StorageTypeVector()), "");
 
   MakeCopiedFeedDict(feed_dict);
   ParseNnvmGraph();
