@@ -68,6 +68,8 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
 
 void OptimizeGraph(std::shared_ptr<Graph> sub_graph, std::shared_ptr<ngraph::Function> f,
                    std::shared_ptr<ngraph::Function> bf) {
+
+  // start by removing excess reshapes
   ngraph::pass::Manager pass_manager;
   pass_manager.register_pass<ngraph::pass::ReshapeElimination>();
 
@@ -75,6 +77,7 @@ void OptimizeGraph(std::shared_ptr<Graph> sub_graph, std::shared_ptr<ngraph::Fun
   pass_manager.run_passes(bf);
 
   if (sub_graph->context_ == mxnet::Context::CPU()) {
+    // if we're in CPU, combine the graphs
     ngraph::Nodes dYdXs;
     for (size_t i = 0; i < bf->get_output_size(); ++i) {
       dYdXs.push_back(bf->get_output_op(i));
@@ -91,7 +94,8 @@ void OptimizeGraph(std::shared_ptr<Graph> sub_graph, std::shared_ptr<ngraph::Fun
                                back_parameters.begin(), back_parameters.end());
     auto combinedf = std::make_shared<ngraph::Function>(combined_outputs,
                                                         combined_parameters);
-
+    // rerun Reshape elimination to help simplify the graph again, run CPUFusion
+    // this replaces nodes in both f and bf due to shared-ptr - ness
     ngraph::pass::Manager pass_manager;
     pass_manager.register_pass<ngraph::pass::ReshapeElimination>();
     pass_manager.register_pass<ngraph::runtime::cpu::pass::CPUFusion>();
