@@ -293,4 +293,3 @@ void GraphTraverse(NodePtr node, const GraphVisitor &visitor);
 }  // namespace ngraph_bridge
 
 #endif  // MXNET_NGRAPH_NGRAPH_GRAPH_H_
-

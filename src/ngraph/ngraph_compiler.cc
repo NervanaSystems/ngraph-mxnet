@@ -165,6 +165,7 @@ void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
   graph_ = mxnet::exec::InferType(std::move(graph_), std::move(dtypes_),
                                   "__dtype__");
 
+  // TODO: this method does not match executor exactly
   mxnet::StorageTypeVector stv = stypes_;
   graph_.attrs["storage_type"] =
       std::make_shared<dmlc::any>(std::move(stypes_));
@@ -208,6 +209,7 @@ nnvm::Graph Compiler::Compile() {
       ngraph_shape_[node->name_] = node->shape_;
       ngraph_dtype_[node->name_] = node->dtype_;
     }
+    // TODO: all nodes, right?
     ngraph_stype_[node->name_] = node->stype_;
   }
 
@@ -305,8 +307,6 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
   for (auto kv : node_map_)
     for (auto& input : kv.second->inputs)
       input.node = node_map_[input.node.get()];
-
-  graph_.attrs = graph.attrs;
 
   // set the output graph to use the copied nodes
   graph_.outputs = graph.outputs;

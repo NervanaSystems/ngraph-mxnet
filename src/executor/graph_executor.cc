@@ -571,7 +571,6 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                                            arg_grad_ctxes, aux_state_ctxes);
 
   ngraph_bridge::BindArg bind(num_forward_inputs_, in_args, aux_states);
-
   ngraph_bridge::Compiler compiler(
       g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), bind,
       default_ctx);
@@ -1047,10 +1046,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // TODO(mbrookhart): Remove this when hetr can handle multiple contexts
   auto multi_context = multi_context_check(default_ctx, in_arg_ctxes,
                                            arg_grad_ctxes, aux_state_ctxes);
-
   ngraph_bridge::SimpleBindArg simplebind(num_forward_inputs_, arg_shape_map,
                                           arg_dtype_map, arg_stype_map);
-
   ngraph_bridge::Compiler compiler(
       g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), simplebind,
       default_ctx);
@@ -1743,4 +1740,3 @@ Executor *Executor::Bind(nnvm::Symbol symbol,
   return exec;
 }
 }  // namespace mxnet
-

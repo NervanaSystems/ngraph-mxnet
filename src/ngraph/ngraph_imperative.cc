@@ -68,7 +68,7 @@ NGImperative::NGImperative(const nnvm::NodeAttrs &attrs,
     stypes_.push_back(mxnet::kDefaultStorage);
   }
 
-  stypes_.resize(100, mxnet::kDefaultStorage); // TODO: HACK
+  stypes_.push_back(mxnet::kDefaultStorage);
 
   // initialize ngraph
   DeepCopy(g);
