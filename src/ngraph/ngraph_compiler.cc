@@ -208,6 +208,7 @@ nnvm::Graph Compiler::Compile() {
       ngraph_shape_[node->name_] = node->shape_;
       ngraph_dtype_[node->name_] = node->dtype_;
     }
+    ngraph_stype_[node->name_] = node->stype_;
   }
 
   // find the subgraphs

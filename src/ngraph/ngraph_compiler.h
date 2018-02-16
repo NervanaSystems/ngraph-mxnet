@@ -158,9 +158,10 @@ class Compiler {
   void ParseNnvmGraph();
 
   StateMap CopySavedStates(const StateMap& saved_states);
-  // Return maps of the shapes and dtypes for further analysis in graph_executor
+  // Return maps of the shapes and types for further analysis in graph_executor
   const NgraphShape& GetNgraphShape() { return ngraph_shape_; }
   const NgraphDType& GetNgraphDtype() { return ngraph_dtype_; }
+  const NgraphDType& GetNgraphStype() { return ngraph_stype_; }
   // Return copies of the feed_dict and inputs to feed back into the
   // graph executor inference engine
   const NDArrayMap& GetFeedDict() { return feed_dict_; }
@@ -191,6 +192,7 @@ class Compiler {
   // shape and type maps to return to the graph executor
   NgraphShape ngraph_shape_;
   NgraphDType ngraph_dtype_;
+  NgraphDType ngraph_stype_;
   // copied feed dict and inputs
   nnvm::NodeEntryMap<mxnet::NDArray> feed_dict_;
   NNVMNodeVec inputs_;
@@ -204,7 +206,7 @@ class Compiler {
   nnvm::ShapeVector shapes_;
   // inferred nnvm::Graph dtype
   nnvm::DTypeVector dtypes_;
-  // inferred nnvm::Graph stype
+  // inferred nnvm::Graph storage type
   nnvm::StorageVector stypes_;
 };
 
