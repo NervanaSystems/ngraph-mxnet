@@ -49,7 +49,10 @@ python example/image-classification/train_mnist.py
 This release enables examples/image_classification/train_mnist.py and examples/rnn/lstm_bucketing.py on CPU. Other models are under development but not fully supported at this time.
 
 ## Test status
-Integration testing to date (2/8/2018) has focused on "tests/cpp/*" and "tests/python/unittest/*". Of these tests, we see the following failures.
+Integration testing to date (2/23/2018) has focused on "tests/cpp/*" and "tests/python/unittest/*". Of these tests, we see the following failures.
+
+### we see this test fail with relative errors of <1e-4 on a limit of 1e-5. Still debugging
+tests/python/unittest/test_gluon.py::test_export
 
 ### Ngraph changes the number of nodes in the graph, so the assumptions in this test are no longer valid.
 tests/python/unittest/test_module.py::test_monitor
