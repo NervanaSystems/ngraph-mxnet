@@ -94,6 +94,7 @@ echo  ' '
 export PIP_INSTALL_FROM_SUDO=1
 export PIP_INSTALL_EXTRA_ARGS="--proxy=$http_proxy --proxy=$https_proxy"
 ./build-install-mx.sh 2>&1 | tee ../mx-build.log
+cat ../mx-build.log
 echo "===== Build & Install Pipeline Exited with $? and endtime ${xtime} ===="
 
 cd "$HOME/ng-mx/docker/scripts/"
@@ -102,7 +103,10 @@ xtime="$(date)"
 echo  ' '
 echo  "===== Running unit test  at ${xtime} ====="
 echo  ' '
-./run-unit-tests.sh 2>&1 | tee ../mx-tests.log
+mkdir /tmp/working  # Both dirs needed by run-premerge-ci-checks.sh
+mkdir /tmp/results
+./run-unit-tests.sh /tmp/working /tmp/results 2>&1 | tee ../mx-tests.log
+cat ../mx-tests.log
 echo "===== Unit Tests Pipeline Exited with $? ====="
 
 xtime="$(date)"
