@@ -120,7 +120,6 @@ inline void result_to_TBlob(
     }
   }
 }
-
 }  // namespace ngraph_bridge
 
 #endif  // MXNET_NGRAPH_NGRAPH_NNVM_UTILS_H_

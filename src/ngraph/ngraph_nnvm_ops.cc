@@ -61,11 +61,8 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
   int mode = static_cast<int>(GraphExeMode::kInfer);
   if (ctx.is_train) {
-    // std::cout << "Run Forward Train" << std::endl;
     mode = static_cast<int>(GraphExeMode::kTrain);
     graph->forward_train_computed = true;
-  } else {
-    std::cout << "Run Forward Infer" << std::endl;
   }
   assert(graph->ngraph_forward[mode] != nullptr);
   append_cached_to_forward(&results, graph, mode);
@@ -117,7 +114,6 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   graph->forward_train_computed = false;
   result_to_TBlob(results, req, outputs);
 
-  // throw;
   // overwrite aux data if they exist
   // aux result outputs mapped to outputs
   const size_t cached_aux_count = graph->cached_aux_values[mode].size();
