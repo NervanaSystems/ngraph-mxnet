@@ -45,7 +45,7 @@ if __name__ == '__main__':
     parser.set_defaults(
         # network
         network        = 'resnet',
-        num_layers     = 110,
+        num_layers     = 8,
         # data
         data_train     = train_fname,
         data_val       = val_fname,

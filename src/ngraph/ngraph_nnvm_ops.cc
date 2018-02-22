@@ -41,7 +41,8 @@ void append_cached_to_forward(TensorViewVector *results,
                               const std::shared_ptr<Graph> &graph,
                               const int mode) {
   if (results == nullptr) {
-    throw "NGRAPH_BRIDGE: append_cached_to_forward recieved nullptr results";
+    throw std::runtime_error(
+        "NGRAPH_BRIDGE: append_cached_to_forward recieved nullptr results");
   }
   results->insert(results->end(), graph->cached_aux_values[mode].begin(),
                   graph->cached_aux_values[mode].end());
@@ -60,8 +61,11 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
   int mode = static_cast<int>(GraphExeMode::kInfer);
   if (ctx.is_train) {
+    // std::cout << "Run Forward Train" << std::endl;
     mode = static_cast<int>(GraphExeMode::kTrain);
     graph->forward_train_computed = true;
+  } else {
+    std::cout << "Run Forward Infer" << std::endl;
   }
   assert(graph->ngraph_forward[mode] != nullptr);
   append_cached_to_forward(&results, graph, mode);
@@ -84,7 +88,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
   // check forward has been executed, if not we need to run forward to
   // generate valid data in fprop cache
-  if (!graph->forward_train_computed) {
+  if (graph->enable_fprop_cache && !graph->forward_train_computed) {
     // forward inputs
     std::vector<mxnet::TBlob> fwd_inputs(inputs.begin() + graph->num_outputs,
                                          inputs.end());
@@ -113,6 +117,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   graph->forward_train_computed = false;
   result_to_TBlob(results, req, outputs);
 
+  // throw;
   // overwrite aux data if they exist
   // aux result outputs mapped to outputs
   const size_t cached_aux_count = graph->cached_aux_values[mode].size();

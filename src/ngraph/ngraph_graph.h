@@ -203,7 +203,7 @@ class Graph : public Node {
   // Graph with optional fprop cache
   Graph(const std::string &name = "",
         const mxnet::Context &context = mxnet::Context::CPU(),
-        const bool enable_fprop_cache = true)
+        const bool enable_fprop_cache = false)
       : Node(NodeType::kGraph, nullptr, name),
         context_(context),
         enable_fprop_cache(enable_fprop_cache) {}
@@ -228,7 +228,7 @@ class Graph : public Node {
         return n;
       }
     // This throw is used in constructing multi-output subgraphs
-    throw "NGRAPH_BRIDGE: node not in graph";
+    throw std::runtime_error("NGRAPH_BRIDGE: node not in graph");
   }
 
   bool forward_train_computed{false};

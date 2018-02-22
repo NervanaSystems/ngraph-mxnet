@@ -43,7 +43,7 @@ inline const ngraph::element::Type& getType(int type) {
 
   auto ngraphType = typemap.find(type);
   if (ngraphType == typemap.end()) {
-    throw "NGRAPH_BRIDGE: type not supported";
+    throw std::runtime_error("NGRAPH_BRIDGE: type not supported");
   }
   return *ngraphType->second;
 }
@@ -61,7 +61,8 @@ inline ngraph::Shape convert_shapes(const nnvm::TShape& inshape) {
   ngraph::Shape shape;
   for (const auto& s : inshape) {
     if (s < 0) {
-      throw "NGRAPH_BRIDGE: After InferShape no shapes w/ negative dimensions";
+      throw std::runtime_error(
+          "NGRAPH_BRIDGE: After InferShape no shapes w/ negative dimensions");
     }
     shape.push_back(s);
   }

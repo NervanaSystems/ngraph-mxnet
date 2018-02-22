@@ -358,10 +358,10 @@ void Compiler::ParseNnvmGraph() {
         std::shared_ptr<Node> tmpnode;
         try {
           tmpnode = this->ngraph_[e];
-        } catch (char const* error) {
+        } catch (std::runtime_error error) {
           try {
             tmpnode = this->ngraph_[e];
-          } catch (char const* error) {
+          } catch (std::runtime_error error) {
             tmpnode = std::make_shared<VariableNode>(node, e.node->attrs.name);
             this->ngraph_.AddNode(tmpnode);
           }

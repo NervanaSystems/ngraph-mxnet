@@ -60,15 +60,23 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
   ngraph::NodeMap fmap;
   ngraph::NodeMap bfmap;
 
-  sub_graph->ngraph_forward[mode] = backend->make_call_frame(
-      manager->compile(ngraph::clone_function(f, fmap)));
-  sub_graph->ngraph_backward[mode] = backend->make_call_frame(
-      manager->compile(ngraph::clone_function(bf, bfmap)));
+  auto f_copy = ngraph::clone_function(f, fmap);
+  auto bf_copy = ngraph::clone_function(bf, bfmap);
+
+  if (ngraph_log_graph) {
+    dump_graph(f_copy);
+    dump_graph(bf_copy);
+  }
+
+  sub_graph->ngraph_forward[mode] =
+      backend->make_call_frame(manager->compile(f_copy));
+  sub_graph->ngraph_backward[mode] =
+      backend->make_call_frame(manager->compile(bf_copy));
 }
 
-void OptimizeGraph(std::shared_ptr<Graph> sub_graph, std::shared_ptr<ngraph::Function> f,
+void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
+                   std::shared_ptr<ngraph::Function> f,
                    std::shared_ptr<ngraph::Function> bf) {
-
   // start by removing excess reshapes
   ngraph::pass::Manager pass_manager;
   pass_manager.register_pass<ngraph::pass::ReshapeElimination>();
@@ -192,7 +200,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   auto f = MakeForwardFunction(sub_graph);
   auto bf = MakeBackwardFunction(sub_graph, f);
 
-#if 0
+#if 1
   OptimizeGraph(sub_graph, f, bf);
 #endif
 
