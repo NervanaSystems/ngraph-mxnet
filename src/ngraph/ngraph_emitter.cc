@@ -142,9 +142,7 @@ void Emitter::CreateUnaryOps() {
     return ngraph_op_funcs_[act_type](node);
   };
   ngraph_op_funcs_["relu"] = [this](const NodePtr& node) {
-    auto zero = makeConstant(node, "0");
-    return std::make_shared<ngraph::op::Maximum>(op_map_[node->inputs_[0]],
-                                                 zero);
+    return std::make_shared<ngraph::op::Relu>(op_map_[node->inputs_[0]]);
   };
   ngraph_op_funcs_["sigmoid"] = [this](const NodePtr& node) {
     auto one = makeConstant(node, "1");
