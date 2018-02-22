@@ -16,6 +16,7 @@
 
 #include <deque>
 #include <functional>
+#include <stdexcept>
 #include <unordered_set>
 
 #include "ngraph_graph.h"
@@ -46,7 +47,8 @@ void GraphTraverse(NodePtr node, const GraphVisitor& visitor) {
     for (auto i : visitor.get_inputs(n)) {
       // check for cyclic graph
       if (queued.count(i) != 0) {
-        throw "NGRAPH_BRIDGE: GraphTraverse - This Graph has Cylic Loops!";
+        throw std::runtime_error(
+            "NGRAPH_BRIDGE: GraphTraverse - This Graph has Cylic Loops!");
       }
 
       // call visitor to determine whether to push input

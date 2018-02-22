@@ -545,8 +545,7 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["broadcast_not_equal"] = [this](const NodePtr& node) {
     auto op = CreateAutoBroadcast<ngraph::op::NotEqual>(node);
     // TODO(aemani): remove conversion if NotEqual op returns same type
-    return std::make_shared<ngraph::op::Convert>(op,
-                                                 getType(node->dtype_));
+    return std::make_shared<ngraph::op::Convert>(op, getType(node->dtype_));
   };
   // TODO(mbrookhart): Remainder not implemented in CPU
   // ngraph_op_funcs_["broadcast_mod"] = [this](const NodePtr& node) {
@@ -608,7 +607,7 @@ struct PoolingParams {
     stride = get_default(node, "stride", default_ones);
     pad = get_default(node, "pad", default_zeros);
 
-    // if global pooling is true, reset the pooling kernel to the 
+    // if global pooling is true, reset the pooling kernel to the
     // input image size
     if (global_pool) {
       kernel = std::vector<size_t>();
@@ -803,9 +802,9 @@ void Emitter::CreateLayerOps() {
           ng_in_moving_var, convert_order, convert_shape);
     }
 
-    NgraphNodePtr ng_eps = makeConstant(node, std::to_string(eps));
-    NgraphNodePtr denom = std::make_shared<ngraph::op::Sqrt>(
-        make_with_numpy_broadcast<ngraph::op::Add>(ng_var, ng_eps));
+    NgraphNodePtr ng_eps = makeConstant(
+        ng_var->get_element_type(), ng_var->get_shape(), std::to_string(eps));
+    NgraphNodePtr denom = std::make_shared<ngraph::op::Sqrt>(ng_var + ng_eps);
 
     NgraphNodePtr numerator =
         make_with_numpy_broadcast<ngraph::op::Subtract>(ng_in_data, ng_mean);
@@ -901,7 +900,7 @@ void Emitter::CreateLayerOps() {
     } else if (type == "avg") {
       op = ngraph_op_funcs_["avg_pooling"](node);
     } else if (type == "sum") {
-      throw "NGRAPH_BRIDGE: Sum pooling not supported";
+      throw std::runtime_error("NGRAPH_BRIDGE: Sum pooling not supported");
     }
     return op;
   };
@@ -936,7 +935,9 @@ void Emitter::CreateLayerOps() {
   ngraph_op_funcs_["avg_pooling"] = [this,
                                      &asymetric_padding](const NodePtr& node) {
     // TODO(mbrookhart): Re-enable average pooling when supported in nGraph
-    throw "NGRAPH_BRIDGE: nGraph doesn't yet support MXNet's avg pooling convention with padding";
+    throw std::runtime_error(
+        "NGRAPH_BRIDGE: nGraph doesn't yet support MXNet's avg pooling "
+        "convention with padding");
     auto input = op_map_[node->inputs_[0]];
     auto params = PoolingParams(node, input);
 

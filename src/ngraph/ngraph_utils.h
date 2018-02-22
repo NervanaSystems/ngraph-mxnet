@@ -28,6 +28,8 @@ namespace ngraph_bridge {
 
 // enable ngraph gluon at runtime.
 const bool ngraph_gluon_enable = dmlc::GetEnv("MXNET_NGRAPH_GLUON", false);
+const bool ngraph_optimzation =
+    dmlc::GetEnv("MXNET_NGRAPH_GRAPH_OPTIMIZATION", false);
 
 // logging
 const bool ngraph_log_verbose = dmlc::GetEnv("MXNET_NGRAPH_VERBOSE", false);
@@ -167,9 +169,9 @@ get_default(const NodePtr& node, const std::string& key,
       if (val >= 0) {
         out.push_back(val);
       } else {
-        throw std::string(
-            "NGRAPH_BRIDGE: expected unsigned integers but got ") +
-            std::to_string(val);
+        throw std::runtime_error(
+            std::string("NGRAPH_BRIDGE: expected unsigned integers but got ") +
+            std::to_string(val));
       }
     }
   } else {
