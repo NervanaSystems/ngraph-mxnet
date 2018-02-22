@@ -57,21 +57,10 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
   auto manager = GetManagerFromContext(sub_graph->context_);
   auto backend = GetBackendFromContext(sub_graph->context_);
 
-  ngraph::NodeMap fmap;
-  ngraph::NodeMap bfmap;
-
-  auto f_copy = ngraph::clone_function(f, fmap);
-  auto bf_copy = ngraph::clone_function(bf, bfmap);
-
-  if (ngraph_log_graph) {
-    dump_graph(f_copy);
-    dump_graph(bf_copy);
-  }
-
-  sub_graph->ngraph_forward[mode] =
-      backend->make_call_frame(manager->compile(f_copy));
   sub_graph->ngraph_backward[mode] =
-      backend->make_call_frame(manager->compile(bf_copy));
+      backend->make_call_frame(manager->compile(bf));
+  sub_graph->ngraph_forward[mode] =
+      backend->make_call_frame(manager->compile(f));
 }
 
 void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
