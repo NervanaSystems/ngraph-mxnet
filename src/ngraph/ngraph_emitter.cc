@@ -943,7 +943,7 @@ void Emitter::CreateLayerOps() {
 
     return std::make_shared<ngraph::op::AvgPool>(
         input, params.kernel, params.stride, params.pad,
-        asymetric_padding(input->get_shape(), params));
+        asymetric_padding(input->get_shape(), params), true);
   };
 }
 
