@@ -356,15 +356,10 @@ void Compiler::ParseNnvmGraph() {
       for (size_t i = 0; i < node->inputs.size(); ++i) {
         const nnvm::NodeEntry& e = node->inputs[i];
         std::shared_ptr<Node> tmpnode;
-        try {
-          tmpnode = this->ngraph_[e];
-        } catch (std::runtime_error error) {
-          try {
-            tmpnode = this->ngraph_[e];
-          } catch (std::runtime_error error) {
-            tmpnode = std::make_shared<VariableNode>(node, e.node->attrs.name);
-            this->ngraph_.AddNode(tmpnode);
-          }
+        tmpnode = this->ngraph_[e];
+        if (tmpnode == nullptr) {
+          tmpnode = std::make_shared<VariableNode>(node, e.node->attrs.name);
+          this->ngraph_.AddNode(tmpnode);
         }
         op_node->inputs_.emplace_back(tmpnode);
       }

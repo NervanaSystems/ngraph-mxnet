@@ -227,8 +227,7 @@ class Graph : public Node {
           (n->multi_output_index_ == entry.index)) {
         return n;
       }
-    // This throw is used in constructing multi-output subgraphs
-    throw std::runtime_error("NGRAPH_BRIDGE: node not in graph");
+    return nullptr;
   }
 
   bool forward_train_computed{false};
