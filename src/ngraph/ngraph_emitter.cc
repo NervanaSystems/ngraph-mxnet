@@ -542,11 +542,6 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["broadcast_div"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Divide>(node);
   };
-  ngraph_op_funcs_["broadcast_not_equal"] = [this](const NodePtr& node) {
-    auto op = CreateAutoBroadcast<ngraph::op::NotEqual>(node);
-    // TODO(aemani): remove conversion if NotEqual op returns same type
-    return std::make_shared<ngraph::op::Convert>(op, getType(node->dtype_));
-  };
   // TODO(mbrookhart): Remainder not implemented in CPU
   // ngraph_op_funcs_["broadcast_mod"] = [this](const NodePtr& node) {
   //   return CreateAutoBroadcast<ngraph::op::Remainder>(node);
@@ -572,9 +567,11 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["broadcast_equal"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Equal>(node);
   };
-  ngraph_op_funcs_["broadcast_not_equal"] = [this](const NodePtr& node) {
-    return CreateAutoBroadcast<ngraph::op::NotEqual>(node);
-  };
+  // ngraph_op_funcs_["broadcast_not_equal"] = [this](const NodePtr& node) {
+  //   auto op = CreateAutoBroadcast<ngraph::op::NotEqual>(node);
+  //   // TODO(aemani): remove conversion if NotEqual op returns same type
+  //   return std::make_shared<ngraph::op::Convert>(op, getType(node->dtype_));
+  // };
   ngraph_op_funcs_["broadcast_greater"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Greater>(node);
   };
