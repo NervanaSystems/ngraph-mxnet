@@ -934,16 +934,12 @@ void Emitter::CreateLayerOps() {
   };
   ngraph_op_funcs_["avg_pooling"] = [this,
                                      &asymetric_padding](const NodePtr& node) {
-    // TODO(mbrookhart): Re-enable average pooling when supported in nGraph
-    throw std::runtime_error(
-        "NGRAPH_BRIDGE: nGraph doesn't yet support MXNet's avg pooling "
-        "convention with padding");
     auto input = op_map_[node->inputs_[0]];
     auto params = PoolingParams(node, input);
 
     return std::make_shared<ngraph::op::AvgPool>(
         input, params.kernel, params.stride, params.pad,
-        asymetric_padding(input->get_shape(), params));
+        asymetric_padding(input->get_shape(), params), true);
   };
 }
 
