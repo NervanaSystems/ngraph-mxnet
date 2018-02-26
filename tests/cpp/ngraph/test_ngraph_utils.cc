@@ -69,7 +69,7 @@ TEST(NGRAPH_SGCOMPILER_UTILS, Convert_Shapes) {
   EXPECT_EQ(TShape_to_NShape(nnvm::TShape{1}), ngraph::Shape{1});
   EXPECT_EQ(TShape_to_NShape(nnvm::TShape{2, 3, 4, 5, 6}),
             (ngraph::Shape{2, 3, 4, 5, 6}));
-  EXPECT_THROW(TShape_to_NShape(nnvm::TShape{2, 3, 4, -1}), const char*);
+  EXPECT_THROW(TShape_to_NShape(nnvm::TShape{2, 3, 4, -1}), std::runtime_error);
 }
 
 TEST(NGRAPH_SGCOMPILER_UTILS, GetNGraphTypes) {

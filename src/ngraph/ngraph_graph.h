@@ -212,6 +212,8 @@ class Graph : public Node {
   void CleanUp() {
     for (int i = 0; i < kGraphExeModeCount; ++i) {
       for (auto &value : cached_values[i]) value.reset();
+      for (auto &value : cached_aux_values[i]) value.reset();
+
       ngraph_forward[i].reset();
       ngraph_backward[i].reset();
     }
@@ -227,8 +229,7 @@ class Graph : public Node {
           (n->multi_output_index_ == entry.index)) {
         return n;
       }
-    // This throw is used in constructing multi-output subgraphs
-    throw std::runtime_error("NGRAPH_BRIDGE: node not in graph");
+    return nullptr;
   }
 
   bool forward_train_computed{false};
