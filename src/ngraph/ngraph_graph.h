@@ -212,6 +212,8 @@ class Graph : public Node {
   void CleanUp() {
     for (int i = 0; i < kGraphExeModeCount; ++i) {
       for (auto &value : cached_values[i]) value.reset();
+      for (auto &value : aux_cached_values[i]) value.reset();
+        
       ngraph_forward[i].reset();
       ngraph_backward[i].reset();
     }
