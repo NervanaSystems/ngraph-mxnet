@@ -36,7 +36,7 @@ function render_left_helper(toc) {
     $('.leftsidebar > .sphinxsidebarwrapper').append(lefttoc);
 
     addToggle('.leftsidebar');
-    
+
     $('.leftsidebar li a').click(function () {
         $('.leftsidebar li a').css('color', '#337ab7');
         $(this).css('color', 'black');
@@ -96,18 +96,18 @@ function render_lefttoc() {
 /*Render contents inside page*/
 function render_righttoc() {
     var url = window.location.href, indexTrailing = 'index.html';
-    
+
     var rightTocTitle = "Page Contents";
     $("div.rightsidebar > div.sphinxsidebarwrapper > h3").children().remove();
     $("div.rightsidebar > div.sphinxsidebarwrapper > h3").html(rightTocTitle);
-    
+
     addToggle('.rightsidebar');
-    
+
     $('.rightsidebar li a').click(function () {
         $('.rightsidebar li a').css('color', '#337ab7');
         $(this).css('color', 'black');
     });
-    
+
     if (url.indexOf(indexTrailing) != -1 || isAPI) {
         $('.rightsidebar').hide();
     }
@@ -194,7 +194,7 @@ function keepExpand() {
             break;
         }
     }
-    
+
     //Merge right toc into left toc for API pages since they are quite long
     if (isAPI) {
         var rootEntry = currentEntry;
@@ -250,6 +250,10 @@ $(document).ready(function () {
             $('.content').css('width', '100%');
         }
         if (url.indexOf('/gluon/index.html') != -1) {
+            $('div.sphinxsidebar').hide();
+            $('.content').css('width', '100%');
+        }
+        if (url.indexOf('/tutorials/index.html') != -1) {
             $('div.sphinxsidebar').hide();
             $('.content').css('width', '100%');
         }

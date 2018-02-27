@@ -14,7 +14,6 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%
 
 %% download cifar10 dataset
 system('wget https://www.cs.toronto.edu/~kriz/cifar-10-matlab.tar.gz')

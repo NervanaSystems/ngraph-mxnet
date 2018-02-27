@@ -19,6 +19,7 @@ import mxnet as mx
 import numpy as np
 from mxnet import gluon
 from mxnet.test_utils import assert_almost_equal, default_context
+import unittest
 
 
 def test_loss_ndarray():
@@ -96,6 +97,14 @@ def test_bce_loss():
             eval_metric=mx.metric.Loss(), optimizer='adam',
             initializer=mx.init.Xavier(magnitude=2))
     assert mod.score(data_iter, eval_metric=mx.metric.Loss())[0][1] < 0.01
+    # Test against npy
+    data = mx.random.uniform(-5, 5, shape=(10,))
+    label = mx.random.uniform(0, 1, shape=(10,))
+    mx_bce_loss = Loss(data, label).asnumpy()
+    prob_npy = 1.0 / (1.0 + np.exp(-data.asnumpy()))
+    label_npy = label.asnumpy()
+    npy_bce_loss = - label_npy * np.log(prob_npy) - (1 - label_npy) * np.log(1 - prob_npy)
+    assert_almost_equal(mx_bce_loss, npy_bce_loss)
 
 def test_bce_equal_ce2():
     N = 100
@@ -106,6 +115,15 @@ def test_bce_equal_ce2():
     label = mx.nd.round(mx.random.uniform(0, 1, shape=(N, 1)))
     assert_almost_equal(loss1(out1, label).asnumpy(), loss2(out2, label).asnumpy())
 
+def test_logistic_loss_equal_bce():
+    N = 100
+    loss_binary = gluon.loss.LogisticLoss(label_format='binary')
+    loss_signed = gluon.loss.LogisticLoss(label_format='signed')
+    loss_bce = gluon.loss.SigmoidBCELoss(from_sigmoid=False)
+    data = mx.random.uniform(-10, 10, shape=(N, 1))
+    label = mx.nd.round(mx.random.uniform(0, 1, shape=(N, 1)))
+    assert_almost_equal(loss_binary(data, label).asnumpy(), loss_bce(data, label).asnumpy())
+    assert_almost_equal(loss_signed(data, 2 * label - 1).asnumpy(), loss_bce(data, label).asnumpy())
 
 def test_kl_loss():
     np.random.seed(1234)
@@ -160,6 +178,7 @@ def test_l1_loss():
     assert mod.score(data_iter, eval_metric=mx.metric.Loss())[0][1] < 0.1
 
 
+@unittest.skip("flaky test. https://github.com/apache/incubator-mxnet/issues/8892")
 def test_ctc_loss():
     loss = gluon.loss.CTCLoss()
     l = loss(mx.nd.ones((2,20,4)), mx.nd.array([[1,0,-1,-1],[2,1,1,-1]]))
@@ -185,7 +204,7 @@ def test_ctc_loss():
     l = loss(mx.nd.ones((2,25,4)), mx.nd.array([[2,1,3,3],[3,2,2,3]]), mx.nd.array([20,20]), mx.nd.array([2,3]))
     mx.test_utils.assert_almost_equal(l.asnumpy(), np.array([18.82820702, 16.50581741]))
 
-
+@unittest.skip("flaky test. https://github.com/apache/incubator-mxnet/issues/8892")
 def test_ctc_loss_train():
     np.random.seed(1234)
     N = 20

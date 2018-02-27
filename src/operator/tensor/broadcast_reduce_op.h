@@ -374,13 +374,9 @@ inline bool SumOpForwardInferStorageType(const nnvm::NodeAttrs& attrs,
   if (!dispatched) {
     // If input is csr, but keepdims or exclude is set or summing along a axis
     // different from 0 or 1
-    dispatch_fallback(out_attrs, dispatch_mode);
+    dispatched = dispatch_fallback(out_attrs, dispatch_mode);
   }
-  if (*dispatch_mode == DispatchMode::kFComputeFallback) {
-    LogStorageFallback(attrs, dev_mask, in_attrs, out_attrs);
-  }
-
-  return true;
+  return dispatched;
 }
 
 template<typename xpu, typename reducer>
@@ -428,7 +424,7 @@ void ReduceAxesComputeImpl(const nnvm::NodeAttrs& attrs,
           s, out_data, req[0], in_data);
       Tensor<xpu, 1, char> workspace =
           ctx.requested[0].get_space_typed<xpu, 1, char>(Shape1(workspace_size), s);
-      broadcast::Reduce<reducer, NDim, DType, mshadow::op::identity>(
+      broadcast::Reduce<reducer, NDim, DType, op::mshadow_op::identity>(
           s, out_data, req[0], workspace, in_data);
       if (normalize) {
         auto out = out_data.FlatTo2D<xpu, DType>(s);
@@ -635,7 +631,7 @@ void SumCsrImpl(const nnvm::NodeAttrs& attrs, mshadow::Stream<xpu>* s, const OpC
                 seg_len);
             if (normalize) {
               mxnet_op::Kernel<
-                  mxnet_op::op_with_req<mshadow::op::div, req_type>,
+                  mxnet_op::op_with_req<op::mshadow_op::div, req_type>,
                   xpu>::Launch(s, out_data_size, output->data().dptr<DType>(),
                                output->data().dptr<DType>(), DType(num_rows));
             }
@@ -656,7 +652,7 @@ void SumCsrImpl(const nnvm::NodeAttrs& attrs, mshadow::Stream<xpu>* s, const OpC
                 in_data);
             if (normalize) {
               mxnet_op::Kernel<
-                  mxnet_op::op_with_req<mshadow::op::div, req_type>,
+                  mxnet_op::op_with_req<op::mshadow_op::div, req_type>,
                   xpu>::Launch(s, out_data_size, output->data().dptr<DType>(),
                                output->data().dptr<DType>(), DType(num_cols));
             }
@@ -683,8 +679,7 @@ void SumOpForwardEx(const nnvm::NodeAttrs& attrs, const OpContext& ctx,
     NDArray output = outputs[0];
     SumCsrImpl<xpu, normalize>(attrs, s, ctx, inputs[0], req[0], &output);
   } else {
-    LOG(FATAL) << "Not implemented: "
-               << operator_string(attrs, ctx, inputs, req, outputs);
+    LogUnimplementedOp(attrs, ctx, inputs, req, outputs);
   }
 }
 
@@ -821,6 +816,53 @@ struct ReduceGrad {
   }
 };
 
+inline bool L2NormStorageType(const nnvm::NodeAttrs& attrs,
+                              const int dev_mask,
+                              DispatchMode* dispatch_mode,
+                              std::vector<int>* in_attrs,
+                              std::vector<int>* out_attrs) {
+  CHECK_EQ(in_attrs->size(), 1U);
+  CHECK_EQ(out_attrs->size(), 1U);
+  const int in_stype = in_attrs->at(0);
+  int& out_stype = out_attrs->at(0);
+  bool dispatched = false;
+  if (!dispatched && in_stype == kDefaultStorage) {
+    // dns -> dns
+    dispatched = storage_type_assign(&out_stype, kDefaultStorage, dispatch_mode,
+                                     DispatchMode::kFCompute);
+  }
+  if (!dispatched && (in_stype == kCSRStorage || in_stype == kRowSparseStorage)) {
+    // csr/rsp -> dns
+    dispatched = storage_type_assign(&out_stype, kDefaultStorage, dispatch_mode,
+                                     DispatchMode::kFComputeEx);
+  }
+  if (!dispatched) {
+    dispatched = dispatch_fallback(out_attrs, dispatch_mode);
+  }
+  return dispatched;
+}
+
+template<typename xpu>
+void L2NormComputeImpl(mshadow::Stream<xpu> *s,
+                       const TBlob& input,
+                       const OpReqType req,
+                       const TBlob& output) {
+  if (req == kNullOp) return;
+  MSHADOW_REAL_TYPE_SWITCH(output.type_flag_, DType, {
+    MXNET_ASSIGN_REQ_SWITCH(req, Req, {
+      mshadow::Tensor<xpu, 1, DType> out = output.get<xpu, 1, DType>(s);
+      mshadow::Tensor<xpu, 1, DType> in = input.get_with_shape<xpu, 1, DType>(
+        mshadow::Shape1(input.shape_.Size()), s);
+      mshadow::VectorDot(out, in, in);
+      DType* out_data = output.dptr<DType>();
+      using namespace mxnet_op;
+      Kernel<op_with_req<mshadow_op::square_root, Req>, xpu>::Launch(
+        s, output.Size(), out_data, out_data);
+    });
+  });
+}
+
+
 template<typename xpu>
 void L2NormCompute(const nnvm::NodeAttrs& attrs,
                    const OpContext& ctx,
@@ -828,13 +870,41 @@ void L2NormCompute(const nnvm::NodeAttrs& attrs,
                    const std::vector<OpReqType>& req,
                    const std::vector<TBlob>& outputs) {
   mshadow::Stream<xpu> *s = ctx.get_stream<xpu>();
-  MSHADOW_REAL_TYPE_SWITCH(outputs[0].type_flag_, DType, {
-    mshadow::Tensor<xpu, 1, DType> out = outputs[0].get<xpu, 1, DType>(s);
-    mshadow::Tensor<xpu, 1, DType> in = inputs[0].get_with_shape<xpu, 1, DType>(
-      mshadow::Shape1(inputs[0].shape_.Size()), s);
-    mshadow::VectorDot(out, in, in);
-    ASSIGN_DISPATCH(out, req[0], mshadow::expr::F<mxnet::op::mshadow_op::square_root>(out));
-  });
+  L2NormComputeImpl(s, inputs[0], req[0], outputs[0]);
+}
+
+template<typename xpu>
+void L2NormComputeSparseImpl(mshadow::Stream<xpu> *s,
+                             const NDArray& input,
+                             const OpReqType req,
+                             const TBlob& output) {
+  if (req == kNullOp) return;
+  // input is zeros
+  if (!input.storage_initialized()) {
+    // Add zeros. No op.
+    if (req == kAddTo) return;
+    Fill<false>(s, output, req, 0);
+  } else {
+    L2NormComputeImpl(s, input.data(), req, output);
+  }
+}
+
+template<typename xpu>
+void L2NormComputeEx(const nnvm::NodeAttrs& attrs,
+                     const OpContext& ctx,
+                     const std::vector<NDArray>& inputs,
+                     const std::vector<OpReqType>& req,
+                     const std::vector<NDArray>& outputs) {
+  CHECK_EQ(inputs.size(), 1U);
+  CHECK_EQ(outputs.size(), 1U);
+  CHECK_EQ(req.size(), 1U);
+  mshadow::Stream<xpu>* s = ctx.get_stream<xpu>();
+  const NDArrayStorageType in_stype = inputs[0].storage_type();
+  if (in_stype == kCSRStorage || in_stype == kRowSparseStorage) {
+    L2NormComputeSparseImpl(s, inputs[0], req[0], outputs[0].data());
+  } else {
+    LogUnimplementedOp(attrs, ctx, inputs, req, outputs);
+  }
 }
 
 /*! \brief index element from array along axes */

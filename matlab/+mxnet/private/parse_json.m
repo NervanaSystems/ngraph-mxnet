@@ -14,9 +14,8 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%
 
-    function data = parse_json(fname,varargin)
+function data = parse_json(fname,varargin)
 %PARSE_JSON parse a JSON (JavaScript Object Notation) file or string
 %
 % Based on jsonlab (https://github.com/fangq/jsonlab) created by Qianqian Fang. Jsonlab is lisonced under BSD or GPL v3.

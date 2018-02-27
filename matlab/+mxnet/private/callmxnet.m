@@ -14,7 +14,6 @@
 % KIND, either express or implied.  See the License for the
 % specific language governing permissions and limitations
 % under the License.
-%
 
 function callmxnet(func, varargin)
 %CALLMXNET call mxnet functions
@@ -25,7 +24,7 @@ if ~libisloaded('libmxnet')
   cd(mxnet_root);
   mxnet_root = pwd;
   cd(cur_pwd);
-
+  
   assert(exist([mxnet_root, '/lib/libmxnet.so'   ], 'file') == 2 || ...
          exist([mxnet_root, '/lib/libmxnet.dylib'], 'file') == 2 || ...
          exist([mxnet_root, '/lib/libmxnet.dll'  ], 'file') == 2, ...
