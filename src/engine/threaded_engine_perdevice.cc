@@ -264,7 +264,6 @@ class ThreadedEnginePerDevice : public ThreadedEngine {
                         ThreadWorkerBlock<type> *block,
                         std::shared_ptr<ThreadPool::SimpleEvent> ready_event) {
     this->is_worker_ = true;
-    this->is_worker_ = true;
     auto* task_queue = &(block->task_queue);
     RunContext run_ctx{ctx, nullptr};
     // execute task
