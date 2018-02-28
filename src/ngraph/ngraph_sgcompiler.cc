@@ -246,22 +246,20 @@ void SGCompiler::CompileNodes(NodePtr node,
   // an input if it's not part of the subgraph or as an ngraph operation
   // if the node is part of the subrraph
   // we capture this so we can save the outputs to the SGCompiler op_map_
-  visitor.operation = [this, &sub_graph](NodePtr node) {
+  visitor.operation = [this, sub_graph](NodePtr node) {
     if (!op_map_.count(node)) {
       // if it's not in the graph, it's an input, compile it as an input
       if (!in_vec(sub_graph->nodes_, node)) {
         this->CompileInput(node);
       } else {
         InitOpConfig(std::dynamic_pointer_cast<OpNode>(node));
-        assert(ngraph_op_funcs_.find(node->operation_) !=
-               ngraph_op_funcs_.end());
         this->op_map_[node] = this->ngraph_op_funcs_[node->operation_](node);
       }
     }
   };
 
   std::unordered_set<NodePtr> visited;
-  visitor.stop_condition = [&sub_graph, &visited](NodePtr node, NodePtr input) {
+  visitor.stop_condition = [sub_graph, &visited](NodePtr node, NodePtr input) {
     // continue if...
     // 1) node is in subgraph or a subgraph input
     // 2) input not visited
