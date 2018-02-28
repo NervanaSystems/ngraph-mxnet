@@ -255,15 +255,6 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
   op.set_num_inputs(num_inputs + 1);
   op.set_num_outputs(num_inputs);
 
-  // dummy attribute parser for execution
-  auto attr_parser = [](nnvm::NodeAttrs *attrs) {
-    if (attrs->parsed.empty()) {
-      NGraphParam op;
-      attrs->parsed = std::move(op);
-    }
-  };
-
-  op.set_attr_parser(attr_parser);
   // Mark as backward
   op.set_attr<bool>("TIsBackward", true);
 

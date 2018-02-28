@@ -211,11 +211,11 @@ class Graph : public Node {
   // when running multiple graphs back to back
   void CleanUp() {
     for (int i = 0; i < kGraphExeModeCount; ++i) {
-      for (auto &value : cached_values[i]) value.reset();
-      for (auto &value : cached_aux_values[i]) value.reset();
+      cached_values[i].clear();
+      cached_aux_values[i].clear();
 
-      ngraph_forward[i].reset();
-      ngraph_backward[i].reset();
+      ngraph_forward[i] = nullptr;
+      ngraph_backward[i] = nullptr;
     }
   }
 
