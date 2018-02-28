@@ -146,7 +146,8 @@ void Emitter::CreateUnaryOps() {
   };
   ngraph_op_funcs_["softrelu"] = [this](const NodePtr& node) {
     auto one = makeConstant(node, "1");
-    return std::make_shared<ngraph::op::Log>(one + std::make_shared<ngraph::op::Exp>(op_map_[node->inputs_[0]]));
+    return std::make_shared<ngraph::op::Log>(
+        one + std::make_shared<ngraph::op::Exp>(op_map_[node->inputs_[0]]));
   };
   ngraph_op_funcs_["sigmoid"] = [this](const NodePtr& node) {
     auto one = makeConstant(node, "1");

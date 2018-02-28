@@ -57,7 +57,7 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
   auto manager = GetManagerFromContext(sub_graph->context_);
   auto backend = GetBackendFromContext(sub_graph->context_);
 
-  // clone the functions to ensure we don't have 
+  // clone the functions to ensure we don't have
   // any repeated nodes between graphs
   ngraph::NodeMap fmap;
   ngraph::NodeMap bfmap;
