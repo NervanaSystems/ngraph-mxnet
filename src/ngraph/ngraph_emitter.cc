@@ -902,7 +902,7 @@ void Emitter::CreateLayerOps() {
     } else if (type == "avg") {
       op = ngraph_op_funcs_["avg_pooling"](node);
     } else if (type == "sum") {
-      throw std::runtime_error("NGRAPH_BRIDGE: Sum pooling not supported");
+      op = ngraph_op_funcs_["sum_pooling"](node);
     }
     return op;
   };
@@ -942,6 +942,30 @@ void Emitter::CreateLayerOps() {
     return std::make_shared<ngraph::op::AvgPool>(
         input, params.kernel, params.stride, params.pad,
         asymetric_padding(input->get_shape(), params), true);
+  };
+  ngraph_op_funcs_["sum_pooling"] = [this,
+                                     &asymetric_padding](const NodePtr& node) {
+    auto input = op_map_[node->inputs_[0]];
+    auto params = PoolingParams(node, input);
+
+    // Compute the sum-pool by first computing the avg-pool, and then
+    // element-wise multiply (the resulting vector by each element of the
+    // resulting tensor) with (the number of elements in the pooling window).
+    // We do this because nGraph++ doesn't directly support sum-pooling.
+
+    const size_t num_window_elements = ngraph::shape_size(params.kernel);
+
+    const auto avg_pool_op = std::make_shared<ngraph::op::AvgPool>(
+        input, params.kernel, params.stride, params.pad,
+        asymetric_padding(input->get_shape(), params), true);
+
+    const auto coeff_op = ngraph_bridge::makeConstant(
+        avg_pool_op->get_element_type(), avg_pool_op->get_shape(),
+        std::to_string(num_window_elements));
+
+    auto mul_op = std::make_shared<ngraph::op::Multiply>(avg_pool_op, coeff_op);
+
+    return mul_op;
   };
 }
 

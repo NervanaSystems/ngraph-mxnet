@@ -19,7 +19,6 @@
 #include <nnvm/node.h>
 #include <nnvm/pass.h>
 #include <algorithm>
-#include <set>
 #include "../executor/exec_pass.h"
 #include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
@@ -310,18 +309,6 @@ void Compiler::CheckInNgraph() {
     if (node->type_ == NodeType::kOp) {
       if (compiler_.ngraph_op_funcs_.count(node->operation_)) {
         node->in_ngraph_ = true;
-        // TODO(mbrookhart): Enable sum Pooling
-        if (node->operation_ == "Pooling") {
-          const std::string pooling_type =
-              get_default(node, "pool_type", std::string("max"));
-          static const std::set<std::string> supported_pooling_types = {
-              "avg", "max",
-          };
-          if (supported_pooling_types.find(pooling_type) ==
-              supported_pooling_types.end()) {
-            node->in_ngraph_ = false;
-          }
-        }
         if (node->dtype_ == mshadow::kFloat16) {
           node->in_ngraph_ = false;
         } else {
