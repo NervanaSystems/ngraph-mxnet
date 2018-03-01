@@ -89,11 +89,11 @@ void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
 
   if (sub_graph->context_ == mxnet::Context::CPU()) {
     // if we're in CPU, combine the graphs
-    ngraph::Nodes dYdXs;
+    ngraph::NodeVector dYdXs;
     for (size_t i = 0; i < bf->get_output_size(); ++i) {
       dYdXs.push_back(bf->get_output_op(i));
     }
-    ngraph::Nodes combined_outputs{f->get_output_op(0)};
+    ngraph::NodeVector combined_outputs{f->get_output_op(0)};
     combined_outputs.insert(combined_outputs.end(), dYdXs.begin(), dYdXs.end());
 
     std::vector<std::shared_ptr<ngraph::op::Parameter>> combined_parameters =
@@ -128,7 +128,7 @@ std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
 
 std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
     std::shared_ptr<Graph> sub_graph) {
-  ngraph::op::Parameters parameters;
+  ngraph::op::ParameterVector parameters;
 
   for (const auto input : placeholder_order_) {
     // get the parameters
@@ -145,7 +145,7 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   OpNodePtr op_node =
       std::dynamic_pointer_cast<OpNode>(sub_graph->nodes_.back());
   // default output
-  ngraph::Nodes outputs{Y};
+  ngraph::NodeVector outputs{Y};
 
   auto backend = GetBackendFromContext(sub_graph->context_);
   // push additional aux outputs
