@@ -68,7 +68,7 @@ class Sequential(Block):
     def __len__(self):
         return len(self._children)
 
-    def hybridize(self, active=True):
+    def hybridize(self, active=True, **kwargs):
         """Activates or deactivates `HybridBlock`s recursively. Has no effect on
         non-hybrid children.
 
@@ -76,11 +76,13 @@ class Sequential(Block):
         ----------
         active : bool, default True
             Whether to turn hybrid on or off.
+        **kwargs : string
+            Additional flags for hybridized operator.
         """
         if self._children and all(isinstance(c, HybridBlock) for c in self._children):
             warnings.warn('All children of this Sequential layer are HybridBlocks. Consider ' \
                           'using HybridSequential for the best performance.')
-        super(Sequential, self).hybridize(active)
+        super(Sequential, self).hybridize(active, **kwargs)
 
 
 class HybridSequential(HybridBlock):
@@ -88,7 +90,7 @@ class HybridSequential(HybridBlock):
 
     Example::
 
-        net = nn.Sequential()
+        net = nn.HybridSequential()
         # use net's name_scope to give child Blocks appropriate names.
         with net.name_scope():
             net.add(nn.Dense(10, activation='relu'))
@@ -306,6 +308,10 @@ class BatchNorm(HybridBlock):
         When the next layer is linear (also e.g. `nn.relu`),
         this can be disabled since the scaling
         will be done by the next layer.
+    use_global_stats: bool, default False
+        If True, use global moving statistics instead of local batch-norm. This will force
+        change batch-norm into a scale shift operator.
+        If False, use local batch-norm.
     beta_initializer: str or `Initializer`, default 'zeros'
         Initializer for the beta weight.
     gamma_initializer: str or `Initializer`, default 'ones'
@@ -327,12 +333,12 @@ class BatchNorm(HybridBlock):
         - **out**: output tensor with the same shape as `data`.
     """
     def __init__(self, axis=1, momentum=0.9, epsilon=1e-5, center=True, scale=True,
-                 beta_initializer='zeros', gamma_initializer='ones',
+                 use_global_stats=False, beta_initializer='zeros', gamma_initializer='ones',
                  running_mean_initializer='zeros', running_variance_initializer='ones',
                  in_channels=0, **kwargs):
         super(BatchNorm, self).__init__(**kwargs)
         self._kwargs = {'axis': axis, 'eps': epsilon, 'momentum': momentum,
-                        'fix_gamma': not scale}
+                        'fix_gamma': not scale, 'use_global_stats': use_global_stats}
         if in_channels != 0:
             self.in_channels = in_channels
 

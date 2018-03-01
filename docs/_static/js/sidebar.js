@@ -1,22 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-
 /*Preprocess*/
 var LANG = ['python', 'scala', 'r', 'julia', 'c++', 'perl'];
 var TITLE_WITH_LANG = ['/get_started/', '/tutorials/', '/faq/', '/architecture/', '/community/'];
@@ -36,7 +17,7 @@ function render_left_helper(toc) {
     $('.leftsidebar > .sphinxsidebarwrapper').append(lefttoc);
 
     addToggle('.leftsidebar');
-    
+
     $('.leftsidebar li a').click(function () {
         $('.leftsidebar li a').css('color', '#337ab7');
         $(this).css('color', 'black');
@@ -96,18 +77,18 @@ function render_lefttoc() {
 /*Render contents inside page*/
 function render_righttoc() {
     var url = window.location.href, indexTrailing = 'index.html';
-    
+
     var rightTocTitle = "Page Contents";
     $("div.rightsidebar > div.sphinxsidebarwrapper > h3").children().remove();
     $("div.rightsidebar > div.sphinxsidebarwrapper > h3").html(rightTocTitle);
-    
+
     addToggle('.rightsidebar');
-    
+
     $('.rightsidebar li a').click(function () {
         $('.rightsidebar li a').css('color', '#337ab7');
         $(this).css('color', 'black');
     });
-    
+
     if (url.indexOf(indexTrailing) != -1 || isAPI) {
         $('.rightsidebar').hide();
     }
@@ -194,7 +175,7 @@ function keepExpand() {
             break;
         }
     }
-    
+
     //Merge right toc into left toc for API pages since they are quite long
     if (isAPI) {
         var rootEntry = currentEntry;
@@ -250,6 +231,10 @@ $(document).ready(function () {
             $('.content').css('width', '100%');
         }
         if (url.indexOf('/gluon/index.html') != -1) {
+            $('div.sphinxsidebar').hide();
+            $('.content').css('width', '100%');
+        }
+        if (url.indexOf('/tutorials/index.html') != -1) {
             $('div.sphinxsidebar').hide();
             $('.content').css('width', '100%');
         }

@@ -67,7 +67,7 @@ inline size_t get_default_transformed_axis(const NodePtr& node,
                                            const std::string& key,
                                            const int default_val,
                                            const int shape_size) {
-  int axis = get_default(node, "axis", default_val);
+  int axis = get_default(node, key, default_val);
   assert(abs(axis) <= shape_size);
   // convert negative axis index to postive (counting from right per mxnet
   // convention)
@@ -143,6 +143,11 @@ void Emitter::CreateUnaryOps() {
   };
   ngraph_op_funcs_["relu"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Relu>(op_map_[node->inputs_[0]]);
+  };
+  ngraph_op_funcs_["softrelu"] = [this](const NodePtr& node) {
+    auto one = makeConstant(node, "1");
+    return std::make_shared<ngraph::op::Log>(
+        one + std::make_shared<ngraph::op::Exp>(op_map_[node->inputs_[0]]));
   };
   ngraph_op_funcs_["sigmoid"] = [this](const NodePtr& node) {
     auto one = makeConstant(node, "1");
@@ -646,8 +651,8 @@ void Emitter::CreateLayerOps() {
   // concatenates them along a given axis
   ngraph_op_funcs_["concat"] = [this](const NodePtr& node) {
     // get the concat axis
-    size_t axis = get_default(node, "dim", 1);
-
+    size_t axis = get_default_transformed_axis(node, "dim", 1,
+                                               node->inputs_[0]->shape_.ndim());
     // grab in input ngraph nodes
     std::vector<NgraphNodePtr> args;
     for (auto i : node->inputs_) args.push_back(op_map_[i]);

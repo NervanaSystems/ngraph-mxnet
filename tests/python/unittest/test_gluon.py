@@ -23,6 +23,7 @@ import numpy as np
 from nose.tools import raises
 from copy import deepcopy
 import warnings
+import json
 
 
 def test_parameter():
@@ -69,6 +70,34 @@ def test_parameter_sharing():
     net3.load_params('net1.params', mx.cpu())
 
 
+def test_parameter_str():
+    class Net(gluon.Block):
+        def __init__(self, **kwargs):
+            super(Net, self).__init__(**kwargs)
+            with self.name_scope():
+                self.dense0 = nn.Dense(10, in_units=5, use_bias=False)
+
+    net = Net(prefix='net1_')
+    lines = str(net.collect_params()).splitlines()
+
+    assert lines[0] == 'net1_ ('
+    assert 'net1_dense0_weight' in lines[1]
+    assert '(10, 5)' in lines[1]
+    assert 'numpy.float32' in lines[1]
+    assert lines[2] == ')'
+
+def test_collect_paramters():
+    net = nn.HybridSequential(prefix="test_")
+    with net.name_scope():
+        net.add(nn.Conv2D(10, 3))
+        net.add(nn.Dense(10, activation='relu'))
+    assert set(net.collect_params().keys()) == \
+        set(['test_conv0_weight', 'test_conv0_bias','test_dense0_weight','test_dense0_bias'])
+    assert set(net.collect_params('.*weight').keys()) == \
+        set(['test_conv0_weight', 'test_dense0_weight'])
+    assert set(net.collect_params('test_conv0_bias|test_dense0_bias').keys()) == \
+        set(['test_conv0_bias', 'test_dense0_bias'])
+        
 def test_basic():
     model = nn.Sequential()
     model.add(nn.Dense(128, activation='tanh', in_units=10, flatten=False))
@@ -254,7 +283,6 @@ def test_deconv():
     #
     # layer = nn.Conv3DTranspose(16, (3, 3, 3), layout='NDHWC', in_channels=4)
     # # check_layer_forward(layer, (1, 10, 10, 10, 4))
-
 
 
 def test_pool():
@@ -447,6 +475,50 @@ def test_block_attr_regular():
     b.c = c2
     assert b.c is c2 and b._children[0] is c2
 
+def test_block_attr_list_of_block():
+    class Model1(gluon.Block):
+        def __init__(self, **kwargs):
+            super(Model1, self).__init__(**kwargs)
+            with self.name_scope():
+                self.layers = [nn.Dense(i * 10) for i in range(6)]
+
+    class Model2(gluon.Block):
+        def __init__(self, **kwargs):
+            super(Model2, self).__init__(**kwargs)
+            with self.name_scope():
+                self.layers = dict()
+                self.layers['a'] = [nn.Dense(10), nn.Dense(10)]
+
+    class Model3(gluon.Block):
+        def __init__(self, **kwargs):
+            super(Model3, self).__init__(**kwargs)
+            with self.name_scope():
+                self.layers = nn.Sequential()
+                self.layers.add(*[nn.Dense(i * 10) for i in range(6)])
+
+    class Model4(gluon.Block):
+        def __init__(self, **kwargs):
+            super(Model4, self).__init__(**kwargs)
+            with self.name_scope():
+                self.data = {'a': '4', 'b': 123}
+
+    with warnings.catch_warnings(record=True) as w:
+        model = Model1()
+        model.collect_params()
+        assert len(w) > 0
+    with warnings.catch_warnings(record=True) as w:
+        model = Model2()
+        model.collect_params()
+        assert len(w) > 0
+    with warnings.catch_warnings(record=True) as w:
+        model = Model3()
+        model.collect_params()
+        assert len(w) == 0
+    with warnings.catch_warnings(record=True) as w:
+        model = Model4()
+        model.collect_params()
+        assert len(w) == 0
+
 def test_sequential_warning():
     with warnings.catch_warnings(record=True) as w:
         b = gluon.nn.Sequential()
@@ -609,6 +681,31 @@ def test_fill_shape_load():
     assert net2[0].weight.shape[1] == 3, net2[0].weight.shape[1]
     assert net2[1].gamma.shape[0] == 64, net2[1].gamma.shape[0]
     assert net2[2].weight.shape[1] == 3072, net2[2].weight.shape[1]
+
+
+def test_inline():
+    net = mx.gluon.nn.HybridSequential()
+    with net.name_scope():
+        net.add(mx.gluon.nn.Dense(10))
+        net.add(mx.gluon.nn.Dense(10))
+        net.add(mx.gluon.nn.Dense(10))
+
+    net.initialize()
+    net.hybridize(inline_limit=3)
+    with mx.autograd.record():
+        y = net(mx.nd.zeros((1,10)))
+
+    len_1 = len(json.loads(mx.autograd.get_symbol(y).tojson())['nodes'])
+    y.backward()
+
+    net.hybridize(inline_limit=0)
+    with mx.autograd.record():
+        y = net(mx.nd.zeros((1,10)))
+
+    len_2 = len(json.loads(mx.autograd.get_symbol(y).tojson())['nodes'])
+    y.backward()
+
+    assert len_1 == len_2 + 2
 
 
 if __name__ == '__main__':

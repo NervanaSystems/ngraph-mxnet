@@ -1,3 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 TEST_SRC = $(shell find tests/cpp/ -name "*.cc")
 ifneq ($(USE_NGRAPH),1)
     TEST_SRC := $(foreach f,$(TEST_SRC),$(if $(findstring tests/cpp/ngraph,$f),,$f))
@@ -5,8 +22,11 @@ endif
 TEST_OBJ = $(patsubst %.cc, build/%.o, $(TEST_SRC))
 TEST = build/tests/cpp/mxnet_unit_tests
 
-GTEST_LIB=$(GTEST_PATH)/lib/
-GTEST_INC=$(GTEST_PATH)/include/
+GTEST_DIR=3rdparty/googletest/googletest/
+GTEST_INC=3rdparty/googletest/googletest/include/
+GTEST_SRCS_ = $(GTEST_DIR)/src/*.cc $(GTEST_DIR)/src/*.h $(GTEST_HEADERS)
+GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
+                $(GTEST_DIR)/include/gtest/internal/*.h
 
 TEST_CFLAGS = -Itests/cpp/include -Isrc $(CFLAGS)
 TEST_LDFLAGS = $(LDFLAGS) -Llib -lmxnet
@@ -17,6 +37,12 @@ TEST_LDFLAGS += -lbreakpad_client -lbreakpad
 endif
 
 .PHONY: runtest testclean
+
+gtest-all.o : $(GTEST_SRCS_)
+	$(CXX) $(CPPFLAGS) -I$(GTEST_INC) -I$(GTEST_DIR) $(CXXFLAGS) -c $(GTEST_DIR)/src/gtest-all.cc
+
+gtest.a : gtest-all.o
+	$(AR) $(ARFLAGS) $@ $^
 
 build/tests/cpp/%.o : tests/cpp/%.cc
 	@mkdir -p $(@D)
@@ -43,8 +69,8 @@ build/tests/cpp/ngraph/%.o : tests/cpp/ngraph/%.cc
 	$(CXX) -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -MM -MT tests/cpp/ngraph/$* $< > build/tests/cpp/ngraph/$*.d
 	$(CXX) -c -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -o build/tests/cpp/ngraph/$*.o $(filter %.cc %.a, $^)
 
-$(TEST): $(TEST_OBJ) lib/libmxnet.so
-	$(CXX) -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -o $@ $^ $(TEST_LDFLAGS) -L$(GTEST_LIB) -lgtest
+$(TEST): $(TEST_OBJ) lib/libmxnet.so gtest.a
+	$(CXX) -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -o $@ $^ $(TEST_LDFLAGS)
 
 runtest: $(TEST)
 	LD_LIBRARY_PATH=$(shell pwd)/lib:$(LD_LIBRARY_PATH) $(TEST)
