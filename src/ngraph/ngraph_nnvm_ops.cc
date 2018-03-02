@@ -34,13 +34,16 @@ namespace ngraph_bridge {
 
 // get the OP from nnvm, return a pointer to it.
 nnvm::Op *get_subgraph_op(std::shared_ptr<Graph> graph) {
-  return &(::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__("ngraph_" + graph->name_));
+  return &(::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
+      "ngraph_" + graph->name_));
 }
 
-void append_cached_to_forward(TensorViewVector *results, const std::shared_ptr<Graph> &graph,
+void append_cached_to_forward(TensorViewVector *results,
+                              const std::shared_ptr<Graph> &graph,
                               const int mode) {
   if (results == nullptr) {
-    throw std::runtime_error("NGRAPH_BRIDGE: append_cached_to_forward recieved nullptr results");
+    throw std::runtime_error(
+        "NGRAPH_BRIDGE: append_cached_to_forward recieved nullptr results");
   }
   results->insert(results->end(), graph->cached_aux_values[mode].begin(),
                   graph->cached_aux_values[mode].end());
@@ -85,7 +88,8 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // generate valid data in fprop cache
   if (graph->enable_fprop_cache && !graph->forward_train_computed) {
     // forward inputs
-    std::vector<mxnet::TBlob> fwd_inputs(inputs.begin() + graph->num_outputs, inputs.end());
+    std::vector<mxnet::TBlob> fwd_inputs(inputs.begin() + graph->num_outputs,
+                                         inputs.end());
     auto placeholders = make_ngraph_placeholders(fwd_inputs, backend, true);
     // forward outputs
     auto shape = TShape_to_NShape(graph->nodes_.back()->shape_);
@@ -130,14 +134,16 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 // check if last node in graph is an op that doesnt need head-gradient
 bool check_zero_grad(const std::shared_ptr<Graph> &graph) {
   auto size = graph->nodes_.size();
-  if ((size < 1) || (graph->nodes_[size - 1]->type_ != NodeType::kOp)) return false;
+  if ((size < 1) || (graph->nodes_[size - 1]->type_ != NodeType::kOp))
+    return false;
   if (ops_no_head_grad.count(graph->nodes_[size - 1]->operation_)) return true;
   return false;
 }
 
 void register_forward_op(std::shared_ptr<Graph> graph) {
   // register the op with nnvm
-  auto &op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__("ngraph_" + graph->name_);
+  auto &op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
+      "ngraph_" + graph->name_);
   // setup the inputs and outpus
   int num_inputs = graph->inputs_.size();
   op.set_num_inputs(num_inputs);
@@ -152,7 +158,8 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
 
   // register lambda to list inputs
   op.set_attr<nnvm::FListInputNames>(
-      "FListInputNames", [input_names](const nnvm::NodeAttrs &attrs) { return input_names; });
+      "FListInputNames",
+      [input_names](const nnvm::NodeAttrs &attrs) { return input_names; });
 
   // // get the auxillary inputs
   std::vector<uint32_t> mutate_vars;
@@ -164,7 +171,8 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
 
   // register lambda to list inputs
   op.set_attr<nnvm::FMutateInputs>(
-      "FMutateInputs", [mutate_vars](const nnvm::NodeAttrs &attrs) { return mutate_vars; });
+      "FMutateInputs",
+      [mutate_vars](const nnvm::NodeAttrs &attrs) { return mutate_vars; });
 
   // dummy attribute parser for execution
   auto attr_parser = [](nnvm::NodeAttrs *attrs) {
@@ -176,28 +184,30 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   op.set_attr_parser(attr_parser);
 
   // register lambda to say nothing is inplace
-  op.set_attr<nnvm::FInplaceOption>("FInplaceOption", [num_inputs](const nnvm::NodeAttrs &attrs) {
-    std::vector<std::pair<int, int>> inplace;
-    for (int i = 0; i < num_inputs; ++i) inplace.push_back({i, 0});
-    return inplace;
-  });
+  op.set_attr<nnvm::FInplaceOption>("FInplaceOption",
+                                    [num_inputs](const nnvm::NodeAttrs &attrs) {
+                                      std::vector<std::pair<int, int>> inplace;
+                                      for (int i = 0; i < num_inputs; ++i)
+                                        inplace.push_back({i, 0});
+                                      return inplace;
+                                    });
 
   // register another lambda to say nothing is in place
-  op.set_attr<nnvm::FInplaceIdentity>("FInplaceIdentity",
-                                      [num_inputs](const nnvm::NodeAttrs &attrs) {
-                                        std::vector<bool> inplace;
-                                        for (int i = 0; i < num_inputs; ++i)
-                                          inplace.push_back(false);
-                                        return inplace;
-                                      });
+  op.set_attr<nnvm::FInplaceIdentity>(
+      "FInplaceIdentity", [num_inputs](const nnvm::NodeAttrs &attrs) {
+        std::vector<bool> inplace;
+        for (int i = 0; i < num_inputs; ++i) inplace.push_back(false);
+        return inplace;
+      });
 
   // Register Gradient node generation function
   // check if zero grad
   const bool zero_grad = check_zero_grad(graph);
   auto back_op_name = "_backward_" + ("ngraph_" + graph->name_);
   op.set_attr<nnvm::FGradient>(
-      "FGradient", [back_op_name, zero_grad](const nnvm::NodePtr &n,
-                                             const std::vector<nnvm::NodeEntry> &ograds) {
+      "FGradient",
+      [back_op_name, zero_grad](const nnvm::NodePtr &n,
+                                const std::vector<nnvm::NodeEntry> &ograds) {
         auto p = nnvm::Node::Create();
         p->attrs.op = nnvm::Op::Get(back_op_name);
         p->attrs.name = n->attrs.name + "_backward";
@@ -225,24 +235,27 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   auto shape = graph->shape_;
   auto dtype = graph->dtype_;
   op.set_attr<nnvm::FInferShape>(
-      "FInferShape", [shape](const nnvm::NodeAttrs &attrs, std::vector<nnvm::TShape> *in_attrs,
-                             std::vector<nnvm::TShape> *out_attrs) -> bool {
+      "FInferShape",
+      [shape](const nnvm::NodeAttrs &attrs, std::vector<nnvm::TShape> *in_attrs,
+              std::vector<nnvm::TShape> *out_attrs) -> bool {
         (*out_attrs)[0] = shape;
         return true;
       });
 
   // similarly bad
-  op.set_attr<nnvm::FInferType>("FInferType",
-                                [dtype](const nnvm::NodeAttrs &attrs, std::vector<int> *iattr,
-                                        std::vector<int> *oattr) -> bool {
-                                  return mxnet::op::type_assign(&((*oattr)[0]), dtype);
-                                });
+  op.set_attr<nnvm::FInferType>(
+      "FInferType",
+      [dtype](const nnvm::NodeAttrs &attrs, std::vector<int> *iattr,
+              std::vector<int> *oattr) -> bool {
+        return mxnet::op::type_assign(&((*oattr)[0]), dtype);
+      });
 
   // create the compute lambda
   op.set_attr<mxnet::FCompute>(
       "FCompute<cpu>",
       [graph](const nnvm::NodeAttrs &attrs, const mxnet::OpContext &ctx,
-              const std::vector<mxnet::TBlob> &inputs, const std::vector<mxnet::OpReqType> &req,
+              const std::vector<mxnet::TBlob> &inputs,
+              const std::vector<mxnet::OpReqType> &req,
               const std::vector<mxnet::TBlob> &outputs) -> void {
         compute_forward(ctx, graph, inputs, req, outputs);
       });
@@ -250,8 +263,8 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
 
 void register_backward_op(std::shared_ptr<Graph> graph) {
   // register the op with nnvm
-  auto &op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__("_backward_" +
-                                                                      ("ngraph_" + graph->name_));
+  auto &op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
+      "_backward_" + ("ngraph_" + graph->name_));
   // setup the inputs and outpus
   int num_inputs = graph->inputs_.size();
   op.set_num_inputs(num_inputs + 1);
@@ -264,7 +277,8 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
   op.set_attr<mxnet::FCompute>(
       "FCompute<cpu>",
       [graph](const nnvm::NodeAttrs &attrs, const mxnet::OpContext &ctx,
-              const std::vector<mxnet::TBlob> &inputs, const std::vector<mxnet::OpReqType> &req,
+              const std::vector<mxnet::TBlob> &inputs,
+              const std::vector<mxnet::OpReqType> &req,
               const std::vector<mxnet::TBlob> &outputs) -> void {
         compute_backward(ctx, graph, inputs, req, outputs);
       });
