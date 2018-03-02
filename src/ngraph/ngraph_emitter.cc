@@ -53,8 +53,8 @@ void Emitter::ClearOpMap() {
 
 void Emitter::InitOpConfig(OpNodePtr op_node) const {
   if (op_node->operation_ == "BatchNorm") {
-    op_node->config_ = std::dynamic_pointer_cast<OpNode::OpConfig>(
-        std::make_shared<BatchNormOpConfig>());
+    op_node->config_ =
+        std::dynamic_pointer_cast<OpNode::OpConfig>(std::make_shared<BatchNormOpConfig>());
   }
 }
 
@@ -63,10 +63,8 @@ void Emitter::InitOpConfig(OpNodePtr op_node) const {
  * based index), where
  * negative values means indexing from the right.
  */
-inline size_t get_default_transformed_axis(const NodePtr& node,
-                                           const std::string& key,
-                                           const int default_val,
-                                           const int shape_size) {
+inline size_t get_default_transformed_axis(const NodePtr& node, const std::string& key,
+                                           const int default_val, const int shape_size) {
   int axis = get_default(node, key, default_val);
   assert(abs(axis) <= shape_size);
   // convert negative axis index to postive (counting from right per mxnet
@@ -88,14 +86,11 @@ inline size_t get_default_transformed_axis(const NodePtr& node,
  * @return resulting node of the reduction operation
  */
 NgraphNodePtr Emitter::ReduceAxes(
-    const NgraphNodePtr& node, ngraph::AxisVector axes, bool exclude,
-    bool keepdims,
-    const std::function<NgraphNodePtr(const NgraphNodePtr&,
-                                      const ngraph::AxisSet&)>& func) {
+    const NgraphNodePtr& node, ngraph::AxisVector axes, bool exclude, bool keepdims,
+    const std::function<NgraphNodePtr(const NgraphNodePtr&, const ngraph::AxisSet&)>& func) {
   ngraph::AxisSet reduction_axes;
   if (axes.size() == 0) {
-    for (size_t i = 0; i < node->get_shape().size(); ++i)
-      reduction_axes.insert(i);
+    for (size_t i = 0; i < node->get_shape().size(); ++i) reduction_axes.insert(i);
   } else if (exclude) {
     for (size_t i = 0; i < node->get_shape().size(); ++i)
       if (!in_vec(axes, i)) reduction_axes.insert(i);
@@ -105,34 +100,30 @@ NgraphNodePtr Emitter::ReduceAxes(
 
   auto output = func(node, reduction_axes);
   if (axes.size() == 0) {
-    output = std::make_shared<ngraph::op::Reshape>(output, ngraph::AxisVector{},
-                                                   ngraph::Shape{1});
+    output = std::make_shared<ngraph::op::Reshape>(output, ngraph::AxisVector{}, ngraph::Shape{1});
   }
 
   if (keepdims) {
     auto reshape = node->get_shape();
     for (auto i : reduction_axes) reshape[i] = 1;
 
-    output = std::make_shared<ngraph::op::Reshape>(
-        output, pyrange(output->get_shape().size()), reshape);
+    output =
+        std::make_shared<ngraph::op::Reshape>(output, pyrange(output->get_shape().size()), reshape);
   }
 
   if (output->get_shape() == ngraph::Shape()) {
-    output = std::make_shared<ngraph::op::Reshape>(output, ngraph::AxisVector{},
-                                                   ngraph::Shape{1});
+    output = std::make_shared<ngraph::op::Reshape>(output, ngraph::AxisVector{}, ngraph::Shape{1});
   }
   return output;
 }
 
 NgraphNodePtr Emitter::ReduceAxes(
     const NodePtr& node,
-    const std::function<NgraphNodePtr(const NgraphNodePtr&,
-                                      const ngraph::AxisSet&)>& func) {
+    const std::function<NgraphNodePtr(const NgraphNodePtr&, const ngraph::AxisSet&)>& func) {
   auto input = op_map_[node->inputs_[0]];
-  return ReduceAxes(
-      input, get_default(node, "axis", pyrange(input->get_shape().size())),
-      get_default(node, "exclude", false), get_default(node, "keepdims", false),
-      func);
+  return ReduceAxes(input, get_default(node, "axis", pyrange(input->get_shape().size())),
+                    get_default(node, "exclude", false), get_default(node, "keepdims", false),
+                    func);
 }
 
 // unary op function generator
@@ -151,8 +142,7 @@ void Emitter::CreateUnaryOps() {
   };
   ngraph_op_funcs_["sigmoid"] = [this](const NodePtr& node) {
     auto one = makeConstant(node, "1");
-    return (one / (one + std::make_shared<ngraph::op::Exp>(
-                             -op_map_[node->inputs_[0]])));
+    return (one / (one + std::make_shared<ngraph::op::Exp>(-op_map_[node->inputs_[0]])));
   };
   // ngraph_op_funcs_["softmax"] = [this](const NodePtr& node) {
   //   auto numer =
@@ -162,12 +152,8 @@ void Emitter::CreateUnaryOps() {
   // ngraph_op_funcs_["log_softmax"] = [this](const NodePtr& node){
   //   return ;
   // };
-  ngraph_op_funcs_["_copy"] = [this](const NodePtr& node) {
-    return op_map_[node->inputs_[0]];
-  };
-  ngraph_op_funcs_["negative"] = [this](const NodePtr& node) {
-    return -op_map_[node->inputs_[0]];
-  };
+  ngraph_op_funcs_["_copy"] = [this](const NodePtr& node) { return op_map_[node->inputs_[0]]; };
+  ngraph_op_funcs_["negative"] = [this](const NodePtr& node) { return -op_map_[node->inputs_[0]]; };
   ngraph_op_funcs_["reciprocal"] = [this](const NodePtr& node) {
     auto one = makeConstant(node, "1");
     return one / op_map_[node->inputs_[0]];
@@ -289,9 +275,7 @@ void Emitter::CreateUnaryOps() {
     return ;
   };
   */
-  ngraph_op_funcs_["_zeros"] = [this](const NodePtr& node) {
-    return makeConstant(node, "0");
-  };
+  ngraph_op_funcs_["_zeros"] = [this](const NodePtr& node) { return makeConstant(node, "0"); };
   ngraph_op_funcs_["zeros_like"] = [this](const NodePtr& node) {
     return makeConstant(node->inputs_[0], "0");
   };
@@ -311,12 +295,12 @@ void Emitter::CreateUnaryOps() {
     auto input = op_map_[node->inputs_[0]];
     // ngraph++'s reshape wouldn't like an empty shape
     if (new_shape.size() == 0) {
-      return std::make_shared<ngraph::op::Constant>(input->get_element_type(),
-                                                    ngraph::Shape{}, "0");
+      return std::make_shared<ngraph::op::Constant>(input->get_element_type(), ngraph::Shape{},
+                                                    "0");
     }
 
-    return std::make_shared<ngraph::op::Reshape>(
-        input, pyrange(input->get_shape().size()), new_shape);
+    return std::make_shared<ngraph::op::Reshape>(input, pyrange(input->get_shape().size()),
+                                                 new_shape);
   };
   ngraph_op_funcs_["swapaxes"] = [this](const NodePtr& node) -> NgraphNodePtr {
     auto input = op_map_[node->inputs_[0]];
@@ -339,8 +323,7 @@ void Emitter::CreateUnaryOps() {
   //   return ;
   // };
   ngraph_op_funcs_["cast"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::Convert>(op_map_[node->inputs_[0]],
-                                                 getType(node->dtype_));
+    return std::make_shared<ngraph::op::Convert>(op_map_[node->inputs_[0]], getType(node->dtype_));
   };
 
   //----------------------------- Reduce Ops ----------------------------//
@@ -351,8 +334,7 @@ void Emitter::CreateUnaryOps() {
     return ReduceAxes(node, ngraph::builder::mean);
   };
   ngraph_op_funcs_["sum"] = [this](const NodePtr& node) {
-    auto create_sum = [](const NgraphNodePtr& node,
-                         const ngraph::AxisSet& reduction_axes) {
+    auto create_sum = [](const NgraphNodePtr& node, const ngraph::AxisSet& reduction_axes) {
       return std::make_shared<ngraph::op::Sum>(node, reduction_axes);
     };
     return ReduceAxes(node, create_sum);
@@ -361,8 +343,7 @@ void Emitter::CreateUnaryOps() {
 
 // autobroadcast factory function to avoid code copy
 template <class op>
-std::shared_ptr<ngraph::Node> Emitter::CreateAutoBroadcast(
-    const NodePtr& node) {
+std::shared_ptr<ngraph::Node> Emitter::CreateAutoBroadcast(const NodePtr& node) {
   auto arg0 = op_map_[node->inputs_[0]];
   auto arg1 = op_map_[node->inputs_[1]];
   return ngraph::builder::make_with_numpy_broadcast<op>(arg0, arg1);
@@ -370,14 +351,12 @@ std::shared_ptr<ngraph::Node> Emitter::CreateAutoBroadcast(
 template <class op>
 std::shared_ptr<ngraph::Node> Emitter::CreateScalarOp(const NodePtr& node) {
   auto arg0 = op_map_[node->inputs_[0]];
-  auto arg1 =
-      makeConstant(node, std::to_string(get_default(node, "scalar", 0.0f)));
+  auto arg1 = makeConstant(node, std::to_string(get_default(node, "scalar", 0.0f)));
   return ngraph::builder::make_with_numpy_broadcast<op>(arg0, arg1);
 }
 
-NgraphNodePtr slice_data_on_axis(NgraphNodePtr data, size_t starting_loc,
-                                 size_t step_size = 1, size_t axis = 0,
-                                 bool flatten = true) {
+NgraphNodePtr slice_data_on_axis(NgraphNodePtr data, size_t starting_loc, size_t step_size = 1,
+                                 size_t axis = 0, bool flatten = true) {
   // slice data on given axis
   ngraph::Coordinate lower(data->get_shape().size(), 0);
   ngraph::Coordinate upper = data->get_shape();
@@ -394,8 +373,8 @@ NgraphNodePtr slice_data_on_axis(NgraphNodePtr data, size_t starting_loc,
         out_shape.push_back(slice->get_shape()[i]);
       }
     }
-    slice = std::make_shared<ngraph::op::Reshape>(
-        slice, pyrange(data->get_shape().size()), out_shape);
+    slice =
+        std::make_shared<ngraph::op::Reshape>(slice, pyrange(data->get_shape().size()), out_shape);
   }
 
   return slice;
@@ -466,8 +445,7 @@ void Emitter::CreateBinaryOps() {
                                                 op_map_[node->inputs_[1]]);
   };
   */
-  auto dot_transpose = [this](const NodePtr& node, NgraphNodePtr left,
-                              NgraphNodePtr right) {
+  auto dot_transpose = [this](const NodePtr& node, NgraphNodePtr left, NgraphNodePtr right) {
     if (get_default(node, "transpose_a", false)) {
       auto N = left->get_shape().size();
       auto order = pyrange(1, N);
@@ -507,11 +485,10 @@ void Emitter::CreateBinaryOps() {
       auto dot = std::make_shared<ngraph::op::Dot>(args.first, args.second, 1);
 
       std::vector<size_t> out_shape{1};
-      out_shape.insert(out_shape.end(), dot->get_shape().begin(),
-                       dot->get_shape().end());
+      out_shape.insert(out_shape.end(), dot->get_shape().begin(), dot->get_shape().end());
 
-      dots[g] = std::make_shared<ngraph::op::Reshape>(
-          dot, pyrange(sliced_left->get_shape().size()), out_shape);
+      dots[g] = std::make_shared<ngraph::op::Reshape>(dot, pyrange(sliced_left->get_shape().size()),
+                                                      out_shape);
     }
 
     // concatenate dots on batch channel
@@ -520,8 +497,7 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["reshape_like"] = [this](const NodePtr& node) {
     auto arg0 = op_map_[node->inputs_[0]];
     auto reshape = op_map_[node->inputs_[1]]->get_shape();
-    return std::make_shared<ngraph::op::Reshape>(
-        arg0, pyrange(arg0->get_shape().size()), reshape);
+    return std::make_shared<ngraph::op::Reshape>(arg0, pyrange(arg0->get_shape().size()), reshape);
   };
   ngraph_op_funcs_["_add_scalar"] = [this](const NodePtr& node) {
     return CreateScalarOp<ngraph::op::Add>(node);
@@ -564,19 +540,18 @@ void Emitter::CreateBinaryOps() {
     auto A = op_map_[node->inputs_[0]];
     auto B = op_map_[node->inputs_[1]];
     return std::make_shared<ngraph::op::Sqrt>(
-        ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>((A * A),
-                                                                    (B * B)));
+        ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>((A * A), (B * B)));
   };
-  // TODO(mbrookhart): uncomment when ngraph de-XLA-ifies boolean logic
+  ngraph_op_funcs_["broadcast_not_equal"] = [this](const NodePtr& node) {
+    auto op = CreateAutoBroadcast<ngraph::op::NotEqual>(node);
+    // TODO(aemani): remove conversion if NotEqual op returns same type
+    return std::make_shared<ngraph::op::Convert>(op, getType(node->dtype_));
+  };
   /*
+  // TODO(mbrookhart): uncomment when ngraph de-XLA-ifies boolean logic
   ngraph_op_funcs_["broadcast_equal"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Equal>(node);
   };
-  // ngraph_op_funcs_["broadcast_not_equal"] = [this](const NodePtr& node) {
-  //   auto op = CreateAutoBroadcast<ngraph::op::NotEqual>(node);
-  //   // TODO(aemani): remove conversion if NotEqual op returns same type
-  //   return std::make_shared<ngraph::op::Convert>(op, getType(node->dtype_));
-  // };
   ngraph_op_funcs_["broadcast_greater"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Greater>(node);
   };
@@ -594,8 +569,7 @@ void Emitter::CreateBinaryOps() {
 
 struct PoolingParams {
   PoolingParams(const NodePtr& node, const NgraphNodePtr& input) {
-    pooling_convention =
-        get_default(node, "pooling_convention", std::string("valid"));
+    pooling_convention = get_default(node, "pooling_convention", std::string("valid"));
     global_pool = get_default(node, "global_pool", false);
 
     auto input_shape = input->get_shape();
@@ -634,8 +608,7 @@ void Emitter::CreateLayerOps() {
   // each of those outputs is a single node.  This function creates
   // the slice op for making each tensor.
   ngraph_op_funcs_["split"] = [this](const NodePtr& node) {
-    size_t axis = get_default_transformed_axis(node, "axis", 1,
-                                               node->inputs_[0]->shape_.ndim());
+    size_t axis = get_default_transformed_axis(node, "axis", 1, node->inputs_[0]->shape_.ndim());
     int num_outputs = get_default(node, "num_outputs", 1);
     int index = node->multi_output_index_;
     bool squeeze_axis = get_default(node, "squeeze_axis", false);
@@ -651,8 +624,7 @@ void Emitter::CreateLayerOps() {
   // concatenates them along a given axis
   ngraph_op_funcs_["concat"] = [this](const NodePtr& node) {
     // get the concat axis
-    size_t axis = get_default_transformed_axis(node, "dim", 1,
-                                               node->inputs_[0]->shape_.ndim());
+    size_t axis = get_default_transformed_axis(node, "dim", 1, node->inputs_[0]->shape_.ndim());
     // grab in input ngraph nodes
     std::vector<NgraphNodePtr> args;
     for (auto i : node->inputs_) args.push_back(op_map_[i]);
@@ -675,22 +647,18 @@ void Emitter::CreateLayerOps() {
       for (size_t i = 1; i < X->get_shape().size(); ++i) {
         flat_shape[1] *= X->get_shape()[i];
       }
-      X = std::make_shared<ngraph::op::Reshape>(
-          X, pyrange(X->get_shape().size()), flat_shape);
+      X = std::make_shared<ngraph::op::Reshape>(X, pyrange(X->get_shape().size()), flat_shape);
     } else if (X->get_shape().back() != W->get_shape()[1]) {
       ngraph::Shape shape = X->get_shape();
       shape.push_back(W->get_shape()[1]);
-      X = std::make_shared<ngraph::op::Reshape>(
-          X, pyrange(X->get_shape().size()), shape);
+      X = std::make_shared<ngraph::op::Reshape>(X, pyrange(X->get_shape().size()), shape);
     }
 
-    NgraphNodePtr dot = std::make_shared<ngraph::op::Dot>(
-        X, ngraph::builder::numpy_transpose(W));
+    NgraphNodePtr dot = std::make_shared<ngraph::op::Dot>(X, ngraph::builder::numpy_transpose(W));
 
     if (!no_bias) {
       auto beta = op_map_[node->inputs_[2]];
-      dot = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(dot,
-                                                                        beta);
+      dot = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(dot, beta);
     }
     return dot;
   };
@@ -700,19 +668,17 @@ void Emitter::CreateLayerOps() {
   ngraph_op_funcs_["flatten"] = [this](const NodePtr& node) {
     auto in_shape = TShape_to_NShape(node->inputs_[0]->shape_);
     auto out_shape = ngraph::Shape({in_shape[0], 1});
-    out_shape[1] = std::accumulate(in_shape.begin() + 1, in_shape.end(), 1,
-                                   std::multiplies<int>());
+    out_shape[1] = std::accumulate(in_shape.begin() + 1, in_shape.end(), 1, std::multiplies<int>());
 
-    return std::make_shared<ngraph::op::Reshape>(
-        op_map_[node->inputs_[0]], pyrange(in_shape.size()), out_shape);
+    return std::make_shared<ngraph::op::Reshape>(op_map_[node->inputs_[0]],
+                                                 pyrange(in_shape.size()), out_shape);
   };
 
   // Implement transpose with a utility function that returns
   // a reshape op. Not ideal, we should have a ngraph transpose op
   ngraph_op_funcs_["transpose"] = [this](const NodePtr& node) {
     auto axes_order = get_default(node, "axes", ngraph::AxisVector());
-    return ngraph::builder::numpy_transpose(op_map_[node->inputs_[0]],
-                                            axes_order);
+    return ngraph::builder::numpy_transpose(op_map_[node->inputs_[0]], axes_order);
   };
 
   // expand dims inserts an axis of length 1 somewhere in the tensor shape
@@ -726,8 +692,8 @@ void Emitter::CreateLayerOps() {
     auto out_shape = in_shape;
     out_shape.insert(out_shape.begin() + axis, 1);
 
-    return std::make_shared<ngraph::op::Reshape>(
-        op_map_[node->inputs_[0]], pyrange(in_shape.size()), out_shape);
+    return std::make_shared<ngraph::op::Reshape>(op_map_[node->inputs_[0]],
+                                                 pyrange(in_shape.size()), out_shape);
   };
 
   // batch norm operation
@@ -738,8 +704,7 @@ void Emitter::CreateLayerOps() {
     NgraphNodePtr ng_in_beta = op_map_[node->inputs_[kBeta]];
     NgraphNodePtr ng_in_moving_mean = op_map_[node->inputs_[kMovingMean]];
     NgraphNodePtr ng_in_moving_var = op_map_[node->inputs_[kMovingVar]];
-    const int data_shape_size =
-        static_cast<int>(ng_in_data->get_shape().size());
+    const int data_shape_size = static_cast<int>(ng_in_data->get_shape().size());
 
     // Default Batch norm parameters
     const float eps = get_default(node, "eps", 0.001f);
@@ -747,8 +712,7 @@ void Emitter::CreateLayerOps() {
     const bool fix_gamma = get_default(node, "fix_gamma", true);
     const bool use_global_stats = get_default(node, "use_global_stats", false);
     // zero based channel axis
-    const size_t channel_axis =
-        get_default_transformed_axis(node, "axis", 1, node->shape_.ndim());
+    const size_t channel_axis = get_default_transformed_axis(node, "axis", 1, node->shape_.ndim());
 
     NgraphNodePtr ng_mean{nullptr};
     NgraphNodePtr ng_var{nullptr};
@@ -768,69 +732,61 @@ void Emitter::CreateLayerOps() {
     convert_shape.insert(convert_shape.begin() + channel_axis, channel_size);
 
     if (exe_mode_ == GraphExeMode::kTrain && !use_global_stats) {
-      ng_mean = ReduceAxes(ng_in_data, {channel_axis}, true, true,
-                           ngraph::builder::mean);
-      ng_var = ReduceAxes(ng_in_data, {channel_axis}, true, true,
-                          [](const std::shared_ptr<ngraph::Node>& node,
-                             const ngraph::AxisSet& axes) {
-                            return ngraph::builder::variance(node, axes);
-                          });
+      ng_mean = ReduceAxes(ng_in_data, {channel_axis}, true, true, ngraph::builder::mean);
+      ng_var =
+          ReduceAxes(ng_in_data, {channel_axis}, true, true,
+                     [](const std::shared_ptr<ngraph::Node>& node, const ngraph::AxisSet& axes) {
+                       return ngraph::builder::variance(node, axes);
+                     });
       ngraph::AxisVector order(ng_mean->get_shape().size());
       std::iota(order.begin(), order.end(), 0);
-      auto ng_mean_temp = std::make_shared<ngraph::op::Reshape>(
-          ng_mean, order, ng_in_moving_mean->get_shape());
-      auto ng_var_temp = std::make_shared<ngraph::op::Reshape>(
-          ng_var, order, ng_in_moving_var->get_shape());
+      auto ng_mean_temp =
+          std::make_shared<ngraph::op::Reshape>(ng_mean, order, ng_in_moving_mean->get_shape());
+      auto ng_var_temp =
+          std::make_shared<ngraph::op::Reshape>(ng_var, order, ng_in_moving_var->get_shape());
 
       // update running averages
       OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(node);
       const std::vector<NodePtr>& aux_nodes = op_node->config_->AuxNodes();
-      NgraphNodePtr ng_one = makeConstant(ng_in_moving_mean->get_element_type(),
-                                          ng_in_moving_mean->get_shape(), "1");
+      NgraphNodePtr ng_one =
+          makeConstant(ng_in_moving_mean->get_element_type(), ng_in_moving_mean->get_shape(), "1");
       NgraphNodePtr ng_momentum =
-          makeConstant(ng_in_moving_var->get_element_type(),
-                       ng_in_moving_var->get_shape(), std::to_string(momentum));
+          makeConstant(ng_in_moving_var->get_element_type(), ng_in_moving_var->get_shape(),
+                       std::to_string(momentum));
       ngraph::Shape s = ng_in_moving_mean->get_shape();
       aux_op_map_[aux_nodes[BatchNormOpConfig::kMovingMean]] =
-          ng_in_moving_mean * ng_momentum +
-          ng_mean_temp * (ng_one - ng_momentum);
+          ng_in_moving_mean * ng_momentum + ng_mean_temp * (ng_one - ng_momentum);
       aux_op_map_[aux_nodes[BatchNormOpConfig::kMovingVar]] =
           ng_in_moving_var * ng_momentum + ng_var_temp * (ng_one - ng_momentum);
     } else {
       // we expect to use global stats with inference
-      ng_mean = std::make_shared<ngraph::op::Reshape>(
-          ng_in_moving_mean, convert_order, convert_shape);
-      ng_var = std::make_shared<ngraph::op::Reshape>(
-          ng_in_moving_var, convert_order, convert_shape);
+      ng_mean =
+          std::make_shared<ngraph::op::Reshape>(ng_in_moving_mean, convert_order, convert_shape);
+      ng_var =
+          std::make_shared<ngraph::op::Reshape>(ng_in_moving_var, convert_order, convert_shape);
     }
 
-    NgraphNodePtr ng_eps = makeConstant(
-        ng_var->get_element_type(), ng_var->get_shape(), std::to_string(eps));
+    NgraphNodePtr ng_eps =
+        makeConstant(ng_var->get_element_type(), ng_var->get_shape(), std::to_string(eps));
     NgraphNodePtr denom = std::make_shared<ngraph::op::Sqrt>(ng_var + ng_eps);
 
-    NgraphNodePtr numerator =
-        make_with_numpy_broadcast<ngraph::op::Subtract>(ng_in_data, ng_mean);
+    NgraphNodePtr numerator = make_with_numpy_broadcast<ngraph::op::Subtract>(ng_in_data, ng_mean);
 
-    NgraphNodePtr result =
-        make_with_numpy_broadcast<ngraph::op::Divide>(numerator, denom);
+    NgraphNodePtr result = make_with_numpy_broadcast<ngraph::op::Divide>(numerator, denom);
 
-    ng_in_gamma = std::make_shared<ngraph::op::Reshape>(
-        ng_in_gamma, convert_order, convert_shape);
-    ng_in_beta = std::make_shared<ngraph::op::Reshape>(
-        ng_in_beta, convert_order, convert_shape);
+    ng_in_gamma = std::make_shared<ngraph::op::Reshape>(ng_in_gamma, convert_order, convert_shape);
+    ng_in_beta = std::make_shared<ngraph::op::Reshape>(ng_in_beta, convert_order, convert_shape);
 
     // If fix_gamma is true, we assume it to be 1, otherwise, we need to scale
     // result with gamma
     if (!fix_gamma) {
-      result =
-          make_with_numpy_broadcast<ngraph::op::Multiply>(result, ng_in_gamma);
+      result = make_with_numpy_broadcast<ngraph::op::Multiply>(result, ng_in_gamma);
     }
     result = make_with_numpy_broadcast<ngraph::op::Add>(result, ng_in_beta);
     return result;
   };
 
-  ngraph_op_funcs_["Convolution"] =
-      [this](const NodePtr& node) -> NgraphNodePtr {
+  ngraph_op_funcs_["Convolution"] = [this](const NodePtr& node) -> NgraphNodePtr {
     enum InputName { kData = 0, kWeight, kBias };
 
     NgraphNodePtr data = op_map_[node->inputs_[kData]];
@@ -853,22 +809,20 @@ void Emitter::CreateLayerOps() {
 
     NgraphNodePtr convolution = nullptr;
     if (groups == 1) {
-      convolution = std::make_shared<ngraph::op::Convolution>(
-          data, filter, stride, dilate, pad, pad);
+      convolution =
+          std::make_shared<ngraph::op::Convolution>(data, filter, stride, dilate, pad, pad);
     } else {
       std::vector<NgraphNodePtr> convolutions(groups);
       for (size_t g = 0; g < groups; ++g) {
         // slice data on channel_in
         size_t slice_step = data_shape[1] / groups;
-        auto data_slice =
-            slice_data_on_axis(data, g * slice_step, slice_step, 1, false);
-        auto filter_slice =
-            slice_data_on_axis(filter, g * slice_step, slice_step, 0, false);
+        auto data_slice = slice_data_on_axis(data, g * slice_step, slice_step, 1, false);
+        auto filter_slice = slice_data_on_axis(filter, g * slice_step, slice_step, 0, false);
 
         // convolve sliced data and filter
         // N, channel_out/groups, d'1,...,d'n
-        convolutions[g] = std::make_shared<ngraph::op::Convolution>(
-            data_slice, filter_slice, stride, dilate, pad, pad);
+        convolutions[g] = std::make_shared<ngraph::op::Convolution>(data_slice, filter_slice,
+                                                                    stride, dilate, pad, pad);
       }
 
       // concatenate convolutions on channel_out
@@ -888,11 +842,9 @@ void Emitter::CreateLayerOps() {
     bias_shape[1] = filter_shape[0];
 
     ngraph::AxisVector order(1, 0);
-    auto bias_reshape =
-        std::make_shared<ngraph::op::Reshape>(bias, order, bias_shape);
+    auto bias_reshape = std::make_shared<ngraph::op::Reshape>(bias, order, bias_shape);
 
-    return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(
-        convolution, bias_reshape);
+    return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(convolution, bias_reshape);
   };
   ngraph_op_funcs_["Pooling"] = [this](const NodePtr& node) -> NgraphNodePtr {
     NgraphNodePtr op;
@@ -914,37 +866,31 @@ void Emitter::CreateLayerOps() {
         size_t padded_dim = input_shape[i] + 2 * top_pad[i - 2];
         size_t stride = params.stride[i - 2];
         // calculate extra padding
-        auto num_strides = static_cast<size_t>(
-            ceil(static_cast<float>(padded_dim - params.kernel[i - 2]) /
-                 static_cast<float>(stride)));
-        size_t extra_pad =
-            num_strides * stride + params.kernel[i - 2] - padded_dim;
+        auto num_strides = static_cast<size_t>(ceil(
+            static_cast<float>(padded_dim - params.kernel[i - 2]) / static_cast<float>(stride)));
+        size_t extra_pad = num_strides * stride + params.kernel[i - 2] - padded_dim;
         top_pad[i - 2] += extra_pad;
       }
     }
     return top_pad;
   };
 
-  ngraph_op_funcs_["max_pooling"] = [this,
-                                     &asymetric_padding](const NodePtr& node) {
+  ngraph_op_funcs_["max_pooling"] = [this, &asymetric_padding](const NodePtr& node) {
     auto input = op_map_[node->inputs_[0]];
     auto params = PoolingParams(node, input);
 
-    return std::make_shared<ngraph::op::MaxPool>(
-        input, params.kernel, params.stride, params.pad,
-        asymetric_padding(input->get_shape(), params));
+    return std::make_shared<ngraph::op::MaxPool>(input, params.kernel, params.stride, params.pad,
+                                                 asymetric_padding(input->get_shape(), params));
   };
-  ngraph_op_funcs_["avg_pooling"] = [this,
-                                     &asymetric_padding](const NodePtr& node) {
+  ngraph_op_funcs_["avg_pooling"] = [this, &asymetric_padding](const NodePtr& node) {
     auto input = op_map_[node->inputs_[0]];
     auto params = PoolingParams(node, input);
 
-    return std::make_shared<ngraph::op::AvgPool>(
-        input, params.kernel, params.stride, params.pad,
-        asymetric_padding(input->get_shape(), params), true);
+    return std::make_shared<ngraph::op::AvgPool>(input, params.kernel, params.stride, params.pad,
+                                                 asymetric_padding(input->get_shape(), params),
+                                                 true);
   };
-  ngraph_op_funcs_["sum_pooling"] = [this,
-                                     &asymetric_padding](const NodePtr& node) {
+  ngraph_op_funcs_["sum_pooling"] = [this, &asymetric_padding](const NodePtr& node) {
     auto input = op_map_[node->inputs_[0]];
     auto params = PoolingParams(node, input);
 
@@ -955,13 +901,13 @@ void Emitter::CreateLayerOps() {
 
     const size_t num_window_elements = ngraph::shape_size(params.kernel);
 
-    const auto avg_pool_op = std::make_shared<ngraph::op::AvgPool>(
-        input, params.kernel, params.stride, params.pad,
-        asymetric_padding(input->get_shape(), params), true);
+    const auto avg_pool_op =
+        std::make_shared<ngraph::op::AvgPool>(input, params.kernel, params.stride, params.pad,
+                                              asymetric_padding(input->get_shape(), params), true);
 
-    const auto coeff_op = ngraph_bridge::makeConstant(
-        avg_pool_op->get_element_type(), avg_pool_op->get_shape(),
-        std::to_string(num_window_elements));
+    const auto coeff_op =
+        ngraph_bridge::makeConstant(avg_pool_op->get_element_type(), avg_pool_op->get_shape(),
+                                    std::to_string(num_window_elements));
 
     auto mul_op = std::make_shared<ngraph::op::Multiply>(avg_pool_op, coeff_op);
 

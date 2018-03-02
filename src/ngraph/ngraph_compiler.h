@@ -71,8 +71,7 @@ struct BindArg : public BindArgBase {
 
 // SimpleBind
 struct SimpleBindArg : public BindArgBase {
-  SimpleBindArg(size_t numforward,
-                const std::unordered_map<std::string, nnvm::TShape>& shapes,
+  SimpleBindArg(size_t numforward, const std::unordered_map<std::string, nnvm::TShape>& shapes,
                 const std::unordered_map<std::string, int>& dtypes)
       : BindArgBase(numforward), shape_map_(shapes), dtype_map_(dtypes) {}
 
@@ -129,6 +128,10 @@ static std::unordered_map<std::string, std::string> nameswitch({
     {"sum_axis", "sum"},
 });
 
+// set of ops that dont need head gradient
+// includes ops that do not do gradient e.g. logic ops.
+static std::unordered_set<std::string> ops_no_head_grad{"_not_equal", "broadcast_not_equal"};
+
 // Utility function for replacing operation names
 // based on the dict above
 inline std::string clean_opname(std::string name) {
@@ -143,9 +146,8 @@ class Compiler {
  public:
   // Construction takes setup from the grad executor and preps the graph
   // for ngraph compilation
-  Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
-           const NNVMNodeVec& inputs, const BindArgBase& bindarg,
-           const mxnet::Context& context);
+  Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict, const NNVMNodeVec& inputs,
+           const BindArgBase& bindarg, const mxnet::Context& context);
   // Construct base compiler object with context only
   Compiler(const mxnet::Context& context);
   // Compile returns the compiled graph
