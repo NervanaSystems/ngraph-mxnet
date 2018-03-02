@@ -250,6 +250,15 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
         return mxnet::op::type_assign(&((*oattr)[0]), dtype);
       });
 
+  op.set_attr<mxnet::FInferStorageType>(
+      "FInferStorageType",
+      [](const nnvm::NodeAttrs &attrs, const int dev_mask,
+         mxnet::DispatchMode *dispatch_mode, std::vector<int> *in_attrs,
+         std::vector<int> *out_attrs) {
+        return mxnet::op::storage_type_assign(out_attrs, mxnet::kDefaultStorage,
+                                              dispatch_mode,
+                                              mxnet::DispatchMode::kFComputeEx);
+      });
   // create the compute lambda
   op.set_attr<mxnet::FComputeEx>(
       "FComputeEx<cpu>",
@@ -273,6 +282,15 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
   // Mark as backward
   op.set_attr<bool>("TIsBackward", true);
 
+  op.set_attr<mxnet::FInferStorageType>(
+      "FInferStorageType",
+      [](const nnvm::NodeAttrs &attrs, const int dev_mask,
+         mxnet::DispatchMode *dispatch_mode, std::vector<int> *in_attrs,
+         std::vector<int> *out_attrs) {
+        return mxnet::op::storage_type_assign(out_attrs, mxnet::kDefaultStorage,
+                                              dispatch_mode,
+                                              mxnet::DispatchMode::kFComputeEx);
+      });
   // create the compute lambda
   op.set_attr<mxnet::FComputeEx>(
       "FComputeEx<cpu>",
