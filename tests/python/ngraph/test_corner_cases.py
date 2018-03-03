@@ -19,24 +19,24 @@ import numpy as np
 import mxnet as mx
 
 
-# test ngraph_bridge for logic ops without head-grad
-def test_logic_op_no_head_grad():
-    x_shape = (1, 10)
-    y_shape = (10, 1)
+def binary_op_ex(sym, x_shape, y_shape):
+    np.random.seed(0)
+    x_npy = np.random.randint(0, 10, size=x_shape).astype(np.float32)
+    y_npy = np.random.randint(0, 10, size=y_shape).astype(np.float32)
+    exe = sym.simple_bind(ctx=mx.cpu(), x=x_shape, y=y_shape)
+    mx_out = exe.forward(is_train=True, x=x_npy, y=y_npy)[0].asnumpy()
+    exe.backward()
+    return mx_out
+
+
+def _test_broadcast_op_no_head_grad():
     x = mx.symbol.Variable("x")
     y = mx.symbol.Variable("y")
     z = mx.sym.broadcast_not_equal(x, y)
-
-    np.random.seed(0)
-    x_npy = np.random.randint(0, 4, size=x_shape).astype(np.float32)
-    y_npy = np.random.randint(0, 4, size=y_shape).astype(np.float32)
-
-    exe = z.simple_bind(ctx=mx.cpu(), x=x_shape, y=y_shape)
-    mx_out = exe.forward(is_train=True, x=x_npy, y=y_npy)[0].asnumpy()
-    exe.backward()
+    binary_op_ex(z, (1, 10), (10, 1))
 
 
-def test_mix_logic_op():
+def test_broadcast_mix_logic_op():
     x_shape = (1, 10)
     y_shape = (10, 1)
     x = mx.symbol.Variable("x")
@@ -47,16 +47,9 @@ def test_mix_logic_op():
     z4 = mx.sym.broadcast_equal(z1, z3)
     z5 = mx.sym.broadcast_not_equal(z3, z4)
     z6 = mx.sym.broadcast_mul(z5, z4)
-    z = mx.sym.broadcast_not_equal(z6, x)
+    z = mx.sym.broadcast_equal(z6, x)
 
-    np.random.seed(0)
-    x_npy = np.random.randint(0, 4, size=x_shape).astype(np.float32)
-    y_npy = np.random.randint(0, 4, size=y_shape).astype(np.float32)
-
-    exe = z.simple_bind(ctx=mx.cpu(), x=x_shape, y=y_shape)
-    mx_out = exe.forward(is_train=True, x=x_npy, y=y_npy)[0].asnumpy()
-    exe.backward()
-
+    binary_op_ex(z, (1, 10), (10, 1))
 
 if __name__ == '__main__':
     import nose

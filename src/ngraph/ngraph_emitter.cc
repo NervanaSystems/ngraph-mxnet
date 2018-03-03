@@ -587,12 +587,12 @@ void Emitter::CreateBinaryOps() {
                                                                     (B * B)));
   };
   // TODO(aemani): remove cast_result if ngraph enables same type result
-  ngraph_op_funcs_["broadcast_not_equal"] = [this](const NodePtr& node) {
-    return cast_result(CreateAutoBroadcast<ngraph::op::NotEqual>(node),
-                       getType(node->dtype_));
-  };
   ngraph_op_funcs_["broadcast_equal"] = [this](const NodePtr& node) {
     return cast_result(CreateAutoBroadcast<ngraph::op::Equal>(node),
+                       getType(node->dtype_));
+  };
+  ngraph_op_funcs_["broadcast_not_equal"] = [this](const NodePtr& node) {
+    return cast_result(CreateAutoBroadcast<ngraph::op::NotEqual>(node),
                        getType(node->dtype_));
   };
   ngraph_op_funcs_["broadcast_greater"] = [this](const NodePtr& node) {

@@ -131,8 +131,12 @@ static std::unordered_map<std::string, std::string> nameswitch({
 
 // set of ops that dont need head gradient
 // includes ops that do not do gradient e.g. logic ops.
-static std::unordered_set<std::string> ops_no_head_grad{"_not_equal",
-                                                        "broadcast_not_equal"};
+static std::unordered_set<std::string> ops_no_head_grad {
+  "_equal", "_not_equal", "_greater", "_greater_equal", "_lesser",
+      "_lesser_equal", "broadcast_equal", "broadcast_not_equal",
+      "broadcast_greater", "broadcast_greater_equal", "broadcast_lesser",
+      "broadcast_lesser_equal"
+}
 
 // Utility function for replacing operation names
 // based on the dict above
