@@ -374,6 +374,11 @@ std::shared_ptr<ngraph::Node> Emitter::CreateScalarOp(const NodePtr& node) {
       makeConstant(node, std::to_string(get_default(node, "scalar", 0.0f)));
   return ngraph::builder::make_with_numpy_broadcast<op>(arg0, arg1);
 }
+// cast result of op to given type
+NgraphNodePtr cast_result(const NgraphNodePtr& op,
+                          const ngraph::element::Type& type) {
+  return std::make_shared<ngraph::op::Convert>(op, type);
+}
 
 NgraphNodePtr slice_data_on_axis(NgraphNodePtr data, size_t starting_loc,
                                  size_t step_size = 1, size_t axis = 0,
@@ -437,35 +442,49 @@ void Emitter::CreateBinaryOps() {
     auto B = op_map_[node->inputs_[1]];
     return std::make_shared<ngraph::op::Sqrt>((A * A) + (B * B));
   };
-  // TODO(mbrookhart): ngraph is returning unit8 for logic ops
-  // doesn't work in the bridge. ngraph has comitted to switching to use
-  // the input types. Uncomment these when that happens.
-  /*
+  // TODO(aemani): remove cast_result if ngraph supports same type
   ngraph_op_funcs_["_equal"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::Equal>(op_map_[node->inputs_[0]],
-                                               op_map_[node->inputs_[1]]);
+    return cast_result(
+        std::make_shared<ngraph::op::Equal>(op_map_[node->inputs_[0]],
+                                            op_map_[node->inputs_[1]]),
+        getType(node->dtype_));
+
   };
   ngraph_op_funcs_["_not_equal"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::NotEqual>(op_map_[node->inputs_[0]],
-                                                  op_map_[node->inputs_[1]]);
+    return cast_result(
+        std::make_shared<ngraph::op::NotEqual>(op_map_[node->inputs_[0]],
+                                               op_map_[node->inputs_[1]]),
+        getType(node->dtype_));
+
   };
   ngraph_op_funcs_["_greater"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::Greater>(op_map_[node->inputs_[0]],
-                                                 op_map_[node->inputs_[1]]);
+    return cast_result(
+        std::make_shared<ngraph::op::Greater>(op_map_[node->inputs_[0]],
+                                              op_map_[node->inputs_[1]]),
+        getType(node->dtype_));
+
   };
   ngraph_op_funcs_["_greater_equal"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::GreaterEq>(op_map_[node->inputs_[0]],
-                                                   op_map_[node->inputs_[1]]);
+    return cast_result(
+        std::make_shared<ngraph::op::GreaterEq>(op_map_[node->inputs_[0]],
+                                                op_map_[node->inputs_[1]]),
+        getType(node->dtype_));
+
   };
   ngraph_op_funcs_["_lesser"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::Less>(op_map_[node->inputs_[0]],
-                                              op_map_[node->inputs_[1]]);
+    return cast_result(
+        std::make_shared<ngraph::op::Less>(op_map_[node->inputs_[0]],
+                                           op_map_[node->inputs_[1]]),
+        getType(node->dtype_));
+
   };
   ngraph_op_funcs_["_lesser_equal"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::LessEq>(op_map_[node->inputs_[0]],
-                                                op_map_[node->inputs_[1]]);
+    return cast_result(
+        std::make_shared<ngraph::op::LessEq>(op_map_[node->inputs_[0]],
+                                             op_map_[node->inputs_[1]]),
+        getType(node->dtype_));
+
   };
-  */
   auto dot_transpose = [this](const NodePtr& node, NgraphNodePtr left,
                               NgraphNodePtr right) {
     if (get_default(node, "transpose_a", false)) {
@@ -567,29 +586,35 @@ void Emitter::CreateBinaryOps() {
         ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>((A * A),
                                                                     (B * B)));
   };
+  // TODO(aemani): remove cast_result if ngraph enables same type result
   ngraph_op_funcs_["broadcast_not_equal"] = [this](const NodePtr& node) {
-    auto op = CreateAutoBroadcast<ngraph::op::NotEqual>(node);
-    // TODO(aemani): remove conversion if NotEqual op returns same type
-    return std::make_shared<ngraph::op::Convert>(op, getType(node->dtype_));
+    return cast_result(CreateAutoBroadcast<ngraph::op::NotEqual>(node),
+                       getType(node->dtype_));
   };
-  /*
-  // TODO(mbrookhart): uncomment when ngraph de-XLA-ifies boolean logic
   ngraph_op_funcs_["broadcast_equal"] = [this](const NodePtr& node) {
-    return CreateAutoBroadcast<ngraph::op::Equal>(node);
+    return cast_result(CreateAutoBroadcast<ngraph::op::Equal>(node),
+                       getType(node->dtype_));
   };
   ngraph_op_funcs_["broadcast_greater"] = [this](const NodePtr& node) {
-    return CreateAutoBroadcast<ngraph::op::Greater>(node);
+    return cast_result(CreateAutoBroadcast<ngraph::op::Greater>(node),
+                       getType(node->dtype_));
+
   };
   ngraph_op_funcs_["broadcast_greater_equal"] = [this](const NodePtr& node) {
-    return CreateAutoBroadcast<ngraph::op::GreaterEq>(node);
+    return cast_result(CreateAutoBroadcast<ngraph::op::GreaterEq>(node),
+                       getType(node->dtype_));
+
   };
   ngraph_op_funcs_["broadcast_lesser"] = [this](const NodePtr& node) {
-    return CreateAutoBroadcast<ngraph::op::Less>(node);
+    return cast_result(CreateAutoBroadcast<ngraph::op::Less>(node),
+                       getType(node->dtype_));
+
   };
   ngraph_op_funcs_["broadcast_lesser_equal"] = [this](const NodePtr& node) {
-    return CreateAutoBroadcast<ngraph::op::LessEq>(node);
+    return cast_result(CreateAutoBroadcast<ngraph::op::LessEq>(node),
+                       getType(node->dtype_));
+
   };
-  */
 }
 
 struct PoolingParams {
