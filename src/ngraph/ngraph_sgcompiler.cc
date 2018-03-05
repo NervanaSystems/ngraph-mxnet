@@ -244,7 +244,7 @@ void SGCompiler::CompileNodes(NodePtr node,
 
   // the operation of this graph traverse compiles the node as
   // an input if it's not part of the subgraph or as an ngraph operation
-  // if the node is part of the subrraph
+  // if the node is part of the subgraph
   // we capture this so we can save the outputs to the SGCompiler op_map_
   visitor.operation = [this, sub_graph](NodePtr node) {
     if (!op_map_.count(node)) {
@@ -254,6 +254,41 @@ void SGCompiler::CompileNodes(NodePtr node,
       } else {
         InitOpConfig(std::dynamic_pointer_cast<OpNode>(node));
         this->op_map_[node] = this->ngraph_op_funcs_[node->operation_](node);
+
+        // Verify that the shapes computed by NNVM and nGraph are identical...
+        const nnvm::TShape &nnvm_shape = node->shape_;
+        const std::shared_ptr<ngraph::Node> ngraph_node = this->op_map_[node];
+        const ngraph::Shape &ngraph_provided_shape = ngraph_node->get_shape();
+        const nnvm::TShape ngraph_shape_as_nnvm_shape =
+            NShape_to_TShape(ngraph_provided_shape);
+
+        if (nnvm_shape != ngraph_shape_as_nnvm_shape) {
+          std::ostringstream os;
+          os << "NGRAPH_BRIDGE: In " << __PRETTY_FUNCTION__ << " : "
+             << std::endl;
+          os << "   Error processing node: " << node->createNodeLabel()
+             << std::endl;
+          os << "   Shape mismatch:"
+             << " nnvm::Tshape=" << nnvm_shape
+             << ", ngraph::Shape=" << ngraph_shape_as_nnvm_shape;
+          throw std::runtime_error(os.str());
+        }
+
+        // Verify that the element-types computed by NNM and nGraph are
+        // identical...
+        const ngraph::element::Type &ng_type = ngraph_node->get_element_type();
+        const ngraph::element::Type &nnvm_type_as_ng_type =
+            getType(node->dtype_);
+        if (ng_type != nnvm_type_as_ng_type) {
+          std::ostringstream os;
+          os << "NGRAPH_BRIDGE: In " << __PRETTY_FUNCTION__ << " : "
+             << std::endl;
+          os << "   Error processing node: " << node->createNodeLabel()
+             << std::endl;
+          os << "   element-type mismatch: NNVM elem-type=" << node->dtype_
+             << ", nGraph node's elem-type=" << ng_type;
+          throw std::runtime_error(os.str());
+        }
       }
     }
   };
