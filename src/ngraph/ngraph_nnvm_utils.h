@@ -96,28 +96,28 @@ inline void result_to_NDArray(
     const auto& element_type = getType(outputs[i].dtype());
     auto buffer_size = get_buffer_size(outputs[i].shape(), element_type.size());
 
-    void* mxnet_tblob = outputs[i].storage_handle().dptr;
+    void* mxnet_ndarray = outputs[i].storage_handle().dptr;
     if (req[i] == mxnet::kAddTo) {
       void* ngraph_tv = malloc(buffer_size);
       results[i]->read(ngraph_tv, 0, buffer_size);
 
       if (element_type == ngraph::element::f32)
-        result_plus_NDArray<float>(mxnet_tblob, ngraph_tv, buffer_size);
+        result_plus_NDArray<float>(mxnet_ndarray, ngraph_tv, buffer_size);
       else if (element_type == ngraph::element::f64)
-        result_plus_NDArray<double>(mxnet_tblob, ngraph_tv, buffer_size);
+        result_plus_NDArray<double>(mxnet_ndarray, ngraph_tv, buffer_size);
       else if (element_type == ngraph::element::u8)
-        result_plus_NDArray<uint8_t>(mxnet_tblob, ngraph_tv, buffer_size);
+        result_plus_NDArray<uint8_t>(mxnet_ndarray, ngraph_tv, buffer_size);
       else if (element_type == ngraph::element::i8)
-        result_plus_NDArray<int8_t>(mxnet_tblob, ngraph_tv, buffer_size);
+        result_plus_NDArray<int8_t>(mxnet_ndarray, ngraph_tv, buffer_size);
       else if (element_type == ngraph::element::i32)
-        result_plus_NDArray<int32_t>(mxnet_tblob, ngraph_tv, buffer_size);
+        result_plus_NDArray<int32_t>(mxnet_ndarray, ngraph_tv, buffer_size);
       else if (element_type == ngraph::element::i64)
-        result_plus_NDArray<int64_t>(mxnet_tblob, ngraph_tv, buffer_size);
+        result_plus_NDArray<int64_t>(mxnet_ndarray, ngraph_tv, buffer_size);
 
       free(ngraph_tv);
     } else {
       // TODO(adstraw): Add support for kWriteInplace
-      results[i]->read(mxnet_tblob, 0, buffer_size);
+      results[i]->read(mxnet_ndarray, 0, buffer_size);
     }
   }
 }
