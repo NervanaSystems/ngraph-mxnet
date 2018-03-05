@@ -155,7 +155,6 @@ void Emitter::CreateUnaryOps() {
                              -op_map_[node->inputs_[0]])));
   };
   ngraph_op_funcs_["softmax"] = [this](const NodePtr& node) {
-    std::cout << "HELLO FROM NGRAPH-MXNET SOFTMAX\n";
     auto axis =
         get_default_transformed_axis(node, "axis", 1, node->shape_.ndim());
     ngraph::AxisSet axes;
