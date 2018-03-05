@@ -57,6 +57,11 @@ inline To convert_shapes(const Ti& inshape) {
 }
 
 template <>
+inline nnvm::TShape convert_shapes(const ngraph::Shape& inshape) {
+  return nnvm::TShape(inshape.begin(), inshape.end());
+}
+
+template <>
 inline ngraph::Shape convert_shapes(const nnvm::TShape& inshape) {
   ngraph::Shape shape;
   for (const auto& s : inshape) {
@@ -67,6 +72,10 @@ inline ngraph::Shape convert_shapes(const nnvm::TShape& inshape) {
     shape.push_back(s);
   }
   return shape;
+}
+
+inline nnvm::TShape NShape_to_TShape(const ngraph::Shape& inshape) {
+  return convert_shapes<ngraph::Shape, nnvm::TShape>(inshape);
 }
 
 // Only thing we're currently converting -> TShape to ngraph::Shape
