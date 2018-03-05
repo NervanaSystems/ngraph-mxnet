@@ -154,10 +154,12 @@ void Emitter::CreateUnaryOps() {
     return (one / (one + std::make_shared<ngraph::op::Exp>(
                              -op_map_[node->inputs_[0]])));
   };
-  // ngraph_op_funcs_["softmax"] = [this](const NodePtr& node) {
-  //   auto numer =
-  //   std::make_shared<ngraph::op::Exp>(op_map_[node->inputs_[0]]); auto denom
-  //   = std::make_shared<ngraph::op::Sum>(numer, ngraph::AxisSet{1}); return ;
+  ngraph_op_funcs_["softmax"] = [this](const NodePtr& node) {
+    auto axis =
+        get_default_transformed_axis(node, "axis", 1, node->shape_.ndim());
+    return std::make_shared<ngraph::op::Softmax>(op_map_[node->inputs_[0]],
+                                                 ngraph::AxisSet{axis});
+  };
   // };
   // ngraph_op_funcs_["log_softmax"] = [this](const NodePtr& node){
   //   return ;
