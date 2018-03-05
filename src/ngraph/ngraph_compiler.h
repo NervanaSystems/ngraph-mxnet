@@ -129,8 +129,8 @@ static std::unordered_map<std::string, std::string> nameswitch({
     {"sum_axis", "sum"},
 });
 
-// set of ops that dont need head gradient
-// includes ops that do not do gradient e.g. logic ops.
+// MxNet OPs that do not have gradient should work when head-gradient is not
+// passed. Below OPs in ngrap-bridge fit this criteria.
 static std::unordered_set<std::string> ops_no_head_grad{
     "_equal",
     "_not_equal",
