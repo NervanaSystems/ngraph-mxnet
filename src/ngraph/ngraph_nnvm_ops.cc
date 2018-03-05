@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "../operator/operator_common.h"
+#include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
 #include "ngraph_nnvm_utils.h"
 
@@ -130,6 +131,15 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   }
 }
 
+// check if last node in graph is an op that doesnt need head-gradient
+bool check_zero_grad(const std::shared_ptr<Graph> &graph) {
+  auto size = graph->nodes_.size();
+  if ((size < 1) || (graph->nodes_[size - 1]->type_ != NodeType::kOp))
+    return false;
+  if (ops_no_head_grad.count(graph->nodes_[size - 1]->operation_)) return true;
+  return false;
+}
+
 void register_forward_op(std::shared_ptr<Graph> graph) {
   // register the op with nnvm
   auto &op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
@@ -191,10 +201,13 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
       });
 
   // Register Gradient node generation function
+  // check if zero grad
+  const bool zero_grad = check_zero_grad(graph);
   auto back_op_name = "_backward_" + ("ngraph_" + graph->name_);
   op.set_attr<nnvm::FGradient>(
-      "FGradient", [back_op_name](const nnvm::NodePtr &n,
-                                  const std::vector<nnvm::NodeEntry> &ograds) {
+      "FGradient",
+      [back_op_name, zero_grad](const nnvm::NodePtr &n,
+                                const std::vector<nnvm::NodeEntry> &ograds) {
         auto p = nnvm::Node::Create();
         p->attrs.op = nnvm::Op::Get(back_op_name);
         p->attrs.name = n->attrs.name + "_backward";
@@ -203,7 +216,9 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
         if (p->op()->attr_parser != nullptr) {
           p->op()->attr_parser(&(p->attrs));
         }
-        p->inputs.insert(p->inputs.end(), ograds.begin(), ograds.end());
+        if (!zero_grad) {
+          p->inputs.insert(p->inputs.end(), ograds.begin(), ograds.end());
+        }
         p->inputs.insert(p->inputs.end(), n->inputs.begin(), n->inputs.end());
         std::vector<nnvm::NodeEntry> ret;
         for (unsigned i = 0; i < p->num_outputs(); ++i) {

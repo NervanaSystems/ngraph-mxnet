@@ -129,6 +129,22 @@ static std::unordered_map<std::string, std::string> nameswitch({
     {"sum_axis", "sum"},
 });
 
+// MxNet OPs that do not have gradient should work when head-gradient is not
+// passed. Below OPs in ngrap-bridge fit this criteria.
+static std::unordered_set<std::string> ops_no_head_grad{
+    "_equal",
+    "_not_equal",
+    "_greater",
+    "_greater_equal",
+    "_lesser",
+    "_lesser_equal",
+    "broadcast_equal",
+    "broadcast_not_equal",
+    "broadcast_greater",
+    "broadcast_greater_equal",
+    "broadcast_lesser",
+    "broadcast_lesser_equal"};
+
 // Utility function for replacing operation names
 // based on the dict above
 inline std::string clean_opname(std::string name) {
