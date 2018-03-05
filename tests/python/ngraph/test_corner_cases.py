@@ -29,7 +29,7 @@ def binary_op_ex(sym, x_shape, y_shape):
     return mx_out
 
 
-def _test_broadcast_op_no_head_grad():
+def test_broadcast_op_no_head_grad():
     x = mx.symbol.Variable("x")
     y = mx.symbol.Variable("y")
     z = mx.sym.broadcast_not_equal(x, y)
