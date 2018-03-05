@@ -157,10 +157,8 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["softmax"] = [this](const NodePtr& node) {
     auto axis =
         get_default_transformed_axis(node, "axis", 1, node->shape_.ndim());
-    ngraph::AxisSet axes;
-    axes.insert(axis);
     return std::make_shared<ngraph::op::Softmax>(op_map_[node->inputs_[0]],
-                                                 axes);
+                                                 ngraph::AxisSet{axis});
   };
   // };
   // ngraph_op_funcs_["log_softmax"] = [this](const NodePtr& node){
