@@ -101,13 +101,13 @@ struct NGraphParam {
           vector<runtime::PerformanceCounter> perf_data = g->ngraph_forward[1]->get_performance_data();
           if (perf_data.size() >0)
               forward_perf.insert(forward_perf.end(), perf_data.begin(), perf_data.end());
-          print_perf_data(forward_perf);
+          //print_perf_data(forward_perf);
       }
       {
           vector<runtime::PerformanceCounter> perf_data = g->ngraph_backward[1]->get_performance_data();
           if (perf_data.size() >0)
-              backward_perf.insert(backward_perf.end(), perf_data.begin(), perf_data.end());
-          print_perf_data(backward_perf);
+              forward_perf.insert(forward_perf.end(), perf_data.begin(), perf_data.end());
+          print_perf_data(forward_perf);
       }
       g->CleanUp();
     }
