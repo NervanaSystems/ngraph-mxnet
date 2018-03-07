@@ -91,9 +91,9 @@ void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
     // if we're in CPU, combine the graphs
     ngraph::NodeVector dYdXs;
     for (size_t i = 0; i < bf->get_output_size(); ++i) {
-      dYdXs.push_back(bf->get_output_op(i));
+      dYdXs.push_back(bf->get_output_op(i)->get_input_op(0));
     }
-    ngraph::NodeVector combined_outputs{f->get_output_op(0)};
+    ngraph::NodeVector combined_outputs{f->get_output_op(0)->get_input_op(0)};
     combined_outputs.insert(combined_outputs.end(), dYdXs.begin(), dYdXs.end());
 
     std::vector<std::shared_ptr<ngraph::op::Parameter>> combined_parameters =
@@ -171,7 +171,7 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
 std::shared_ptr<ngraph::Function> SGCompiler::MakeBackwardFunction(
     std::shared_ptr<Graph> sub_graph, std::shared_ptr<ngraph::Function> f) {
   // Get the output
-  auto Y = f->get_output_op(0);
+  auto Y = f->get_output_op(0)->get_input_op(0);
 
   // Create the Adjoint
   auto C = std::make_shared<ngraph::op::Parameter>(Y->get_element_type(),
