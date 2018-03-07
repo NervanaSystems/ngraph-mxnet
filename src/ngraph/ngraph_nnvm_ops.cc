@@ -24,32 +24,11 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <iomanip>
 
 #include "../operator/operator_common.h"
 #include "ngraph_nnvm_ops.h"
 #include "ngraph_nnvm_utils.h"
 
-using namespace ngraph;
-using namespace std;
-
-std::multimap<size_t, std::string>
-    aggregate_timing(const std::vector<ngraph::runtime::PerformanceCounter>& perf_data)
-    {
-    std::unordered_map<std::string, size_t> timing;
-    for (const ngraph::runtime::PerformanceCounter& p : perf_data)
-    {
-       std::string op = p.name().substr(0, p.name().find('_'));
-                       timing[op] += p.microseconds();
-                                    }
-
-                                        std::multimap<size_t, std::string> rc;
-                                            for (const std::pair<std::string, size_t>& t : timing)
-                                                {
-                                                        rc.insert({t.second, t.first});
-                                                            }
-                                                                return rc;
-                                                                }
 
 namespace ngraph_bridge {
 
@@ -92,19 +71,6 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
   std::vector<mxnet::NDArray> outs = {outputs[0]};
   result_to_NDArray(results, req, outs);
-
-  vector<runtime::PerformanceCounter> perf_data = graph->ngraph_forward[mode]->get_performance_data();
-  sort(perf_data.begin(),
-       perf_data.end(),
-       [](const runtime::PerformanceCounter& p1, const runtime::PerformanceCounter& p2) {
-          return p1.total_microseconds() > p2.total_microseconds();
-       });
-  multimap<size_t, string> timing = aggregate_timing(perf_data);
-  for (auto it = timing.rbegin(); it != timing.rend(); it++)
-  {
-     cout.imbue(locale(""));
-     cout << setw(15) << left << it->second << " " << setw(10) << right << it->first << "us\n";
-  }
 }
 
 // function for computing backward on ngraph
@@ -163,19 +129,6 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     }
     result_to_NDArray(graph->cached_aux_values[mode], aux_req, aux_outs);
   }
-  vector<runtime::PerformanceCounter> perf_data = graph->ngraph_backward[mode]->get_performance_data();
-  sort(perf_data.begin(),
-       perf_data.end(),
-       [](const runtime::PerformanceCounter& p1, const runtime::PerformanceCounter& p2) {
-          return p1.total_microseconds() > p2.total_microseconds();
-       });
-  multimap<size_t, string> timing = aggregate_timing(perf_data);
-  for (auto it = timing.rbegin(); it != timing.rend(); it++)
-  {
-     cout.imbue(locale(""));
-     cout << setw(15) << left << it->second << " " << setw(10) << right << it->first << "us\n";
-  }
-  throw;
 }
 
 void register_forward_op(std::shared_ptr<Graph> graph) {

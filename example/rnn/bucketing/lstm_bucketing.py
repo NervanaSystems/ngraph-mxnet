@@ -18,7 +18,7 @@
 import numpy as np
 import mxnet as mx
 import argparse
-import os
+import os,gc
 
 parser = argparse.ArgumentParser(description="Train RNN on Penn Tree Bank",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -124,3 +124,6 @@ if __name__ == '__main__':
         initializer         = mx.init.Xavier(factor_type="in", magnitude=2.34),
         num_epoch           = args.num_epochs,
         batch_end_callback  = mx.callback.Speedometer(args.batch_size, args.disp_batches, auto_reset=False))
+
+    del model
+    gc.collect()

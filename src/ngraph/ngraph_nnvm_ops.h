@@ -23,8 +23,50 @@
 
 #include <string>
 #include <vector>
+#include <iomanip>
+#include <iostream>
 
 #include "ngraph_graph.h"
+
+using namespace ngraph;
+using namespace std;
+
+static vector<runtime::PerformanceCounter> forward_perf;
+static vector<runtime::PerformanceCounter> backward_perf;
+
+inline std::multimap<size_t, std::string>
+    aggregate_timing(const std::vector<ngraph::runtime::PerformanceCounter>& perf_data)
+{
+    std::unordered_map<std::string, size_t> timing;
+    for (const ngraph::runtime::PerformanceCounter& p : perf_data)
+    {
+       std::string op = p.name().substr(0, p.name().find('_'));
+       timing[op] += p.microseconds();
+    }
+
+    std::multimap<size_t, std::string> rc;
+    for (const std::pair<std::string, size_t>& t : timing)
+    {
+       rc.insert({t.second, t.first});
+    }
+    return rc;
+}
+
+inline void print_perf_data(vector<runtime::PerformanceCounter> perf_data) {
+  if (perf_data.size() >0) {
+      sort(perf_data.begin(),
+           perf_data.end(),
+           [](const runtime::PerformanceCounter& p1, const runtime::PerformanceCounter& p2) {
+              return p1.total_microseconds() > p2.total_microseconds();
+           });
+      multimap<size_t, string> timing = aggregate_timing(perf_data);
+      for (auto it = timing.rbegin(); it != timing.rend(); it++)
+      {
+         cout.imbue(locale(""));
+         cout << setw(15) << left << it->second << " " << setw(10) << right << it->first << "us\n";
+      }
+  }
+}
 
 namespace ngraph_bridge {
 // function for returning nnvm::Op corresponding to a subgraph
@@ -54,6 +96,19 @@ struct NGraphParam {
   // forward func/backward func/this param object
   ~NGraphParam() {
     if (g != nullptr && g.use_count() <= 3) {
+      std::cout << "cleanup" << std::endl;
+      {
+          vector<runtime::PerformanceCounter> perf_data = g->ngraph_forward[1]->get_performance_data();
+          if (perf_data.size() >0)
+              forward_perf.insert(forward_perf.end(), perf_data.begin(), perf_data.end());
+          print_perf_data(forward_perf);
+      }
+      {
+          vector<runtime::PerformanceCounter> perf_data = g->ngraph_backward[1]->get_performance_data();
+          if (perf_data.size() >0)
+              backward_perf.insert(backward_perf.end(), perf_data.begin(), perf_data.end());
+          print_perf_data(backward_perf);
+      }
       g->CleanUp();
     }
   }
