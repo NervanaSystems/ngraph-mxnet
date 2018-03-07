@@ -41,7 +41,7 @@ inline std::multimap<size_t, std::string>
     for (const ngraph::runtime::PerformanceCounter& p : perf_data)
     {
        std::string op = p.name().substr(0, p.name().find('_'));
-       timing[op] += p.microseconds();
+       timing[op] += p.total_microseconds();
     }
 
     std::multimap<size_t, std::string> rc;
