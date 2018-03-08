@@ -37,9 +37,9 @@ namespace ngraph_bridge {
 // NGImperative constructor for mxnet compute kernel(s)
 NGImperative::NGImperative(const nnvm::NodeAttrs &attrs,
                            const mxnet::Context &ctx,
-                           const std::vector<mxnet::NDArray> &inputs,
+                           const std::vector<mxnet::TBlob> &inputs,
                            const std::vector<mxnet::OpReqType> *req,
-                           const std::vector<mxnet::NDArray> &outputs)
+                           const std::vector<mxnet::TBlob> &outputs)
     : Compiler(ctx) {
   // Construct nnvm symbol to represent the computation
   auto sym = nnvm::Symbol::CreateFunctor(attrs.op, attrs.dict);
@@ -63,8 +63,8 @@ NGImperative::NGImperative(const nnvm::NodeAttrs &attrs,
   nnvm::Graph g;
   g.outputs = sym.outputs;
   for (auto i : inputs) {
-    shapes_.push_back(i.shape());
-    dtypes_.push_back(i.dtype());
+    shapes_.push_back(i.shape_);
+    dtypes_.push_back(i.type_flag_);
   }
   // initialize ngraph
   DeepCopy(g);
@@ -87,7 +87,7 @@ void NGImperative::parse_ngraph() {
 // Registers ngraph operators with nnvm
 void InitImperativeOnce() {
   static auto &fcompute_cpu =
-      nnvm::Op::GetAttr<mxnet::FComputeEx>("FComputeEx<cpu>");
+      nnvm::Op::GetAttr<mxnet::FCompute>("FCompute<cpu>");
 
   for (auto unique_op : dmlc::Registry<nnvm::Op>::List()) {
     auto op_name = unique_op->name;
@@ -105,13 +105,13 @@ void InitImperativeOnce() {
 
     // use ngraph immperative, only if fallback available.
     if (fallback_fn) {
-      op.set_attr<mxnet::FComputeEx>(
-          "FComputeEx<cpu>",
+      op.set_attr<mxnet::FCompute>(
+          "FCompute<cpu>",
           [fallback_fn](const nnvm::NodeAttrs &attrs,
                         const mxnet::OpContext &ctx,
-                        const std::vector<mxnet::NDArray> &inputs,
+                        const std::vector<mxnet::TBlob> &inputs,
                         const std::vector<mxnet::OpReqType> &req,
-                        const std::vector<mxnet::NDArray> &outputs) -> void {
+                        const std::vector<mxnet::TBlob> &outputs) -> void {
             // thread local cache for ngraph op
             static thread_local NGIOpCache ngicache;
 
@@ -179,12 +179,11 @@ bool NGIOpEqual::operator()(const NGIOpKey &t1, const NGIOpKey &t2) const {
 }
 
 NGIOpKey get_ngiop_key(const nnvm::NodeAttrs &attrs, const mxnet::Context &ctx,
-                       const std::vector<mxnet::NDArray> &inputs) {
+                       const std::vector<mxnet::TBlob> &inputs) {
   std::vector<int> in;
   for (const auto &i : inputs) {
-    in.push_back(i.dtype());
-    for (size_t ii = 0; ii < i.shape().ndim(); ++ii)
-      in.push_back(i.shape()[ii]);
+    in.push_back(i.type_flag_);
+    for (size_t ii = 0; ii < i.shape_.ndim(); ++ii) in.push_back(i.shape_[ii]);
   }
   return NGIOpKey(attrs.op->name, {static_cast<int>(ctx.dev_type),
                                    static_cast<int>(ctx.dev_id)},

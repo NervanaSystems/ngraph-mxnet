@@ -96,16 +96,16 @@ TEST(NGRAPH_NNVM, GetBufferSize) {
   EXPECT_EQ(get_buffer_size(Tshape, 8), 960);
 }
 
-TEST(NGRAPH_NNVM, copy_NDArrays) {
+TEST(NGRAPH_NNVM, copy_TBlobs) {
   nnvm::TShape shape{10};
   std::vector<float> vec1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
   std::vector<float> vec2{11, 12, 13, 14, 15, 16, 17, 18, 19, 10};
 
-  mxnet::NDArray array1(mxnet::TBlob(vec1.data(), shape, 1, 0), 0);
-  mxnet::NDArray array2(mxnet::TBlob(vec2.data(), shape, 1, 0), 0);
-  std::vector<mxnet::NDArray> inblobs;
-  inblobs.push_back(array1);
-  inblobs.push_back(array2);
+  mxnet::TBlob TBlob1(vec1.data(), shape, 0);
+  mxnet::TBlob TBlob2(vec2.data(), shape, 0);
+  std::vector<mxnet::TBlob> inblobs;
+  inblobs.push_back(TBlob1);
+  inblobs.push_back(TBlob2);
 
   auto graph = std::make_shared<Graph>(Graph());
   auto backend = GetBackendFromContext(mxnet::Context::CPU());
@@ -119,16 +119,16 @@ TEST(NGRAPH_NNVM, copy_NDArrays) {
   /*                     ->get_vector<float>()); */
   std::vector<float> vec3{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   std::vector<float> vec4{1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-  mxnet::NDArray array3(mxnet::TBlob(vec3.data(), shape, 1, 0), 0);
-  mxnet::NDArray array4(mxnet::TBlob(vec4.data(), shape, 1, 0), 0);
-  std::vector<mxnet::NDArray> outblobs;
-  outblobs.push_back(array3);
-  outblobs.push_back(array4);
+  mxnet::TBlob TBlob3(vec3.data(), shape, 0);
+  mxnet::TBlob TBlob4(vec4.data(), shape, 0);
+  std::vector<mxnet::TBlob> outblobs;
+  outblobs.push_back(TBlob3);
+  outblobs.push_back(TBlob4);
 
   // test 1: kWriteTo - vec3 = vec1
   // test 2: kAddTo - vec4 += vec2
   std::vector<mxnet::OpReqType> req{mxnet::kWriteTo, mxnet::kAddTo};
-  result_to_NDArray(placeholders, req, outblobs);
+  result_to_TBlob(placeholders, req, outblobs);
   EXPECT_EQ(vec1, vec3);
   std::vector<float> vec4_plus_vec2{12, 13, 14, 15, 16, 17, 18, 19, 20, 11};
   EXPECT_EQ(vec4_plus_vec2, vec4);
