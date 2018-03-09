@@ -61,17 +61,19 @@ class NGRAPH_COMPILER : public ::testing::Test {
     nnvm_graph.outputs.push_back(relu);
 
     nnvm::TShape shape{2, 2};
-    std::unordered_map<std::string, int> dtypes;
     std::unordered_map<std::string, nnvm::TShape> shapes;
+    std::unordered_map<std::string, int> dtypes;
+    std::unordered_map<std::string, int> stypes;
 
     for (auto n : {A, B, C, D}) inputs.push_back(n.node);
 
     for (auto n : {"A", "B", "C", "D"}) {
-      dtypes[n] = 0;
       shapes[n] = shape;
+      dtypes[n] = 0;
+      stypes[n] = 0;
     }
     feed_dict[A] = mxnet::NDArray(shape, mxnet::Context());
-    bindarg = std::make_shared<ngraph_bridge::SimpleBindArg>(4, shapes, dtypes);
+    bindarg = std::make_shared<ngraph_bridge::SimpleBindArg>(4, shapes, dtypes, stypes);
   }
 
   virtual void TearDown() {}

@@ -65,9 +65,17 @@ NGImperative::NGImperative(const nnvm::NodeAttrs &attrs,
   for (auto i : inputs) {
     shapes_.push_back(i.shape_);
     dtypes_.push_back(i.type_flag_);
+    stypes_.push_back(mxnet::kDefaultStorage);
   }
+
+  stypes_.push_back(mxnet::kDefaultStorage);
+
   // initialize ngraph
   DeepCopy(g);
+
+  graph_.attrs["context"] = std::make_shared<nnvm::any>(
+      mxnet::exec::ContextVector(graph_.indexed_graph().num_nodes(), ctx));
+  
   MakeCopiedInputs(sym.ListInputs(nnvm::Symbol::kReadOnlyArgs));
 }
 

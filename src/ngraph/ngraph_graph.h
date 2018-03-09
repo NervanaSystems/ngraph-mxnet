@@ -18,6 +18,7 @@
 #define MXNET_NGRAPH_NGRAPH_GRAPH_H_
 
 #include <mxnet/base.h>
+#include <mxnet/ndarray.h>
 #include <nnvm/graph.h>
 #include <nnvm/symbolic.h>
 #include <nnvm/tuple.h>
@@ -80,6 +81,7 @@ class Node {
   // mxnet type information
   nnvm::TShape shape_;
   int dtype_ = 0;
+  int stype_ = mxnet::kDefaultStorage;
 
   // information to store graph parsing in
   size_t multi_output_index_ = 0;

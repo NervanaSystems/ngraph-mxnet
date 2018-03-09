@@ -40,7 +40,7 @@ using LayerGraphs = std::map<std::string, std::function<Graph(const NodePtr)>>;
 using NodeMap = std::map<const nnvm::Node*, std::shared_ptr<nnvm::Node>>;
 using NNVMNodeVec = std::vector<nnvm::NodePtr>;
 using NgraphShape = std::unordered_map<std::string, nnvm::TShape>;
-using NgraphDType = std::unordered_map<std::string, int>;
+using NgraphType = std::unordered_map<std::string, int>;
 using NDArrayMap = nnvm::NodeEntryMap<mxnet::NDArray>;
 using StateMap = std::unordered_map<const nnvm::Node*, mxnet::OpStatePtr>;
 
@@ -71,14 +71,17 @@ struct BindArg : public BindArgBase {
 
 // SimpleBind
 struct SimpleBindArg : public BindArgBase {
-  SimpleBindArg(size_t numforward,
-                const std::unordered_map<std::string, nnvm::TShape>& shapes,
-                const std::unordered_map<std::string, int>& dtypes)
-      : BindArgBase(numforward), shape_map_(shapes), dtype_map_(dtypes) {}
+  SimpleBindArg(size_t numforward, const NgraphShape& shapes,
+                const NgraphType& dtypes, const NgraphType& stypes)
+      : BindArgBase(numforward),
+        shape_map_(shapes),
+        dtype_map_(dtypes),
+        stype_map_(stypes) {}
 
   // simple bind arguments
   const NgraphShape shape_map_;
-  const NgraphDType dtype_map_;
+  const NgraphType dtype_map_;
+  const NgraphType stype_map_;
 };
 
 // This is a compile-time hash map that contains information on
@@ -171,9 +174,10 @@ class Compiler {
   void ParseNnvmGraph();
 
   StateMap CopySavedStates(const StateMap& saved_states);
-  // Return maps of the shapes and dtypes for further analysis in graph_executor
+  // Return maps of the shapes and types for further analysis in graph_executor
   const NgraphShape& GetNgraphShape() { return ngraph_shape_; }
-  const NgraphDType& GetNgraphDtype() { return ngraph_dtype_; }
+  const NgraphType& GetNgraphDtype() { return ngraph_dtype_; }
+  const NgraphType& GetNgraphStype() { return ngraph_stype_; }
   // Return copies of the feed_dict and inputs to feed back into the
   // graph executor inference engine
   const NDArrayMap& GetFeedDict() { return feed_dict_; }
@@ -203,7 +207,8 @@ class Compiler {
   ngraph_bridge::Graph ngraph_;
   // shape and type maps to return to the graph executor
   NgraphShape ngraph_shape_;
-  NgraphDType ngraph_dtype_;
+  NgraphType ngraph_dtype_;
+  NgraphType ngraph_stype_;
   // copied feed dict and inputs
   nnvm::NodeEntryMap<mxnet::NDArray> feed_dict_;
   NNVMNodeVec inputs_;
@@ -217,6 +222,8 @@ class Compiler {
   nnvm::ShapeVector shapes_;
   // inferred nnvm::Graph dtype
   nnvm::DTypeVector dtypes_;
+  // inferred nnvm::Graph storage type
+  nnvm::StorageVector stypes_;
 };
 
 }  // namespace ngraph_bridge
