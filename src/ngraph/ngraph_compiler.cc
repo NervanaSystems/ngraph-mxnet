@@ -169,7 +169,10 @@ void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
   ParseNnvmGraph();
   CheckInNgraph();
 
-  IdentifySubgraphs(ngraph_, [&feed_dict](NodePtr s) -> bool {
+  // Output Graphviz dot files (pre collapse) for vizualization
+  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, "pre_collapse");
+
+  IdentifySubgraphs(&ngraph_, [&feed_dict](NodePtr s) -> bool {
     bool in_feed_dict = false;
     for (auto kv : feed_dict) {
       if (kv.first.node->attrs.name == s->name_) {
@@ -179,17 +182,12 @@ void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
     }
     return (s->in_ngraph_ && s->type_ == NodeType::kOp && !in_feed_dict);
   });
+  // Output Graphviz dot files (post collapse) for vizualization
+  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, "post_collapse");
 }
 
 // Main compilation function
 nnvm::Graph Compiler::Compile() {
-  // Output Graphviz dot files (pre collapse) for vizualization
-  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, "pre_collapse");
-
-  CollapseSubgraphs(&ngraph_);
-
-  // Output Graphviz dot files (post collapse) for vizualization
-  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, "post_collapse");
 
   for (auto node : ngraph_.nodes_) {
     // store the input variable shape for use by nnvm

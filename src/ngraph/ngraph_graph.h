@@ -253,14 +253,14 @@ class Graph : public Node {
 /**
  * High level function that does the subgraph identification
  */
-void IdentifySubgraphs(const Graph &graph,
+void IdentifySubgraphs(Graph* graph,
                        const std::function<bool(NodePtr)> &func);
 
 /**
  * Convert graph from identified nodes to a network of nodes and graphs,
  * each graph node represented a combined ngraph operation
  */
-void CollapseSubgraphs(Graph *graph);
+void CollapseSubgraphs(Graph* graph, int subgraph_num);
 
 /**
  * Selection of nodes based on function criterion.

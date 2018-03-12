@@ -108,20 +108,19 @@ TEST_F(NGRAPH_GRAPH, GRAPH_FIND_SUBGRAPH) {
             6);
 }
 
-TEST_F(NGRAPH_GRAPH, GRAPH_IDENTIFY_SUBGRAPHS) {
-  IdentifySubgraphs(branching_graph, isop);
-  EXPECT_EQ(branching_graph.nodes_[0]->subgraph_, 0);
-  EXPECT_EQ(branching_graph.nodes_[1]->subgraph_, -1);
-  EXPECT_EQ(branching_graph.nodes_[2]->subgraph_, 1);
-  EXPECT_EQ(branching_graph.nodes_[3]->subgraph_, -1);
-  EXPECT_EQ(branching_graph.nodes_[4]->subgraph_, 1);
-  EXPECT_EQ(branching_graph.nodes_[5]->subgraph_, 1);
-  EXPECT_EQ(branching_graph.nodes_[6]->subgraph_, 0);
-}
+// TEST_F(NGRAPH_GRAPH, GRAPH_IDENTIFY_SUBGRAPHS) {
+//   IdentifySubgraphs(branching_graph, isop);
+//   EXPECT_EQ(branching_graph.nodes_[0]->subgraph_, 0);
+//   EXPECT_EQ(branching_graph.nodes_[1]->subgraph_, -1);
+//   EXPECT_EQ(branching_graph.nodes_[2]->subgraph_, 1);
+//   EXPECT_EQ(branching_graph.nodes_[3]->subgraph_, -1);
+//   EXPECT_EQ(branching_graph.nodes_[4]->subgraph_, 1);
+//   EXPECT_EQ(branching_graph.nodes_[5]->subgraph_, 1);
+//   EXPECT_EQ(branching_graph.nodes_[6]->subgraph_, 0);
+// }
 
-TEST_F(NGRAPH_GRAPH, GRAPH_COLLAPSE_SUBGRAPHS) {
-  IdentifySubgraphs(branching_graph, isop);
-  CollapseSubgraphs(&branching_graph);
+TEST_F(NGRAPH_GRAPH, GRAPH_IDENTIFY_SUBGRAPHS) {
+  IdentifySubgraphs(&branching_graph, isop);
   auto size = branching_graph.nodes_.size();
   EXPECT_EQ(size, 5);
   auto subgraph =
