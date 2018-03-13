@@ -269,79 +269,85 @@ std::vector<NodePtr> FindSubgraph(const Graph& graph, NodePtr node,
 }
 
 // function to identify and label connected ngraph ops as subgraphs
-void IdentifySubgraphs(const Graph& graph,
-                       const std::function<bool(NodePtr)>& func) {
+void IdentifySubgraphs(Graph* graph, const std::function<bool(NodePtr)>& func) {
   int sg = 1;
   // loop over the nodes from the back
-  for (auto n = graph.nodes_.rbegin(); n != graph.nodes_.rend(); ++n) {
-    if ((*n)->subgraph_ == 0) {
-      // select nodes in the a subgraph starting here and going up the graph
-      auto subgraph_nodes = FindSubgraph(graph, *n, func);
+  while (true) {
+    bool found_subgraph = false;
+    for (auto n = graph->nodes_.rbegin(); n != graph->nodes_.rend(); ++n) {
+      if ((*n)->subgraph_ == 0) {
+        // select nodes in the a subgraph starting here and going up the graph
+        auto subgraph_nodes = FindSubgraph(*graph, *n, func);
 
-      // if we found a significantly large subgraph, label it
-      if (subgraph_nodes.size() > 0) {
-        for (auto node : subgraph_nodes) {
-          node->subgraph_ = sg;
-        }
-        for (auto node : subgraph_nodes)
-          for (auto i : node->inputs_) {
-            if (i->subgraph_ != sg) i->subgraph_ = -1;
+        // if we found a significantly large subgraph, label it
+        if (subgraph_nodes.size() > 0) {
+          for (auto node : subgraph_nodes) {
+            node->subgraph_ = sg;
           }
-
-        sg += 1;
+          for (auto node : subgraph_nodes)
+            for (auto i : node->inputs_) {
+              if (i->subgraph_ != sg) i->subgraph_ = -1;
+            }
+          CollapseSubgraphs(graph, sg);
+          found_subgraph = true;
+          sg += 1;
+          break;
+        }
       }
+    }
+    if (found_subgraph) {
+      continue;
+    } else {
+      break;
     }
   }
 }
 
 // Function to collapse the intermediary graph into a graph
 // with subgraphs for nodes
-void CollapseSubgraphs(Graph* graph) {
+void CollapseSubgraphs(Graph* graph, int subgraph_num) {
   // loop variable for undefined number of subgraphs
-  int i = 1;
-  while (true) {
-    auto tmpGraph = std::make_shared<Graph>(
-        "subgraph_" + randomString(12) + std::to_string(i), graph->context_);
-    // loop over all nodes and add nodes in the current subgraph to
-    for (auto node : graph->nodes_)
-      if (node->subgraph_ == i) tmpGraph->AddNode(node);
-
-    if (tmpGraph->nodes_.size() == 0) {
-      // if we don't find any nodes, assume we've run out of subgraphs
-      break;
-    } else {
-      // if we found nodes, setup subgraph
-      tmpGraph->in_ngraph_ = true;
-      tmpGraph->subgraph_ = i;
-      // set node name and shape based on last node in the subgraph
-      auto output = tmpGraph->nodes_.back();
-      tmpGraph->shape_ = output->shape_;
-      tmpGraph->dtype_ = output->dtype_;
-
-      auto in_tmpGraphInputs = [&tmpGraph](NodePtr n) {
-        if (!in_vec(tmpGraph->inputs_, n)) return false;
-        return true;
-      };
-      // setup inputs to this subgraph (as a node)
-      for (auto node : tmpGraph->nodes_) {
-        for (auto input : node->inputs_) {
-          if (input->subgraph_ != i && !in_tmpGraphInputs(input))
-            tmpGraph->inputs_.emplace_back(input);
-        }
-      }
-      // set subgraph as input to all of the nodes downline.
-      for (auto n : graph->nodes_)
-        for (size_t i = 0; i < n->inputs_.size(); ++i)
-          if (n->inputs_[i] == output) n->inputs_[i] = tmpGraph;
-
-      // find the position we're replacing in the graph
-      auto it =
-          std::find_if(graph->nodes_.begin(), graph->nodes_.end(),
-                       [output](NodePtr n) -> bool { return (n == output); });
-      // insert the subgraph as a node
-      graph->nodes_.insert(it, tmpGraph);
+  auto tmpGraph = std::make_shared<Graph>(
+      "subgraph_" + randomString(12) + std::to_string(subgraph_num),
+      graph->context_);
+  // loop over all nodes and add nodes in the current subgraph to
+  for (auto node : graph->nodes_){
+    if (node->subgraph_ == subgraph_num) {
+      tmpGraph->AddNode(node);
     }
-    i += 1;
+  }
+
+  if (tmpGraph->nodes_.size() != 0) {
+    // if we found nodes, setup subgraph
+    tmpGraph->in_ngraph_ = true;
+    tmpGraph->subgraph_ = subgraph_num;
+    // set node name and shape based on last node in the subgraph
+    auto output = tmpGraph->nodes_.back();
+    tmpGraph->shape_ = output->shape_;
+    tmpGraph->dtype_ = output->dtype_;
+
+    auto in_tmpGraphInputs = [&tmpGraph](NodePtr n) {
+      if (!in_vec(tmpGraph->inputs_, n)) return false;
+      return true;
+    };
+    // setup inputs to this subgraph (as a node)
+    for (auto node : tmpGraph->nodes_) {
+      for (auto input : node->inputs_) {
+        if (input->subgraph_ != subgraph_num && !in_tmpGraphInputs(input))
+          tmpGraph->inputs_.emplace_back(input);
+      }
+    }
+    // set subgraph as input to all of the nodes downline.
+    for (auto n : graph->nodes_)
+      for (size_t i = 0; i < n->inputs_.size(); ++i)
+        if (n->inputs_[i] == output) n->inputs_[i] = tmpGraph;
+
+    // find the position we're replacing in the graph
+    auto it =
+        std::find_if(graph->nodes_.begin(), graph->nodes_.end(),
+                     [output](NodePtr n) -> bool { return (n == output); });
+    // insert the subgraph as a node
+    graph->nodes_.insert(it, tmpGraph);
   }
 
   // delete all the nodes we're replacing with the subgraph
@@ -352,5 +358,4 @@ void CollapseSubgraphs(Graph* graph) {
                                      }),
                       graph->nodes_.end());
 }
-
 }  // namespace ngraph_bridge
