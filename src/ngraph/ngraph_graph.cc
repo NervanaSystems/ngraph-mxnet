@@ -83,11 +83,6 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
 
   // save nodes that match some function condition
   visitor.operation = [&outNodes, &func](NodePtr node) {
-    for (auto input : node->inputs_) {
-      if (input->subgraph_ > 0) {
-        return;
-      }
-    }
     if (func(node)) outNodes.push_back(node);
   };
 
@@ -284,10 +279,6 @@ void IdentifySubgraphs(Graph* graph, const std::function<bool(NodePtr)>& func) {
           for (auto node : subgraph_nodes) {
             node->subgraph_ = sg;
           }
-          for (auto node : subgraph_nodes)
-            for (auto i : node->inputs_) {
-              if (i->subgraph_ != sg) i->subgraph_ = -1;
-            }
           CollapseSubgraphs(graph, sg);
           found_subgraph = true;
           sg += 1;

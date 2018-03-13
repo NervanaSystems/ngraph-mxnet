@@ -109,10 +109,7 @@ TEST_F(NGRAPH_GRAPH, GRAPH_FIND_SUBGRAPH) {
 }
 
 TEST_F(NGRAPH_GRAPH, GRAPH_COLLAPSE_SUBGRAPHS) {
-
-  WriteSubgraphDots(branching_graph, "pre_collapse_test");
   IdentifySubgraphs(&branching_graph, isop);
-  WriteSubgraphDots(branching_graph, "post_collapse_test");
   auto size = branching_graph.nodes_.size();
   EXPECT_EQ(size, 5);
   auto subgraph =
