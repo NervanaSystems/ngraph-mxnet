@@ -350,6 +350,9 @@ void CollapseSubgraphs(Graph* graph, int subgraph_num) {
         graph->nodes_.begin(), graph->nodes_.end(),
         [output](NodePtr n) -> bool { return (n == output->base_node_); });
     // insert the subgraph as a node
+    // for (auto n : tmpGraph->output_elements_) {
+    //   graph->nodes_.insert(it, n);
+    // }
     graph->nodes_.insert(it, tmpGraph);
   }
 

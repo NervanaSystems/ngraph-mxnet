@@ -68,7 +68,7 @@ class Node {
   virtual std::string createNodeLabel() {
     std::ostringstream stream;
     stream << name_ << this << " [label = \"" << name_ << this << shape_
-           << " \n sg=" << subgraph_ << "index=" << multi_output_index_ << "\"];";
+           << " \n sg=" << subgraph_ << " index=" << multi_output_index_ << "\"];";
     return stream.str();
   }
   // basic information about node
