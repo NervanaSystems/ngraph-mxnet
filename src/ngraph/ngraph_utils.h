@@ -16,8 +16,11 @@
 
 #ifndef MXNET_NGRAPH_NGRAPH_UTILS_H_
 #define MXNET_NGRAPH_NGRAPH_UTILS_H_
+#include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <iterator>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -179,6 +182,39 @@ get_default(const NodePtr& node, const std::string& key,
   }
   return out;
 }
+
+/// Emits a programmer-friendly representation, to assist with logging
+/// and debugging.
+std::ostream& operator<<(std::ostream& os, const ngraph::Shape& s);
+
+/// Emits a programmer-friendly representation, to assist with logging
+/// and debugging.
+std::ostream& operator<<(std::ostream& os, const ngraph::AxisSet& s);
+
+/// A convenience method to obtain the elements of s1 that are not
+/// present in s2.
+template <typename T>
+std::set<T> set_subtract(const std::set<T>& s1, const std::set<T>& s2) {
+  std::set<T> s3;
+  std::set_difference(s1.begin(), s1.end(), s2.begin(), s2.end(),
+                      std::inserter(s3, s3.end()));
+  return s3;
+}
+
+/// Return the set of axes present in the specified shape.
+/// Assume that the shape's axes are numbered consecutively starting at zero.
+ngraph::AxisSet shape_to_axis_set(const ngraph::Shape& s);
+
+/// Given the graph node \param n, return the subset of \param n's axes that
+/// would
+/// remain after removing the axes specified by \param a.
+/// Throw an exception if \param a is not a subset of \param n's axes.
+///
+/// This is useful for inverting the set of reduction axes when calling
+/// functions
+/// ngraph::builder::mean, etc.
+ngraph::AxisSet ngraph_remaining_axes(const NgraphNodePtr& n,
+                                      const ngraph::AxisSet& a);
 
 }  // namespace ngraph_bridge
 
