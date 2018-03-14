@@ -227,8 +227,8 @@ nnvm::Graph Compiler::Compile() {
       }
 
       auto matches = [&sg](nnvm::NodeEntry n) -> bool {
-        return (n.node == sg->nodes_.back()->orig_node_) &&
-               (n.index == sg->nodes_.back()->multi_output_index_);
+        return (n.node == sg->outputs_[0]->orig_node_) &&
+               (n.index == sg->outputs_[0]->multi_output_index_);
       };
 
       // Replace outputs if needed
@@ -385,6 +385,10 @@ void Compiler::ParseNnvmGraph() {
       }
     }
   });
+
+  for (auto e: graph_.outputs) {
+    ngraph_.outputs_.push_back(ngraph_[e]);
+  }
 
   // get the shape and data types of all of the nodes
   const auto& idx = graph_.indexed_graph();

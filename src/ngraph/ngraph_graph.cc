@@ -192,6 +192,23 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
   return outNodes;
 }
 
+std::vector<NodePtr> GetSubgraphOutputs(
+    const Graph& graph, 
+    const std::vector<NodePtr>& subgraph_nodes) {
+  std::vector<NodePtr> outNodes;
+  for (auto n : graph.nodes_)
+    if (!in_vec(subgraph_nodes, n))
+      for (auto i : n->inputs_)
+        if (in_vec(subgraph_nodes, i) && !in_vec(outNodes, i))
+          outNodes.emplace_back(i);
+
+  for (auto n : graph.outputs_)
+    if (in_vec(subgraph_nodes, n))
+      outNodes.emplace_back(n);
+
+  return outNodes;
+}
+
 /**
  * Modified subgraph to only return 1 output.
  * If we improve the subgraph compiler/nnvm op construction
@@ -206,16 +223,6 @@ std::vector<NodePtr> PruneSubgraphOutputs(
     const Graph& graph, NodePtr node,
     const std::vector<NodePtr>& initial_graph_nodes) {
   auto subgraph_nodes = initial_graph_nodes;
-  // function to get all the outputs of the subgraph
-  auto get_subgraph_outputs = [&graph, &subgraph_nodes]() {
-    std::vector<NodePtr> outNodes;
-    for (auto n : graph.nodes_)
-      if (!in_vec(subgraph_nodes, n))
-        for (auto i : n->inputs_)
-          if (in_vec(subgraph_nodes, i) && !in_vec(outNodes, i))
-            outNodes.emplace_back(i);
-    return outNodes;
-  };
 
   // function to remove all of the outputs that aren't the last one
   auto prune_subgraph = [&subgraph_nodes](std::vector<NodePtr> outNodes) {
@@ -233,7 +240,7 @@ std::vector<NodePtr> PruneSubgraphOutputs(
   int count = 0;
   while (!single_output && count < 100) {
     // get the current outputs
-    outNodes = get_subgraph_outputs();
+    outNodes = GetSubgraphOutputs(graph, subgraph_nodes);
     if (outNodes.size() <= 1) {
       single_output = true;
     } else {
@@ -308,12 +315,13 @@ void CollapseSubgraphs(Graph* graph, int subgraph_num) {
     }
   }
 
+  tmpGraph->outputs_ = GetSubgraphOutputs(*graph, tmpGraph->nodes_);
   if (tmpGraph->nodes_.size() != 0) {
     // if we found nodes, setup subgraph
     tmpGraph->in_ngraph_ = true;
     tmpGraph->subgraph_ = subgraph_num;
     // set node name and shape based on last node in the subgraph
-    auto output = tmpGraph->nodes_.back();
+    auto output = tmpGraph->outputs_[0];
     tmpGraph->shape_ = output->shape_;
     tmpGraph->dtype_ = output->dtype_;
 

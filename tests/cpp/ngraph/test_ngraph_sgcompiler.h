@@ -57,6 +57,7 @@ class NGRAPH_SGCOMPILER : public ::testing::Test {
     subgraph->inputs_.push_back(in3);
     subgraph->nodes_.push_back(node1);
     subgraph->nodes_.push_back(node2);
+    subgraph->outputs_.push_back(node2);
   }
 
   virtual void TearDown() {}

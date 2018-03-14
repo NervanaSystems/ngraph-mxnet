@@ -248,6 +248,8 @@ class Graph : public Node {
   std::vector<std::shared_ptr<ngraph::runtime::TensorView>>
       cached_aux_values[kGraphExeModeCount];
   const bool enable_fprop_cache;
+
+  std::vector<NodePtr> outputs_;
 };
 
 /**

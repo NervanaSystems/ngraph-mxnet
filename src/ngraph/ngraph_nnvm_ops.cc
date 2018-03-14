@@ -92,8 +92,8 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                                          inputs.end());
     auto placeholders = make_ngraph_placeholders(fwd_inputs, backend, true);
     // forward outputs
-    auto shape = TShape_to_NShape(graph->nodes_.back()->shape_);
-    const auto &element_type = getType(graph->nodes_.back()->dtype_);
+    auto shape = TShape_to_NShape(graph->outputs_[0]->shape_);
+    const auto &element_type = getType(graph->outputs_[0]->dtype_);
     auto output_tv = backend->make_primary_tensor_view(element_type, shape);
     TensorViewVector results{output_tv};
     append_cached_to_forward(&results, graph, mode);
@@ -121,7 +121,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   if (cached_aux_count > 0) {
     std::vector<mxnet::OpReqType> aux_req;
     std::vector<mxnet::TBlob> aux_outs;
-    OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(graph->nodes_.back());
+    OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(graph->outputs_[0]);
     auto op_config = op_node->config_;
     for (size_t i = 0; i < cached_aux_count; ++i) {
       aux_outs.push_back(outputs[op_config->MapAuxToOutput(i)]);

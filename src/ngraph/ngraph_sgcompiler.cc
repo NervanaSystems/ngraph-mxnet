@@ -137,13 +137,13 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   }
 
   // calcuate the shape and return type of the subgraph
-  auto Y = op_map_.at(sub_graph->nodes_.back());
+  auto Y = op_map_.at(sub_graph->outputs_[0]);
 
   const int mode = static_cast<int>(exe_mode_);
 
   // build ngraph function outputs based on default and aux nodes
   OpNodePtr op_node =
-      std::dynamic_pointer_cast<OpNode>(sub_graph->nodes_.back());
+      std::dynamic_pointer_cast<OpNode>(sub_graph->outputs_[0]);
   // default output
   ngraph::NodeVector outputs{Y};
 
@@ -198,7 +198,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
 
   // compile all the ndoes in the graph
-  CompileNodes(sub_graph->nodes_.back(), sub_graph);
+  CompileNodes(sub_graph->outputs_[0], sub_graph);
 
   auto f = MakeForwardFunction(sub_graph);
   auto bf = MakeBackwardFunction(sub_graph, f);
