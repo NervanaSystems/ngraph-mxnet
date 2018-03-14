@@ -68,7 +68,7 @@ class Node {
   virtual std::string createNodeLabel() {
     std::ostringstream stream;
     stream << name_ << this << " [label = \"" << name_ << this << shape_
-           << " \n sg=" << subgraph_ << "\"];";
+           << " \n sg=" << subgraph_ << "index=" << multi_output_index_ << "\"];";
     return stream.str();
   }
   // basic information about node
@@ -261,25 +261,18 @@ class OutputElement : public Node {
   OutputElement(std::shared_ptr<Graph> node, size_t index)
       : Node(NodeType::kOutput, node->outputs_[index]->orig_node_,
              node->outputs_[index]->name_),
-        base_node_(node->outputs_[index]),
-        index_(index) {
+        base_node_(node->outputs_[index]) {
+
     shape_ = base_node_->shape_;
     dtype_ = base_node_->dtype_;
 
     inputs_.push_back(node);
 
-    multi_output_index_ = base_node_->multi_output_index_;
+    multi_output_index_ = index;
     subgraph_ = base_node_->subgraph_;
   }
 
-  std::string createNodeLabel() override {
-    std::ostringstream stream;
-    stream << name_ << this << " [label = \"" << name_ << this << shape_
-           << " \n sg=" << subgraph_ << " index=" << index_ << "\"];";
-    return stream.str();
-  }
   NodePtr base_node_;
-  const size_t index_;
 };
 
 /**

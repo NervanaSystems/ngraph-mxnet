@@ -211,15 +211,6 @@ nnvm::Graph Compiler::Compile() {
       // extract and compile subgraph
       compiler_.setExeMode(GraphExeMode::kInfer);
       auto sg = compiler_.Compile(n);
-      // register compiled subgraph with nnvm
-      register_subgraph(sg);
-      // create nnvm node
-      auto node = CreateNNVMNode(sg);
-
-      auto output = sg->output_elements_[0];
-      nnvm::NodeEntry sg_node{
-          node, static_cast<uint32_t>(output->multi_output_index_),
-          static_cast<uint32_t>(0)};
 
       // compile subgraph in other execution modes,
       for (int i = 1; i < kGraphExeModeCount; ++i) {
@@ -227,6 +218,18 @@ nnvm::Graph Compiler::Compile() {
         compiler_.setExeMode(static_cast<GraphExeMode>(i));
         compiler_.Compile(n);
       }
+
+      // register compiled subgraph with nnvm
+      register_subgraph(sg);
+
+      // create nnvm node
+      auto node = CreateNNVMNode(sg);
+
+      auto output = sg->output_elements_[0];
+      
+      nnvm::NodeEntry sg_node{
+          node, static_cast<uint32_t>(output->multi_output_index_),
+          static_cast<uint32_t>(0)};
 
       auto matches = [&output](nnvm::NodeEntry n) -> bool {
         return (n.node == output->base_node_->orig_node_) &&
