@@ -142,8 +142,7 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   const int mode = static_cast<int>(exe_mode_);
 
   // build ngraph function outputs based on default and aux nodes
-  OpNodePtr op_node =
-      std::dynamic_pointer_cast<OpNode>(sub_graph->outputs_[0]);
+  OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(sub_graph->outputs_[0]);
   // default output
   ngraph::NodeVector outputs{Y};
 

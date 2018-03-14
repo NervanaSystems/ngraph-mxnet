@@ -28,23 +28,23 @@
 namespace ngraph_bridge {
 
 // Function to create an nnvm node from a ngraph subgraph
-nnvm::NodeEntry CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
+nnvm::NodePtr CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
   // init node, set name
   auto node = nnvm::Node::Create();
   node->attrs.name = subgraph->name_;
   // get the registered operation for the node
   node->attrs.op = get_subgraph_op(subgraph);
-  // setup the ninputs to the node
+  // setup the inputs to the node
   for (auto input : subgraph->inputs_)
-    node->inputs.emplace_back(nnvm::NodeEntry{input->orig_node_, 0, 0});
+    node->inputs.emplace_back(nnvm::NodeEntry{
+        input->orig_node_, static_cast<uint32_t>(input->multi_output_index_),
+        static_cast<uint32_t>(0)});
   // create dummy node parameters
   NGraphParam op;
   op.g = subgraph;
 
   node->attrs.parsed = std::move(op);
-
-  // init and return NodeEntry
-  return nnvm::NodeEntry{node, 0, 0};
+  return node;
 }
 
 // Generator to create functions that convert mxnet layer operations
@@ -168,7 +168,6 @@ void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
   MakeCopiedFeedDict(feed_dict);
   ParseNnvmGraph();
   CheckInNgraph();
-
 }
 
 void Compiler::IdentifyCollapseGraphs() {
@@ -192,7 +191,6 @@ void Compiler::IdentifyCollapseGraphs() {
 
 // Main compilation function
 nnvm::Graph Compiler::Compile() {
-
   IdentifyCollapseGraphs();
 
   for (auto node : ngraph_.nodes_) {
@@ -216,8 +214,12 @@ nnvm::Graph Compiler::Compile() {
       // register compiled subgraph with nnvm
       register_subgraph(sg);
       // create nnvm node
+      auto node = CreateNNVMNode(sg);
 
-      auto sg_node = CreateNNVMNode(sg);
+      auto output = sg->output_elements_[0];
+      nnvm::NodeEntry sg_node{
+          node, static_cast<uint32_t>(output->multi_output_index_),
+          static_cast<uint32_t>(0)};
 
       // compile subgraph in other execution modes,
       for (int i = 1; i < kGraphExeModeCount; ++i) {
@@ -226,9 +228,9 @@ nnvm::Graph Compiler::Compile() {
         compiler_.Compile(n);
       }
 
-      auto matches = [&sg](nnvm::NodeEntry n) -> bool {
-        return (n.node == sg->outputs_[0]->orig_node_) &&
-               (n.index == sg->outputs_[0]->multi_output_index_);
+      auto matches = [&output](nnvm::NodeEntry n) -> bool {
+        return (n.node == output->base_node_->orig_node_) &&
+               (n.index == output->base_node_->multi_output_index_);
       };
 
       // Replace outputs if needed
@@ -386,7 +388,7 @@ void Compiler::ParseNnvmGraph() {
     }
   });
 
-  for (auto e: graph_.outputs) {
+  for (auto e : graph_.outputs) {
     ngraph_.outputs_.push_back(ngraph_[e]);
   }
 

@@ -44,7 +44,7 @@ using NgraphNodePtr = std::shared_ptr<ngraph::Node>;
 using nnvmNodePtr = std::shared_ptr<nnvm::Node>;
 
 // Possible Types of nodes in Current Version
-enum class NodeType { kVariable, kAux, kOp, kGraph };
+enum class NodeType { kVariable, kAux, kOp, kGraph, kOutput };
 enum class GraphExeMode { kInfer = 0, kTrain };
 constexpr int kGraphExeModeCount = static_cast<int>(GraphExeMode::kTrain) -
                                    static_cast<int>(GraphExeMode::kInfer) + 1;
@@ -192,6 +192,8 @@ inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
   return backends[backend_name];
 }
 
+class OutputElement;
+
 /*
 Graph class
 Graph subclasses Node so that we can embed graphs into other graphs
@@ -250,6 +252,34 @@ class Graph : public Node {
   const bool enable_fprop_cache;
 
   std::vector<NodePtr> outputs_;
+  std::vector<std::shared_ptr<OutputElement>> output_elements_;
+};
+
+// Element to represent outputs of fused Graphs
+class OutputElement : public Node {
+ public:
+  OutputElement(std::shared_ptr<Graph> node, size_t index)
+      : Node(NodeType::kOutput, node->outputs_[index]->orig_node_,
+             node->outputs_[index]->name_),
+        base_node_(node->outputs_[index]),
+        index_(index) {
+    shape_ = base_node_->shape_;
+    dtype_ = base_node_->dtype_;
+
+    inputs_.push_back(node);
+
+    multi_output_index_ = base_node_->multi_output_index_;
+    subgraph_ = base_node_->subgraph_;
+  }
+
+  std::string createNodeLabel() override {
+    std::ostringstream stream;
+    stream << name_ << this << " [label = \"" << name_ << this << shape_
+           << " \n sg=" << subgraph_ << " index=" << index_ << "\"];";
+    return stream.str();
+  }
+  NodePtr base_node_;
+  const size_t index_;
 };
 
 /**
