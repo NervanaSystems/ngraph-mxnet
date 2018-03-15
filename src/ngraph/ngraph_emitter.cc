@@ -92,7 +92,7 @@ NgraphNodePtr Emitter::ReduceAxes(
     const NgraphNodePtr& node, ngraph::AxisVector axes, bool exclude,
     bool keepdims,
     const std::function<NgraphNodePtr(const NgraphNodePtr&,
-                                      const ngraph::AxisSet&)>& func) const {
+                                      const ngraph::AxisSet&)>& func) {
   ngraph::AxisSet reduction_axes;
   if (axes.size() == 0) {
     for (size_t i = 0; i < node->get_shape().size(); ++i)
@@ -132,7 +132,7 @@ NgraphNodePtr Emitter::ReduceAxes(
   // FIXME: create a utility function for const lookups in maps.
   // auto input = op_map_[node->inputs_[0]];
   const auto op_map_iter = op_map_.find(node->inputs_[0]);
-  NGRAPH_BRIDGE_DEBUG_CHECK( __FILE__, __LINE__, op_map_iter != op_map_.end() );
+  NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, op_map_iter != op_map_.end());
 
   auto input = op_map_iter->second;
 
@@ -787,7 +787,7 @@ void Emitter::CreateLayerOps() {
         get_default_transformed_axis(node, "axis", 1, node->shape_.ndim());
 
     const size_t num_channels = data_shape[channel_axis];
-    NGRAPH_BRIDGE_DEBUG_CHECK( __FILE__, __LINE__, num_channels > 0 );
+    NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, num_channels > 0);
 
     const ngraph::element::Type ng_element_type =
         ng_in_data->get_element_type();
@@ -848,13 +848,13 @@ void Emitter::CreateLayerOps() {
       NgraphNodePtr ng_batch_variance{};
 
       create_batchnorm_fprop_and_batch_stats_nodes(
-          *this, ng_in_data, channel_axis, ng_epsilon,
+          ng_in_data, channel_axis, ng_epsilon,
           ng_in_gamma_reshaped_or_null, ng_in_beta_reshaped, &ng_out_data,
           &ng_batch_mean, &ng_batch_variance);
 
-      NGRAPH_BRIDGE_DEBUG_CHECK( __FILE__, __LINE__, ng_out_data );
-      NGRAPH_BRIDGE_DEBUG_CHECK( __FILE__, __LINE__, ng_batch_mean );
-      NGRAPH_BRIDGE_DEBUG_CHECK( __FILE__, __LINE__, ng_batch_variance );
+      NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, ng_out_data);
+      NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, ng_batch_mean);
+      NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, ng_batch_variance);
 
       // Create and wire-in the ops to compute the updated moving mean and
       // moving variance...
@@ -886,7 +886,7 @@ void Emitter::CreateLayerOps() {
           ng_in_data, ng_epsilon, ng_in_gamma_reshaped_or_null,
           ng_in_beta_reshaped, &ng_out_data);
 
-      NGRAPH_BRIDGE_DEBUG_CHECK( __FILE__, __LINE__, ng_out_data );
+      NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, ng_out_data);
     }
 
     return ng_out_data;

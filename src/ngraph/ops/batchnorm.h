@@ -55,7 +55,7 @@ void create_batchnorm_basic_computation_nodes(
 /// \param[out] ng_out_batch_variance - Must not be null.  The callee modifies the
 /// pointed-to shared-pointer.
 void create_batchnorm_fprop_and_batch_stats_nodes(
-    const Emitter& emitter, const NgraphNodePtr& ng_in_data,
+    const NgraphNodePtr& ng_in_data,
     const size_t channel_axis, const NgraphNodePtr& ng_epsilon,
     const NgraphNodePtr& ng_in_gamma_reshaped_or_null,
     const NgraphNodePtr& ng_in_beta_reshaped, NgraphNodePtr* ng_out_data,

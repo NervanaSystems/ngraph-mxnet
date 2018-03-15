@@ -35,14 +35,14 @@ namespace ngraph_bridge {
 #define NGRAPH_BRIDGE_STR(S) #S
 
 #ifdef NDEBUG
-#define NGRAPH_BRIDGE_DEBUG_CHECK( FILENAME, LINENUM, PREDICATE ) {}
+#define NGRAPH_BRIDGE_DEBUG_CHECK(FILENAME, LINENUM, PREDICATE) {}
 #else
-#define NGRAPH_BRIDGE_DEBUG_CHECK( FILENAME, LINENUM, PREDICATE ) \
+#define NGRAPH_BRIDGE_DEBUG_CHECK(FILENAME, LINENUM, PREDICATE) \
   do { \
     if (!(PREDICATE)) { \
       std::ostringstream os; \
       os << FILENAME << ":" << LINENUM << " Failed check: " << NGRAPH_BRIDGE_XSTR(PREDICATE); \
-      throw std::runtime_error( os.str() ); \
+      throw std::runtime_error(os.str()); \
     } \
   } while (0)
 #endif

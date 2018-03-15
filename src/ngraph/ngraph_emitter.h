@@ -46,17 +46,17 @@ class Emitter {
 
  public:
   // Factory function for reducing based on a reduction op function
-  NgraphNodePtr ReduceAxes(
+  static NgraphNodePtr ReduceAxes(
       const NgraphNodePtr& node, ngraph::AxisVector axes, bool exclude,
       bool keepdims,
       const std::function<NgraphNodePtr(const NgraphNodePtr&,
-                                        const ngraph::AxisSet&)>& func) const;
+                                        const ngraph::AxisSet&)>& func);
+
+ protected:
   NgraphNodePtr ReduceAxes(
       const NodePtr& node,
       const std::function<NgraphNodePtr(const NgraphNodePtr&,
                                         const ngraph::AxisSet&)>& func) const;
-
- protected:
   /// initialize node operator configuration
   void InitOpConfig(OpNodePtr op_node) const;
 
