@@ -22,6 +22,8 @@
 #include <utility>
 #include <vector>
 
+#include <ngraph/ops/batch_norm.hpp>
+#include <ngraph/ops/get_output_element.hpp>
 #include "ngraph_sgcompiler_utils.h"
 
 namespace ngraph_bridge {
@@ -751,7 +753,7 @@ void Emitter::CreateLayerOps() {
   };
 
   // batch norm operation
-  ngraph_op_funcs_["BatchNorm"] = [this](const NodePtr& node) {
+  ngraph_op_funcs_["BatchNorm"] = [this](const NodePtr& node) -> NgraphNodePtr {
     enum InputName { kData = 0, kGamma, kBeta, kMovingMean, kMovingVar };
     NgraphNodePtr ng_in_data = op_map_[node->inputs_[kData]];
     NgraphNodePtr ng_in_gamma = op_map_[node->inputs_[kGamma]];
@@ -786,6 +788,27 @@ void Emitter::CreateLayerOps() {
     size_t channel_size = ng_in_data->get_shape()[channel_axis];
     // insert channel size at the proper index for the channel
     convert_shape.insert(convert_shape.begin() + channel_axis, channel_size);
+
+    if (data_shape_size == 4 && node->dtype_ == mshadow::kFloat32 &&
+        exe_mode_ == GraphExeMode::kTrain && !use_global_stats) {
+      auto BN = std::make_shared<ngraph::op::BatchNorm>(eps, ng_in_gamma,
+                                                        ng_in_beta, ng_in_data);
+      ng_mean = std::make_shared<ngraph::op::GetOutputElement>(BN, 1);
+      ng_var = std::make_shared<ngraph::op::GetOutputElement>(BN, 2);
+
+
+      NgraphNodePtr ng_one = makeConstant(ng_in_moving_mean->get_element_type(),
+                                          ng_in_moving_mean->get_shape(), "1");
+      NgraphNodePtr ng_momentum =
+          makeConstant(ng_in_moving_var->get_element_type(),
+                       ng_in_moving_var->get_shape(), std::to_string(momentum));
+
+      aux_op_map_[node->inputs_[kMovingMean]] =
+          ng_in_moving_mean * ng_momentum + ng_mean * (ng_one - ng_momentum);
+      aux_op_map_[node->inputs_[kMovingVar]] =
+          ng_in_moving_var * ng_momentum + ng_var * (ng_one - ng_momentum);
+      return std::make_shared<ngraph::op::GetOutputElement>(BN, 0);
+    }
 
     if (exe_mode_ == GraphExeMode::kTrain && !use_global_stats) {
       ng_mean = ReduceAxes(ng_in_data, {channel_axis}, true, true,
