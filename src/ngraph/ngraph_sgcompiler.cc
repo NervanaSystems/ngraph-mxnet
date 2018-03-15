@@ -148,19 +148,22 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   ngraph::NodeVector outputs{Y};
 
   auto backend = GetBackendFromContext(sub_graph->context_);
-  // push additional aux outputs
-  if (exe_mode_ == GraphExeMode::kTrain && op_node->config_ &&
-      !aux_op_map_.empty()) {
-    for (auto aux_node : op_node->config_->AuxNodes()) {
-      NgraphNodePtr ngraph_node = aux_op_map_.at(aux_node);
-      outputs.push_back(ngraph_node);
 
-      // cache aux node
-      if (sub_graph->enable_fprop_cache) {
+  // push additional aux outputs
+  if (exe_mode_ == GraphExeMode::kTrain && !aux_op_map_.empty()) {
+    int i = 0;
+    for (auto input : sub_graph->inputs_) {
+      if (aux_op_map_.count(input)) {
+        NgraphNodePtr ngraph_node = aux_op_map_.at(input);
+        outputs.push_back(ngraph_node);
+
+        // cache aux node
         sub_graph->cached_aux_values[mode].push_back(
             backend->make_primary_tensor_view(ngraph_node->get_element_type(),
                                               ngraph_node->get_shape()));
+        sub_graph->cached_aux_positions[mode].push_back(i);
       }
+      i += 1;
     }
   }
 
@@ -252,7 +255,6 @@ void SGCompiler::CompileNodes(NodePtr node,
       if (!in_vec(sub_graph->nodes_, node)) {
         this->CompileInput(node);
       } else {
-        InitOpConfig(std::dynamic_pointer_cast<OpNode>(node));
         this->op_map_[node] = this->ngraph_op_funcs_[node->operation_](node);
 
         // Verify that the shapes computed by NNVM and nGraph are identical...

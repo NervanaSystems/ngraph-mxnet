@@ -51,13 +51,6 @@ void Emitter::ClearOpMap() {
   placeholder_order_.clear();
 }
 
-void Emitter::InitOpConfig(OpNodePtr op_node) const {
-  if (op_node->operation_ == "BatchNorm") {
-    op_node->config_ = std::dynamic_pointer_cast<OpNode::OpConfig>(
-        std::make_shared<BatchNormOpConfig>());
-  }
-}
-
 /**
  * Transforms input axis attribute with name in key based on MXNet convention (0
  * based index), where
@@ -810,19 +803,20 @@ void Emitter::CreateLayerOps() {
           ng_var, order, ng_in_moving_var->get_shape());
 
       // update running averages
-      OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(node);
-      const std::vector<NodePtr>& aux_nodes = op_node->config_->AuxNodes();
+
       NgraphNodePtr ng_one = makeConstant(ng_in_moving_mean->get_element_type(),
                                           ng_in_moving_mean->get_shape(), "1");
       NgraphNodePtr ng_momentum =
           makeConstant(ng_in_moving_var->get_element_type(),
                        ng_in_moving_var->get_shape(), std::to_string(momentum));
       ngraph::Shape s = ng_in_moving_mean->get_shape();
-      aux_op_map_[aux_nodes[BatchNormOpConfig::kMovingMean]] =
+
+      aux_op_map_[node->inputs_[kMovingMean]] =
           ng_in_moving_mean * ng_momentum +
           ng_mean_temp * (ng_one - ng_momentum);
-      aux_op_map_[aux_nodes[BatchNormOpConfig::kMovingVar]] =
+      aux_op_map_[node->inputs_[kMovingVar]] =
           ng_in_moving_var * ng_momentum + ng_var_temp * (ng_one - ng_momentum);
+
     } else {
       // we expect to use global stats with inference
       ng_mean = std::make_shared<ngraph::op::Reshape>(
