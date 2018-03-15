@@ -789,7 +789,7 @@ void Emitter::CreateLayerOps() {
     // insert channel size at the proper index for the channel
     convert_shape.insert(convert_shape.begin() + channel_axis, channel_size);
 
-    if (data_shape_size == 4 && channel_axis == 1 &&
+    if (false && data_shape_size == 4 && channel_axis == 1 &&
         node->dtype_ == mshadow::kFloat32 &&
         exe_mode_ == GraphExeMode::kTrain && !use_global_stats) {
       auto BN = std::make_shared<ngraph::op::BatchNorm>(eps, ng_in_gamma,
