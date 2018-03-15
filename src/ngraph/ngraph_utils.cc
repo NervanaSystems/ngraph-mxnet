@@ -17,7 +17,6 @@
 #include "ngraph_utils.h"
 
 #include <algorithm>
-#include <cassert>
 #include <stdexcept>
 
 using namespace std;
@@ -54,8 +53,6 @@ ngraph::AxisSet shape_to_axis_set(const ngraph::Shape& s) {
 
 ngraph::AxisSet ngraph_remaining_axes(const NgraphNodePtr& n,
                                       const ngraph::AxisSet& a) {
-  assert(n);
-
   ngraph::AxisSet n_axes = shape_to_axis_set(n->get_shape());
 
   if (!std::includes(n_axes.begin(), n_axes.end(), a.begin(), a.end())) {
