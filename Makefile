@@ -88,6 +88,14 @@ CFLAGS += -I$(ROOTDIR)/mshadow/ -I$(ROOTDIR)/dmlc-core/include -fPIC -I$(NNVM_PA
 
 LDFLAGS = 
 ifeq ($(USE_NGRAPH),1)
+        clone := $(shell git clone https://github.com/NervanaSystems/ngraph.git)
+        mkdir := $(shell mkdir ngraph/build)
+        mkdir := $(shell mkdir ngraph_dist)
+        cmake := $(shell cd ngraph/build; cmake ../ -DNGRAPH_INSTALL_PREFIX=/localsdisk/adstraw/ngraph-mxnet/ngraph_dist -DNGRAPH_USE_PREBUILT_LLVM=TRUE)
+        make := $(shell cd ngraph/build; make -j44)
+        inst := $(shell cd ngraph/build; make install)
+        NGRAPH_DIR = $(ROOTDIR)/ngraph_dist
+
         CFLAGS += -I$(ROOTDIR)/src/ngraph -I$(NGRAPH_DIR)/include -DMXNET_USE_NGRAPH=1
         LDFLAGS += -L$(NGRAPH_DIR)/lib -liomp5 -lmkldnn -lngraph -lmklml_intel -Wl,--as-needed
 endif
