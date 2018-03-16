@@ -792,7 +792,14 @@ void Emitter::CreateLayerOps() {
     if (data_shape_size == 4 && channel_axis == 1 &&
         node->dtype_ == mshadow::kFloat32 &&
         exe_mode_ == GraphExeMode::kTrain && !use_global_stats) {
-      auto BN = std::make_shared<ngraph::op::BatchNorm>(eps, ng_in_gamma,
+      NgraphNodePtr gamma;
+      if (fix_gamma) {
+        gamma = makeConstant(ng_in_moving_mean->get_element_type(),
+                                          ng_in_moving_mean->get_shape(), "1");
+      } else {
+        gamma = ng_in_gamma;
+      }
+      auto BN = std::make_shared<ngraph::op::BatchNorm>(eps, gamma,
                                                         ng_in_beta, ng_in_data);
       ng_mean = std::make_shared<ngraph::op::GetOutputElement>(BN, 1);
       ng_var = std::make_shared<ngraph::op::GetOutputElement>(BN, 2);
