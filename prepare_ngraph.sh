@@ -52,7 +52,7 @@ fi
 
 cd $NGRAPH_CLONE_PATH
 
-# make sure it is an nGraph repository
+# check for nGraph repository
 REPO_NAME="$(basename -s .git `git config --get remote.origin.url`)"
 if [ "$REPO_NAME" != "ngraph" ]; then
 	echo "nGraph clone directory $NGRAPH_CLONE_PATH contains non-ngraph repository $REPO_NAME"
@@ -73,15 +73,15 @@ if [ "$REPO_VERSION" != *"$NGRAPH_VERSION"* ]; then
 		echo "Could not checkout nGraph version $NGRAPH_VERSION"
 		exit 1
 	fi
-fi
 
-# make ngraph build directory if it doesn't exist
-NGRAPH_BUILD_PATH=$NGRAPH_CLONE_PATH/build
-if [ ! -d $NGRAPH_BUILD_PATH ]; then
-	mkdir -p $NGRAPH_BUILD_PATH
-	if [ $? -ne 0 ]; then
-       		echo "Could not create nGraph build directory $NGRAPH_BUILD_PATH"
-	       	exit 1
+	# make ngraph build directory if it doesn't exist
+	NGRAPH_BUILD_PATH=$NGRAPH_CLONE_PATH/build
+	if [ ! -d $NGRAPH_BUILD_PATH ]; then
+		mkdir -p $NGRAPH_BUILD_PATH
+		if [ $? -ne 0 ]; then
+			echo "Could not create nGraph build directory $NGRAPH_BUILD_PATH"
+		       	exit 1
+		fi
 	fi
 
 	cd $NGRAPH_BUILD_PATH
