@@ -795,12 +795,12 @@ void Emitter::CreateLayerOps() {
       NgraphNodePtr gamma;
       if (fix_gamma) {
         gamma = makeConstant(ng_in_moving_mean->get_element_type(),
-                                          ng_in_moving_mean->get_shape(), "1");
+                             ng_in_moving_mean->get_shape(), "1");
       } else {
         gamma = ng_in_gamma;
       }
-      auto BN = std::make_shared<ngraph::op::BatchNorm>(eps, gamma,
-                                                        ng_in_beta, ng_in_data);
+      auto BN = std::make_shared<ngraph::op::BatchNorm>(eps, gamma, ng_in_beta,
+                                                        ng_in_data);
       ng_mean = std::make_shared<ngraph::op::GetOutputElement>(BN, 1);
       ng_var = std::make_shared<ngraph::op::GetOutputElement>(BN, 2);
 
