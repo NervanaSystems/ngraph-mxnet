@@ -132,7 +132,7 @@ NgraphNodePtr Emitter::ReduceAxes(
   // FIXME: create a utility function for const lookups in maps.
   // auto input = op_map_[node->inputs_[0]];
   const auto op_map_iter = op_map_.find(node->inputs_[0]);
-  NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, op_map_iter != op_map_.end());
+  CHECK(op_map_iter != op_map_.end());
 
   auto input = op_map_iter->second;
 
@@ -787,7 +787,7 @@ void Emitter::CreateLayerOps() {
         get_default_transformed_axis(node, "axis", 1, node->shape_.ndim());
 
     const size_t num_channels = data_shape[channel_axis];
-    NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, num_channels > 0);
+    CHECK_GT(num_channels, 0);
 
     const ngraph::element::Type ng_element_type =
         ng_in_data->get_element_type();
@@ -847,29 +847,27 @@ void Emitter::CreateLayerOps() {
       NgraphNodePtr ng_batch_mean{};
       NgraphNodePtr ng_batch_variance{};
 
+      std::tie(ng_out_data, ng_batch_mean, ng_batch_variance) =
       create_batchnorm_fprop_and_batch_stats_nodes(
           ng_in_data, channel_axis, ng_epsilon,
-          ng_in_gamma_reshaped_or_null, ng_in_beta_reshaped, &ng_out_data,
-          &ng_batch_mean, &ng_batch_variance);
+          ng_in_gamma_reshaped_or_null, ng_in_beta_reshaped);
 
-      NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, ng_out_data);
-      NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, ng_batch_mean);
-      NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, ng_batch_variance);
+      CHECK(ng_out_data);
+      CHECK(ng_batch_mean);
+      CHECK(ng_batch_variance);
 
       // Create and wire-in the ops to compute the updated moving mean and
       // moving variance...
       const NgraphNodePtr ng_ones = makeConstant(
           ng_in_moving_mean->get_element_type(), convert_shape, "1");
 
-      NgraphNodePtr ng_updated_moving_mean{};
-      create_batchnorm_recalculate_moving_mean_nodes(
-          ng_ones, ng_in_moving_mean_reshaped, ng_batch_mean, ng_momentum,
-          &ng_updated_moving_mean);
+      const NgraphNodePtr ng_updated_moving_mean = create_batchnorm_recalculate_moving_mean_nodes(
+          ng_ones, ng_in_moving_mean_reshaped, ng_batch_mean, ng_momentum);
 
-      NgraphNodePtr ng_updated_moving_variance{};
-      create_batchnorm_recalculate_moving_variance_nodes(
-          ng_ones, ng_in_moving_variance_reshaped, ng_batch_variance,
-          ng_momentum, &ng_updated_moving_variance);
+      const NgraphNodePtr ng_updated_moving_variance =
+          create_batchnorm_recalculate_moving_variance_nodes(
+              ng_ones, ng_in_moving_variance_reshaped, ng_batch_variance,
+              ng_momentum);
 
       const OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(node);
       const std::vector<NodePtr>& aux_nodes = op_node->config_->AuxNodes();
@@ -881,12 +879,12 @@ void Emitter::CreateLayerOps() {
           ng_updated_moving_variance;
     } else {
       // we expect to use global stats with inference
-      create_batchnorm_basic_computation_nodes(
+      ng_out_data = create_batchnorm_basic_computation_nodes(
           ng_in_moving_mean_reshaped, ng_in_moving_variance_reshaped,
           ng_in_data, ng_epsilon, ng_in_gamma_reshaped_or_null,
-          ng_in_beta_reshaped, &ng_out_data);
+          ng_in_beta_reshaped);
 
-      NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, ng_out_data);
+      CHECK(ng_out_data);
     }
 
     return ng_out_data;

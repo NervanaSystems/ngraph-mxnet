@@ -30,23 +30,6 @@
 
 namespace ngraph_bridge {
 
-// Needed for stringizing.  See https://gcc.gnu.org/onlinedocs/cpp/Stringizing.html#Stringizing
-#define NGRAPH_BRIDGE_XSTR(S) NGRAPH_BRIDGE_STR(S)
-#define NGRAPH_BRIDGE_STR(S) #S
-
-#ifdef NDEBUG
-#define NGRAPH_BRIDGE_DEBUG_CHECK(FILENAME, LINENUM, PREDICATE) {}
-#else
-#define NGRAPH_BRIDGE_DEBUG_CHECK(FILENAME, LINENUM, PREDICATE) \
-  do { \
-    if (!(PREDICATE)) { \
-      std::ostringstream os; \
-      os << FILENAME << ":" << LINENUM << " Failed check: " << NGRAPH_BRIDGE_XSTR(PREDICATE); \
-      throw std::runtime_error(os.str()); \
-    } \
-  } while (0)
-#endif
-
 // enable ngraph gluon at runtime.
 const bool ngraph_gluon_enable = dmlc::GetEnv("MXNET_NGRAPH_GLUON", false);
 const bool ngraph_optimzation =

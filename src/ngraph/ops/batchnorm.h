@@ -17,6 +17,8 @@
 #ifndef MXNET_NGRAPH_OPS_BATCHNORM_H_
 #define MXNET_NGRAPH_OPS_BATCHNORM_H_
 
+#include <tuple>
+
 #include "ngraph_emitter.h"
 
 namespace ngraph_bridge {
@@ -31,16 +33,19 @@ ngraph::Shape get_channel_only_keepdims_shape(const NgraphNodePtr& ng_in_data,
                                               const size_t channel_axis);
 
 /// Create an nGraph subgraph that computes batch-norm...
-/// - without using `ngraph::op::BatchNorm`,
-/// - mean/variance supplied by caller.
+/// - without using `ngraph::op::BatchNorm`, and
+/// - using mean/variance supplied by caller.
 ///
-/// \param[out] ng_out_data - Must not be null.  The callee modifies the
-/// pointed-to shared-pointer.
-void create_batchnorm_basic_computation_nodes(
+/// \param ng_in_gamma_reshaped_or_null Iff not null, the normalization
+/// formula will apply gamma correction.
+///
+/// \return A pointer to an nGraph node that computes the normalization of
+/// \param ng_in_data.
+NgraphNodePtr create_batchnorm_basic_computation_nodes(
     const NgraphNodePtr& ng_mean, const NgraphNodePtr& ng_variance,
     const NgraphNodePtr& ng_in_data, const NgraphNodePtr& ng_epsilon,
     const NgraphNodePtr& ng_in_gamma_reshaped_or_null,
-    const NgraphNodePtr& ng_in_beta_reshaped, NgraphNodePtr* ng_out_data);
+    const NgraphNodePtr& ng_in_beta_reshaped);
 
 /// Create an nGraph subgraph that computes batch-norm as well as batch-mean and
 /// batch-variance.  Use those values of mean/variance for the batch-norm
@@ -48,38 +53,29 @@ void create_batchnorm_basic_computation_nodes(
 /// The subgraph created by this function may or may not contain
 /// `ngraph::op::BatchNorm`.
 ///
-/// \param[out] ng_out_data - Must not be null.  The callee modifies the
-/// pointed-to shared-pointer.
-/// \param[out] ng_out_batch_mean - Must not be null.  The callee modifies the
-/// pointed-to shared-pointer.
-/// \param[out] ng_out_batch_variance - Must not be null.  The callee modifies the
-/// pointed-to shared-pointer.
-void create_batchnorm_fprop_and_batch_stats_nodes(
+/// \return A tuple whose elements point to nGraph nodes that produce,
+/// respectively:
+/// - the normalized input data,
+/// - the per-channel means of the input data, and
+/// - the per-channel variances of the input data.
+std::tuple< NgraphNodePtr, NgraphNodePtr, NgraphNodePtr >
+create_batchnorm_fprop_and_batch_stats_nodes(
     const NgraphNodePtr& ng_in_data,
     const size_t channel_axis, const NgraphNodePtr& ng_epsilon,
     const NgraphNodePtr& ng_in_gamma_reshaped_or_null,
-    const NgraphNodePtr& ng_in_beta_reshaped, NgraphNodePtr* ng_out_data,
-    NgraphNodePtr* ng_out_batch_mean, NgraphNodePtr* ng_out_batch_variance);
+    const NgraphNodePtr& ng_in_beta_reshaped);
 
 /// Create an nGraph subgraph that computes an updated moving-mean value.
-///
-/// \param[out] ng_out_moving_mean - Must not be null.  The callee modifies the
-/// pointed-to shared-pointer.
-void create_batchnorm_recalculate_moving_mean_nodes(
+NgraphNodePtr create_batchnorm_recalculate_moving_mean_nodes(
     const NgraphNodePtr& ng_ones,
     const NgraphNodePtr& ng_in_moving_mean_reshaped,
-    const NgraphNodePtr& ng_batch_mean, const NgraphNodePtr& ng_momentum,
-    NgraphNodePtr* ng_out_moving_mean);
+    const NgraphNodePtr& ng_batch_mean, const NgraphNodePtr& ng_momentum);
 
 /// Create an nGraph subgraph that computes an updated moving-variance value.
-///
-/// \param[out] ng_out_moving_variance - Must not be null.  The callee modifies the
-/// pointed-to shared-pointer.
-void create_batchnorm_recalculate_moving_variance_nodes(
+NgraphNodePtr create_batchnorm_recalculate_moving_variance_nodes(
     const NgraphNodePtr& ng_ones,
     const NgraphNodePtr& ng_in_moving_variance_reshaped,
-    const NgraphNodePtr& ng_batch_variance, const NgraphNodePtr& ng_momentum,
-    NgraphNodePtr* ng_out_moving_variance);
+    const NgraphNodePtr& ng_batch_variance, const NgraphNodePtr& ng_momentum);
 
 }  // namespace ngraph_bridge
 

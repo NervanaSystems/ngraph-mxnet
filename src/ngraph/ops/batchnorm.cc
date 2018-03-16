@@ -26,7 +26,7 @@ ngraph::Shape get_channel_only_keepdims_shape(const NgraphNodePtr& ng_in_data,
                                               const size_t channel_axis) {
   ngraph::Shape s = ng_in_data->get_shape();
 
-  NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, channel_axis < s.size());
+  CHECK(channel_axis < s.size());
 
   for (size_t i = 0; i < s.size(); ++i) {
     if (i != channel_axis) {
@@ -37,13 +37,11 @@ ngraph::Shape get_channel_only_keepdims_shape(const NgraphNodePtr& ng_in_data,
   return s;
 }
 
-void create_batchnorm_basic_computation_nodes(
+NgraphNodePtr create_batchnorm_basic_computation_nodes(
     const NgraphNodePtr& ng_mean, const NgraphNodePtr& ng_variance,
     const NgraphNodePtr& ng_in_data, const NgraphNodePtr& ng_epsilon,
     const NgraphNodePtr& ng_in_gamma_reshaped_or_null,
-    const NgraphNodePtr& ng_in_beta_reshaped, NgraphNodePtr* ng_out_data) {
-  NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, ng_out_data);
-
+    const NgraphNodePtr& ng_in_beta_reshaped) {
   const NgraphNodePtr denom =
       std::make_shared<ngraph::op::Sqrt>(ng_variance + ng_epsilon);
 
@@ -61,25 +59,21 @@ void create_batchnorm_basic_computation_nodes(
     result_maybe_with_gamma = result_simply_normalized;
   }
 
-  *ng_out_data = make_with_numpy_broadcast<ngraph::op::Add>(
+  return make_with_numpy_broadcast<ngraph::op::Add>(
       result_maybe_with_gamma, ng_in_beta_reshaped);
 }
 
-void create_batchnorm_fprop_and_batch_stats_nodes(
+std::tuple< NgraphNodePtr, NgraphNodePtr, NgraphNodePtr >
+create_batchnorm_fprop_and_batch_stats_nodes(
     const NgraphNodePtr& ng_in_data,
     const size_t channel_axis, const NgraphNodePtr& ng_epsilon,
     const NgraphNodePtr& ng_in_gamma_reshaped_or_null,
-    const NgraphNodePtr& ng_in_beta_reshaped, NgraphNodePtr* ng_out_data,
-    NgraphNodePtr* ng_out_batch_mean, NgraphNodePtr* ng_out_batch_variance) {
-  NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, ng_out_data);
-  NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, ng_out_batch_mean);
-  NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, ng_out_batch_variance);
-
+    const NgraphNodePtr& ng_in_beta_reshaped) {
   const size_t in_data_rank = ng_in_data->get_shape().size();
-  NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, in_data_rank > channel_axis);
+  CHECK_GT(in_data_rank, channel_axis);
 
   const size_t num_channels = ng_in_data->get_shape()[channel_axis];
-  NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, num_channels > 0);
+  CHECK_GT(num_channels, 0);
 
   const bool use_ngraph_mkldnn_kernel =
       (in_data_rank == 4) && (channel_axis == 1) &&
@@ -89,41 +83,37 @@ void create_batchnorm_fprop_and_batch_stats_nodes(
     // FIXME: Placeholder for NGMX-334 fix, which will sometimes use the new
     // ngraph::op::BatchNorm operator.
   } else {
-    *ng_out_batch_mean = Emitter::ReduceAxes(ng_in_data, {channel_axis}, true,
+    NgraphNodePtr ng_batch_mean = Emitter::ReduceAxes(ng_in_data, {channel_axis}, true,
                                            true, ngraph::builder::mean);
 
-    *ng_out_batch_variance =
+    NgraphNodePtr ng_batch_variance =
         Emitter::ReduceAxes(ng_in_data, {channel_axis}, true, true,
                            [](const std::shared_ptr<ngraph::Node>& node,
                               const ngraph::AxisSet& axes) {
                              return ngraph::builder::variance(node, axes);
                            });
 
-    create_batchnorm_basic_computation_nodes(
-        *ng_out_batch_mean, *ng_out_batch_variance, ng_in_data, ng_epsilon,
-        ng_in_gamma_reshaped_or_null, ng_in_beta_reshaped, ng_out_data);
+    NgraphNodePtr ng_out_data = create_batchnorm_basic_computation_nodes(
+        ng_batch_mean, ng_batch_variance, ng_in_data, ng_epsilon,
+        ng_in_gamma_reshaped_or_null, ng_in_beta_reshaped);
+
+    return std::make_tuple( ng_out_data, ng_batch_mean, ng_batch_variance );
   }
 }
 
-void create_batchnorm_recalculate_moving_mean_nodes(
+NgraphNodePtr create_batchnorm_recalculate_moving_mean_nodes(
     const NgraphNodePtr& ng_ones,
     const NgraphNodePtr& ng_in_moving_mean_reshaped,
-    const NgraphNodePtr& ng_batch_mean, const NgraphNodePtr& ng_momentum,
-    NgraphNodePtr* ng_out_moving_mean) {
-  NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, ng_out_moving_mean);
-
-  *ng_out_moving_mean = ng_in_moving_mean_reshaped * ng_momentum +
-                       ng_batch_mean * (ng_ones - ng_momentum);
+    const NgraphNodePtr& ng_batch_mean, const NgraphNodePtr& ng_momentum) {
+  return ng_in_moving_mean_reshaped * ng_momentum +
+    ng_batch_mean * (ng_ones - ng_momentum);
 }
 
-void create_batchnorm_recalculate_moving_variance_nodes(
+NgraphNodePtr create_batchnorm_recalculate_moving_variance_nodes(
     const NgraphNodePtr& ng_ones,
     const NgraphNodePtr& ng_in_moving_variance_reshaped,
-    const NgraphNodePtr& ng_batch_variance, const NgraphNodePtr& ng_momentum,
-    NgraphNodePtr* ng_out_moving_variance) {
-  NGRAPH_BRIDGE_DEBUG_CHECK(__FILE__, __LINE__, ng_out_moving_variance);
-
-  *ng_out_moving_variance = ng_in_moving_variance_reshaped * ng_momentum +
+    const NgraphNodePtr& ng_batch_variance, const NgraphNodePtr& ng_momentum) {
+  return ng_in_moving_variance_reshaped * ng_momentum +
                            ng_batch_variance * (ng_ones - ng_momentum);
 }
 
