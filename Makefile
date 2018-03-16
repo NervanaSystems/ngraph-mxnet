@@ -86,6 +86,11 @@ else
 endif
 CFLAGS += -I$(ROOTDIR)/mshadow/ -I$(ROOTDIR)/dmlc-core/include -fPIC -I$(NNVM_PATH)/include -I$(DLPACK_PATH)/include -Iinclude $(MSHADOW_CFLAGS)
 
+ifndef NGRAPH_DIR
+        NGRAPH_DIR = $(ROOTDIR)/ngraph/install
+        NGRAPH := $(shell ./prepare_ngraph.sh $(NGRAPH_DIR) v0.1.0-rc0)
+endif
+
 LDFLAGS = 
 ifeq ($(USE_NGRAPH),1)
         CFLAGS += -I$(ROOTDIR)/src/ngraph -I$(NGRAPH_DIR)/include -DMXNET_USE_NGRAPH=1
