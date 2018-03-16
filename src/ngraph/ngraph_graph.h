@@ -194,7 +194,7 @@ class Graph : public Node {
   // Graph with optional fprop cache
   Graph(const std::string &name = "",
         const mxnet::Context &context = mxnet::Context::CPU(),
-        const bool enable_fprop_cache = true)
+        const bool enable_fprop_cache = false)
       : Node(NodeType::kGraph, nullptr, name),
         context_(context),
         enable_fprop_cache(enable_fprop_cache) {}

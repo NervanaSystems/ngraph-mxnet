@@ -313,7 +313,7 @@ void Compiler::CheckInNgraph() {
         if (node->operation_ == "BatchNorm") {
           auto shape = TShape_to_NShape(node->shape_);
           if (shape[1] % 8 != 0) {
-            // node->in_ngraph_ = false;
+            node->in_ngraph_ = false;
           }
         }
         if (node->dtype_ == mshadow::kFloat16) {
