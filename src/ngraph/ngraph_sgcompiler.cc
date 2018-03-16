@@ -51,7 +51,7 @@ void dump_graph(std::shared_ptr<ngraph::Function> f) {
 void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
                             std::shared_ptr<ngraph::Function> f,
                             std::shared_ptr<ngraph::Function> bf,
-                            GraphExeMode exe_mode) {
+                            GraphExeMode exe_mode, const ngraph::FpropCache& fprop_cache) {
   const int mode = static_cast<int>(exe_mode);
 
   auto manager = GetManagerFromContext(sub_graph->context_);
@@ -73,6 +73,17 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
 
   sub_graph->ngraph_forward[mode] =
       backend->make_call_frame(manager->compile(f_copy));
+   
+  for (auto result : f->get_results()) {
+    if (fprop_cache.node_param_map->exists(result->get_input_op(0))) {
+      auto cloned_result = fmap.get(result);
+      auto bf_param = fprop_cache.node_param_map->get(result->get_input_op(0));
+      auto cloned_bf_param = bfmap.get(bf_param);
+      auto layout = cloned_result->get_output_tensor_view()->get_tensor_view_layout();
+      cloned_bf_param->get_output_tensor_view()->set_tensor_view_layout(layout);
+    }
+  }
+
   sub_graph->ngraph_backward[mode] =
       backend->make_call_frame(manager->compile(bf_copy));
 }
@@ -224,7 +235,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     }
 
     CompileForwardBackward(sub_graph, fprop_cache.fprop, fprop_cache.bprop,
-                           exe_mode_);
+                           exe_mode_, fprop_cache);
 
     for (auto node : fprop_cache.fprop_output_nodes) {
       sub_graph->cached_values[static_cast<int>(exe_mode_)].push_back(
@@ -233,7 +244,9 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     }
 
   } else {
-    CompileForwardBackward(sub_graph, f, bf, exe_mode_);
+    ngraph::FpropCache fprop_cache;
+    fprop_cache.node_param_map = std::make_shared<ngraph::NodeMap>();
+    CompileForwardBackward(sub_graph, f, bf, exe_mode_, fprop_cache);
   }
 }
 

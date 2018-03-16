@@ -314,8 +314,6 @@ void Compiler::CheckInNgraph() {
             node->operation_ == "Convolution") {
           auto shape = TShape_to_NShape(node->inputs_[0]->shape_);
           if (shape[1] % 8 != 0) {
-            std::cout << node->name_ << " channel size = " << shape[1]
-                      << std::endl;
             node->in_ngraph_ = false;
           }
         }
