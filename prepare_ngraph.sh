@@ -75,12 +75,12 @@ if [ "$REPO_VERSION" != *"$NGRAPH_VERSION"* ]; then
 	fi
 
 	# make ngraph build directory if it doesn't exist
-	NGRAPH_BUILD_PATH=$NGRAPH_CLONE_PATH/build
+	NGRAPH_BUILD_PATH="$NGRAPH_CLONE_PATH/build"
 	if [ ! -d $NGRAPH_BUILD_PATH ]; then
 		mkdir -p $NGRAPH_BUILD_PATH
 		if [ $? -ne 0 ]; then
 			echo "Could not create nGraph build directory $NGRAPH_BUILD_PATH"
-		       	exit 1
+			exit 1
 		fi
 	fi
 
