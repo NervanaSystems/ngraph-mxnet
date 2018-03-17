@@ -310,8 +310,7 @@ void Compiler::CheckInNgraph() {
     if (node->type_ == NodeType::kOp) {
       if (compiler_.ngraph_op_funcs_.count(node->operation_)) {
         node->in_ngraph_ = true;
-        if (node->operation_ == "BatchNorm" ||
-            node->operation_ == "Convolution") {
+        if (node->operation_ == "BatchNorm") {
           auto shape = TShape_to_NShape(node->inputs_[0]->shape_);
           if (shape[1] % 8 != 0) {
             node->in_ngraph_ = false;
