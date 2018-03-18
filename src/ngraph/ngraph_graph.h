@@ -137,15 +137,6 @@ class OpNode : public Node {
       : Node(NodeType::kOp, node, name, inputs) {
     operation_ = operation;
   }
-
-  // Operator specific setups
-  class OpConfig {
-   public:
-    virtual const std::vector<NodePtr> &AuxNodes() const = 0;
-    virtual size_t MapAuxToOutput(size_t i) const = 0;
-  };
-
-  std::shared_ptr<OpConfig> config_;
 };
 
 // makes sure you have only one manager of one type
@@ -213,6 +204,7 @@ class Graph : public Node {
     for (int i = 0; i < kGraphExeModeCount; ++i) {
       cached_values[i].clear();
       cached_aux_values[i].clear();
+      cached_aux_positions[i].clear();
 
       ngraph_forward[i] = nullptr;
       ngraph_backward[i] = nullptr;
@@ -247,6 +239,9 @@ class Graph : public Node {
       cached_values[kGraphExeModeCount];
   std::vector<std::shared_ptr<ngraph::runtime::TensorView>>
       cached_aux_values[kGraphExeModeCount];
+
+  std::vector<int> cached_aux_positions[kGraphExeModeCount];
+
   const bool enable_fprop_cache;
 };
 
