@@ -51,7 +51,8 @@ void dump_graph(std::shared_ptr<ngraph::Function> f) {
 void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
                             std::shared_ptr<ngraph::Function> f,
                             std::shared_ptr<ngraph::Function> bf,
-                            GraphExeMode exe_mode) {
+                            GraphExeMode exe_mode,
+                            const ngraph::FpropCache &fprop_cache) {
   const int mode = static_cast<int>(exe_mode);
 
   auto manager = GetManagerFromContext(sub_graph->context_);
@@ -73,6 +74,18 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
 
   sub_graph->ngraph_forward[mode] =
       backend->make_call_frame(manager->compile(f_copy));
+
+  for (auto result : f->get_results()) {
+    if (fprop_cache.node_param_map->exists(result->get_input_op(0))) {
+      auto cloned_result = fmap.get(result);
+      auto bf_param = fprop_cache.node_param_map->get(result->get_input_op(0));
+      auto cloned_bf_param = bfmap.get(bf_param);
+      auto layout =
+          cloned_result->get_output_tensor_view()->get_tensor_view_layout();
+      cloned_bf_param->get_output_tensor_view()->set_tensor_view_layout(layout);
+    }
+  }
+
   sub_graph->ngraph_backward[mode] =
       backend->make_call_frame(manager->compile(bf_copy));
 }
@@ -148,19 +161,22 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   ngraph::NodeVector outputs{Y};
 
   auto backend = GetBackendFromContext(sub_graph->context_);
-  // push additional aux outputs
-  if (exe_mode_ == GraphExeMode::kTrain && op_node->config_ &&
-      !aux_op_map_.empty()) {
-    for (auto aux_node : op_node->config_->AuxNodes()) {
-      NgraphNodePtr ngraph_node = aux_op_map_.at(aux_node);
-      outputs.push_back(ngraph_node);
 
-      // cache aux node
-      if (sub_graph->enable_fprop_cache) {
+  // push additional aux outputs
+  if (exe_mode_ == GraphExeMode::kTrain && !aux_op_map_.empty()) {
+    int i = 0;
+    for (auto input : sub_graph->inputs_) {
+      if (aux_op_map_.count(input)) {
+        NgraphNodePtr ngraph_node = aux_op_map_.at(input);
+        outputs.push_back(ngraph_node);
+
+        // cache aux node
         sub_graph->cached_aux_values[mode].push_back(
             backend->make_primary_tensor_view(ngraph_node->get_element_type(),
                                               ngraph_node->get_shape()));
+        sub_graph->cached_aux_positions[mode].push_back(i);
       }
+      i += 1;
     }
   }
 
@@ -221,7 +237,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     }
 
     CompileForwardBackward(sub_graph, fprop_cache.fprop, fprop_cache.bprop,
-                           exe_mode_);
+                           exe_mode_, fprop_cache);
 
     for (auto node : fprop_cache.fprop_output_nodes) {
       sub_graph->cached_values[static_cast<int>(exe_mode_)].push_back(
@@ -230,7 +246,9 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     }
 
   } else {
-    CompileForwardBackward(sub_graph, f, bf, exe_mode_);
+    ngraph::FpropCache fprop_cache;
+    fprop_cache.node_param_map = std::make_shared<ngraph::NodeMap>();
+    CompileForwardBackward(sub_graph, f, bf, exe_mode_, fprop_cache);
   }
 }
 
@@ -252,7 +270,6 @@ void SGCompiler::CompileNodes(NodePtr node,
       if (!in_vec(sub_graph->nodes_, node)) {
         this->CompileInput(node);
       } else {
-        InitOpConfig(std::dynamic_pointer_cast<OpNode>(node));
         this->op_map_[node] = this->ngraph_op_funcs_[node->operation_](node);
 
         // Verify that the shapes computed by NNVM and nGraph are identical...
@@ -262,7 +279,22 @@ void SGCompiler::CompileNodes(NodePtr node,
         const nnvm::TShape ngraph_shape_as_nnvm_shape =
             NShape_to_TShape(ngraph_provided_shape);
 
-        if (nnvm_shape != ngraph_shape_as_nnvm_shape) {
+        bool bad_shape = false;
+        // nGraph represent scalars as 0-dim tensors
+        // nnvm::TShape represents them as 1-dim tensors of size 1
+        // if nGraph is returing a 0-dim tensor, the nnvm
+        // shape should be size 1
+        if (((ngraph_provided_shape.size() == 0) &&
+             !(nnvm_shape.ndim() == 1 && nnvm_shape[0] == 1))) {
+          bad_shape = true;
+          // if ngraph is returning a finitely-sized tensor,
+          // the two shapes should match
+        } else if ((ngraph_provided_shape.size() != 0) &&
+                   (nnvm_shape != ngraph_shape_as_nnvm_shape)) {
+          bad_shape = true;
+        }
+        // if either of those conditions doesn't hold, throw an error
+        if (bad_shape) {
           std::ostringstream os;
           os << "NGRAPH_BRIDGE: In " << __PRETTY_FUNCTION__ << " : "
              << std::endl;

@@ -86,7 +86,14 @@ else
 endif
 CFLAGS += -I$(ROOTDIR)/mshadow/ -I$(ROOTDIR)/dmlc-core/include -fPIC -I$(NNVM_PATH)/include -I$(DLPACK_PATH)/include -Iinclude $(MSHADOW_CFLAGS)
 
-LDFLAGS = 
+ifndef NGRAPH_DIR
+  ifeq ($(USE_NGRAPH),1)
+        NGRAPH_DIR = $(ROOTDIR)/ngraph/install
+        NGRAPH := $(shell ./prepare_ngraph.sh $(NGRAPH_DIR) v0.1.0-rc0)
+  endif
+endif
+
+LDFLAGS =
 ifeq ($(USE_NGRAPH),1)
         CFLAGS += -I$(ROOTDIR)/src/ngraph -I$(NGRAPH_DIR)/include -DMXNET_USE_NGRAPH=1
         LDFLAGS += -L$(NGRAPH_DIR)/lib -liomp5 -lmkldnn -lngraph -lmklml_intel -Wl,--as-needed
@@ -366,7 +373,7 @@ ifeq ($(USE_CUDA), 1)
 		LDFLAGS += -lcuda -lnvrtc
 		CFLAGS += -DMXNET_ENABLE_CUDA_RTC=1
 	endif
-	# Make sure to add stubs as fallback in order to be able to build 
+	# Make sure to add stubs as fallback in order to be able to build
 	# without full CUDA install (especially if run without nvidia-docker)
 	LDFLAGS += -L/usr/local/cuda/lib64/stubs
 	SCALA_PKG_PROFILE := $(SCALA_PKG_PROFILE)-gpu
