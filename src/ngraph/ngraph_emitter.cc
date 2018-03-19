@@ -22,6 +22,8 @@
 #include <utility>
 #include <vector>
 
+#include <ngraph/ops/batch_norm.hpp>
+#include <ngraph/ops/get_output_element.hpp>
 #include "ngraph_sgcompiler_utils.h"
 
 namespace ngraph_bridge {
@@ -49,13 +51,6 @@ void Emitter::ClearOpMap() {
   // delete the temporary storage
   op_map_.clear();
   placeholder_order_.clear();
-}
-
-void Emitter::InitOpConfig(OpNodePtr op_node) const {
-  if (op_node->operation_ == "BatchNorm") {
-    op_node->config_ = std::dynamic_pointer_cast<OpNode::OpConfig>(
-        std::make_shared<BatchNormOpConfig>());
-  }
 }
 
 /**
@@ -758,7 +753,7 @@ void Emitter::CreateLayerOps() {
   };
 
   // batch norm operation
-  ngraph_op_funcs_["BatchNorm"] = [this](const NodePtr& node) {
+  ngraph_op_funcs_["BatchNorm"] = [this](const NodePtr& node) -> NgraphNodePtr {
     enum InputName { kData = 0, kGamma, kBeta, kMovingMean, kMovingVar };
     NgraphNodePtr ng_in_data = op_map_[node->inputs_[kData]];
     NgraphNodePtr ng_in_gamma = op_map_[node->inputs_[kGamma]];
@@ -794,6 +789,34 @@ void Emitter::CreateLayerOps() {
     // insert channel size at the proper index for the channel
     convert_shape.insert(convert_shape.begin() + channel_axis, channel_size);
 
+    if (data_shape_size == 4 && channel_axis == 1 &&
+        node->dtype_ == mshadow::kFloat32 &&
+        exe_mode_ == GraphExeMode::kTrain && !use_global_stats) {
+      NgraphNodePtr gamma;
+      if (fix_gamma) {
+        gamma = makeConstant(ng_in_moving_mean->get_element_type(),
+                             ng_in_moving_mean->get_shape(), "1");
+      } else {
+        gamma = ng_in_gamma;
+      }
+      auto BN = std::make_shared<ngraph::op::BatchNorm>(eps, gamma, ng_in_beta,
+                                                        ng_in_data);
+      ng_mean = std::make_shared<ngraph::op::GetOutputElement>(BN, 1);
+      ng_var = std::make_shared<ngraph::op::GetOutputElement>(BN, 2);
+
+      NgraphNodePtr ng_one = makeConstant(ng_in_moving_mean->get_element_type(),
+                                          ng_in_moving_mean->get_shape(), "1");
+      NgraphNodePtr ng_momentum =
+          makeConstant(ng_in_moving_var->get_element_type(),
+                       ng_in_moving_var->get_shape(), std::to_string(momentum));
+
+      aux_op_map_[node->inputs_[kMovingMean]] =
+          ng_in_moving_mean * ng_momentum + ng_mean * (ng_one - ng_momentum);
+      aux_op_map_[node->inputs_[kMovingVar]] =
+          ng_in_moving_var * ng_momentum + ng_var * (ng_one - ng_momentum);
+      return std::make_shared<ngraph::op::GetOutputElement>(BN, 0);
+    }
+
     if (exe_mode_ == GraphExeMode::kTrain && !use_global_stats) {
       ng_mean = ReduceAxes(ng_in_data, {channel_axis}, true, true,
                            ngraph::builder::mean);
@@ -810,19 +833,20 @@ void Emitter::CreateLayerOps() {
           ng_var, order, ng_in_moving_var->get_shape());
 
       // update running averages
-      OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(node);
-      const std::vector<NodePtr>& aux_nodes = op_node->config_->AuxNodes();
+
       NgraphNodePtr ng_one = makeConstant(ng_in_moving_mean->get_element_type(),
                                           ng_in_moving_mean->get_shape(), "1");
       NgraphNodePtr ng_momentum =
           makeConstant(ng_in_moving_var->get_element_type(),
                        ng_in_moving_var->get_shape(), std::to_string(momentum));
       ngraph::Shape s = ng_in_moving_mean->get_shape();
-      aux_op_map_[aux_nodes[BatchNormOpConfig::kMovingMean]] =
+
+      aux_op_map_[node->inputs_[kMovingMean]] =
           ng_in_moving_mean * ng_momentum +
           ng_mean_temp * (ng_one - ng_momentum);
-      aux_op_map_[aux_nodes[BatchNormOpConfig::kMovingVar]] =
+      aux_op_map_[node->inputs_[kMovingVar]] =
           ng_in_moving_var * ng_momentum + ng_var_temp * (ng_one - ng_momentum);
+
     } else {
       // we expect to use global stats with inference
       ng_mean = std::make_shared<ngraph::op::Reshape>(
