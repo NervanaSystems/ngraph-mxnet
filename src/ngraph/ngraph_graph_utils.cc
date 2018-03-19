@@ -36,29 +36,28 @@ void WriteDot(const Graph& graph, const std::string& fname) {
   visitor.operation = [&dotfile, &visited](NodePtr node) {
     if (visited.count(node)) {
       return;
-    } else { 
+    } else {
       visited.insert(node);
-    } 
-    for (auto i : node->inputs_) {
-      dotfile << i->name_ << i.get() << " -> " << node->name_ << node.get() << ";"
-              << std::endl;
     }
-    //write label
+    for (auto i : node->inputs_) {
+      dotfile << i->name_ << i.get() << " -> " << node->name_ << node.get()
+              << ";" << std::endl;
+    }
+    // write label
     dotfile << node->createNodeLabel() << std::endl;
   };
 
   visitor.stop_condition = [&visited](NodePtr node, NodePtr input) {
     // continue if...
-    // 2) input not visited 
+    // 2) input not visited
     if (!visited.count(input)) {
       return false;
-    } 
+    }
     // else, stop traversing the graph
     return true;
   };
 
-  for (auto node : graph.outputs_)
-    GraphTraverse(node, visitor);                               
+  for (auto node : graph.outputs_) GraphTraverse(node, visitor);
 
   // Finish file.
   dotfile << "}" << std::endl;

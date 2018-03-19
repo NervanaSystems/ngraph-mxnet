@@ -69,7 +69,10 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   append_cached_to_forward(&results, graph, mode);
   graph->ngraph_forward[mode]->call(placeholders, results);
 
-  std::vector<mxnet::TBlob> outs = {outputs[0]};
+  std::vector<mxnet::TBlob> outs;
+  for (size_t i = 0; i < graph->num_outputs_; ++i) {
+    outs.push_back(outputs[i]);
+  }
   result_to_TBlob(results, req, outs);
 }
 
@@ -88,22 +91,30 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // generate valid data in fprop cache
   if (graph->enable_fprop_cache && !graph->forward_train_computed) {
     // forward inputs
-    std::vector<mxnet::TBlob> fwd_inputs(inputs.begin() + graph->num_outputs,
+    std::vector<mxnet::TBlob> fwd_inputs(inputs.begin() + graph->num_outputs_,
                                          inputs.end());
     auto placeholders = make_ngraph_placeholders(fwd_inputs, backend, true);
     // forward outputs
-    auto shape = TShape_to_NShape(graph->outputs_[0]->shape_);
-    const auto &element_type = getType(graph->outputs_[0]->dtype_);
-    auto output_tv = backend->make_primary_tensor_view(element_type, shape);
-    TensorViewVector results{output_tv};
+    TensorViewVector results;
+    for (size_t i = 0; i < graph->num_outputs_; ++i) {
+      auto shape = TShape_to_NShape(graph->outputs_[i]->shape_);
+      const auto &element_type = getType(graph->outputs_[i]->dtype_);
+      auto output_tv = backend->make_primary_tensor_view(element_type, shape);
+      results.push_back(output_tv);
+    }
     append_cached_to_forward(&results, graph, mode);
     // call forward
     graph->ngraph_forward[mode]->call(placeholders, results);
   }
 
   // backward op
+  std::vector<mxnet::TBlob> adjoints;
+  for (size_t i = 0; i < graph->num_outputs_; ++i) {
+    adjoints.push_back(inputs[i]);
+  }
+
   auto placeholders = graph->enable_fprop_cache
-                          ? make_ngraph_placeholders({inputs[0]}, backend, true)
+                          ? make_ngraph_placeholders(adjoints, backend, true)
                           : make_ngraph_placeholders(inputs, backend, true);
 
   auto results = make_ngraph_placeholders(outputs, backend, false);
@@ -122,7 +133,8 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     std::vector<mxnet::OpReqType> aux_req;
     std::vector<mxnet::TBlob> aux_outs;
     for (size_t i = 0; i < cached_aux_count; ++i) {
-      aux_outs.push_back(inputs[graph->cached_aux_positions[mode][i] + 1]);
+      aux_outs.push_back(
+          inputs[graph->cached_aux_positions[mode][i] + graph->num_outputs_]);
       aux_req.push_back(mxnet::kWriteTo);
     }
 
@@ -135,8 +147,15 @@ bool check_zero_grad(const std::shared_ptr<Graph> &graph) {
   auto size = graph->nodes_.size();
   if ((size < 1) || (graph->nodes_[size - 1]->type_ != NodeType::kOp))
     return false;
-  if (ops_no_head_grad.count(graph->nodes_[size - 1]->operation_)) return true;
-  return false;
+  bool zero_grad = true;
+  for (auto node : graph->outputs_) {
+    if (ops_no_head_grad.count(node->operation_)) {
+      zero_grad = zero_grad && true;
+    } else {
+      zero_grad = false;
+    }
+  }
+  return zero_grad;
 }
 
 void register_forward_op(std::shared_ptr<Graph> graph) {
@@ -145,8 +164,9 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
       "ngraph_" + graph->name_);
   // setup the inputs and outpus
   int num_inputs = graph->inputs_.size();
+  int num_outputs = graph->outputs_.size();
   op.set_num_inputs(num_inputs);
-  op.set_num_outputs(1);
+  op.set_num_outputs(num_outputs);
 
   // register the inputs with nnvm
   std::vector<std::string> input_names;
@@ -226,27 +246,26 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
         return ret;
       });
 
-  // This is bad. need to redo
-  // currently just returing the data types and shapes of the output nodes
-  // this subgraph is replacing that were inferred by mxnet
-  // not currently checking with the ngraph operations to see if they
-  // return the same shape
-  auto shape = graph->shape_;
-  auto dtype = graph->dtype_;
+  // infer shapes
   op.set_attr<nnvm::FInferShape>(
       "FInferShape",
-      [shape](const nnvm::NodeAttrs &attrs, std::vector<nnvm::TShape> *in_attrs,
+      [graph](const nnvm::NodeAttrs &attrs, std::vector<nnvm::TShape> *in_attrs,
               std::vector<nnvm::TShape> *out_attrs) -> bool {
-        (*out_attrs)[0] = shape;
+        for (size_t i = 0; i < graph->num_outputs_; ++i) {
+          (*out_attrs)[i] = graph->outputs_[i]->shape_;
+        }
         return true;
       });
 
-  // similarly bad
+  // infer datatypes
   op.set_attr<nnvm::FInferType>(
       "FInferType",
-      [dtype](const nnvm::NodeAttrs &attrs, std::vector<int> *iattr,
+      [graph](const nnvm::NodeAttrs &attrs, std::vector<int> *iattr,
               std::vector<int> *oattr) -> bool {
-        return mxnet::op::type_assign(&((*oattr)[0]), dtype);
+        for (size_t i = 0; i < graph->num_outputs_; ++i) {
+          mxnet::op::type_assign(&((*oattr)[i]), graph->outputs_[i]->dtype_);
+        }
+        return true;
       });
 
   // create the compute lambda
@@ -266,7 +285,8 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
       "_backward_" + ("ngraph_" + graph->name_));
   // setup the inputs and outpus
   int num_inputs = graph->inputs_.size();
-  op.set_num_inputs(num_inputs + 1);
+  int num_outputs = graph->outputs_.size();
+  op.set_num_inputs(num_outputs + num_inputs);
   op.set_num_outputs(num_inputs);
 
   // Mark as backward

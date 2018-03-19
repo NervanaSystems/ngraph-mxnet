@@ -183,26 +183,50 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   return std::make_shared<ngraph::Function>(outputs, parameters);
 }
 
-std::shared_ptr<ngraph::Function> SGCompiler::MakeBackwardFunction(
-    std::shared_ptr<Graph> sub_graph, std::shared_ptr<ngraph::Function> f) {
-  // Get the output
-  auto Y = f->get_output_op(0)->get_input_op(0);
+std::pair<std::shared_ptr<ngraph::Function>,
+          std::vector<std::shared_ptr<ngraph::Node>>>
+SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
+                                 std::shared_ptr<ngraph::Function> f) {
+  std::vector<std::shared_ptr<ngraph::op::Parameter>> adjoints;
+  ngraph::NodeVector derivatives;
 
-  // Create the Adjoint
-  auto C = std::make_shared<ngraph::op::Parameter>(Y->get_element_type(),
-                                                   Y->get_shape());
   // get parameters
   std::vector<std::shared_ptr<ngraph::op::Parameter>> back_parameters =
       f->get_parameters();
-  // Perform autodiff
-  std::vector<NgraphNodePtr> dYdXs(back_parameters.size());
-  transform(back_parameters.begin(), back_parameters.end(), dYdXs.begin(),
-            [C, Y](const NgraphNodePtr &X) { return Y->backprop_node(X, C); });
+
+  bool first = true;
+  for (auto node : sub_graph->outputs_) {
+    // Get the output
+    auto Y = op_map_.at(node);
+    // Create the Adjoint
+    auto C = std::make_shared<ngraph::op::Parameter>(Y->get_element_type(),
+                                                     Y->get_shape());
+
+    // Perform autodiff
+    std::vector<NgraphNodePtr> dYdXs(back_parameters.size());
+    transform(
+        back_parameters.begin(), back_parameters.end(), dYdXs.begin(),
+        [C, Y](const NgraphNodePtr &X) { return Y->backprop_node(X, C); });
+    if (first) {
+      derivatives = dYdXs;
+      first = false;
+    } else {
+      for (size_t i = 0; i < derivatives.size(); ++i) {
+        derivatives[i] = derivatives[i] + dYdXs[i];
+      }
+    }
+    adjoints.push_back(C);
+  }
 
   // create the backward function
-  back_parameters.insert(back_parameters.begin(), C);
+  back_parameters.insert(back_parameters.begin(), adjoints.begin(),
+                         adjoints.end());
 
-  return std::make_shared<ngraph::Function>(dYdXs, back_parameters);
+  std::vector<std::shared_ptr<ngraph::Node>> output_adjoints;
+  for (auto n : adjoints) output_adjoints.push_back(n);
+
+  return {std::make_shared<ngraph::Function>(derivatives, back_parameters),
+          output_adjoints};
 }
 
 // Compile a Subgraph into ngraph forward and backward call frames
@@ -216,7 +240,9 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   CompileNodes(sub_graph->outputs_[0], sub_graph);
 
   auto f = MakeForwardFunction(sub_graph);
-  auto bf = MakeBackwardFunction(sub_graph, f);
+  auto bfa = MakeBackwardFunction(sub_graph, f);
+  auto bf = bfa.first;
+  auto adjoints = bfa.second;
 
   if (ngraph_optimzation) {
     OptimizeGraph(sub_graph, f, bf);
@@ -228,7 +254,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   if (sub_graph->enable_fprop_cache && exe_mode_ == GraphExeMode::kTrain) {
-    auto fprop_cache = ngraph::cache_fprop(f, bf, {bf->get_parameters()[0]});
+    auto fprop_cache = ngraph::cache_fprop(f, bf, adjoints);
 
     if (ngraph_log_graph) {
       dump_graph(fprop_cache.fprop);

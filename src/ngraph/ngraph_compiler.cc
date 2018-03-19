@@ -63,7 +63,7 @@ LayerGraphs create_layer_graphs() {
     for (auto& kv : node->orig_node_->attrs.dict)
       if (kv.first == "num_outputs") num_outputs = std::stoi(kv.second);
 
-    tmpGraph.num_outputs = num_outputs;
+    tmpGraph.num_outputs_ = num_outputs;
     for (int i = 0; i < num_outputs; ++i) {
       auto tmpslice = std::make_shared<OpNode>(
           node->orig_node_, node->name_ + "_" + std::to_string(i), "split");
@@ -227,7 +227,7 @@ nnvm::Graph Compiler::Compile() {
       auto node = CreateNNVMNode(sg);
 
       auto output = sg->output_elements_[0];
-      
+
       nnvm::NodeEntry sg_node{
           node, static_cast<uint32_t>(output->multi_output_index_),
           static_cast<uint32_t>(0)};
@@ -379,7 +379,7 @@ void Compiler::ParseNnvmGraph() {
       auto expand_layers = [this,
                             &layer_funcs](std::shared_ptr<OpNode>& op_node) {
         auto tmp = layer_funcs[op_node->operation_](op_node);
-        if (tmp.num_outputs > 1)
+        if (tmp.num_outputs_ > 1)
           this->ngraph_.nodes_.erase(
               std::remove(this->ngraph_.nodes_.begin(),
                           this->ngraph_.nodes_.end(), op_node),

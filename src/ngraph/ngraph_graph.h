@@ -68,7 +68,8 @@ class Node {
   virtual std::string createNodeLabel() {
     std::ostringstream stream;
     stream << name_ << this << " [label = \"" << name_ << this << shape_
-           << " \n sg=" << subgraph_ << " index=" << multi_output_index_ << "\"];";
+           << " \n sg=" << subgraph_ << " index=" << multi_output_index_
+           << "\"];";
     return stream.str();
   }
   // basic information about node
@@ -227,7 +228,7 @@ class Graph : public Node {
   }
 
   bool forward_train_computed{false};
-  int num_outputs = 1;
+  size_t num_outputs_ = 1;
   // nodes in this graph
   std::vector<NodePtr> nodes_;
   // functions to execute this graph in ngraph
@@ -257,7 +258,6 @@ class OutputElement : public Node {
       : Node(NodeType::kOutput, node->outputs_[index]->orig_node_,
              node->outputs_[index]->name_),
         base_node_(node->outputs_[index]) {
-
     shape_ = base_node_->shape_;
     dtype_ = base_node_->dtype_;
 

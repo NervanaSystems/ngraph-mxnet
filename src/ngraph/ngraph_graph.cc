@@ -315,6 +315,8 @@ void CollapseSubgraphs(Graph* graph, int subgraph_num) {
 
   if (tmpGraph->nodes_.size() != 0) {
     tmpGraph->outputs_ = GetSubgraphOutputs(*graph, tmpGraph->nodes_);
+    tmpGraph->num_outputs_ = tmpGraph->outputs_.size();
+
     for (size_t i = 0; i < tmpGraph->outputs_.size(); ++i) {
       tmpGraph->output_elements_.emplace_back(
           std::make_shared<OutputElement>(tmpGraph, i));
