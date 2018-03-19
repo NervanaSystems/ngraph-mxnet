@@ -277,7 +277,14 @@ void SGCompiler::CompileNodes(NodePtr node,
         const nnvm::TShape ngraph_shape_as_nnvm_shape =
             NShape_to_TShape(ngraph_provided_shape);
 
-        if (nnvm_shape != ngraph_shape_as_nnvm_shape) {
+        bool bad_shape = false;
+        if (((ngraph_provided_shape.size() == 0) && !(nnvm_shape.ndim() == 1 && nnvm_shape[0] == 1))) {
+          bad_shape = true;
+        } else if ((ngraph_provided_shape.size() != 0) && (nnvm_shape != ngraph_shape_as_nnvm_shape)) { 
+          bad_shape = true;
+        }
+
+        if (bad_shape) {
           std::ostringstream os;
           os << "NGRAPH_BRIDGE: In " << __PRETTY_FUNCTION__ << " : "
              << std::endl;
