@@ -95,7 +95,7 @@ USE_LIBJPEG_TURBO_PATH = NONE
 # use openmp for parallelization
 USE_OPENMP = 1
 
-# set USE_NGRAPH = 1 to compile with nGraph
+# set USE_NGRAPH = 1 to compile with nGraph.
 USE_NGRAPH = 0
 # when USE_NGRAPH = 1
 # optional: path to installed nGraph libraries
