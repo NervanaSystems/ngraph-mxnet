@@ -17,7 +17,7 @@
 #!/bin/bash
 #Author:  Lam Nguyen
 set -u
-set -e
+##set -e
 
 cd "$HOME/ng-mx"
 
