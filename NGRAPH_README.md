@@ -191,7 +191,7 @@ This is a temporary limitation expected to be lifted in a future release.
 Integration testing to date (3/20/2018) has focused on `tests/cpp/*` and `tests/python/unittest/*`.
 Of these tests, we see the following failures.
 
-#### This test fails with relative errors of <1e-4 on a limit of 1e-5.
+#### This test fail with relative errors of <1e-4 on a limit of 1e-5.
 - `tests/python/unittest/test_gluon.py::test_export`
 
 #### These test fails with python errors
