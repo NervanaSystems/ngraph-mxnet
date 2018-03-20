@@ -47,10 +47,10 @@ void WriteDot(const Graph& graph, const std::string& fname) {
     dotfile << node->createNodeLabel() << std::endl;
   };
 
-  visitor.stop_condition = [&visited](NodePtr node, NodePtr input) {
+  visitor.stop_condition = [&visited, &graph](NodePtr node, NodePtr input) {
     // continue if...
     // 2) input not visited
-    if (!visited.count(input)) {
+    if (!visited.count(input) && in_vec(graph.nodes_, input)) {
       return false;
     }
     // else, stop traversing the graph
