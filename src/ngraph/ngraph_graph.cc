@@ -313,7 +313,7 @@ void CollapseSubgraphs(Graph* graph, int subgraph_num) {
         }
       }
     }
-    
+
     for (auto output : tmpGraph->output_elements_) {
       auto it = std::find_if(graph->nodes_.begin(), graph->nodes_.end(),
                              [output](NodePtr n) -> bool {
@@ -323,8 +323,6 @@ void CollapseSubgraphs(Graph* graph, int subgraph_num) {
     }
   }
 
-  WriteSubgraphDots(*(tmpGraph.get()), tmpGraph->name_ + "_sub_graph" +
-                                           std::to_string(subgraph_num));
   // delete all the nodes we're replacing with the subgraph
   graph->nodes_.erase(std::remove_if(graph->nodes_.begin(), graph->nodes_.end(),
                                      [](NodePtr n) -> bool {
@@ -332,7 +330,5 @@ void CollapseSubgraphs(Graph* graph, int subgraph_num) {
                                                (n->type_ == NodeType::kOp));
                                      }),
                       graph->nodes_.end());
-  WriteSubgraphDots(
-      *graph, tmpGraph->name_ + "_in_graph" + std::to_string(subgraph_num));
 }
 }  // namespace ngraph_bridge
