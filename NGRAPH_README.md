@@ -188,11 +188,15 @@ properly if altered to use different nGraph back-ends.
 This is a temporary limitation expected to be lifted in a future release.
 
 ### Test status
-Integration testing to date (2/23/2018) has focused on `tests/cpp/*` and `tests/python/unittest/*`.
+Integration testing to date (3/20/2018) has focused on `tests/cpp/*` and `tests/python/unittest/*`.
 Of these tests, we see the following failures.
 
 #### This test fails with relative errors of <1e-4 on a limit of 1e-5.
 - `tests/python/unittest/test_gluon.py::test_export`
+
+#### These test fails with python errors
+- `tests/python/unittest/test_image.py::test_det_augmenters`
+- `tests/python/unittest/test_image.py::test_image_detiter`
 
 #### nGraph changes the number of nodes in the graph, so the assumptions in this test are no longer valid.
 - `tests/python/unittest/test_module.py::test_monitor`
