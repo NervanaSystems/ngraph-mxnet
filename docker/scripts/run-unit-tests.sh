@@ -134,7 +134,7 @@ cmd="OMP_NUM_THREADS=4 pytest -n 2 tests/python/unittest/test_optimizer.py --ver
 eval $cmd
 
 ##Unit tests test_profiler.py
-cmd="OMP_NUM_THREADS=4 pytest -n 2 tests/python/unittest/test_profiler.py--verbose --capture=no"
+cmd="OMP_NUM_THREADS=4 pytest tests/python/unittest/test_profiler.py--verbose --capture=no"
 eval $cmd
 
 ##Unit tests test_random.py
