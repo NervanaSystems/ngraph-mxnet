@@ -48,9 +48,9 @@ TEST(NGRAPH_STRING, GETINTS) {
 }
 
 TEST(NGRAPH_STRING, RANDOMSTRING) {
-  EXPECT_EQ(randomString(12).size(), 12);
-  EXPECT_EQ(randomString(4).size(), 4);
-  EXPECT_EQ(randomString(77).size(), 77);
+  EXPECT_EQ(randomString(12).size(), 12ul);
+  EXPECT_EQ(randomString(4).size(), 4ul);
+  EXPECT_EQ(randomString(77).size(), 77ul);
 }
 
 TEST(NGRAPH_SGCOMPILER_UTILS, Convert_Shapes) {
@@ -85,15 +85,15 @@ TEST(NGRAPH_NNVM, GetBufferSize) {
   ngraph::Shape ngshape{2, 3, 4, 5};
   nnvm::TShape Tshape{2, 3, 4, 5};
 
-  EXPECT_EQ(get_buffer_size(vecshape, 2), 240);
-  EXPECT_EQ(get_buffer_size(vecshape, 4), 480);
-  EXPECT_EQ(get_buffer_size(vecshape, 8), 960);
-  EXPECT_EQ(get_buffer_size(ngshape, 2), 240);
-  EXPECT_EQ(get_buffer_size(ngshape, 4), 480);
-  EXPECT_EQ(get_buffer_size(ngshape, 8), 960);
-  EXPECT_EQ(get_buffer_size(Tshape, 2), 240);
-  EXPECT_EQ(get_buffer_size(Tshape, 4), 480);
-  EXPECT_EQ(get_buffer_size(Tshape, 8), 960);
+  EXPECT_EQ(get_buffer_size(vecshape, 2), 240ul);
+  EXPECT_EQ(get_buffer_size(vecshape, 4), 480ul);
+  EXPECT_EQ(get_buffer_size(vecshape, 8), 960ul);
+  EXPECT_EQ(get_buffer_size(ngshape, 2), 240ul);
+  EXPECT_EQ(get_buffer_size(ngshape, 4), 480ul);
+  EXPECT_EQ(get_buffer_size(ngshape, 8), 960ul);
+  EXPECT_EQ(get_buffer_size(Tshape, 2), 240ul);
+  EXPECT_EQ(get_buffer_size(Tshape, 4), 480ul);
+  EXPECT_EQ(get_buffer_size(Tshape, 8), 960ul);
 }
 
 TEST(NGRAPH_NNVM, copy_NDArrays) {
