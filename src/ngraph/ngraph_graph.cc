@@ -83,6 +83,9 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
 
   // save nodes that match some function condition
   visitor.operation = [&outNodes, &func](NodePtr node) {
+    if (node->subgraph_ > 0) {
+      return;
+    }
     if (func(node)) outNodes.push_back(node);
   };
 
@@ -268,7 +271,9 @@ void CollapseSubgraphs(Graph* graph, int subgraph_num) {
   if (tmpGraph->nodes_.size() != 0) {
     tmpGraph->outputs_ = GetSubgraphOutputs(*graph, tmpGraph->nodes_);
     tmpGraph->num_outputs_ = tmpGraph->outputs_.size();
-
+    if (tmpGraph->num_outputs_ != 1) {
+      std::cout << "MULTIOUTPUT: " << tmpGraph->num_outputs_ << std::endl;
+    }
     for (size_t i = 0; i < tmpGraph->outputs_.size(); ++i) {
       tmpGraph->output_elements_.emplace_back(
           std::make_shared<OutputElement>(tmpGraph, i));
@@ -276,10 +281,6 @@ void CollapseSubgraphs(Graph* graph, int subgraph_num) {
     // if we found nodes, setup subgraph
     tmpGraph->in_ngraph_ = true;
     tmpGraph->subgraph_ = subgraph_num;
-    // set node name and shape based on last node in the subgraph
-    auto output = tmpGraph->output_elements_[0];
-    tmpGraph->shape_ = output->shape_;
-    tmpGraph->dtype_ = output->dtype_;
 
     auto in_tmpGraphInputs = [&tmpGraph](NodePtr n) {
       if (!in_vec(tmpGraph->inputs_, n)) return false;
@@ -292,24 +293,38 @@ void CollapseSubgraphs(Graph* graph, int subgraph_num) {
           tmpGraph->inputs_.emplace_back(input);
       }
     }
+    std::cout << "set up inputs" << std::endl;
     // set subgraph as input to all of the nodes downline.
-    for (auto n : graph->nodes_)
-      for (size_t i = 0; i < n->inputs_.size(); ++i)
-        if (n->inputs_[i] == output->base_node_) {
-          n->inputs_[i] = output;
+    for (auto n : graph->nodes_) {
+      for (size_t i = 0; i < n->inputs_.size(); ++i) {
+        for (auto output : tmpGraph->output_elements_) {
+          if (n->inputs_[i] == output->base_node_) {
+            n->inputs_[i] = output;
+          }
         }
+      }
+    }
 
-    // find the position we're replacing in the graph
-    auto it = std::find_if(
-        graph->nodes_.begin(), graph->nodes_.end(),
-        [output](NodePtr n) -> bool { return (n == output->base_node_); });
-    // insert the subgraph as a node
-    // for (auto n : tmpGraph->output_elements_) {
-    //   graph->nodes_.insert(it, n);
-    // }
-    graph->nodes_.insert(it, tmpGraph);
+    graph->nodes_.push_back(tmpGraph);
+    for (size_t i = 0; i < graph->outputs_.size(); ++i) {
+      for (auto output : tmpGraph->output_elements_) {
+        if (graph->outputs_[i] == output->base_node_) {
+          graph->outputs_[i] = output;
+        }
+      }
+    }
+    
+    for (auto output : tmpGraph->output_elements_) {
+      auto it = std::find_if(graph->nodes_.begin(), graph->nodes_.end(),
+                             [output](NodePtr n) -> bool {
+                               return (n == output->base_node_);
+                             });
+      graph->nodes_.insert(it, output);
+    }
   }
 
+  WriteSubgraphDots(*(tmpGraph.get()), tmpGraph->name_ + "_sub_graph" +
+                                           std::to_string(subgraph_num));
   // delete all the nodes we're replacing with the subgraph
   graph->nodes_.erase(std::remove_if(graph->nodes_.begin(), graph->nodes_.end(),
                                      [](NodePtr n) -> bool {
@@ -317,5 +332,7 @@ void CollapseSubgraphs(Graph* graph, int subgraph_num) {
                                                (n->type_ == NodeType::kOp));
                                      }),
                       graph->nodes_.end());
+  WriteSubgraphDots(
+      *graph, tmpGraph->name_ + "_in_graph" + std::to_string(subgraph_num));
 }
 }  // namespace ngraph_bridge
