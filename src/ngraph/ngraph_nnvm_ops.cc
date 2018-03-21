@@ -67,7 +67,7 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   }
   assert(graph->ngraph_forward[mode] != nullptr);
   append_cached_to_forward(&results, graph, mode);
-  graph->ngraph_forward[mode]->call(placeholders, results);
+  graph->ngraph_forward[mode]->call(results, placeholders);
 
   std::vector<mxnet::TBlob> outs;
   for (size_t i = 0; i < graph->num_outputs_; ++i) {
@@ -104,7 +104,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     }
     append_cached_to_forward(&results, graph, mode);
     // call forward
-    graph->ngraph_forward[mode]->call(placeholders, results);
+    graph->ngraph_forward[mode]->call(results, placeholders);
   }
 
   // backward op
@@ -120,7 +120,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   auto results = make_ngraph_placeholders(outputs, backend, false);
   placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
                       graph->cached_values[mode].end());
-  graph->ngraph_backward[mode]->call(placeholders, results);
+  graph->ngraph_backward[mode]->call(results, placeholders);
   // reset the forward training compute flag to ensure backward always have
   // updated data from forward
   graph->forward_train_computed = false;
