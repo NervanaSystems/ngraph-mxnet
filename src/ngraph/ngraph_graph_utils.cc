@@ -58,6 +58,9 @@ void WriteDot(const Graph& graph, const std::string& fname) {
   };
 
   for (auto node : graph.outputs_) GraphTraverse(node, visitor);
+  for (auto node : graph.inputs_)
+    dotfile << node->createNodeLabel() << std::endl;
+  ;
 
   // Finish file.
   dotfile << "}" << std::endl;

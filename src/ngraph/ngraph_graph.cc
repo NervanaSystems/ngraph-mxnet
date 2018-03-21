@@ -192,7 +192,44 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
 
   GraphTraverse(node, visitor2);
 
-  return outNodes;
+  /****************************************************************************/
+  // Third Graph pass - Removing nodes that are no longer connected to the main
+  // output
+  /****************************************************************************/
+  GraphVisitor visitor3;
+  std::unordered_map<NodePtr, bool> is_connected;
+  for (auto n : outNodes) is_connected[n] = false;
+  // erase nodes in bad branches from the output
+  visitor3.operation = [&is_connected](NodePtr node) {
+    is_connected[node] = true;
+  };
+
+  // represents an input and the 'good' status of the node it was called from
+  using NodeGood = std::tuple<NodePtr, bool>;
+  std::set<NodePtr> visited3;
+
+  visitor3.stop_condition = [&visited3, &outNodes](NodePtr node,
+                                                   NodePtr input) {
+    // continue if...
+    // 1) the input is in output nodes
+    // 2) the input has not already been visited
+    if (in_vec(outNodes, input) && !visited3.count(input)) {
+      visited3.insert(input);
+      return false;
+    }
+    // else, stop traversing the graph
+    return true;
+  };
+
+  GraphTraverse(node, visitor3);
+
+  std::vector<NodePtr> out;
+  for (auto node : outNodes) {
+    if (is_connected[node]) {
+      out.push_back(node);
+    }
+  }
+  return out;
 }
 
 std::vector<NodePtr> GetSubgraphOutputs(
@@ -271,64 +308,79 @@ void CollapseSubgraphs(Graph* graph, int subgraph_num) {
   if (tmpGraph->nodes_.size() != 0) {
     tmpGraph->outputs_ = GetSubgraphOutputs(*graph, tmpGraph->nodes_);
     tmpGraph->num_outputs_ = tmpGraph->outputs_.size();
-    if (tmpGraph->num_outputs_ != 1) {
-      std::cout << "MULTIOUTPUT: " << tmpGraph->num_outputs_ << std::endl;
-    }
     for (size_t i = 0; i < tmpGraph->outputs_.size(); ++i) {
       tmpGraph->output_elements_.emplace_back(
           std::make_shared<OutputElement>(tmpGraph, i));
+      tmpGraph->output_elements_.back()->subgraph_ = subgraph_num;
     }
     // if we found nodes, setup subgraph
-    tmpGraph->in_ngraph_ = true;
+    tmpGraph->in_ngraph_ = false;
     tmpGraph->subgraph_ = subgraph_num;
 
     auto in_tmpGraphInputs = [&tmpGraph](NodePtr n) {
       if (!in_vec(tmpGraph->inputs_, n)) return false;
       return true;
     };
+
     // setup inputs to this subgraph (as a node)
     for (auto node : tmpGraph->nodes_) {
       for (auto input : node->inputs_) {
-        if (input->subgraph_ != subgraph_num && !in_tmpGraphInputs(input))
+        if (input->subgraph_ != subgraph_num && !in_tmpGraphInputs(input)) {
           tmpGraph->inputs_.emplace_back(input);
+        }
       }
     }
-    std::cout << "set up inputs" << std::endl;
-    // set subgraph as input to all of the nodes downline.
+
+    std::unordered_map<NodePtr, NodePtr> output_map;
+    for (auto output : tmpGraph->output_elements_) {
+      output_map.insert({output->base_node_, output});
+    }
+
+    // set any needed graph outputs to sub_graph outputs
+    for (size_t i = 0; i < graph->outputs_.size(); ++i) {
+      if (output_map.count(graph->outputs_[i])) {
+        graph->outputs_[i] = output_map[graph->outputs_[i]];
+      }
+    }
+
+    for (auto output : tmpGraph->output_elements_) {
+      auto it = std::find_if(
+          graph->nodes_.begin(), graph->nodes_.end(),
+          [output](NodePtr n) -> bool { return (n == output->base_node_); });
+      graph->nodes_.insert(it, output);
+    }
+    // delete all the nodes we're replacing with the subgraph
+    graph->nodes_.erase(
+        std::remove_if(graph->nodes_.begin(), graph->nodes_.end(),
+                       [](NodePtr n) -> bool {
+                         return ((n->subgraph_ > 0) &&
+                                 (n->type_ == NodeType::kOp));
+                       }),
+        graph->nodes_.end());
+
+    // set subgraph as input to all of the nodes.
     for (auto n : graph->nodes_) {
       for (size_t i = 0; i < n->inputs_.size(); ++i) {
-        for (auto output : tmpGraph->output_elements_) {
-          if (n->inputs_[i] == output->base_node_) {
-            n->inputs_[i] = output;
+        if (output_map.count(n->inputs_[i])) {
+          n->inputs_[i] = output_map[n->inputs_[i]];
+        }
+      }
+    }
+
+    for (auto n : graph->nodes_) {
+      if (n->type_ == NodeType::kGraph) {
+        for (auto node : std::dynamic_pointer_cast<Graph>(n)->nodes_) {
+          for (size_t i = 0; i < node->inputs_.size(); ++i) {
+            if (output_map.count(node->inputs_[i])) {
+              node->inputs_[i] = output_map[node->inputs_[i]];
+            }
           }
         }
       }
     }
 
     graph->nodes_.push_back(tmpGraph);
-    for (size_t i = 0; i < graph->outputs_.size(); ++i) {
-      for (auto output : tmpGraph->output_elements_) {
-        if (graph->outputs_[i] == output->base_node_) {
-          graph->outputs_[i] = output;
-        }
-      }
-    }
-
-    for (auto output : tmpGraph->output_elements_) {
-      auto it = std::find_if(graph->nodes_.begin(), graph->nodes_.end(),
-                             [output](NodePtr n) -> bool {
-                               return (n == output->base_node_);
-                             });
-      graph->nodes_.insert(it, output);
-    }
   }
-
-  // delete all the nodes we're replacing with the subgraph
-  graph->nodes_.erase(std::remove_if(graph->nodes_.begin(), graph->nodes_.end(),
-                                     [](NodePtr n) -> bool {
-                                       return ((n->subgraph_ > 0) &&
-                                               (n->type_ == NodeType::kOp));
-                                     }),
-                      graph->nodes_.end());
 }
+
 }  // namespace ngraph_bridge

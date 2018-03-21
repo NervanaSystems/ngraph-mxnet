@@ -117,7 +117,7 @@ class AuxNode : public Node {
 class OpNode : public Node {
  public:
   // Include operation in graphviz
-  std::string createNodeLabel() override {
+  virtual std::string createNodeLabel() override {
     std::ostringstream stream;
     stream << name_ << this << " [label=\"" << name_ << this
            << "\nOp: " << operation_ << shape_ << " sg=" << subgraph_ << "\"";
@@ -201,6 +201,14 @@ class Graph : public Node {
       : Node(NodeType::kGraph, nullptr, name),
         context_(context),
         enable_fprop_cache(enable_fprop_cache) {}
+
+  virtual std::string createNodeLabel() override {
+    std::ostringstream stream;
+    stream << name_ << this << " [label = \"" << name_ << this << shape_
+           << " \n sg=" << subgraph_ << " index=" << multi_output_index_
+           << "\", fillcolor = green, style = filled];";
+    return stream.str();
+  }
   // Delete the ngraph objects so we don't have a large memory leak
   // when running multiple graphs back to back
   void CleanUp() {
@@ -265,6 +273,14 @@ class OutputElement : public Node {
 
     multi_output_index_ = index;
     subgraph_ = base_node_->subgraph_;
+  }
+
+  virtual std::string createNodeLabel() override {
+    std::ostringstream stream;
+    stream << name_ << this << " [label = \"" << name_ << this << shape_
+           << " \n sg=" << subgraph_ << " index=" << multi_output_index_
+           << "\", fillcolor = purple, style = filled];";
+    return stream.str();
   }
 
   NodePtr base_node_;

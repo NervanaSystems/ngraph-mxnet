@@ -141,6 +141,7 @@ std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
 
 std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
     std::shared_ptr<Graph> sub_graph) {
+  std::cout << sub_graph->name_ << std::endl;
   ngraph::op::ParameterVector parameters;
 
   for (const auto input : placeholder_order_) {
@@ -149,15 +150,13 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
         std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_.at(input)));
   }
 
-  // calcuate the shape and return type of the subgraph
-  auto Y = op_map_.at(sub_graph->outputs_[0]);
-
   const int mode = static_cast<int>(exe_mode_);
 
-  // build ngraph function outputs based on default and aux nodes
-  OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(sub_graph->outputs_[0]);
   // default output
-  ngraph::NodeVector outputs{Y};
+  ngraph::NodeVector outputs;
+  for (auto output : sub_graph->outputs_) {
+    outputs.push_back(op_map_[output]);
+  }
 
   auto backend = GetBackendFromContext(sub_graph->context_);
 
@@ -237,7 +236,9 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
 
   // compile all the ndoes in the graph
-  CompileNodes(sub_graph->outputs_[0], sub_graph);
+  for (auto output : sub_graph->outputs_) {
+    CompileNodes(output, sub_graph);
+  }
 
   auto f = MakeForwardFunction(sub_graph);
   auto bfa = MakeBackwardFunction(sub_graph, f);
@@ -295,7 +296,8 @@ void SGCompiler::CompileNodes(NodePtr node,
       if (!in_vec(sub_graph->nodes_, node)) {
         this->CompileInput(node);
       } else {
-        this->op_map_[node] = this->ngraph_op_funcs_[node->operation_](node);
+        this->op_map_.insert(
+            {node, this->ngraph_op_funcs_[node->operation_](node)});
 
         // Verify that the shapes computed by NNVM and nGraph are identical...
         const nnvm::TShape &nnvm_shape = node->shape_;
@@ -350,13 +352,11 @@ void SGCompiler::CompileNodes(NodePtr node,
     }
   };
 
-  std::unordered_set<NodePtr> visited;
-  visitor.stop_condition = [sub_graph, &visited](NodePtr node, NodePtr input) {
+  visitor.stop_condition = [this, sub_graph](NodePtr node, NodePtr input) {
     // continue if...
     // 1) node is in subgraph or a subgraph input
     // 2) input not visited
-    if (in_vec(sub_graph->nodes_, node) && !visited.count(input)) {
-      visited.insert(input);
+    if (in_vec(sub_graph->nodes_, node) && !(this->op_map_.count(input))) {
       return false;
     }
     // else, stop traversing the graph
@@ -371,8 +371,8 @@ void SGCompiler::CompileInput(NodePtr input) {
   auto shape = TShape_to_NShape(input->shape_);
   // make a shaped and typed parameter based on the input node
   // store it in the op_map_
-  op_map_[input] =
-      std::make_shared<ngraph::op::Parameter>(getType(input->dtype_), shape);
+  op_map_.insert({input, std::make_shared<ngraph::op::Parameter>(
+                             getType(input->dtype_), shape)});
 }
 
 }  // namespace ngraph_bridge
