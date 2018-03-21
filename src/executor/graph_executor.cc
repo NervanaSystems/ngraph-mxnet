@@ -1181,7 +1181,7 @@ Graph GraphExecutor::InitGraph(nnvm::Symbol symbol,
 
   nnvm::Graph g;
   g.outputs = symbol.outputs;
-// setup gradient
+  // setup gradient
 #if MXNET_USE_NGRAPH == 0
   g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs),
                     grad_req_types);

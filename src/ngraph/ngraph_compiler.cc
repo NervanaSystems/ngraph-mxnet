@@ -105,9 +105,7 @@ void Compiler::Infer(const BindArg* bind) {
   // append default shapes / dtypes so that vector size = graph size
   shapes_.resize(idx.input_nodes().size(), nnvm::TShape());
   dtypes_.resize(idx.input_nodes().size(), -1);
-  /* std::cout << "stype resize: " << stypes_.size(); */
   stypes_.resize(idx.input_nodes().size(), mxnet::kDefaultStorage);
-  /* std::cout << ":"<<stypes_.size() <<std::endl; */
 }
 
 // infer nnvm::Graph shape and dtype for simple bind case
