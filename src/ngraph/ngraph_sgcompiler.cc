@@ -141,7 +141,6 @@ std::shared_ptr<Graph> SGCompiler::Compile(NodePtr sub_graph) {
 
 std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
     std::shared_ptr<Graph> sub_graph) {
-  std::cout << sub_graph->name_ << std::endl;
   ngraph::op::ParameterVector parameters;
 
   for (const auto input : placeholder_order_) {
@@ -155,7 +154,7 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   // default output
   ngraph::NodeVector outputs;
   for (auto output : sub_graph->outputs_) {
-    outputs.push_back(op_map_[output]);
+    outputs.push_back(op_map_.at(output));
   }
 
   auto backend = GetBackendFromContext(sub_graph->context_);
