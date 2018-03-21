@@ -22,7 +22,6 @@
 #include <utility>
 #include <vector>
 
-#include <ngraph/ops/batch_norm.hpp>
 #include <ngraph/ops/get_output_element.hpp>
 #include "ngraph_sgcompiler_utils.h"
 
