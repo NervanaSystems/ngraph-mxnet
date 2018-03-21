@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-#include <ngraph/ops/get_output_element.hpp>
+#include <ngraph/op/get_output_element.hpp>
 #include "ngraph_sgcompiler_utils.h"
 
 namespace ngraph_bridge {
