@@ -291,6 +291,29 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
 
   // Mark as backward
   op.set_attr<bool>("TIsBackward", true);
+  
+  // infer shapes
+  op.set_attr<nnvm::FInferShape>(
+      "FInferShape",
+      [graph](const nnvm::NodeAttrs &attrs, std::vector<nnvm::TShape> *in_attrs,
+              std::vector<nnvm::TShape> *out_attrs) -> bool {
+        for (size_t i = 0; i < graph->inputs_.size(); ++i) {
+          (*out_attrs)[i] = graph->inputs_[i]->shape_;
+        }
+        return true;
+      });
+
+  // infer datatypes
+  op.set_attr<nnvm::FInferType>(
+      "FInferType",
+      [graph](const nnvm::NodeAttrs &attrs, std::vector<int> *iattr,
+              std::vector<int> *oattr) -> bool {
+        for (size_t i = 0; i < graph->inputs_.size(); ++i) {
+          mxnet::op::type_assign(&((*oattr)[i]), graph->inputs_[i]->dtype_);
+        }
+        return true;
+      });
+
 
   // create the compute lambda
   op.set_attr<mxnet::FCompute>(

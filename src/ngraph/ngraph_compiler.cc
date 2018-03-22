@@ -209,6 +209,7 @@ nnvm::Graph Compiler::Compile() {
   // find the subgraphs
   for (auto n : ngraph_.nodes_) {
     if (n->type_ == NodeType::kGraph) {
+      std::cout << n->name_ << std::endl;
       // extract and compile subgraph
       compiler_.setExeMode(GraphExeMode::kInfer);
       auto sg = compiler_.Compile(n);
@@ -226,36 +227,37 @@ nnvm::Graph Compiler::Compile() {
       // create nnvm node
       auto node = CreateNNVMNode(sg);
 
-      auto output = sg->output_elements_[0];
+      for (auto output : sg->output_elements_) {
+        nnvm::NodeEntry sg_node{
+            node, static_cast<uint32_t>(output->multi_output_index_),
+            static_cast<uint32_t>(0)};
 
-      nnvm::NodeEntry sg_node{
-          node, static_cast<uint32_t>(output->multi_output_index_),
-          static_cast<uint32_t>(0)};
+        auto matches = [&output](nnvm::NodeEntry n) -> bool {
+          return (n.node == output->base_node_->orig_node_) &&
+                 (n.index == output->base_node_->multi_output_index_);
+        };
 
-      auto matches = [&output](nnvm::NodeEntry n) -> bool {
-        return (n.node == output->base_node_->orig_node_) &&
-               (n.index == output->base_node_->multi_output_index_);
-      };
+        // Replace outputs if needed
+        for (auto& nnvm_output : graph_.outputs)
+          if (matches(nnvm_output)) nnvm_output = sg_node;
 
-      // Replace outputs if needed
-      for (auto& output : graph_.outputs)
-        if (matches(output)) output = sg_node;
+        // use nnvm depth first search to fix node connections in nnvm
+        nnvm::DFSVisit(graph_.outputs, [sg_node, &output,
+                                        &matches](const nnvm::NodePtr node) {
+          for (auto input : node->inputs) {
+            auto it =
+                std::find_if(node->inputs.begin(), node->inputs.end(), matches);
 
-      // use nnvm depth first search to fix node connections in nnvm
-      nnvm::DFSVisit(
-          graph_.outputs, [sg_node, &matches](const nnvm::NodePtr node) {
-            for (auto input : node->inputs) {
-              auto it = std::find_if(node->inputs.begin(), node->inputs.end(),
-                                     matches);
-
-              if (it != node->inputs.end()) {
-                node->inputs.insert(it, sg_node);
-                node->inputs.erase(std::remove_if(node->inputs.begin(),
-                                                  node->inputs.end(), matches),
-                                   node->inputs.end());
-              }
+            if (it != node->inputs.end()) {
+              std::cout << "removing " << output->name_ << std::endl;
+              node->inputs.insert(it, sg_node);
+              node->inputs.erase(std::remove_if(node->inputs.begin(),
+                                                node->inputs.end(), matches),
+                                 node->inputs.end());
             }
-          });
+          }
+        });
+      }
     }
   }
 
