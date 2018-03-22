@@ -38,6 +38,7 @@ if __name__ == '__main__':
     # parse args
     parser = argparse.ArgumentParser(description="train cifar10",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--with-nnp',  action="store_true", default=False, dest="is_nnp")
     fit.add_fit_args(parser)
     data.add_data_args(parser)
     data.add_data_aug_args(parser)
@@ -67,4 +68,4 @@ if __name__ == '__main__':
     sym = net.get_symbol(**vars(args))
 
     # train
-    fit.fit(args, sym, data.get_rec_iter)
+    fit.fit(args, sym, data.get_rec_iter,args.is_nnp)
