@@ -35,6 +35,7 @@
 
 #if MXNET_USE_NGRAPH == 1
 #include "../ngraph/ngraph_compiler.h"
+#include "../ngraph/ngraph_utils.h"
 #endif
 
 namespace mxnet {
@@ -527,14 +528,6 @@ bool multi_context_check(const Context& default_ctx,
 #endif
   return multi_context;
 }
-
-// Ngraph expects head gradients to be default storage
-bool grad_sparse_check(const std::vector<NDArray>& arg_grads) {
-  for (const auto& i : arg_grads) {
-    if (i.storage_type() != kDefaultStorage) return true;
-  }
-  return false;
-}
 #endif
 
 /*!
@@ -572,7 +565,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // TODO(mbrookhart): Remove this when hetr can handle multiple contexts
   auto multi_context = multi_context_check(default_ctx, in_arg_ctxes,
                                            arg_grad_ctxes, aux_state_ctxes);
-  const auto grad_sparse = grad_sparse_check(arg_grad_store);
+  const auto grad_sparse = ngraph_bridge::sparse_check(arg_grad_store);
 
   ngraph_bridge::BindArg bind(num_forward_inputs_, in_args, aux_states);
   ngraph_bridge::Compiler compiler(
@@ -1050,7 +1043,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // TODO(mbrookhart): Remove this when hetr can handle multiple contexts
   auto multi_context = multi_context_check(default_ctx, in_arg_ctxes,
                                            arg_grad_ctxes, aux_state_ctxes);
-  const auto grad_sparse = grad_sparse_check(*arg_grad_vec);
+  const auto grad_sparse = ngraph_bridge::sparse_check(*arg_grad_vec);
   ngraph_bridge::SimpleBindArg simplebind(num_forward_inputs_, arg_shape_map,
                                           arg_dtype_map, arg_stype_mapn);
   ngraph_bridge::Compiler compiler(

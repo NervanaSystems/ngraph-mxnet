@@ -115,19 +115,22 @@ void InitImperativeOnce() {
                         const std::vector<mxnet::NDArray> &inputs,
                         const std::vector<mxnet::OpReqType> &req,
                         const std::vector<mxnet::NDArray> &outputs) -> void {
-            // thread local cache for ngraph op
-            static thread_local NGIOpCache ngicache;
-            auto op_key = get_ngiop_key(attrs, ctx.run_ctx.ctx, inputs);
-            auto op_ng = ngicache[op_key];
-            if (!op_ng) {
-              NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
-              op_ng = ngicache[op_key] = ngi.get_op_ngraph();
-              if (ngraph_log_verbose && op_ng)
-                LOG(INFO) << "Caching... " << attrs.op->name;
-            }
+            std::shared_ptr<Graph> op_ng;
             int mode = static_cast<int>(GraphExeMode::kInfer);
-            if (ctx.is_train) {
-              mode = static_cast<int>(GraphExeMode::kTrain);
+            if (!sparse_check(inputs) && !sparse_check(outputs)) {
+              // thread local cache for ngraph op
+              static thread_local NGIOpCache ngicache;
+              auto op_key = get_ngiop_key(attrs, ctx.run_ctx.ctx, inputs);
+              op_ng = ngicache[op_key];
+              if (!op_ng) {
+                NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
+                op_ng = ngicache[op_key] = ngi.get_op_ngraph();
+                if (ngraph_log_verbose && op_ng)
+                  LOG(INFO) << "Caching... " << attrs.op->name;
+              }
+              if (ctx.is_train) {
+                mode = static_cast<int>(GraphExeMode::kTrain);
+              }
             }
             if (op_ng && op_ng->ngraph_forward[mode]) {
               compute_forward(ctx, op_ng, inputs, req, outputs);
