@@ -293,6 +293,24 @@ nnvm::Graph Compiler::Compile() {
     }
   }
 
+  // Clean up the nodes in the subgraph that we don't need anymore
+  // so we don't keep extra shared pointers around
+  // this is spaghetti
+  // TODO(mbrookhart): Ask DLMC for the capability to destroy nnvm::op
+  // objects so we don't have to do this anymore.
+  for (auto kv : compiled_nodes_) {
+    for (auto input : kv.first->inputs_) {
+      input->inputs_.clear();
+    }
+    for (auto output : kv.first->outputs_) {
+      output->inputs_.clear();
+    }
+    for (auto output_element : kv.first->output_elements_) {
+      output_element->inputs_.clear();
+      output_element->base_node_ = nullptr;
+    }
+    kv.first->nodes_.clear();
+  }
   // create a new output graph
   nnvm::Graph out_graph;
 

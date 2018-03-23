@@ -220,6 +220,9 @@ class Graph : public Node {
       ngraph_forward[i] = nullptr;
       ngraph_backward[i] = nullptr;
     }
+    inputs_.clear();
+    outputs_.clear();
+    output_elements_.clear();
   }
 
   // Add a node to the graph
