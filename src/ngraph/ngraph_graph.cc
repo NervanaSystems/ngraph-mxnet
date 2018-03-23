@@ -246,38 +246,7 @@ std::vector<NodePtr> GetSubgraphOutputs(
 
   return outNodes;
 }
-std::vector<NodePtr> PruneSubgraphOutputs(
-    const Graph& graph, NodePtr node,
-    const std::vector<NodePtr>& initial_graph_nodes) {
-  auto subgraph_nodes = initial_graph_nodes;
-  // function to remove all of the outputs that aren't the last one
-  auto prune_subgraph = [&subgraph_nodes](std::vector<NodePtr> outNodes) {
-    for (auto n : outNodes)
-      if (n != subgraph_nodes.back())
-        subgraph_nodes.erase(
-            std::remove(subgraph_nodes.begin(), subgraph_nodes.end(), n),
-            subgraph_nodes.end());
-  };
 
-  // main pass
-  // count is for debugging purposes in case the recursive logic is broken
-  std::vector<NodePtr> outNodes;
-  bool single_output = false;
-  int count = 0;
-  while (!single_output && count < 100) {
-    // get the current outputs
-    outNodes = GetSubgraphOutputs(graph, subgraph_nodes);
-    if (outNodes.size() <= 1) {
-      single_output = true;
-    } else {
-      // we have more than 1 output, remove them and clean any broken loops
-      prune_subgraph(outNodes);
-      subgraph_nodes = RemoveBroken(node, subgraph_nodes);
-    }
-    count += 1;
-  }
-  return subgraph_nodes;
-}
 // Find a subgraph, check it for bad branches
 std::vector<NodePtr> FindSubgraph(const Graph& graph, NodePtr node,
                                   const std::function<bool(NodePtr)>& func) {
@@ -287,7 +256,7 @@ std::vector<NodePtr> FindSubgraph(const Graph& graph, NodePtr node,
   // search for broken loops
   // remove nodes on broken loops
   auto outNodes = RemoveBroken(node, subgraph_nodes);
-  // outNodes = PruneSubgraphOutputs(graph, node, outNodes);
+  
   return outNodes;
 }
 
