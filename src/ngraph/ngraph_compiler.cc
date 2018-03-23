@@ -37,9 +37,17 @@ nnvm::NodePtr CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
   node->attrs.op = get_subgraph_op(subgraph);
   // setup the inputs to the node
   for (auto input : subgraph->inputs_)
-    node->inputs.emplace_back(nnvm::NodeEntry{
-        input->orig_node_, static_cast<uint32_t>(input->multi_output_index_),
-        static_cast<uint32_t>(0)});
+    if (input->type_ == NodeType::kOutput){
+      auto n = std::dynamic_pointer_cast<OutputElement>(input);
+      node->inputs.emplace_back(nnvm::NodeEntry{
+          n->base_node_->orig_node_, static_cast<uint32_t>(n->base_node_->multi_output_index_),
+          static_cast<uint32_t>(0)});
+
+    } else {
+      node->inputs.emplace_back(nnvm::NodeEntry{
+          input->orig_node_, static_cast<uint32_t>(input->multi_output_index_),
+          static_cast<uint32_t>(0)});
+    }
   // create dummy node parameters
   NGraphParam op;
   op.g = subgraph;
@@ -209,7 +217,6 @@ nnvm::Graph Compiler::Compile() {
   // find the subgraphs
   for (auto n : ngraph_.nodes_) {
     if (n->type_ == NodeType::kGraph) {
-      std::cout << n->name_ << std::endl;
       // extract and compile subgraph
       compiler_.setExeMode(GraphExeMode::kInfer);
       auto sg = compiler_.Compile(n);
@@ -226,7 +233,34 @@ nnvm::Graph Compiler::Compile() {
 
       // create nnvm node
       auto node = CreateNNVMNode(sg);
+      compiled_nodes_.insert({sg, node});
+    }
+  }
+  // TODO(mbrookhart) This is gross. Need to find a better way to 
+  // set nnvm subgraph nodes as inputs to each other.
+  for (auto kv1 : compiled_nodes_) {
+    for (auto output : kv1.first->output_elements_){
+      auto matches = [&output](const nnvm::NodeEntry& n) -> bool {
+        return (n.node == output->base_node_->orig_node_) &&
+               (n.index == output->base_node_->multi_output_index_);
+      };
+      nnvm::NodeEntry sg_node{
+            kv1.second, static_cast<uint32_t>(output->multi_output_index_),
+            static_cast<uint32_t>(0)};
+      for (auto kv2 : compiled_nodes_) {
+        for (auto& input : kv2.second->inputs) {
+          if (matches(input)) {
+            input = sg_node;
+          }
+        }
+      }
+    }
+  }
 
+  for (auto n : ngraph_.nodes_) {
+    if (n->type_ == NodeType::kGraph) {
+      auto sg = std::dynamic_pointer_cast<Graph>(n);
+      auto node = compiled_nodes_.at(sg);
       for (auto output : sg->output_elements_) {
         nnvm::NodeEntry sg_node{
             node, static_cast<uint32_t>(output->multi_output_index_),
@@ -249,11 +283,9 @@ nnvm::Graph Compiler::Compile() {
                 std::find_if(node->inputs.begin(), node->inputs.end(), matches);
 
             if (it != node->inputs.end()) {
-              std::cout << "removing " << output->name_ << std::endl;
-              node->inputs.insert(it, sg_node);
-              node->inputs.erase(std::remove_if(node->inputs.begin(),
-                                                node->inputs.end(), matches),
-                                 node->inputs.end());
+              node->inputs[it-node->inputs.begin()] = sg_node;
+            } else {
+              break;
             }
           }
         });
@@ -266,7 +298,6 @@ nnvm::Graph Compiler::Compile() {
 
   // initialize it with original graph nodes
   out_graph.outputs = graph_.outputs;
-
   return std::move(out_graph);
 }
 

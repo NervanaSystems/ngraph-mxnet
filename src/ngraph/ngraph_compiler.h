@@ -218,6 +218,7 @@ class Compiler {
   nnvm::ShapeVector shapes_;
   // inferred nnvm::Graph dtype
   nnvm::DTypeVector dtypes_;
+  std::unordered_map<std::shared_ptr<Graph>, nnvm::NodePtr> compiled_nodes_;
 };
 
 }  // namespace ngraph_bridge
