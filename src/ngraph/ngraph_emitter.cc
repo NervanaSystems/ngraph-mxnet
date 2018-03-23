@@ -444,42 +444,36 @@ void Emitter::CreateBinaryOps() {
         std::make_shared<ngraph::op::Equal>(op_map_[node->inputs_[0]],
                                             op_map_[node->inputs_[1]]),
         getType(node->dtype_));
-
   };
   ngraph_op_funcs_["_not_equal"] = [this](const NodePtr& node) {
     return cast_result(
         std::make_shared<ngraph::op::NotEqual>(op_map_[node->inputs_[0]],
                                                op_map_[node->inputs_[1]]),
         getType(node->dtype_));
-
   };
   ngraph_op_funcs_["_greater"] = [this](const NodePtr& node) {
     return cast_result(
         std::make_shared<ngraph::op::Greater>(op_map_[node->inputs_[0]],
                                               op_map_[node->inputs_[1]]),
         getType(node->dtype_));
-
   };
   ngraph_op_funcs_["_greater_equal"] = [this](const NodePtr& node) {
     return cast_result(
         std::make_shared<ngraph::op::GreaterEq>(op_map_[node->inputs_[0]],
                                                 op_map_[node->inputs_[1]]),
         getType(node->dtype_));
-
   };
   ngraph_op_funcs_["_lesser"] = [this](const NodePtr& node) {
     return cast_result(
         std::make_shared<ngraph::op::Less>(op_map_[node->inputs_[0]],
                                            op_map_[node->inputs_[1]]),
         getType(node->dtype_));
-
   };
   ngraph_op_funcs_["_lesser_equal"] = [this](const NodePtr& node) {
     return cast_result(
         std::make_shared<ngraph::op::LessEq>(op_map_[node->inputs_[0]],
                                              op_map_[node->inputs_[1]]),
         getType(node->dtype_));
-
   };
   auto dot_transpose = [this](const NodePtr& node, NgraphNodePtr left,
                               NgraphNodePtr right) {
@@ -594,22 +588,18 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["broadcast_greater"] = [this](const NodePtr& node) {
     return cast_result(CreateAutoBroadcast<ngraph::op::Greater>(node),
                        getType(node->dtype_));
-
   };
   ngraph_op_funcs_["broadcast_greater_equal"] = [this](const NodePtr& node) {
     return cast_result(CreateAutoBroadcast<ngraph::op::GreaterEq>(node),
                        getType(node->dtype_));
-
   };
   ngraph_op_funcs_["broadcast_lesser"] = [this](const NodePtr& node) {
     return cast_result(CreateAutoBroadcast<ngraph::op::Less>(node),
                        getType(node->dtype_));
-
   };
   ngraph_op_funcs_["broadcast_lesser_equal"] = [this](const NodePtr& node) {
     return cast_result(CreateAutoBroadcast<ngraph::op::LessEq>(node),
                        getType(node->dtype_));
-
   };
 }
 

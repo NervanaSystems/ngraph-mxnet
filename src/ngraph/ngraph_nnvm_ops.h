@@ -17,6 +17,7 @@
 #ifndef MXNET_NGRAPH_NGRAPH_NNVM_OPS_H_
 #define MXNET_NGRAPH_NGRAPH_NNVM_OPS_H_
 
+#include <mxnet/ndarray.h>
 #include <mxnet/op_attr_types.h>
 #include <nnvm/op.h>
 
@@ -32,14 +33,14 @@ nnvm::Op* get_subgraph_op(std::shared_ptr<Graph> graph);
 void register_subgraph(std::shared_ptr<Graph> graph);
 // function for computing forward on ngraph
 void compute_forward(const mxnet::OpContext& ctx, std::shared_ptr<Graph> graph,
-                     const std::vector<mxnet::TBlob>& inputs,
+                     const std::vector<mxnet::NDArray>& inputs,
                      const std::vector<mxnet::OpReqType>& req,
-                     const std::vector<mxnet::TBlob>& outputs);
+                     const std::vector<mxnet::NDArray>& outputs);
 // function for computing backward on ngraph
 void compute_backward(const mxnet::OpContext& ctx, std::shared_ptr<Graph> graph,
-                      const std::vector<mxnet::TBlob>& inputs,
+                      const std::vector<mxnet::NDArray>& inputs,
                       const std::vector<mxnet::OpReqType>& req,
-                      const std::vector<mxnet::TBlob>& outputs);
+                      const std::vector<mxnet::NDArray>& outputs);
 
 // dummy parameter struct to match mxnet API
 struct NGraphParam {

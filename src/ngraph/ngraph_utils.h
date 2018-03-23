@@ -16,6 +16,7 @@
 
 #ifndef MXNET_NGRAPH_NGRAPH_UTILS_H_
 #define MXNET_NGRAPH_NGRAPH_UTILS_H_
+#include <mxnet/ndarray.h>
 #include <chrono>
 #include <iostream>
 #include <string>
@@ -146,6 +147,14 @@ inline bool get_default(const NodePtr& node, const std::string& key,
       return false;
   }
   return default_val;
+}
+
+// check if any ndarray is sparse
+inline bool sparse_check(const std::vector<mxnet::NDArray>& ndarray) {
+  for (const auto& i : ndarray) {
+    if (i.storage_type() != mxnet::kDefaultStorage) return true;
+  }
+  return false;
 }
 
 template <typename T>

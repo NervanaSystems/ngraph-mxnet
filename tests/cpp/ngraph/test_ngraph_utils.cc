@@ -48,9 +48,9 @@ TEST(NGRAPH_STRING, GETINTS) {
 }
 
 TEST(NGRAPH_STRING, RANDOMSTRING) {
-  EXPECT_EQ(randomString(12).size(), 12);
-  EXPECT_EQ(randomString(4).size(), 4);
-  EXPECT_EQ(randomString(77).size(), 77);
+  EXPECT_EQ(randomString(12).size(), 12ul);
+  EXPECT_EQ(randomString(4).size(), 4ul);
+  EXPECT_EQ(randomString(77).size(), 77ul);
 }
 
 TEST(NGRAPH_SGCOMPILER_UTILS, Convert_Shapes) {
@@ -85,27 +85,27 @@ TEST(NGRAPH_NNVM, GetBufferSize) {
   ngraph::Shape ngshape{2, 3, 4, 5};
   nnvm::TShape Tshape{2, 3, 4, 5};
 
-  EXPECT_EQ(get_buffer_size(vecshape, 2), 240);
-  EXPECT_EQ(get_buffer_size(vecshape, 4), 480);
-  EXPECT_EQ(get_buffer_size(vecshape, 8), 960);
-  EXPECT_EQ(get_buffer_size(ngshape, 2), 240);
-  EXPECT_EQ(get_buffer_size(ngshape, 4), 480);
-  EXPECT_EQ(get_buffer_size(ngshape, 8), 960);
-  EXPECT_EQ(get_buffer_size(Tshape, 2), 240);
-  EXPECT_EQ(get_buffer_size(Tshape, 4), 480);
-  EXPECT_EQ(get_buffer_size(Tshape, 8), 960);
+  EXPECT_EQ(get_buffer_size(vecshape, 2), 240ul);
+  EXPECT_EQ(get_buffer_size(vecshape, 4), 480ul);
+  EXPECT_EQ(get_buffer_size(vecshape, 8), 960ul);
+  EXPECT_EQ(get_buffer_size(ngshape, 2), 240ul);
+  EXPECT_EQ(get_buffer_size(ngshape, 4), 480ul);
+  EXPECT_EQ(get_buffer_size(ngshape, 8), 960ul);
+  EXPECT_EQ(get_buffer_size(Tshape, 2), 240ul);
+  EXPECT_EQ(get_buffer_size(Tshape, 4), 480ul);
+  EXPECT_EQ(get_buffer_size(Tshape, 8), 960ul);
 }
 
-TEST(NGRAPH_NNVM, copy_TBlobs) {
+TEST(NGRAPH_NNVM, copy_NDArrays) {
   nnvm::TShape shape{10};
   std::vector<float> vec1{1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
   std::vector<float> vec2{11, 12, 13, 14, 15, 16, 17, 18, 19, 10};
 
-  mxnet::TBlob TBlob1(vec1.data(), shape, 0);
-  mxnet::TBlob TBlob2(vec2.data(), shape, 0);
-  std::vector<mxnet::TBlob> inblobs;
-  inblobs.push_back(TBlob1);
-  inblobs.push_back(TBlob2);
+  mxnet::NDArray array1(mxnet::TBlob(vec1.data(), shape, 1, 0), 0);
+  mxnet::NDArray array2(mxnet::TBlob(vec2.data(), shape, 1, 0), 0);
+  std::vector<mxnet::NDArray> inblobs;
+  inblobs.push_back(array1);
+  inblobs.push_back(array2);
 
   auto graph = std::make_shared<Graph>(Graph());
   auto backend = GetBackendFromContext(mxnet::Context::CPU());
@@ -119,16 +119,16 @@ TEST(NGRAPH_NNVM, copy_TBlobs) {
   /*                     ->get_vector<float>()); */
   std::vector<float> vec3{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   std::vector<float> vec4{1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-  mxnet::TBlob TBlob3(vec3.data(), shape, 0);
-  mxnet::TBlob TBlob4(vec4.data(), shape, 0);
-  std::vector<mxnet::TBlob> outblobs;
-  outblobs.push_back(TBlob3);
-  outblobs.push_back(TBlob4);
+  mxnet::NDArray array3(mxnet::TBlob(vec3.data(), shape, 1, 0), 0);
+  mxnet::NDArray array4(mxnet::TBlob(vec4.data(), shape, 1, 0), 0);
+  std::vector<mxnet::NDArray> outblobs;
+  outblobs.push_back(array3);
+  outblobs.push_back(array4);
 
   // test 1: kWriteTo - vec3 = vec1
   // test 2: kAddTo - vec4 += vec2
   std::vector<mxnet::OpReqType> req{mxnet::kWriteTo, mxnet::kAddTo};
-  result_to_TBlob(placeholders, req, outblobs);
+  result_to_NDArray(placeholders, req, outblobs);
   EXPECT_EQ(vec1, vec3);
   std::vector<float> vec4_plus_vec2{12, 13, 14, 15, 16, 17, 18, 19, 20, 11};
   EXPECT_EQ(vec4_plus_vec2, vec4);
