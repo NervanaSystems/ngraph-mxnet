@@ -72,40 +72,43 @@ TEST_F(NGRAPH_GRAPH, CYCLIC_GRAPH) {
 }
 
 TEST_F(NGRAPH_GRAPH, GRAPH_DFS_LINEAR) {
-  EXPECT_EQ(SelectNodes(linear_graph.nodes_[4], isop).size(), 4);
-  EXPECT_EQ(SelectNodes(linear_graph.nodes_[3], isop).size(), 3);
-  EXPECT_EQ(SelectNodes(linear_graph.nodes_[0], isop).size(), 0);
+  EXPECT_EQ(SelectNodes(linear_graph.nodes_[4], isop).size(), 4ul);
+  EXPECT_EQ(SelectNodes(linear_graph.nodes_[3], isop).size(), 3ul);
+  EXPECT_EQ(SelectNodes(linear_graph.nodes_[0], isop).size(), 0ul);
 }
 
 TEST_F(NGRAPH_GRAPH, GRAPH_DFS_BRANCHING) {
-  EXPECT_EQ(SelectNodes(branching_graph.nodes_[1], isop).size(), 1);
-  EXPECT_EQ(SelectNodes(branching_graph.nodes_[2], isop).size(), 2);
-  EXPECT_EQ(SelectNodes(branching_graph.nodes_[4], isop).size(), 3);
-  EXPECT_EQ(SelectNodes(branching_graph.nodes_[5], isop).size(), 4);
+  EXPECT_EQ(SelectNodes(branching_graph.nodes_[1], isop).size(), 1ul);
+  EXPECT_EQ(SelectNodes(branching_graph.nodes_[2], isop).size(), 2ul);
+  EXPECT_EQ(SelectNodes(branching_graph.nodes_[4], isop).size(), 3ul);
+  EXPECT_EQ(SelectNodes(branching_graph.nodes_[5], isop).size(), 4ul);
 }
 
 TEST_F(NGRAPH_GRAPH, GRAPH_FIND_SUBGRAPH) {
   // branching
   EXPECT_EQ(
-      FindSubgraph(branching_graph, branching_graph.nodes_[2], isop).size(), 1);
+      FindSubgraph(branching_graph, branching_graph.nodes_[2], isop).size(),
+      1ul);
   EXPECT_EQ(
-      FindSubgraph(branching_graph, branching_graph.nodes_[4], isop).size(), 2);
+      FindSubgraph(branching_graph, branching_graph.nodes_[4], isop).size(),
+      2ul);
   EXPECT_EQ(
-      FindSubgraph(branching_graph, branching_graph.nodes_[5], isop).size(), 3);
+      FindSubgraph(branching_graph, branching_graph.nodes_[5], isop).size(),
+      3ul);
   // multi
-  EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[2], isop).size(), 1);
-  EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[4], isop).size(), 1);
-  EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[5], isop).size(), 1);
-  EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[7], isop).size(), 2);
+  EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[2], isop).size(), 1ul);
+  EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[4], isop).size(), 1ul);
+  EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[5], isop).size(), 1ul);
+  EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[7], isop).size(), 2ul);
   // complex
   EXPECT_EQ(FindSubgraph(complex_graph, complex_graph.nodes_[9], isop).size(),
-            1);
+            1ul);
   EXPECT_EQ(FindSubgraph(complex_graph, complex_graph.nodes_[20], isop).size(),
-            3);
+            3ul);
   EXPECT_EQ(FindSubgraph(complex_graph, complex_graph.nodes_[24], isop).size(),
-            6);
+            6ul);
   EXPECT_EQ(FindSubgraph(complex_graph, complex_graph.nodes_[25], isop).size(),
-            6);
+            6ul);
 }
 
 TEST_F(NGRAPH_GRAPH, GRAPH_IDENTIFY_SUBGRAPHS) {
@@ -123,11 +126,11 @@ TEST_F(NGRAPH_GRAPH, GRAPH_COLLAPSE_SUBGRAPHS) {
   IdentifySubgraphs(branching_graph, isop);
   CollapseSubgraphs(&branching_graph);
   auto size = branching_graph.nodes_.size();
-  EXPECT_EQ(size, 5);
+  EXPECT_EQ(size, 5ul);
   auto subgraph =
       std::dynamic_pointer_cast<Graph>(branching_graph.nodes_[size - 2]);
   EXPECT_NE(subgraph, nullptr);
-  EXPECT_EQ(subgraph->nodes_.size(), 3);
+  EXPECT_EQ(subgraph->nodes_.size(), 3ul);
 }
 
 // TEST(NGRAPH_GRAPH, PARSENNVM) {

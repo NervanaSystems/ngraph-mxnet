@@ -80,6 +80,7 @@ class Node {
   // mxnet type information
   nnvm::TShape shape_;
   int dtype_ = 0;
+  int stype_ = 0;
 
   // information to store graph parsing in
   size_t multi_output_index_ = 0;
@@ -151,7 +152,7 @@ static std::unordered_map<std::string,
 
 inline std::string get_backend_name(const mxnet::Context &context) {
   if (context == mxnet::Context::NNP()) {
-    return "ARGON";
+    return "NNP";
     // } else if (context == mxnet::Context::GPU()) {
     //   return "GPU";
   } else if (context == mxnet::Context::CPU()) {
