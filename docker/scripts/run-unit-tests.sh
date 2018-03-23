@@ -30,8 +30,8 @@ cd python && sudo -E pip install -e . && cd ../
 ##eval $cmd
 
 ## Unit tests test_attr.py
-##cmd="OMP_NUM_THREADS=4 pytest -n 2 tests/python/unittest/test_attr.py --verbose --capture=no"
-##eval $cmd
+cmd="OMP_NUM_THREADS=4 pytest -s -n 2 tests/python/unittest/test_attr.py --verbose --capture=no --junit-xml=../result_test_attr.xml --junit-prefix=result_test_attr"
+eval $cmd
 
 ## Unit tests test_autograd.py
 ##cmd="OMP_NUM_THREADS=4 pytest -n 2 tests/python/unittest/test_autograd.py --verbose --capture=no"
@@ -86,8 +86,8 @@ cd python && sudo -E pip install -e . && cd ../
 ##eval $cmd
 
 ## Unit tests test_image.py
-cmd="OMP_NUM_THREADS=4 pytest -n 2 tests/python/unittest/test_image.py --verbose --capture=no"
-eval $cmd
+##cmd="OMP_NUM_THREADS=4 pytest -n 2 tests/python/unittest/test_image.py --verbose --capture=no"
+##eval $cmd
 
 ## Unit tests test_infer_shape.py
 ##cmd="OMP_NUM_THREADS=4 pytest -n 2 tests/python/unittest/test_infer_shape.py --verbose --capture=no"
