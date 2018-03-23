@@ -317,6 +317,7 @@ void CollapseSubgraphs(Graph* graph) {
       auto output = tmpGraph->nodes_.back();
       tmpGraph->shape_ = output->shape_;
       tmpGraph->dtype_ = output->dtype_;
+      tmpGraph->stype_ = output->stype_;
 
       auto in_tmpGraphInputs = [&tmpGraph](NodePtr n) {
         if (!in_vec(tmpGraph->inputs_, n)) return false;

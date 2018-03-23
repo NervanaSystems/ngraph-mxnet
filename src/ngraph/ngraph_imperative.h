@@ -17,6 +17,7 @@
 #ifndef MXNET_NGRAPH_NGRAPH_IMPERATIVE_H_
 #define MXNET_NGRAPH_NGRAPH_IMPERATIVE_H_
 
+#include <mxnet/ndarray.h>
 #include <nnvm/op.h>
 #include <string>
 #include <tuple>
@@ -35,9 +36,9 @@ class NGImperative : public Compiler {
  public:
   // NGImperative constructor for mxnet compute kernel(s)
   NGImperative(const nnvm::NodeAttrs &attrs, const mxnet::Context &ctx,
-               const std::vector<mxnet::TBlob> &inputs,
+               const std::vector<mxnet::NDArray> &inputs,
                const std::vector<mxnet::OpReqType> *req,
-               const std::vector<mxnet::TBlob> &outputs);
+               const std::vector<mxnet::NDArray> &outputs);
 
   // return ngraph representing the imperative compute kernel
   inline std::shared_ptr<Graph> get_op_ngraph() {
@@ -75,7 +76,7 @@ using NGIOpKey = std::tuple<const std::string, const std::pair<int, int>,
 
 // create NGIOpKey for a given NNVM FCompute kernel.
 NGIOpKey get_ngiop_key(const nnvm::NodeAttrs &attrs, const mxnet::Context &ctx,
-                       const std::vector<mxnet::TBlob> &inputs);
+                       const std::vector<mxnet::NDArray> &inputs);
 
 // ngraph cache for imperative ops
 // TODO(aemani): potential optimizations w/ LRU, fixed size.

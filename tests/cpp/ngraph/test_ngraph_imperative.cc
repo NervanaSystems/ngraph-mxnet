@@ -14,8 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "test_ngraph_imperative.h"
 #include "../../src/ngraph/ngraph_nnvm_ops.h"
+#include "test_ngraph_imperative.h"
 
 namespace ngraph_bridge {
 
@@ -42,7 +42,7 @@ TEST_F(NGRAPH_IMPERATIVE, SYMBOL_GRAPH) {
 
 TEST_F(NGRAPH_IMPERATIVE, PARSE_OPGRAPH) {
   testImperative test(attrs, mxnet::Context::CPU(), inputs, nullptr, outputs);
-  EXPECT_EQ(test.ngraph_.nodes_.size(), 0);
+  EXPECT_EQ(test.ngraph_.nodes_.size(), 0ul);
   EXPECT_FALSE(test.op_ngraph_);
   test.parse_ngraph();
   EXPECT_TRUE(test.op_ngraph_);
@@ -66,9 +66,9 @@ TEST_F(NGRAPH_IMPERATIVE, UNSUPPORTED_OP) {
   sym_attrs.op = nnvm::Op::Get("IdentityAttachKLSparseReg");
   testImperative test(sym_attrs, mxnet::Context::CPU(), outputs, nullptr,
                       outputs);
-  EXPECT_EQ(test.ngraph_.nodes_.size(), 0);
+  EXPECT_EQ(test.ngraph_.nodes_.size(), 0ul);
   test.parse_ngraph();
-  EXPECT_EQ(test.ngraph_.nodes_.size(), 2);
+  EXPECT_EQ(test.ngraph_.nodes_.size(), 2ul);
   for (auto n : test.ngraph_.nodes_) {
     EXPECT_EQ(n->in_ngraph_, false);
   }
