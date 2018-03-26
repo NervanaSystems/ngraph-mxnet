@@ -172,12 +172,6 @@ The following models are known to run successfully in this release:
 * `example/image-classification/train_mnist.py`
 * `example/image-classification/train_cifar10.py`
 
-  *Note:* Due to limitations in the nGraph-enabled MXNet software, the
-  `train_cifar10.py` may run successfully only if the following environment variables
-  are set as indicated:
-    * `OMP_NUM_THREADS=16`
-    * `KMP_AFFINITY=granularity=fine,compact,1,0`
-
 Other models are under development are not guaranteed to run to completion or converge.
 This is a temporary limitation expected to be lifted in a future release.
 
