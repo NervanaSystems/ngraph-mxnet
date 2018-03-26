@@ -21,6 +21,7 @@
 from __future__ import absolute_import
 
 import os
+import psutil
 import sys
 import ctypes
 import atexit
@@ -105,8 +106,31 @@ def _load_lib():
     lib.MXGetLastError.restype = ctypes.c_char_p
     return lib
 
+def _update_env_vars():
+  """
+  If mxnet::engine::OpenMP::OpenMP() calls certain functions including omp_set_num_threads(...)
+  then for some reason train_cifar10.py eventually segfaults.  This function modifies the
+  environment variables to sidestep the problem.
+  """
+  if 'MXNET_OMP_MAX_THREADS' in os.environ:
+    return
+
+  if 'OMP_NUM_THREADS' in os.environ:
+    return
+
+  # Approximate the return value of omp_get_num_procs()
+  omp_max_thread = psutil.cpu_count()
+  omp_max_thread = omp_max_thread // 2
+
+  sys.stdout.write('ngraph-mxnet: defaulting OMP_NUM_THREADS env var to "{}"\n'.format(
+    omp_max_thread ))
+  os.environ['OMP_NUM_THREADS'] = str(omp_max_thread)
+
 # version number
 __version__ = libinfo.__version__
+
+_update_env_vars()
+
 # library instance of mxnet
 _LIB = _load_lib()
 
