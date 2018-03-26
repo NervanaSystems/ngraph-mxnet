@@ -15,7 +15,7 @@
 # ********************************************************************************
 
 # Environment to build and run unit tests for ngraph-mxnet on ubuntu1604
-# with gcc 5.4
+# with gcc 5.4 by defaul
 # with clang 3.9
 # with capabilities for python 2.7 and python 3
 # Author:  Kim Janik / Lam Nguyen
@@ -48,7 +48,6 @@ RUN apt-get update && apt-get install -y build-essential git \
         python-scipy \
         python-sklearn \
         libopenblas-dev \
-        gcc-5.4 \
         clang-3.9 \
         clang-format-3.9 \
         virtualenv \
