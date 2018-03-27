@@ -519,13 +519,15 @@ bool multi_context_check(const Context& default_ctx,
       }
     }
   }
-  // TODO(mbrookhart): Ngraph doesn't support GPU yet, remove when the GPU Transformer is read
-  // When that happens, we probably also need to create collapsed nodes with FCompute<gpu>
-#if MXNET_USE_CUDA
-  if (default_ctx == Context::GPU()) {
-    multi_context = true;
+  // TODO(mbrookhart): we probably need to create collapsed nodes with FCompute<gpu>
+  // Ngraph GPU support is limitted and is currently enabled iff the env. variable
+  // MXNET_NGRAPH_GPU is defined
+  static const bool ngraph_gpu_enable = dmlc::GetEnv("MXNET_NGRAPH_GPU", false);
+  if (!ngraph_gpu_enable) {
+    if (default_ctx == Context::GPU()) {
+      multi_context = true;
+    }
   }
-#endif
   return multi_context;
 }
 #endif
@@ -562,13 +564,16 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                             arg_grad_ctxes, aux_state_ctxes, grad_req_types);
 
 #if MXNET_USE_NGRAPH == 1
+  // TODO(mbrookhart): Remove this when hetr can handle multiple contexts
+  auto multi_context = multi_context_check(default_ctx, in_arg_ctxes,
+                                           arg_grad_ctxes, aux_state_ctxes);
   const auto grad_sparse = ngraph_bridge::sparse_check(arg_grad_store);
 
   ngraph_bridge::BindArg bind(num_forward_inputs_, in_args, aux_states);
   ngraph_bridge::Compiler compiler(
       g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), bind,
       default_ctx);
-  if (!grad_sparse) {
+  if (!multi_context && !grad_sparse) {
     saved_states_ = compiler.CopySavedStates(saved_states_);
     g = compiler.Compile();
 
@@ -661,7 +666,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // This function can be called by regular bind
   // operation flow as well.
 #if MXNET_USE_NGRAPH == 1
-  if (!grad_sparse) {
+  if (!multi_context && !grad_sparse) {
     FinishInitGraph(symbol, g, shared_exec, compiler.GetFeedDict());
   } else {
     FinishInitGraph(symbol, g, shared_exec, feed_dict);
@@ -1037,13 +1042,16 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   std::unordered_map<std::string, int> arg_stype_mapn = arg_stype_map;
 
 #if MXNET_USE_NGRAPH == 1
+  // TODO(mbrookhart): Remove this when hetr can handle multiple contexts
+  auto multi_context = multi_context_check(default_ctx, in_arg_ctxes,
+                                           arg_grad_ctxes, aux_state_ctxes);
   const auto grad_sparse = ngraph_bridge::sparse_check(*arg_grad_vec);
   ngraph_bridge::SimpleBindArg simplebind(num_forward_inputs_, arg_shape_map,
                                           arg_dtype_map, arg_stype_mapn);
   ngraph_bridge::Compiler compiler(
       g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), simplebind,
       default_ctx);
-  if (!grad_sparse) {
+  if (!multi_context && !grad_sparse) {
     saved_states_ = compiler.CopySavedStates(saved_states_);
     g = compiler.Compile();
 
@@ -1139,7 +1147,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // This function can be called by regular bind
   // operation flow as well.
 #if MXNET_USE_NGRAPH == 1
-  if (!grad_sparse) {
+  if (!multi_context && !grad_sparse) {
     FinishInitGraph(symbol, g, shared_exec, compiler.GetFeedDict());
   } else {
     FinishInitGraph(symbol, g, shared_exec, feed_dict);
