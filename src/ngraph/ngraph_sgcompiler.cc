@@ -96,6 +96,7 @@ void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
   // start by removing excess reshapes
   ngraph::pass::Manager pass_manager;
   pass_manager.register_pass<ngraph::pass::ReshapeElimination>();
+  pass_manager.register_pass<ngraph::pass::ReshapeElimination>();
 
   pass_manager.run_passes(f);
   pass_manager.run_passes(bf);
@@ -219,9 +220,9 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   auto f = MakeForwardFunction(sub_graph);
   auto bf = MakeBackwardFunction(sub_graph, f);
 
-  if (ngraph_optimzation) {
-    OptimizeGraph(sub_graph, f, bf);
-  }
+  
+  OptimizeGraph(sub_graph, f, bf);
+  
 
   if (ngraph_log_graph) {
     dump_graph(f);
