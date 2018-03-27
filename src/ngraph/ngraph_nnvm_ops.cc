@@ -259,15 +259,18 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
                                               dispatch_mode,
                                               mxnet::DispatchMode::kFComputeEx);
       });
-  // create the compute lambda
-  op.set_attr<mxnet::FComputeEx>(
-      "FComputeEx<cpu>",
+  // create the cpu/gpu compute lambda
+  for (std::string arch : {"cpu","gpu"})
+  {
+    op.set_attr<mxnet::FComputeEx>(
+      "FComputeEx<" + arch + ">",
       [graph](const nnvm::NodeAttrs &attrs, const mxnet::OpContext &ctx,
               const std::vector<mxnet::NDArray> &inputs,
               const std::vector<mxnet::OpReqType> &req,
               const std::vector<mxnet::NDArray> &outputs) -> void {
         compute_forward(ctx, graph, inputs, req, outputs);
       });
+  }
 }
 
 void register_backward_op(std::shared_ptr<Graph> graph) {
@@ -291,15 +294,18 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
                                               dispatch_mode,
                                               mxnet::DispatchMode::kFComputeEx);
       });
-  // create the compute lambda
-  op.set_attr<mxnet::FComputeEx>(
-      "FComputeEx<cpu>",
+  // create the cpu/gpu compute lambdas
+  for (std::string arch : {"cpu","gpu"})
+  {
+    op.set_attr<mxnet::FComputeEx>(
+      "FComputeEx<" + arch + ">",
       [graph](const nnvm::NodeAttrs &attrs, const mxnet::OpContext &ctx,
               const std::vector<mxnet::NDArray> &inputs,
               const std::vector<mxnet::OpReqType> &req,
               const std::vector<mxnet::NDArray> &outputs) -> void {
         compute_backward(ctx, graph, inputs, req, outputs);
       });
+  }
 }
 // register subgraph ops with nnvm.
 void register_subgraph(std::shared_ptr<Graph> graph) {
