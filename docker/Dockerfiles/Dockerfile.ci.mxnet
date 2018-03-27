@@ -59,7 +59,7 @@ RUN pip install numpy
 
 # We include pytest
 RUN pip install --upgrade pytest
-RUN pip3 install virtualenv pytest
+#RUN pip3 install virtualenv pytest
 
 # We include pytest-xdist to speed up the testing
 RUN pip install pytest-xdist
