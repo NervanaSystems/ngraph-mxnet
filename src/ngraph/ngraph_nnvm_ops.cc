@@ -259,9 +259,8 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
                                               dispatch_mode,
                                               mxnet::DispatchMode::kFComputeEx);
       });
-  // create the cpu/gpu compute lambda
-  for (std::string arch : {"cpu","gpu"})
-  {
+  // create the cpu & gpu forward compute lambdas
+  for (std::string arch : {"cpu", "gpu"}) {
     op.set_attr<mxnet::FComputeEx>(
       "FComputeEx<" + arch + ">",
       [graph](const nnvm::NodeAttrs &attrs, const mxnet::OpContext &ctx,
@@ -294,9 +293,8 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
                                               dispatch_mode,
                                               mxnet::DispatchMode::kFComputeEx);
       });
-  // create the cpu/gpu compute lambdas
-  for (std::string arch : {"cpu","gpu"})
-  {
+  // create the cpu & gpu backward compute lambdas
+  for (std::string arch : {"cpu", "gpu"}) {
     op.set_attr<mxnet::FComputeEx>(
       "FComputeEx<" + arch + ">",
       [graph](const nnvm::NodeAttrs &attrs, const mxnet::OpContext &ctx,
