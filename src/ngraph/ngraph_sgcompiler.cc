@@ -220,9 +220,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   auto f = MakeForwardFunction(sub_graph);
   auto bf = MakeBackwardFunction(sub_graph, f);
 
-  
   OptimizeGraph(sub_graph, f, bf);
-  
 
   if (ngraph_log_graph) {
     dump_graph(f);
