@@ -113,7 +113,7 @@ void Compiler::Infer(const BindArg* bind) {
   // append default shapes / dtypes so that vector size = graph size
   shapes_.resize(idx.input_nodes().size(), nnvm::TShape());
   dtypes_.resize(idx.input_nodes().size(), -1);
-  stypes_.resize(idx.input_nodes().size(), mxnet::kDefaultStorage);
+  stypes_.resize(idx.input_nodes().size(), mxnet::kUndefinedStorage);
 }
 
 // infer nnvm::Graph shape and dtype for simple bind case
@@ -122,7 +122,7 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
   const auto& idx = graph_.indexed_graph();
   shapes_.resize(idx.input_nodes().size(), nnvm::TShape());
   dtypes_.resize(idx.input_nodes().size(), -1);
-  stypes_.resize(idx.input_nodes().size(), mxnet::kDefaultStorage);
+  stypes_.resize(idx.input_nodes().size(), mxnet::kUndefinedStorage);
   size_t arg_top = 0, aux_top = 0;
   for (size_t i = 0; i < simplebind->kNumForwardInputs; ++i) {
     const uint32_t nid = idx.input_nodes().at(i);

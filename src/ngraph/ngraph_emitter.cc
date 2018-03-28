@@ -601,6 +601,34 @@ void Emitter::CreateBinaryOps() {
     return cast_result(CreateAutoBroadcast<ngraph::op::LessEq>(node),
                        getType(node->dtype_));
   };
+  ngraph_op_funcs_["SequenceMask"] = [this](const NodePtr& node) {
+    auto data = op_map_[node->inputs_[0]];
+
+    // if sequence lengths specified
+    auto use_sequence_length = get_default(node, "use_sequence_length", false);
+    if (use_sequence_length) {
+      auto sequence_lengths = op_map_[node->inputs_[1]];
+
+      // default: sequence axis = 0; batch axis = 1
+      // alternative:  sequence axis = 1; batch axis = 0
+      auto sequence_axis = get_default(node, "axis", 0);
+      auto batch_axis = (sequence_axis == 0) ? 1 : 0;
+
+      // create a mask from sequence lengths, same shape as node
+      auto mask_shape = TShape_to_NShape(node->shape_);
+      auto mask = ngraph::builder::tensor_mask(sequence_lengths, sequence_axis,
+                                               batch_axis, mask_shape);
+
+      // create value constant, same shape as node
+      auto value = get_default(node, "value", std::string("0"));
+      auto value_constant =
+          makeConstant(ngraph::element::f32, mask_shape, value);
+
+      // data[mask==False] = value
+      data = std::make_shared<ngraph::op::Select>(mask, data, value_constant);
+    }
+    return data;
+  };
 }
 
 struct PoolingParams {
