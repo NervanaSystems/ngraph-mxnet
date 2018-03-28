@@ -32,6 +32,12 @@
 
 namespace ngraph_bridge {
 
+#ifdef MXNET_USE_CUDA
+#define NGRAPH_TRANSFORMERS {"cpu","gpu"}
+#else
+#define NGRAPH_TRANSFORMERS {"cpu"}
+#endif
+
 // get the OP from nnvm, return a pointer to it.
 nnvm::Op *get_subgraph_op(std::shared_ptr<Graph> graph) {
   return &(::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
@@ -260,7 +266,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
                                               mxnet::DispatchMode::kFComputeEx);
       });
   // create the cpu & gpu forward compute lambdas
-  for (std::string arch : {"cpu", "gpu"}) {
+  for (std::string arch : NGRAPH_TRANSFORMERS) {
     op.set_attr<mxnet::FComputeEx>(
       "FComputeEx<" + arch + ">",
       [graph](const nnvm::NodeAttrs &attrs, const mxnet::OpContext &ctx,
@@ -294,7 +300,7 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
                                               mxnet::DispatchMode::kFComputeEx);
       });
   // create the cpu & gpu backward compute lambdas
-  for (std::string arch : {"cpu", "gpu"}) {
+  for (std::string arch : NGRAPH_TRANSFORMERS) {
     op.set_attr<mxnet::FComputeEx>(
       "FComputeEx<" + arch + ">",
       [graph](const nnvm::NodeAttrs &attrs, const mxnet::OpContext &ctx,
