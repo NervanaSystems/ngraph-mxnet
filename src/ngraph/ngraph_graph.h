@@ -153,8 +153,10 @@ static std::unordered_map<std::string,
 inline std::string get_backend_name(const mxnet::Context &context) {
   if (context == mxnet::Context::NNP()) {
     return "NNP";
-    // } else if (context == mxnet::Context::GPU()) {
-    //   return "GPU";
+#if MXNET_USE_CUDA
+  } else if (context == mxnet::Context::GPU()) {
+    return "GPU";
+#endif
   } else if (context == mxnet::Context::CPU()) {
     return "CPU";
   } else {
