@@ -29,7 +29,7 @@ namespace ngraph_bridge {
 
 // enable ngraph gluon at runtime.
 const bool ngraph_gluon_enable = dmlc::GetEnv("MXNET_NGRAPH_GLUON", false);
-const bool ngraph_optimzation =
+const bool ngraph_optimization =
     dmlc::GetEnv("MXNET_NGRAPH_GRAPH_OPTIMIZATION", false);
 
 // logging

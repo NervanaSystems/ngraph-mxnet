@@ -229,7 +229,9 @@ class Graph : public Node {
   int num_outputs = 1;
   // nodes in this graph
   std::vector<NodePtr> nodes_;
-  // functions to execute this graph in ngraph
+  // functions to execute this graph in ngraph.
+  // Note: ngraph_backward[GraphExeMode::kInfer] should always be null, but we define it for
+  // consisteny.
   std::shared_ptr<ngraph::runtime::CallFrame>
       ngraph_forward[kGraphExeModeCount];
   std::shared_ptr<ngraph::runtime::CallFrame>

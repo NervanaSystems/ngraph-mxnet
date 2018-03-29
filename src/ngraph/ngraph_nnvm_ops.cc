@@ -109,6 +109,8 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   auto results = make_ngraph_placeholders(outputs, backend, false);
   placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
                       graph->cached_values[mode].end());
+
+  CHECK(graph->ngraph_backward[mode]);
   graph->ngraph_backward[mode]->call(results, placeholders);
   // reset the forward training compute flag to ensure backward always have
   // updated data from forward
