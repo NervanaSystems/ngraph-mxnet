@@ -48,6 +48,24 @@ void dump_graph(std::shared_ptr<ngraph::Function> f) {
   file.close();
 }
 
+void CompileForward(std::shared_ptr<Graph> sub_graph,
+                            std::shared_ptr<ngraph::Function> f,
+                            GraphExeMode exe_mode) {
+  const int mode = static_cast<int>(exe_mode);
+
+  auto manager = GetManagerFromContext(sub_graph->context_);
+  auto backend = GetBackendFromContext(sub_graph->context_);
+
+  // Log the graph so Graph_* corresponds to Function_* in codgen
+  if (ngraph_log_graph) {
+    dump_graph(f);
+  }
+
+  sub_graph->ngraph_forward[mode] =
+      backend->make_call_frame(manager->compile(f));
+}
+
+
 void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
                             std::shared_ptr<ngraph::Function> f,
                             std::shared_ptr<ngraph::Function> bf,
@@ -234,27 +252,36 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   // initalize a placeholder order vector for this subgraph
   for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
 
-  // compile all the ndoes in the graph
+  // compile all the nodes in the graph
   for (auto output : sub_graph->outputs_) {
     CompileNodes(output, sub_graph);
   }
 
   auto f = MakeForwardFunction(sub_graph);
-  auto bfa = MakeBackwardFunction(sub_graph, f);
-  auto bf = bfa.first;
-  auto adjoints = bfa.second;
 
-  if (ngraph_optimzation) {
-    OptimizeGraph(sub_graph, f, bf);
+  std::shared_ptr<ngraph::Function> maybe_bf;
+  std::vector<std::shared_ptr<ngraph::Node>> adjoints;
+  if (exe_mode_ == GraphExeMode::kTrain) {
+    auto bfa = MakeBackwardFunction(sub_graph, f);
+    maybe_bf = bfa.first;
+    adjoints = bfa.second;
+
+    // OptimizeGraph's real benefit comes from optimizing the fprop cache, so we only call it when
+    // we're in training mode...
+    if (ngraph_optimization) {
+      OptimizeGraph(sub_graph, f, maybe_bf);
+    }
   }
 
   if (ngraph_log_graph) {
     dump_graph(f);
-    dump_graph(bf);
+    if (maybe_bf) {
+      dump_graph(maybe_bf);
+    }
   }
 
   if (sub_graph->enable_fprop_cache && exe_mode_ == GraphExeMode::kTrain) {
-    auto fprop_cache = ngraph::cache_fprop(f, bf, adjoints);
+    auto fprop_cache = ngraph::cache_fprop(f, maybe_bf, adjoints);
 
     if (ngraph_log_graph) {
       dump_graph(fprop_cache.fprop);
@@ -270,11 +297,19 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
                                             node->get_shape()));
     }
 
-  } else {
+    return;
+  }
+
+  if (exe_mode_ == GraphExeMode::kTrain) {
     ngraph::FpropCache fprop_cache;
     fprop_cache.node_param_map = std::make_shared<ngraph::NodeMap>();
-    CompileForwardBackward(sub_graph, f, bf, exe_mode_, fprop_cache);
+    CompileForwardBackward(sub_graph, f, maybe_bf, exe_mode_, fprop_cache);
+    return;
   }
+
+  CHECK(exe_mode_ == GraphExeMode::kInfer);
+  // No need to compile the backprop function if we're running in inference mode.
+  CompileForward(sub_graph, f, exe_mode_);
 }
 
 /**

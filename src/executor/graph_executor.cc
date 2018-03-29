@@ -519,11 +519,15 @@ bool multi_context_check(const Context& default_ctx,
       }
     }
   }
-  // TODO(mbrookhart): Ngraph doesn't support GPU yet, remove when the GPU Transformer is read
-  // When that happens, we probably also need to create collapsed nodes with FCompute<gpu>
+  // TODO(mbrookhart): we probably need to create collapsed nodes with FCompute<gpu>
+  // Ngraph GPU support is limitted and is currently enabled iff the env. variable
+  // MXNET_NGRAPH_GPU is defined
 #if MXNET_USE_CUDA
-  if (default_ctx == Context::GPU()) {
-    multi_context = true;
+  static const bool ngraph_gpu_enable = dmlc::GetEnv("MXNET_NGRAPH_GPU", false);
+  if (!ngraph_gpu_enable) {
+    if (default_ctx == Context::GPU()) {
+      multi_context = true;
+    }
   }
 #endif
   return multi_context;

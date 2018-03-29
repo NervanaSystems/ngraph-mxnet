@@ -89,7 +89,7 @@ CFLAGS += -I$(ROOTDIR)/mshadow/ -I$(ROOTDIR)/dmlc-core/include -fPIC -I$(NNVM_PA
 ifndef NGRAPH_DIR
   ifeq ($(USE_NGRAPH),1)
         NGRAPH_DIR = $(ROOTDIR)/ngraph/install
-        NGRAPH := $(shell ./prepare_ngraph.sh $(NGRAPH_DIR) v0.1.0)
+        NGRAPH := $(shell ./prepare_ngraph.sh $(NGRAPH_DIR) v0.2.1)
   endif
 endif
 
