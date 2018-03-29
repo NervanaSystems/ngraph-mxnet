@@ -20,6 +20,9 @@
 #include "ngraph_emitter.h"
 #include "ngraph_graph.h"
 
+#include <utility>
+#include <vector>
+
 namespace ngraph_bridge {
 
 class SGCompiler : public Emitter {

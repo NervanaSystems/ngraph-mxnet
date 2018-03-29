@@ -33,9 +33,11 @@
 namespace ngraph_bridge {
 
 #if MXNET_USE_CUDA
-#define NGRAPH_TRANSFORMERS {"cpu","gpu"}
+#define NGRAPH_TRANSFORMERS \
+  { "cpu", "gpu" }
 #else
-#define NGRAPH_TRANSFORMERS {"cpu"}
+#define NGRAPH_TRANSFORMERS \
+  { "cpu" }
 #endif
 
 // get the OP from nnvm, return a pointer to it.
@@ -294,13 +296,13 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   // create the cpu & gpu forward compute lambdas
   for (std::string arch : NGRAPH_TRANSFORMERS) {
     op.set_attr<mxnet::FComputeEx>(
-      "FComputeEx<" + arch + ">",
-      [graph](const nnvm::NodeAttrs &attrs, const mxnet::OpContext &ctx,
-              const std::vector<mxnet::NDArray> &inputs,
-              const std::vector<mxnet::OpReqType> &req,
-              const std::vector<mxnet::NDArray> &outputs) -> void {
-        compute_forward(ctx, graph, inputs, req, outputs);
-      });
+        "FComputeEx<" + arch + ">",
+        [graph](const nnvm::NodeAttrs &attrs, const mxnet::OpContext &ctx,
+                const std::vector<mxnet::NDArray> &inputs,
+                const std::vector<mxnet::OpReqType> &req,
+                const std::vector<mxnet::NDArray> &outputs) -> void {
+          compute_forward(ctx, graph, inputs, req, outputs);
+        });
   }
 }
 
@@ -357,13 +359,13 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
   // create the cpu & gpu backward compute lambdas
   for (std::string arch : NGRAPH_TRANSFORMERS) {
     op.set_attr<mxnet::FComputeEx>(
-      "FComputeEx<" + arch + ">",
-      [graph](const nnvm::NodeAttrs &attrs, const mxnet::OpContext &ctx,
-              const std::vector<mxnet::NDArray> &inputs,
-              const std::vector<mxnet::OpReqType> &req,
-              const std::vector<mxnet::NDArray> &outputs) -> void {
-        compute_backward(ctx, graph, inputs, req, outputs);
-      });
+        "FComputeEx<" + arch + ">",
+        [graph](const nnvm::NodeAttrs &attrs, const mxnet::OpContext &ctx,
+                const std::vector<mxnet::NDArray> &inputs,
+                const std::vector<mxnet::OpReqType> &req,
+                const std::vector<mxnet::NDArray> &outputs) -> void {
+          compute_backward(ctx, graph, inputs, req, outputs);
+        });
   }
 }
 // register subgraph ops with nnvm.

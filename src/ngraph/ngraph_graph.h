@@ -118,7 +118,7 @@ class AuxNode : public Node {
 class OpNode : public Node {
  public:
   // Include operation in graphviz
-  virtual std::string createNodeLabel() override {
+  std::string createNodeLabel() override {
     std::ostringstream stream;
     stream << name_ << this << " [label=\"" << name_ << this
            << "\nOp: " << operation_ << shape_ << " sg=" << subgraph_ << "\"";
@@ -205,7 +205,7 @@ class Graph : public Node {
         context_(context),
         enable_fprop_cache(enable_fprop_cache) {}
 
-  virtual std::string createNodeLabel() override {
+  std::string createNodeLabel() override {
     std::ostringstream stream;
     stream << name_ << this << " [label = \"" << name_ << this << shape_
            << " \n sg=" << subgraph_ << " index=" << multi_output_index_
@@ -250,7 +250,8 @@ class Graph : public Node {
   // nodes in this graph
   std::vector<NodePtr> nodes_;
   // functions to execute this graph in ngraph.
-  // Note: ngraph_backward[GraphExeMode::kInfer] should always be null, but we define it for
+  // Note: ngraph_backward[GraphExeMode::kInfer] should always be null, but we
+  // define it for
   // consisteny.
   std::shared_ptr<ngraph::runtime::CallFrame>
       ngraph_forward[kGraphExeModeCount];
@@ -287,7 +288,7 @@ class OutputElement : public Node {
     subgraph_ = base_node_->subgraph_;
   }
 
-  virtual std::string createNodeLabel() override {
+  std::string createNodeLabel() override {
     std::ostringstream stream;
     stream << name_ << this << " [label = \"" << name_ << this << shape_
            << " \n sg=" << subgraph_ << " index=" << multi_output_index_

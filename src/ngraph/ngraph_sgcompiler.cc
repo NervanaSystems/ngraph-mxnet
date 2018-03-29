@@ -23,6 +23,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <utility>
 #include <vector>
 
 #include <ngraph/graph_util.hpp>
@@ -49,8 +50,8 @@ void dump_graph(std::shared_ptr<ngraph::Function> f) {
 }
 
 void CompileForward(std::shared_ptr<Graph> sub_graph,
-                            std::shared_ptr<ngraph::Function> f,
-                            GraphExeMode exe_mode) {
+                    std::shared_ptr<ngraph::Function> f,
+                    GraphExeMode exe_mode) {
   const int mode = static_cast<int>(exe_mode);
 
   auto manager = GetManagerFromContext(sub_graph->context_);
@@ -64,7 +65,6 @@ void CompileForward(std::shared_ptr<Graph> sub_graph,
   sub_graph->ngraph_forward[mode] =
       backend->make_call_frame(manager->compile(f));
 }
-
 
 void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
                             std::shared_ptr<ngraph::Function> f,
@@ -266,7 +266,8 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     maybe_bf = bfa.first;
     adjoints = bfa.second;
 
-    // OptimizeGraph's real benefit comes from optimizing the fprop cache, so we only call it when
+    // OptimizeGraph's real benefit comes from optimizing the fprop cache, so we
+    // only call it when
     // we're in training mode...
     if (ngraph_optimization) {
       OptimizeGraph(sub_graph, f, maybe_bf);
@@ -308,7 +309,8 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   CHECK(exe_mode_ == GraphExeMode::kInfer);
-  // No need to compile the backprop function if we're running in inference mode.
+  // No need to compile the backprop function if we're running in inference
+  // mode.
   CompileForward(sub_graph, f, exe_mode_);
 }
 
