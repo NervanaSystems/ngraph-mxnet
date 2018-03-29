@@ -248,15 +248,15 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
       });
   std::vector<nnvm::TShape> shapes;
   std::vector<int> dtypes;
-  for (auto output: graph->outputs_) {
+  for (auto output : graph->outputs_) {
     shapes.push_back(output->shape_);
     dtypes.push_back(output->dtype_);
   }
   // infer shapes
   op.set_attr<nnvm::FInferShape>(
-      "FInferShape",
-      [shapes](const nnvm::NodeAttrs &attrs, std::vector<nnvm::TShape> *in_attrs,
-              std::vector<nnvm::TShape> *out_attrs) -> bool {
+      "FInferShape", [shapes](const nnvm::NodeAttrs &attrs,
+                              std::vector<nnvm::TShape> *in_attrs,
+                              std::vector<nnvm::TShape> *out_attrs) -> bool {
         for (size_t i = 0; i < shapes.size(); ++i) {
           (*out_attrs)[i] = shapes[i];
         }
@@ -267,7 +267,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   op.set_attr<nnvm::FInferType>(
       "FInferType",
       [dtypes](const nnvm::NodeAttrs &attrs, std::vector<int> *iattr,
-              std::vector<int> *oattr) -> bool {
+               std::vector<int> *oattr) -> bool {
         for (size_t i = 0; i < dtypes.size(); ++i) {
           mxnet::op::type_assign(&((*oattr)[i]), dtypes[i]);
         }
@@ -306,18 +306,18 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
 
   // Mark as backward
   op.set_attr<bool>("TIsBackward", true);
-  
+
   std::vector<nnvm::TShape> shapes;
   std::vector<int> dtypes;
-  for (auto input: graph->inputs_) {
+  for (auto input : graph->inputs_) {
     shapes.push_back(input->shape_);
     dtypes.push_back(input->dtype_);
   }
   // infer shapes
   op.set_attr<nnvm::FInferShape>(
-      "FInferShape",
-      [shapes](const nnvm::NodeAttrs &attrs, std::vector<nnvm::TShape> *in_attrs,
-              std::vector<nnvm::TShape> *out_attrs) -> bool {
+      "FInferShape", [shapes](const nnvm::NodeAttrs &attrs,
+                              std::vector<nnvm::TShape> *in_attrs,
+                              std::vector<nnvm::TShape> *out_attrs) -> bool {
         for (size_t i = 0; i < shapes.size(); ++i) {
           (*out_attrs)[i] = shapes[i];
         }
@@ -334,7 +334,6 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
         }
         return true;
       });
-
 
   op.set_attr<mxnet::FInferStorageType>(
       "FInferStorageType",

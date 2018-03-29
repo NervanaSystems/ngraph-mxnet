@@ -87,7 +87,8 @@ TEST_F(NGRAPH_GRAPH, GRAPH_DFS_BRANCHING) {
 TEST_F(NGRAPH_GRAPH, GRAPH_FIND_SUBGRAPH) {
   // branching
   EXPECT_EQ(
-      FindSubgraph(branching_graph, branching_graph.nodes_[2], isop).size(), 2ul);
+      FindSubgraph(branching_graph, branching_graph.nodes_[2], isop).size(),
+      2ul);
   EXPECT_EQ(
       FindSubgraph(branching_graph, branching_graph.nodes_[4], isop).size(),
       2ul);

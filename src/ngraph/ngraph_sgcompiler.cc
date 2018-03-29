@@ -332,7 +332,7 @@ void SGCompiler::CompileNodes(NodePtr node,
           throw std::runtime_error(os.str());
         }
 
-        // Verify that the element-types computed by NNM and nGraph are
+        // Verify that the element-types computed by NNVM and nGraph are
         // identical...
         const ngraph::element::Type &ng_type = ngraph_node->get_element_type();
         const ngraph::element::Type &nnvm_type_as_ng_type =

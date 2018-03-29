@@ -244,6 +244,11 @@ std::vector<NodePtr> GetSubgraphOutputs(
   for (auto n : graph.outputs_)
     if (in_vec(subgraph_nodes, n)) outNodes.emplace_back(n);
 
+  if (outNodes.size() == 0) {
+    throw std::runtime_error(
+        "This subgraph has no outputs, something is wrong!");
+  }
+
   return outNodes;
 }
 
@@ -256,7 +261,7 @@ std::vector<NodePtr> FindSubgraph(const Graph& graph, NodePtr node,
   // search for broken loops
   // remove nodes on broken loops
   auto outNodes = RemoveBroken(node, subgraph_nodes);
-  
+
   return outNodes;
 }
 

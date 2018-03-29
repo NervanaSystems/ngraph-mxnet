@@ -133,6 +133,7 @@ static std::unordered_map<std::string, std::string> nameswitch({
     {"SwapAxis", "swapaxes"},
     {"Cast", "cast"},
     {"sum_axis", "sum"},
+    {"SliceChannel", "split"},
 });
 
 // MxNet OPs that do not have gradient should work when head-gradient is not

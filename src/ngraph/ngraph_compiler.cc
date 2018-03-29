@@ -37,10 +37,11 @@ nnvm::NodePtr CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
   node->attrs.op = get_subgraph_op(subgraph);
   // setup the inputs to the node
   for (auto input : subgraph->inputs_)
-    if (input->type_ == NodeType::kOutput){
+    if (input->type_ == NodeType::kOutput) {
       auto n = std::dynamic_pointer_cast<OutputElement>(input);
       node->inputs.emplace_back(nnvm::NodeEntry{
-          n->base_node_->orig_node_, static_cast<uint32_t>(n->base_node_->multi_output_index_),
+          n->base_node_->orig_node_,
+          static_cast<uint32_t>(n->base_node_->multi_output_index_),
           static_cast<uint32_t>(0)});
 
     } else {
@@ -54,39 +55,6 @@ nnvm::NodePtr CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
 
   node->attrs.parsed = std::move(op);
   return node;
-}
-
-// Generator to create functions that convert mxnet layer operations
-// into a series of ngraph operations
-LayerGraphs create_layer_graphs() {
-  LayerGraphs layer_funcs;
-
-  // Split is an operation with multiple outputs that splits
-  // a tensor into multiple tensors by creating even slices along
-  // one axis. To ease the interface with ngraph, we convert split into
-  // a slice based subgraph.
-  layer_funcs[std::string("split")] = [](const NodePtr node) {
-    Graph tmpGraph(node->name_);
-    int num_outputs = 1;
-    for (auto& kv : node->orig_node_->attrs.dict)
-      if (kv.first == "num_outputs") num_outputs = std::stoi(kv.second);
-
-    tmpGraph.num_outputs_ = num_outputs;
-    for (int i = 0; i < num_outputs; ++i) {
-      auto tmpslice = std::make_shared<OpNode>(
-          node->orig_node_, node->name_ + "_" + std::to_string(i), "split");
-      tmpslice->inputs_.push_back(node->inputs_[0]);
-      tmpslice->multi_output_index_ = i;
-      tmpGraph.AddNode(tmpslice);
-    }
-
-    return tmpGraph;
-  };
-
-  // Slice channel is an alias for split
-  layer_funcs[std::string("SliceChannel")] = layer_funcs["split"];
-
-  return layer_funcs;
 }
 
 // infer nnvm::Graph shape and dtype for bind case
@@ -192,7 +160,7 @@ void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
 
 void Compiler::IdentifyCollapseGraphs() {
   // Output Graphviz dot files (pre collapse) for vizualization
-  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, "pre_collapse");
+  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, std::string("pre_collapse"));
 
   IdentifySubgraphs(&ngraph_, [this](NodePtr s) -> bool {
     bool in_feed_dict = false;
@@ -248,17 +216,17 @@ nnvm::Graph Compiler::Compile() {
       compiled_nodes_.insert({sg, node});
     }
   }
-  // TODO(mbrookhart) This is gross. Need to find a better way to 
+  // TODO(mbrookhart) This is gross. Need to find a better way to
   // set nnvm subgraph nodes as inputs to each other.
   for (auto kv1 : compiled_nodes_) {
-    for (auto output : kv1.first->output_elements_){
+    for (auto output : kv1.first->output_elements_) {
       auto matches = [&output](const nnvm::NodeEntry& n) -> bool {
         return (n.node == output->base_node_->orig_node_) &&
                (n.index == output->base_node_->multi_output_index_);
       };
       nnvm::NodeEntry sg_node{
-            kv1.second, static_cast<uint32_t>(output->multi_output_index_),
-            static_cast<uint32_t>(0)};
+          kv1.second, static_cast<uint32_t>(output->multi_output_index_),
+          static_cast<uint32_t>(0)};
       for (auto kv2 : compiled_nodes_) {
         for (auto& input : kv2.second->inputs) {
           if (matches(input)) {
@@ -288,19 +256,19 @@ nnvm::Graph Compiler::Compile() {
           if (matches(nnvm_output)) nnvm_output = sg_node;
 
         // use nnvm depth first search to fix node connections in nnvm
-        nnvm::DFSVisit(graph_.outputs, [sg_node, &output,
-                                        &matches](const nnvm::NodePtr node) {
-          for (auto input : node->inputs) {
-            auto it =
-                std::find_if(node->inputs.begin(), node->inputs.end(), matches);
+        nnvm::DFSVisit(graph_.outputs,
+                       [sg_node, &output, &matches](const nnvm::NodePtr node) {
+                         for (auto input : node->inputs) {
+                           auto it = std::find_if(node->inputs.begin(),
+                                                  node->inputs.end(), matches);
 
-            if (it != node->inputs.end()) {
-              node->inputs[it-node->inputs.begin()] = sg_node;
-            } else {
-              break;
-            }
-          }
-        });
+                           if (it != node->inputs.end()) {
+                             node->inputs[it - node->inputs.begin()] = sg_node;
+                           } else {
+                             break;
+                           }
+                         }
+                       });
       }
     }
   }
@@ -406,12 +374,9 @@ void Compiler::CheckInNgraph() {
 
 // Function that parses an nnvm Graph into an intermediary graph
 void Compiler::ParseNnvmGraph() {
-  // Create dictionary of layer->ngraph functions
-  auto layer_funcs = create_layer_graphs();
   // Use NNVM's depth first search to trace the tree and construct the
   // intermediary graph
-  nnvm::DFSVisit(graph_.outputs, [this,
-                                  &layer_funcs](const nnvm::NodePtr node) {
+  nnvm::DFSVisit(graph_.outputs, [this](const nnvm::NodePtr node) {
     const auto& idx = this->graph_.indexed_graph();
 
     const auto& mutable_nodes = idx.mutable_input_nodes();
@@ -427,41 +392,37 @@ void Compiler::ParseNnvmGraph() {
       // create operation node
       auto op_name = clean_opname(node->op()->name);
       auto op_node = std::make_shared<OpNode>(node, node->attrs.name, op_name);
-      // setup operation inputs
-      for (size_t i = 0; i < node->inputs.size(); ++i) {
-        const nnvm::NodeEntry& e = node->inputs[i];
-        std::shared_ptr<Node> tmpnode;
-        tmpnode = this->ngraph_[e];
-        if (tmpnode == nullptr) {
-          tmpnode = std::make_shared<VariableNode>(node, e.node->attrs.name);
-          this->ngraph_.AddNode(tmpnode);
+
+      if (node->num_outputs() > 1 && op_name != "BatchNorm") {
+        for (size_t i = 0; i < node->num_outputs(); ++i) {
+          auto tmpop = std::make_shared<OpNode>(
+              op_node->orig_node_, op_node->name_ + "_" + std::to_string(i),
+              op_node->operation_);
+
+          for (auto input : op_node->inputs_) tmpop->inputs_.push_back(input);
+          tmpop->multi_output_index_ = i;
+
+          this->ngraph_.AddNode(tmpop);
         }
-        op_node->inputs_.emplace_back(tmpnode);
-      }
-
-      // function that renames or expands things like activation and
-      // split
-      auto expand_layers = [this,
-                            &layer_funcs](std::shared_ptr<OpNode>& op_node) {
-        auto tmp = layer_funcs[op_node->operation_](op_node);
-        if (tmp.num_outputs_ > 1)
-          this->ngraph_.nodes_.erase(
-              std::remove(this->ngraph_.nodes_.begin(),
-                          this->ngraph_.nodes_.end(), op_node),
-              this->ngraph_.nodes_.end());
-
-        for (auto n : tmp.nodes_) this->ngraph_.AddNode(n);
-      };
-
-      if (layer_funcs.count(op_node->operation_) != 0) {
-        // perform layer expansions
-        expand_layers(op_node);
       } else {
         // add operation
         this->ngraph_.AddNode(op_node);
       }
     }
   });
+
+  for (auto node : ngraph_.nodes_) {
+    for (size_t i = 0; i < node->orig_node_->inputs.size(); ++i) {
+      const nnvm::NodeEntry& e = node->orig_node_->inputs[i];
+      std::shared_ptr<Node> tmpnode;
+      tmpnode = this->ngraph_[e];
+      if (tmpnode == nullptr) {
+        throw std::runtime_error(
+            "NGRAPH_BRIDGE: couldn't parse the NNVM graph");
+      }
+      node->inputs_.emplace_back(tmpnode);
+    }
+  }
 
   for (auto e : graph_.outputs) {
     ngraph_.outputs_.push_back(ngraph_[e]);
@@ -476,7 +437,7 @@ void Compiler::ParseNnvmGraph() {
       graph_.GetAttr<mxnet::StorageTypeVector>("storage_type");
   for (auto node : this->ngraph_.nodes_) {
     const uint32_t nid = idx.node_id(node->orig_node_.get());
-    const uint32_t eid = idx.entry_id(nid, 0);
+    const uint32_t eid = idx.entry_id(nid, node->multi_output_index_);
     node->shape_ = inferred_shapes[eid];
     node->dtype_ = inferred_dtypes[eid];
     node->stype_ = inferred_stypes[eid];

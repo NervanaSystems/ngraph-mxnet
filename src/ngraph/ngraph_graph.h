@@ -231,11 +231,15 @@ class Graph : public Node {
 
   // get the node corresponding to an orig_node
   NodePtr operator[](const nnvm::NodeEntry &entry) {
-    for (auto n : nodes_)
+    for (auto n : nodes_) {
+      if (n->name_ == "gelqf0")
+        std::cout << n->orig_node_.get() << " " << n->multi_output_index_
+                  << std::endl;
       if ((n->orig_node_ == entry.node) &&
           (n->multi_output_index_ == entry.index)) {
         return n;
       }
+    }
     return nullptr;
   }
 
