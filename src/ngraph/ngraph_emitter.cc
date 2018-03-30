@@ -629,6 +629,69 @@ void Emitter::CreateBinaryOps() {
     }
     return data;
   };
+  ngraph_op_funcs_["SequenceLast"] = [this](const NodePtr& node) {
+    auto data = op_map_[node->inputs_[0]];
+
+    size_t sequence_axis = get_default(node, "axis", 0);
+    auto use_sequence_length = get_default(node, "use_sequence_length", false);
+
+    // if sequence lengths specified
+    if (use_sequence_length) {
+      auto sequence_lengths = op_map_[node->inputs_[1]];
+
+      auto max_sequence_length = data->get_shape()[sequence_axis];
+      std::vector<uint32_t> sequence_data(max_sequence_length);
+      std::iota(sequence_data.begin(), sequence_data.end(), 1);
+
+      // default: sequence axis = 0; batch axis = 1
+      // alternative:  sequence axis = 1; batch axis = 0
+      size_t batch_axis = (sequence_axis == 0) ? 1 : 0;
+
+      // all axes except the sequence axis
+      ngraph::AxisSet non_sequence_axes;
+      // all axes except the batch axis
+      ngraph::AxisSet non_batch_axes;
+
+      for (size_t axis = 0; axis < data->get_shape().size(); ++axis) {
+        if (axis != sequence_axis) non_sequence_axes.insert(axis);
+        if (axis != batch_axis) non_batch_axes.insert(axis);
+      }
+
+      // broadcast sequence lengths to mask shape along all non-batch axes
+      auto broadcast_sequence_lengths = std::make_shared<ngraph::op::Broadcast>(
+          sequence_lengths, data->get_shape(), non_batch_axes);
+
+      // create sequence constant
+      auto sequence = std::make_shared<ngraph::op::Constant>(
+          ngraph::element::u32, ngraph::Shape{max_sequence_length},
+          sequence_data);
+
+      // convert sequence to input type
+      auto convert_sequence = std::make_shared<ngraph::op::Convert>(
+          sequence, sequence_lengths->get_element_type());
+
+      // broadcast
+      auto broadcast_sequence = std::make_shared<ngraph::op::Broadcast>(
+          convert_sequence, data->get_shape(), non_sequence_axes);
+      // create a mask from sequence lengths, same shape as node
+      auto mask = std::make_shared<ngraph::op::Equal>(
+          broadcast_sequence, broadcast_sequence_lengths);
+      // conver the mask
+      auto convert_mask =
+          std::make_shared<ngraph::op::Convert>(mask, data->get_element_type());
+
+      // zero out non-last locations
+      data = data * convert_mask;
+
+      // collapse to only last locations
+      data = std::make_shared<ngraph::op::Sum>(data,
+                                               ngraph::AxisSet{sequence_axis});
+    } else {
+      data = slice_data_on_axis(data, data->get_shape().at(sequence_axis) - 1,
+                                1, sequence_axis, true);
+    }
+    return data;
+  };
 }
 
 struct PoolingParams {
@@ -690,8 +753,8 @@ void Emitter::CreateLayerOps() {
   // concatenates them along a given axis expanded for each input
   ngraph_op_funcs_["stack"] = [this](const NodePtr& node) {
     // get the concat axis
-    size_t axis = get_default_transformed_axis(node, "axis", 0,
-                                               node->inputs_[0]->shape_.ndim() + 1);
+    size_t axis = get_default_transformed_axis(
+        node, "axis", 0, node->inputs_[0]->shape_.ndim() + 1);
     auto shape = op_map_[node->inputs_[0]]->get_shape();
     shape.insert(shape.begin() + axis, 1);
     // grab input ngraph nodes and Reshape them
@@ -719,7 +782,7 @@ void Emitter::CreateLayerOps() {
     return std::make_shared<ngraph::op::Concat>(args, axis);
   };
 
-  // tile takes a tensor and replicates it along 
+  // tile takes a tensor and replicates it along
   // a given set of axes a given number of times
   ngraph_op_funcs_["tile"] = [this](const NodePtr& node) {
     auto input = op_map_[node->inputs_[0]];
