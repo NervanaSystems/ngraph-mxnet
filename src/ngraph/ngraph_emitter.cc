@@ -692,11 +692,11 @@ void Emitter::CreateLayerOps() {
     // get the concat axis
     size_t axis = get_default_transformed_axis(node, "axis", 0,
                                                node->inputs_[0]->shape_.ndim() + 1);
-    // grab in input ngraph nodes
+    auto shape = op_map_[node->inputs_[0]]->get_shape();
+    shape.insert(shape.begin() + axis, 1);
+    // grab in input ngraph nodes and Reshape them
     std::vector<NgraphNodePtr> args;
     for (auto i : node->inputs_) {
-      auto shape = op_map_[i]->get_shape();
-      shape.insert(shape.begin() + axis, 1);
       args.push_back(std::make_shared<ngraph::op::Reshape>(
           op_map_[i], pyrange(shape.size() - 1), shape));
     }
