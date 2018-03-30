@@ -153,8 +153,10 @@ static std::unordered_map<std::string,
 inline std::string get_backend_name(const mxnet::Context &context) {
   if (context == mxnet::Context::NNP()) {
     return "NNP";
-    // } else if (context == mxnet::Context::GPU()) {
-    //   return "GPU";
+#if MXNET_USE_CUDA
+  } else if (context == mxnet::Context::GPU()) {
+    return "GPU";
+#endif
   } else if (context == mxnet::Context::CPU()) {
     return "CPU";
   } else {
@@ -229,7 +231,9 @@ class Graph : public Node {
   int num_outputs = 1;
   // nodes in this graph
   std::vector<NodePtr> nodes_;
-  // functions to execute this graph in ngraph
+  // functions to execute this graph in ngraph.
+  // Note: ngraph_backward[GraphExeMode::kInfer] should always be null, but we define it for
+  // consisteny.
   std::shared_ptr<ngraph::runtime::CallFrame>
       ngraph_forward[kGraphExeModeCount];
   std::shared_ptr<ngraph::runtime::CallFrame>
