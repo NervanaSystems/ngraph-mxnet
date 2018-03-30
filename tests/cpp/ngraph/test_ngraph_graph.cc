@@ -114,7 +114,7 @@ TEST_F(NGRAPH_GRAPH, GRAPH_FIND_SUBGRAPH) {
 TEST_F(NGRAPH_GRAPH, GRAPH_COLLAPSE_SUBGRAPHS) {
   IdentifySubgraphs(&branching_graph, isop);
   auto size = branching_graph.nodes_.size();
-  EXPECT_EQ(size, 5ul);
+  EXPECT_EQ(size, 7ul);
   auto subgraph =
       std::dynamic_pointer_cast<Graph>(branching_graph.nodes_[size - 2]);
   EXPECT_NE(subgraph, nullptr);
