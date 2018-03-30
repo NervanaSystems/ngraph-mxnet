@@ -694,7 +694,7 @@ void Emitter::CreateLayerOps() {
                                                node->inputs_[0]->shape_.ndim() + 1);
     auto shape = op_map_[node->inputs_[0]]->get_shape();
     shape.insert(shape.begin() + axis, 1);
-    // grab in input ngraph nodes and Reshape them
+    // grab input ngraph nodes and Reshape them
     std::vector<NgraphNodePtr> args;
     for (auto i : node->inputs_) {
       args.push_back(std::make_shared<ngraph::op::Reshape>(
