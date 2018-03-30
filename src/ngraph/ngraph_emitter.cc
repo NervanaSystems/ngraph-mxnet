@@ -686,6 +686,25 @@ void Emitter::CreateLayerOps() {
                               squeeze_axis && (slice_step == 1));
   };
 
+  // stack takes a list of tensors of equal shape and
+  // concatenates them along a given axis expanded for each input
+  ngraph_op_funcs_["stack"] = [this](const NodePtr& node) {
+    // get the concat axis
+    size_t axis = get_default_transformed_axis(node, "axis", 0,
+                                               node->inputs_[0]->shape_.ndim() + 1);
+    auto shape = op_map_[node->inputs_[0]]->get_shape();
+    shape.insert(shape.begin() + axis, 1);
+    // grab input ngraph nodes and Reshape them
+    std::vector<NgraphNodePtr> args;
+    for (auto i : node->inputs_) {
+      args.push_back(std::make_shared<ngraph::op::Reshape>(
+          op_map_[i], pyrange(shape.size() - 1), shape));
+    }
+
+    // run concat
+    return std::make_shared<ngraph::op::Concat>(args, axis);
+  };
+
   // concat takes a list of tensors of equal shape and
   // concatenates them along a given axis
   ngraph_op_funcs_["concat"] = [this](const NodePtr& node) {
