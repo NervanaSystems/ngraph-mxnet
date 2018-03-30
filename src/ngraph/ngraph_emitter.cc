@@ -719,6 +719,36 @@ void Emitter::CreateLayerOps() {
     return std::make_shared<ngraph::op::Concat>(args, axis);
   };
 
+  // tile takes a tensor and replicates it along 
+  // a given set of axes a given number of times
+  ngraph_op_funcs_["tile"] = [this](const NodePtr& node) {
+    auto input = op_map_[node->inputs_[0]];
+    auto shape = input->get_shape();
+    // get the concat axis
+    std::vector<size_t> reps;
+    reps = get_default(node, "reps", reps);
+    // promote the shape if it's smaller
+    while (shape.size() < reps.size()) {
+      shape.insert(shape.begin(), 1);
+    }
+    // propote the reps if it's smaller
+    while (shape.size() < reps.size()) {
+      reps.insert(reps.begin(), 1);
+    }
+    // reshape the input if needed
+    if (shape != input->get_shape()) {
+      input = std::make_shared<ngraph::op::Reshape>(
+          input, pyrange(input->get_shape().size()), shape);
+    }
+    // tile along all the axes
+    for (size_t i = 0; i < reps.size(); ++i) {
+      std::vector<NgraphNodePtr> args;
+      for (size_t j = 0; j < reps[i]; ++j) args.push_back(input);
+      input = std::make_shared<ngraph::op::Concat>(args, i);
+    }
+
+    return input;
+  };
   // Fully connected is the main linear transformation layer in MXNet
   // it implements dot(data, W.T) + b
   ngraph_op_funcs_["FullyConnected"] = [this](const NodePtr& node) {
