@@ -160,7 +160,7 @@ if [ ! -f "./lib/libmxnet.so" ] ; then
 fi
 
 # ----- Run Models ----------------------------------
-cd docker
+cd "$HOME/ng-mx/docker/"
 
 case "${model_dataset}" in
 mlp-mnist)  # Multi-Layer Perceptron (MLP) with MNIST dataset
