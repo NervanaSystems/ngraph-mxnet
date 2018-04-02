@@ -268,25 +268,34 @@ std::vector<NodePtr> FindSubgraph(const Graph& graph, NodePtr node,
 // function to identify and label connected ngraph ops as subgraphs
 void IdentifySubgraphs(Graph* graph, const std::function<bool(NodePtr)>& func) {
   int sg = 1;
+  bool found_subgraph = false;
+  auto identify_inner_loop = [&graph, &func, &sg, &found_subgraph](NodePtr n) {
+    if (n->subgraph_ == 0) {
+      // select nodes in the a subgraph starting here and going up the graph
+      auto subgraph_nodes = FindSubgraph(*graph, n, func);
+
+      // if we found a significantly large subgraph, label it
+      if (subgraph_nodes.size() > 0) {
+        for (auto node : subgraph_nodes) {
+          node->subgraph_ = sg;
+        }
+        CollapseSubgraphs(graph, sg);
+        found_subgraph = true;
+        sg += 1;
+      }
+    }
+  };
+
+  // collapse graphs from the outputs
+  for (size_t i = 0; i < graph->num_outputs_; ++i) {
+    identify_inner_loop(graph->outputs_[i]);
+  }
   // loop over the nodes from the back
   while (true) {
-    bool found_subgraph = false;
+    found_subgraph = false;
     for (auto n = graph->nodes_.rbegin(); n != graph->nodes_.rend(); ++n) {
-      if ((*n)->subgraph_ == 0) {
-        // select nodes in the a subgraph starting here and going up the graph
-        auto subgraph_nodes = FindSubgraph(*graph, *n, func);
-
-        // if we found a significantly large subgraph, label it
-        if (subgraph_nodes.size() > 0) {
-          for (auto node : subgraph_nodes) {
-            node->subgraph_ = sg;
-          }
-          CollapseSubgraphs(graph, sg);
-          found_subgraph = true;
-          sg += 1;
-          break;
-        }
-      }
+      identify_inner_loop(*n);
+      if (found_subgraph) break;
     }
     if (found_subgraph) {
       continue;
@@ -328,12 +337,32 @@ void CollapseSubgraphs(Graph* graph, int subgraph_num) {
     };
 
     // setup inputs to this subgraph (as a node)
-    for (auto node : tmpGraph->nodes_) {
-      for (auto input : node->inputs_) {
-        if (input->subgraph_ != subgraph_num && !in_tmpGraphInputs(input)) {
-          tmpGraph->inputs_.emplace_back(input);
-        }
+    GraphVisitor get_inputs;
+    // erase nodes in bad branches from the output
+    get_inputs.operation = [&subgraph_num, &in_tmpGraphInputs, &tmpGraph](NodePtr node) {
+      if (node->subgraph_ != subgraph_num && !in_tmpGraphInputs(node)) {
+        tmpGraph->inputs_.emplace_back(node);
       }
+    };
+
+    // represents an input and the 'good' status of the node it was called from
+    using NodeGood = std::tuple<NodePtr, bool>;
+    std::set<NodePtr> visited;
+
+    get_inputs.stop_condition = [&visited, &tmpGraph](NodePtr node,
+                                                      NodePtr input) {
+      // continue if...
+      // 1) the node is in the subgraph
+      // 2) the input has not already been visited
+      if (in_vec(tmpGraph->nodes_, node) && !visited.count(input)) {
+        visited.insert(input);
+        return false;
+      }
+      // else, stop traversing the graph
+      return true;
+    };
+    for (auto output : tmpGraph->outputs_) {
+      GraphTraverse(output, get_inputs);
     }
 
     std::unordered_map<NodePtr, NodePtr> output_map;
