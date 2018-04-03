@@ -615,14 +615,13 @@ void Emitter::CreateBinaryOps() {
       auto batch_axis = (sequence_axis == 0) ? 1 : 0;
 
       // create a mask from sequence lengths, same shape as node
-      auto mask_shape = TShape_to_NShape(node->shape_);
-      auto mask = ngraph::builder::tensor_mask(sequence_lengths, sequence_axis,
-                                               batch_axis, mask_shape);
+      auto mask = ngraph::builder::tensor_mask<ngraph::op::Less>(
+          sequence_lengths, sequence_axis, batch_axis, data->get_shape(), 0);
 
       // create value constant, same shape as node
       auto value = get_default(node, "value", std::string("0"));
       auto value_constant =
-          makeConstant(ngraph::element::f32, mask_shape, value);
+          makeConstant(ngraph::element::f32, data->get_shape(), value);
 
       // data[mask==False] = value
       data = std::make_shared<ngraph::op::Select>(mask, data, value_constant);
@@ -633,50 +632,21 @@ void Emitter::CreateBinaryOps() {
     auto data = op_map_[node->inputs_[0]];
 
     size_t sequence_axis = get_default(node, "axis", 0);
-    auto use_sequence_length = get_default(node, "use_sequence_length", false);
 
     // if sequence lengths specified
+    auto use_sequence_length = get_default(node, "use_sequence_length", false);
     if (use_sequence_length) {
       auto sequence_lengths = op_map_[node->inputs_[1]];
-
-      auto max_sequence_length = data->get_shape()[sequence_axis];
-      std::vector<uint32_t> sequence_data(max_sequence_length);
-      std::iota(sequence_data.begin(), sequence_data.end(), 1);
 
       // default: sequence axis = 0; batch axis = 1
       // alternative:  sequence axis = 1; batch axis = 0
       size_t batch_axis = (sequence_axis == 0) ? 1 : 0;
 
-      // all axes except the sequence axis
-      ngraph::AxisSet non_sequence_axes;
-      // all axes except the batch axis
-      ngraph::AxisSet non_batch_axes;
-
-      for (size_t axis = 0; axis < data->get_shape().size(); ++axis) {
-        if (axis != sequence_axis) non_sequence_axes.insert(axis);
-        if (axis != batch_axis) non_batch_axes.insert(axis);
-      }
-
-      // broadcast sequence lengths to mask shape along all non-batch axes
-      auto broadcast_sequence_lengths = std::make_shared<ngraph::op::Broadcast>(
-          sequence_lengths, data->get_shape(), non_batch_axes);
-
-      // create sequence constant
-      auto sequence = std::make_shared<ngraph::op::Constant>(
-          ngraph::element::u32, ngraph::Shape{max_sequence_length},
-          sequence_data);
-
-      // convert sequence to input type
-      auto convert_sequence = std::make_shared<ngraph::op::Convert>(
-          sequence, sequence_lengths->get_element_type());
-
-      // broadcast
-      auto broadcast_sequence = std::make_shared<ngraph::op::Broadcast>(
-          convert_sequence, data->get_shape(), non_sequence_axes);
       // create a mask from sequence lengths, same shape as node
-      auto mask = std::make_shared<ngraph::op::Equal>(
-          broadcast_sequence, broadcast_sequence_lengths);
-      // conver the mask
+      auto mask = ngraph::builder::tensor_mask<ngraph::op::Equal>(
+          sequence_lengths, sequence_axis, batch_axis, data->get_shape(), 1);
+
+      // convert the mask to 0/1 from True/False
       auto convert_mask =
           std::make_shared<ngraph::op::Convert>(mask, data->get_element_type());
 
