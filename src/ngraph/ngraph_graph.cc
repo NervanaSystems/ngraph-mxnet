@@ -337,33 +337,10 @@ void CollapseSubgraphs(Graph* graph, int subgraph_num) {
     };
 
     // setup inputs to this subgraph (as a node)
-    GraphVisitor get_inputs;
-    // erase nodes in bad branches from the output
-    get_inputs.operation = [&subgraph_num, &in_tmpGraphInputs, &tmpGraph](NodePtr node) {
-      if (node->subgraph_ != subgraph_num && !in_tmpGraphInputs(node)) {
-        tmpGraph->inputs_.emplace_back(node);
-      }
-    };
-
-    // represents an input and the 'good' status of the node it was called from
-    using NodeGood = std::tuple<NodePtr, bool>;
-    std::set<NodePtr> visited;
-
-    get_inputs.stop_condition = [&visited, &tmpGraph](NodePtr node,
-                                                      NodePtr input) {
-      // continue if...
-      // 1) the node is in the subgraph
-      // 2) the input has not already been visited
-      if (in_vec(tmpGraph->nodes_, node) && !visited.count(input)) {
-        visited.insert(input);
-        return false;
-      }
-      // else, stop traversing the graph
-      return true;
-    };
-    for (auto output : tmpGraph->outputs_) {
-      GraphTraverse(output, get_inputs);
-    }
+    for (auto node : tmpGraph->nodes_) {
+      for (auto input : node->inputs_) {
+        if (input->subgraph_ != i && !in_tmpGraphInputs(input))
+          tmpGraph->inputs_.emplace_back(input);
 
     std::unordered_map<NodePtr, NodePtr> output_map;
     for (auto output : tmpGraph->output_elements_) {
