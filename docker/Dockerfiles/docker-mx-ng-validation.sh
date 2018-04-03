@@ -45,7 +45,7 @@ IMAGE_ID="$(git rev-parse HEAD)"
 
 # MX_NG_MODEL *must* be defined to run any validation test in docker
 if [ -z "${MX_NG_MODEL}" ] ; then
-    ( >&2 echo "MX_NG_MODEL must be set to the model-dataset to run" )
+    ( >&2 echo "MX_NG_MODEL must be set to the model to run" )
     exit
 fi
 
