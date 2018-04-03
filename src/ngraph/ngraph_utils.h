@@ -16,14 +16,19 @@
 
 #ifndef MXNET_NGRAPH_NGRAPH_UTILS_H_
 #define MXNET_NGRAPH_NGRAPH_UTILS_H_
-#include <mxnet/ndarray.h>
+
 #include <chrono>
+#include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+#include <ngraph/serializer.hpp>
+
 #include "ngraph_graph.h"
+#include "mxnet/ndarray.h"
 
 namespace ngraph_bridge {
 
@@ -186,6 +191,36 @@ get_default(const NodePtr& node, const std::string& key,
   }
   return out;
 }
+
+// A convenience class for using ngraph::serialize(...).  This class provides the
+// additional book-keeping needed to help our serialized graphs use the same
+// numerical suffixes as will be used if/when nGraph creates the corresponding
+// "Function_xxxx.cpp" file during graph-compilation.
+class NgGraphDumper {
+ public:
+  void increment_serial_num() {
+    ++ng_serial_num_;
+  }
+
+  int get_serial_num() {
+    return ng_serial_num_;
+  }
+
+  void dump(std::shared_ptr<ngraph::Function> f, std::string filename_suffix = "") {
+    std::stringstream fname;
+    fname << "Graph_" << ng_serial_num_ << filename_suffix << ".json";
+
+    std::ofstream file;
+    file.open(fname.str());
+    file << ngraph::serialize(f) << std::endl;
+    file.close();
+  }
+
+ private:
+  // Our estimate of the serial number that NGraph will use for the graph we're currently
+  // working with.
+  int ng_serial_num_ = 0;
+};
 
 }  // namespace ngraph_bridge
 
