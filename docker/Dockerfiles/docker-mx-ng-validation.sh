@@ -28,10 +28,7 @@ ngraph_mx_dir="$(realpath ../..)"
 # make-docker-mx-ngraph-base.sh script (in the same directory as this script).
 IMAGE_ID="$(git rev-parse HEAD)"
 
-dataset_dir='/dataset'
-
 docker_mx_dir="/home/dockuser/ng-mx"
-docker_dataset='/home/dockuser/dataset'
 
 script='run-mx-ngraph-validation-test.sh'
 
@@ -42,25 +39,24 @@ script='run-mx-ngraph-validation-test.sh'
 IMAGE_ID="$(git rev-parse HEAD)"
 
 # Parameters:
-#           MX_NG_MODEL_DATASET  Model and dataset to run
+#           MX_NG_MODEL          Model to run
 #           MX_NG_ITERATIONS     Number of iterations (aka steps) to run
 #           MX_NG_DO_NOT_RUN     If defined and not empty, does not run pytest
 
-# TEST_NG_MODEL_DATASET *must* be defined to run any validation test in docker
-if [ -z "${MX_NG_MODEL_DATASET}" ] ; then
-    ( >&2 echo "MX_NG_MODEL_DATASET must be set to the model-dataset to run" )
+# MX_NG_MODEL *must* be defined to run any validation test in docker
+if [ -z "${MX_NG_MODEL}" ] ; then
+    ( >&2 echo "MX_NG_MODEL must be set to the model-dataset to run" )
     exit
 fi
 
 docker run --rm \
        --env RUN_UID="$(id -u)" \
        --env RUN_CMD="${docker_mx_dir}/docker/scripts/${script}" \
-       --env MX_NG_MODEL_DATASET="${MX_NG_MODEL_DATASET}" \
+       --env MX_NG_MODEL="${MX_NG_MODEL}" \
        --env MX_NG_ITERATIONS="${MX_NG_ITERATIONS}" \
        --env MX_NG_EPOCHS="${MX_NG_EPOCHS}" \
        --env MX_NG_DO_NOT_RUN="${MX_NG_DO_NOT_RUN}" \
        --env http_proxy=http://proxy-us.intel.com:911 \
        --env https_proxy=https://proxy-us.intel.com:911 \
-       -v "${dataset_dir}:${docker_dataset}" \
        -v "${ngraph_mx_dir}:${docker_mx_dir}" \
        "mx_ngraph_base:${IMAGE_ID}" /home/run-as-user.sh
