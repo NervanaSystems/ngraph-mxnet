@@ -339,8 +339,10 @@ void CollapseSubgraphs(Graph* graph, int subgraph_num) {
     // setup inputs to this subgraph (as a node)
     for (auto node : tmpGraph->nodes_) {
       for (auto input : node->inputs_) {
-        if (input->subgraph_ != i && !in_tmpGraphInputs(input))
+        if (input->subgraph_ != subgraph_num && !in_tmpGraphInputs(input))
           tmpGraph->inputs_.emplace_back(input);
+      }
+    }
 
     std::unordered_map<NodePtr, NodePtr> output_map;
     for (auto output : tmpGraph->output_elements_) {
