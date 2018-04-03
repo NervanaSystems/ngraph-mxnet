@@ -83,7 +83,7 @@ run_RESNET110_CIFAR10() {
         export TEST_RESNET110_CIFAR10_EPOCHS=300  # Default is 300 epoches
     fi
     # Run the test
-    python example/image-classification/train_cifar10.py 
+    python example/image-classification/train_cifar10.py --num_epochs ${TEST_RESNET110_CIFAR10_EPOCHS}
     echo "===== Daily Validation CPU-Backend Pipeline Exited with $? ====="
 
 }  # run_RESNET110_CIFAR10()
