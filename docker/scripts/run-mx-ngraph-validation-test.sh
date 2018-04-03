@@ -77,7 +77,7 @@ run_RESNET110_CIFAR10() {
     # In train_cifar10.py script, OMP_NUM_THREADS (omp_max_thread) and KMP_AFFINITY are explicitly
     # set only for the nGraph run.  Thus, they are not set here.
     # Test parameters
-    export TEST_RESNET110_CIFAR10_LOG_DIR="${HOME}/ng-tx"
+    export TEST_RESNET110_CIFAR10_LOG_DIR="${HOME}/ng-mx"
     export TEST_RESNET110_CIFAR10_EPOCHS="${MX_NG_EPOCHS:-}"
     if [ -z "${TEST_RESNET110_CIFAR10_EPOCHS}" ] ; then
         export TEST_RESNET110_CIFAR10_EPOCHS=300  # Default is 300 epoches
