@@ -16,7 +16,6 @@
 # Author:  Lam Nguyen
 
 #!  /bin/bash
-set +u 
 
 # This script is designed to be called from within a docker container.
 # It is installed into a docker image.  It will not run outside the container.
@@ -45,9 +44,12 @@ set -o pipefail # Make sure cmds in pipe that are non-zero also fail immediately
 # Function to run the example/image-classification/train_mnist.py
 # Note:  read_data() will automatic download data from http://yann.lecun.com/exdb/mnist/ (train-images-idx3-ubyte.gz, t10k-images-idx3-ubyte.gz)
 run_MLP_MNIST() {
-    virtualenv -p python2.7 .venv
-    export PS1="[${LOGNAME}@$(hostname)]"
-    . .venv/bin/activate
+    # Make sure the bash shell prompt variables are set, as virtualenv crashes
+    # if PS2 is not set.
+    PS1='prompt> '
+    PS2='prompt-more> '
+    virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
+    source "${venv_dir}/bin/activate"
     cd python && pip install -e . && cd ../
     xtime="$(date)"
     echo  ' '
@@ -69,9 +71,12 @@ run_MLP_MNIST() {
 # Note: download_cifar10() will automatic download data from http://data.mxnet.io/data/cifar10
 
 run_RESNET110_CIFAR10() {
-    virtualenv -p python2.7 .venv1
-    export PS1="[${LOGNAME}@$(hostname)]" 
-    . .venv1/bin/activate
+    # Make sure the bash shell prompt variables are set, as virtualenv crashes
+    # if PS2 is not set.
+    PS1='prompt> '
+    PS2='prompt-more> '
+    virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
+    source "${venv_dir}/bin/activate"
     cd python && pip install -e . && cd ../
     xtime="$(date)"
     echo  ' '
@@ -97,6 +102,7 @@ run_RESNET110_CIFAR10() {
 
 export PYTHON_VERSION_NUMBER=2
 export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
+export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
 
 # This path is dependent on where host dir-tree is mounted into docker run
 # See script docker-run-tf-ng-build-as-user.sh
