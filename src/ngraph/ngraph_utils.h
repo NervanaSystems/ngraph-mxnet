@@ -17,8 +17,13 @@
 #ifndef MXNET_NGRAPH_NGRAPH_UTILS_H_
 #define MXNET_NGRAPH_NGRAPH_UTILS_H_
 #include <mxnet/ndarray.h>
+#include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <iterator>
+#include <set>
+#include <sstream>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -185,6 +190,76 @@ get_default(const NodePtr& node, const std::string& key,
     out = default_val;
   }
   return out;
+}
+
+/// Emits a programmer-friendly representation, to assist with logging
+/// and debugging.
+std::ostream& operator<<(std::ostream& os, const ngraph::Shape& s);
+
+/// Emits a programmer-friendly representation, to assist with logging
+/// and debugging.
+std::ostream& operator<<(std::ostream& os, const ngraph::AxisSet& s);
+
+/// Emits a programmer-friendly representation, to assist with logging
+/// and debugging.
+std::ostream& operator<<(std::ostream& os, const nnvm::TShape& s);
+
+/// A convenience method to obtain the elements of s1 that are not
+/// present in s2.
+template <typename T>
+std::set<T> set_subtract(const std::set<T>& s1, const std::set<T>& s2) {
+  std::set<T> s3;
+  std::set_difference(s1.begin(), s1.end(), s2.begin(), s2.end(),
+                      std::inserter(s3, s3.end()));
+  return s3;
+}
+
+/// Return the set of axes present in the specified shape.
+/// Assume that the shape's axes are numbered consecutively starting at zero.
+ngraph::AxisSet shape_to_axis_set(const ngraph::Shape& s);
+
+/// Given the graph node \param n, return the subset of \param n's axes that
+/// would
+/// remain after removing the axes specified by \param a.
+/// Throw an exception if \param a is not a subset of \param n's axes.
+///
+/// This is useful for inverting the set of reduction axes when calling
+/// functions
+/// ngraph::builder::mean, etc.
+ngraph::AxisSet ngraph_remaining_axes(const NgraphNodePtr& n,
+                                      const ngraph::AxisSet& a);
+
+/// A convenience method for looking up values in const std::map objects.
+template<typename MapType>
+typename MapType::mapped_type checked_lookup(
+    const MapType & m, const typename MapType::key_type & k) {
+  const auto iter = m.find(k);
+  CHECK(iter != m.end());
+  return iter->second;
+}
+
+template<typename T>
+std::ostream & container_to_debug_stream(
+    std::ostream & os,
+    const T & container,
+    const std::string separator = ", ",
+    const std::string opening_delimiter = "[",
+    const std::string closing_delimiter = "]"
+    ) {
+  os << opening_delimiter;
+
+  bool is_first = true;
+  for (const auto & element : container) {
+    if (is_first) {
+      is_first = false;
+    } else {
+      os << separator;
+    }
+
+    os << element;
+  }
+
+  return os;
 }
 
 }  // namespace ngraph_bridge

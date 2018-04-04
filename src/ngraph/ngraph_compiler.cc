@@ -319,15 +319,20 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 // Check nodes in NGraph
 void Compiler::CheckInNgraph() {
   for (auto node : ngraph_.nodes_) {
+    // The bridge code only has nGraph emitters for kOp-type nodes.
     if (node->type_ == NodeType::kOp) {
       if (compiler_.ngraph_op_funcs_.count(node->operation_)) {
         node->in_ngraph_ = true;
+
         if (node->operation_ == "BatchNorm") {
           auto shape = TShape_to_NShape(node->inputs_[0]->shape_);
           if (shape[1] % 8 != 0) {
+            // MXNet outperforms nGraph in this case.
             node->in_ngraph_ = false;
           }
         }
+
+        // nGraph doesn't yet support float16.
         if (node->dtype_ == mshadow::kFloat16 ||
             node->stype_ != mxnet::kDefaultStorage) {
           node->in_ngraph_ = false;
