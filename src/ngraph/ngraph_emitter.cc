@@ -615,17 +615,50 @@ void Emitter::CreateBinaryOps() {
       auto batch_axis = (sequence_axis == 0) ? 1 : 0;
 
       // create a mask from sequence lengths, same shape as node
-      auto mask_shape = TShape_to_NShape(node->shape_);
-      auto mask = ngraph::builder::tensor_mask(sequence_lengths, sequence_axis,
-                                               batch_axis, mask_shape);
+      auto mask = ngraph::builder::tensor_mask<ngraph::op::Less>(
+          sequence_lengths, sequence_axis, batch_axis, data->get_shape(), 0);
 
       // create value constant, same shape as node
       auto value = get_default(node, "value", std::string("0"));
       auto value_constant =
-          makeConstant(ngraph::element::f32, mask_shape, value);
+          makeConstant(ngraph::element::f32, data->get_shape(), value);
 
       // data[mask==False] = value
       data = std::make_shared<ngraph::op::Select>(mask, data, value_constant);
+    }
+    return data;
+  };
+  ngraph_op_funcs_["SequenceLast"] = [this](const NodePtr& node) {
+    auto data = op_map_[node->inputs_[0]];
+
+    size_t sequence_axis = get_default(node, "axis", 0);
+
+    // if sequence lengths specified
+    auto use_sequence_length = get_default(node, "use_sequence_length", false);
+    if (use_sequence_length) {
+      auto sequence_lengths = op_map_[node->inputs_[1]];
+
+      // default: sequence axis = 0; batch axis = 1
+      // alternative:  sequence axis = 1; batch axis = 0
+      size_t batch_axis = (sequence_axis == 0) ? 1 : 0;
+
+      // create a mask from sequence lengths, same shape as node
+      auto mask = ngraph::builder::tensor_mask<ngraph::op::Equal>(
+          sequence_lengths, sequence_axis, batch_axis, data->get_shape(), 1);
+
+      // convert the mask to 0/1 from True/False
+      auto convert_mask =
+          std::make_shared<ngraph::op::Convert>(mask, data->get_element_type());
+
+      // zero out non-last locations
+      data = data * convert_mask;
+
+      // collapse to only last locations
+      data = std::make_shared<ngraph::op::Sum>(data,
+                                               ngraph::AxisSet{sequence_axis});
+    } else {
+      data = slice_data_on_axis(data, data->get_shape().at(sequence_axis) - 1,
+                                1, sequence_axis, true);
     }
     return data;
   };
@@ -690,8 +723,8 @@ void Emitter::CreateLayerOps() {
   // concatenates them along a given axis expanded for each input
   ngraph_op_funcs_["stack"] = [this](const NodePtr& node) {
     // get the concat axis
-    size_t axis = get_default_transformed_axis(node, "axis", 0,
-                                               node->inputs_[0]->shape_.ndim() + 1);
+    size_t axis = get_default_transformed_axis(
+        node, "axis", 0, node->inputs_[0]->shape_.ndim() + 1);
     auto shape = op_map_[node->inputs_[0]]->get_shape();
     shape.insert(shape.begin() + axis, 1);
     // grab input ngraph nodes and Reshape them
@@ -719,6 +752,36 @@ void Emitter::CreateLayerOps() {
     return std::make_shared<ngraph::op::Concat>(args, axis);
   };
 
+  // tile takes a tensor and replicates it along
+  // a given set of axes a given number of times
+  ngraph_op_funcs_["tile"] = [this](const NodePtr& node) {
+    auto input = op_map_[node->inputs_[0]];
+    auto shape = input->get_shape();
+    // get the concat axis
+    std::vector<size_t> reps;
+    reps = get_default(node, "reps", reps);
+    // promote the shape if it's smaller
+    while (shape.size() < reps.size()) {
+      shape.insert(shape.begin(), 1);
+    }
+    // propote the reps if it's smaller
+    while (shape.size() < reps.size()) {
+      reps.insert(reps.begin(), 1);
+    }
+    // reshape the input if needed
+    if (shape != input->get_shape()) {
+      input = std::make_shared<ngraph::op::Reshape>(
+          input, pyrange(input->get_shape().size()), shape);
+    }
+    // tile along all the axes
+    for (size_t i = 0; i < reps.size(); ++i) {
+      std::vector<NgraphNodePtr> args;
+      for (size_t j = 0; j < reps[i]; ++j) args.push_back(input);
+      input = std::make_shared<ngraph::op::Concat>(args, i);
+    }
+
+    return input;
+  };
   // Fully connected is the main linear transformation layer in MXNet
   // it implements dot(data, W.T) + b
   ngraph_op_funcs_["FullyConnected"] = [this](const NodePtr& node) {
