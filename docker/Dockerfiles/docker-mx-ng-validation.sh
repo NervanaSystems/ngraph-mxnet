@@ -22,12 +22,6 @@ set -e  # Fail on any command with non-zero exit
 
 ngraph_mx_dir="$(realpath ../..)"
 
-# The docker image ID is currently just the git SHA of this cloned repo.
-# We need this ID to know which docker image to run with.
-# Note that the docker image must have been previously built using the
-# make-docker-mx-ngraph-base.sh script (in the same directory as this script).
-IMAGE_ID="$(git rev-parse HEAD)"
-
 docker_mx_dir="/home/dockuser/ng-mx"
 
 script='run-mx-ngraph-validation-test.sh'
