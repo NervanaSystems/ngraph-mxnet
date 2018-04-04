@@ -16,6 +16,7 @@
 # Author:  Lam Nguyen
 
 #!  /bin/bash
+set +u 
 
 # This script is designed to be called from within a docker container.
 # It is installed into a docker image.  It will not run outside the container.
