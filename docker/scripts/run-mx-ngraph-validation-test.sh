@@ -159,7 +159,7 @@ if [ ! -f "$LD_LIBRARY_PATH/libmkldnn.so" ] ; then
 fi
 
 # ----- Run Models ----------------------------------
-cd "$HOME/ng-mx/docker/"
+cd "$HOME/ng-mx/"
 
 case "${ng_mx_model}" in
 mlp-mnist)  # Multi-Layer Perceptron (MLP) with MNIST dataset
