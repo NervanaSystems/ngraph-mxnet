@@ -85,11 +85,12 @@ inline ngraph::Shape TShape_to_NShape(const nnvm::TShape& inshape) {
 
 // Create a runtime typed constant defined by type, shape, and a string
 // representing the number
+template<typename T>
 inline std::shared_ptr<ngraph::Node> makeConstant(
     const ngraph::element::Type& type, const ngraph::Shape& shape,
-    const std::string& num) {
+    const T & num) {
   NgraphNodePtr val = std::make_shared<ngraph::op::Constant>(
-      type, ngraph::Shape{}, std::vector<std::string>{num});
+      type, ngraph::Shape{}, std::vector<T>{num});
 
   if (shape.size() > 0) {
     ngraph::AxisSet axes;
@@ -98,6 +99,15 @@ inline std::shared_ptr<ngraph::Node> makeConstant(
   }
 
   return val;
+}
+
+// It's difficult to make a template specialization that handles string
+// literals, so we'll keep things simple and use a non-template function
+// overload instead.
+inline std::shared_ptr<ngraph::Node> makeConstant(
+    const ngraph::element::Type& type, const ngraph::Shape& shape,
+    const char* const& num) {
+  return makeConstant<std::string>(type, shape, std::string(num));
 }
 
 // Create a runtime typed constant from the type and shape of a node

@@ -33,7 +33,7 @@
 namespace ngraph_bridge {
 
 #if MXNET_USE_CUDA
-#define NGRAPH_TRANSFORMERS {"cpu","gpu"}
+#define NGRAPH_TRANSFORMERS {"cpu", "gpu"}
 #else
 #define NGRAPH_TRANSFORMERS {"cpu"}
 #endif
