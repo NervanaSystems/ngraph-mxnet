@@ -44,7 +44,8 @@ set -o pipefail # Make sure cmds in pipe that are non-zero also fail immediately
 # Function to run the example/image-classification/train_mnist.py
 # Note:  read_data() will automatic download data from http://yann.lecun.com/exdb/mnist/ (train-images-idx3-ubyte.gz, t10k-images-idx3-ubyte.gz)
 run_MLP_MNIST() {
-    #virtualenv -p python2.7 .venv
+    virtualenv venv
+    source venv/bin/activate
     #. .venv/bin/activate
     #virtualenv -p python2.7 .venv && . .venv/bin/activate
     cd python && pip install -e . && cd ../
@@ -68,6 +69,8 @@ run_MLP_MNIST() {
 # Note: download_cifar10() will automatic download data from http://data.mxnet.io/data/cifar10
 
 run_RESNET110_CIFAR10() {
+    virtualenv venv
+    source venv/bin/activate
     #virtualenv -p python2.7 .venv1
     #. .venv1/bin/activate
     #virtualenv -p python2.7 .venv1 && . .venv1/bin/activate
