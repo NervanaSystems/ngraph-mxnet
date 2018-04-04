@@ -53,4 +53,4 @@ docker run --rm \
        --env http_proxy=http://proxy-us.intel.com:911 \
        --env https_proxy=https://proxy-us.intel.com:911 \
        -v "${ngraph_mx_dir}:${docker_mx_dir}" \
-       "mx_ngraph_base:${IMAGE_ID}" /home/run-as-user.sh
+       "mxnet:${IMAGE_ID}" /home/run-as-user.sh
