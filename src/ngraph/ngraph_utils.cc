@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <ngraph/serializer.hpp>
 
 #include "nnvm/tuple.h"
 
@@ -60,6 +61,28 @@ ngraph::AxisSet ngraph_remaining_axes(const NgraphNodePtr& n,
   }
 
   return ngraph::AxisSet(set_subtract(n_axes, a));
+}
+
+void dump_graph(std::shared_ptr<ngraph::Function> f, std::string src_loc,
+    std::string filename_suffix) {
+  std::stringstream fname;
+  fname << "mxnet-ngraph";
+  fname << "-" << f->get_name();
+
+  if (!src_loc.empty()) {
+    fname << "-" << src_loc;
+  }
+
+  if (!filename_suffix.empty()) {
+    fname << "-" << filename_suffix;
+  }
+
+  fname << ".json";
+
+  std::ofstream file;
+  file.open(fname.str());
+  file << ngraph::serialize(f) << std::endl;
+  file.close();
 }
 
 }  // namespace ngraph_bridge
