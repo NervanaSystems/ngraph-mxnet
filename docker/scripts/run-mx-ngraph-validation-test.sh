@@ -155,11 +155,6 @@ if [ ! -f "$LD_LIBRARY_PATH/libmkldnn.so" ] ; then
   exit 1
 fi
 
-if [ ! -f "./lib/libmxnet.so" ] ; then
-  ( >&2 echo "FATAL ERROR: Can not found libmxnet.so. Exiting ...." )
-  exit 1
-fi
-
 # ----- Run Models ----------------------------------
 cd "$HOME/ng-mx/docker/"
 
