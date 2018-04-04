@@ -20,7 +20,6 @@
 #include <nnvm/pass.h>
 
 #include <algorithm>
-#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -36,17 +35,7 @@
 
 namespace ngraph_bridge {
 
-static int fcount = 0;
-
-void dump_graph(std::shared_ptr<ngraph::Function> f) {
-  std::stringstream fname;
-  fname << "Graph_" << fcount << ".json";
-  fcount += 1;
-  std::ofstream file;
-  file.open(fname.str());
-  file << ngraph::serialize(f) << std::endl;
-  file.close();
-}
+static NgGraphDumper gdumper;
 
 void CompileForward(std::shared_ptr<Graph> sub_graph,
                             std::shared_ptr<ngraph::Function> f,
@@ -58,7 +47,8 @@ void CompileForward(std::shared_ptr<Graph> sub_graph,
 
   // Log the graph so Graph_* corresponds to Function_* in codgen
   if (ngraph_log_graph) {
-    dump_graph(f);
+    gdumper.dump(f);
+    gdumper.increment_serial_num();
   }
 
   sub_graph->ngraph_forward[mode] =
@@ -86,8 +76,11 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
 
   // Log the graphs so Graph_* corresponds to Function_* in codgen
   if (ngraph_log_graph) {
-    dump_graph(f_copy);
-    dump_graph(bf_copy);
+    gdumper.dump(f_copy);
+    gdumper.increment_serial_num();
+
+    gdumper.dump(bf_copy);
+    gdumper.increment_serial_num();
   }
 
   sub_graph->ngraph_forward[mode] =
@@ -236,10 +229,17 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   CompileNodes(sub_graph->nodes_.back(), sub_graph);
 
   auto f = MakeForwardFunction(sub_graph);
+  if (ngraph_log_graph) {
+    gdumper.dump(f, "_fprop_pre_opt");
+  }
+
 
   std::shared_ptr<ngraph::Function> maybe_bf;
   if (exe_mode_ == GraphExeMode::kTrain) {
     maybe_bf = MakeBackwardFunction(sub_graph, f);
+    if (ngraph_log_graph) {
+      gdumper.dump(maybe_bf, "_bprop_pre_opt");
+    }
 
     // OptimizeGraph's real benefit comes from optimizing the fprop cache, so we only call it when
     // we're in training mode...
@@ -247,9 +247,12 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   if (ngraph_log_graph) {
-    dump_graph(f);
+    gdumper.dump(f);
+    gdumper.increment_serial_num();
+
     if (maybe_bf) {
-      dump_graph(maybe_bf);
+      gdumper.dump(maybe_bf);
+      gdumper.increment_serial_num();
     }
   }
 
@@ -257,8 +260,11 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     auto fprop_cache = ngraph::cache_fprop(f, maybe_bf, {maybe_bf->get_parameters()[0]});
 
     if (ngraph_log_graph) {
-      dump_graph(fprop_cache.fprop);
-      dump_graph(fprop_cache.bprop);
+      gdumper.dump(fprop_cache.fprop);
+      gdumper.increment_serial_num();
+
+      gdumper.dump(fprop_cache.bprop);
+      gdumper.increment_serial_num();
     }
 
     CompileForwardBackward(sub_graph, fprop_cache.fprop, fprop_cache.bprop,
