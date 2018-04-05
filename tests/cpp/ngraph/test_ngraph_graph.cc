@@ -15,6 +15,8 @@
 *******************************************************************************/
 
 #include "test_ngraph_graph.h"
+#include "../../src/ngraph/ngraph_graph_utils.h"
+#include "../../src/ngraph/ngraph_utils.h"
 
 namespace ngraph_bridge {
 
@@ -119,6 +121,32 @@ TEST_F(NGRAPH_GRAPH, GRAPH_COLLAPSE_SUBGRAPHS) {
       std::dynamic_pointer_cast<Graph>(branching_graph.nodes_[size - 2]);
   EXPECT_NE(subgraph, nullptr);
   EXPECT_EQ(subgraph->nodes_.size(), 3ul);
+}
+
+TEST_F(NGRAPH_GRAPH, GRAPH_COLLAPSE_MULTIOUTPUT) {
+  if (ngraph_log_viz)
+    WriteSubgraphDots(complex_graph, "complex_graph_test_pre_collapse");
+
+  IdentifySubgraphs(&complex_graph, isop);
+
+  if (ngraph_log_viz)
+    WriteSubgraphDots(complex_graph, "complex_graph_test_post_collapse");
+
+  int subgraph_count = 0;
+  for (auto node : complex_graph.nodes_) {
+    if (node->type_ == NodeType::kGraph) {
+      subgraph_count +=1;
+      auto graph = std::dynamic_pointer_cast<Graph>(node);
+      if (graph->subgraph_ == 1) {
+        EXPECT_EQ(graph->nodes_.size(), 8ul);
+        EXPECT_EQ(graph->outputs_.size(), 3ul);
+      } else if (graph->subgraph_ == 2) {
+        EXPECT_EQ(graph->nodes_.size(), 4ul);
+      }
+    }
+  }
+
+  EXPECT_EQ(subgraph_count, 6);
 }
 
 }  // namespace ngraph_bridge

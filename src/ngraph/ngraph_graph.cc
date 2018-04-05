@@ -296,9 +296,9 @@ void IdentifySubgraphs(Graph* graph, const std::function<bool(NodePtr)>& func) {
   int sg = 1;
 
   // collapse graphs from the outputs
-  for (size_t i = 0; i < graph->num_outputs_; ++i) {
+  for (auto output : graph->outputs_) {
     bool found_subgraph = false;
-    found_subgraph = IdentifyOneSubgraph(graph, func, sg, graph->outputs_[i]);
+    found_subgraph = IdentifyOneSubgraph(graph, func, sg, output);
     if (found_subgraph) {
       sg += 1;
     }

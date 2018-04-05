@@ -127,6 +127,8 @@ class NGRAPH_GRAPH : public ::testing::Test {
             nullptr, "variable" + std::to_string(i), input_nodes));
       }
     }
+    complex_graph.outputs_.push_back(complex_graph.nodes_[inputs.size()-2]);
+    complex_graph.outputs_.push_back(complex_graph.nodes_[inputs.size()-1]);
   }
 
   virtual void SetUp() {
