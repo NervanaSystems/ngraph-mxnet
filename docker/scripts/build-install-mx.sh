@@ -34,7 +34,7 @@ fi
 
 cd "${MX_DIR}"
 git submodule update --init
-make -j $(nproc)
+make USE_NGRAPH=1 NGRAPH_DIR=${NGRAPH_INSTALL_DIR} -j $(nproc)
 
 if [ ! -f "./lib/libmxnet.so" ] ; then
   ( >&2 echo "FATAL ERROR: Can not found libmxnet.so. Exiting ...." )
