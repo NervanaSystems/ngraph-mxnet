@@ -202,6 +202,11 @@ class Compiler {
   void MakeCopiedInputs(const NNVMNodeVec& inputs);
 
   void IdentifyCollapseGraphs();
+  
+  void CreateSubgraphNNVMNodes();
+  void ConnectSubgraphNodes();
+  void CollapseNNVMGraph();
+  void CleanUpUneededReferences();
   // class to compile subgraphs
   SGCompiler compiler_;
   // storage for copied nodes

@@ -177,23 +177,7 @@ void Compiler::IdentifyCollapseGraphs() {
   if (ngraph_log_viz) WriteSubgraphDots(ngraph_, "post_collapse");
 }
 
-// Main compilation function
-nnvm::Graph Compiler::Compile() {
-  IdentifyCollapseGraphs();
-
-  for (auto node : ngraph_.nodes_) {
-    // store the input variable shape for use by nnvm
-    // This is happening because my nnvm graph manipulations are
-    // breaking the infer shape functionality, so shapes of inputs
-    // don't get properly inferred. Works, because we're inferring
-    // the shapes before doing all of this, but not ideal
-    if (node->type_ == NodeType::kAux || node->type_ == NodeType::kVariable) {
-      ngraph_shape_[node->name_] = node->shape_;
-      ngraph_dtype_[node->name_] = node->dtype_;
-      ngraph_stype_[node->name_] = node->stype_;
-    }
-  }
-
+void Compiler::CreateSubgraphNNVMNodes() {
   // find the subgraphs
   for (auto n : ngraph_.nodes_) {
     if (n->type_ == NodeType::kGraph) {
@@ -216,6 +200,9 @@ nnvm::Graph Compiler::Compile() {
       compiled_nodes_.insert({sg, node});
     }
   }
+}
+
+void Compiler::ConnectSubgraphNodes() {
   // TODO(mbrookhart) This is gross. Need to find a better way to
   // set nnvm subgraph nodes as inputs to each other.
   for (auto kv1 : compiled_nodes_) {
@@ -236,11 +223,17 @@ nnvm::Graph Compiler::Compile() {
       }
     }
   }
+}
 
+void Compiler::CollapseNNVMGraph() {
   for (auto n : ngraph_.nodes_) {
+    // Find the subgraphs
     if (n->type_ == NodeType::kGraph) {
       auto sg = std::dynamic_pointer_cast<Graph>(n);
+      // get the NNVM node
       auto node = compiled_nodes_.at(sg);
+      // Loop over the output elements, and replace NNVM node entries
+      // with output Node Entries
       for (auto output : sg->output_elements_) {
         nnvm::NodeEntry sg_node{
             node, static_cast<uint32_t>(output->multi_output_index_),
@@ -272,7 +265,9 @@ nnvm::Graph Compiler::Compile() {
       }
     }
   }
+}
 
+void Compiler::CleanUpUneededReferences() {
   // Clean up the nodes in the subgraph that we don't need anymore
   // so we don't keep extra shared pointers around
   // this is spaghetti
@@ -291,6 +286,29 @@ nnvm::Graph Compiler::Compile() {
     }
     kv.first->nodes_.clear();
   }
+}
+
+// Main compilation function
+nnvm::Graph Compiler::Compile() {
+  IdentifyCollapseGraphs();
+
+  for (auto node : ngraph_.nodes_) {
+    // store the input variable shape for use by nnvm
+    // This is happening because my nnvm graph manipulations are
+    // breaking the infer shape functionality, so shapes of inputs
+    // don't get properly inferred. Works, because we're inferring
+    // the shapes before doing all of this, but not ideal
+    if (node->type_ == NodeType::kAux || node->type_ == NodeType::kVariable) {
+      ngraph_shape_[node->name_] = node->shape_;
+      ngraph_dtype_[node->name_] = node->dtype_;
+      ngraph_stype_[node->name_] = node->stype_;
+    }
+  }
+
+  CreateSubgraphNNVMNodes();
+  ConnectSubgraphNodes();
+  CollapseNNVMGraph();
+  CleanUpUneededReferences();
   // create a new output graph
   nnvm::Graph out_graph;
 
@@ -393,6 +411,11 @@ void Compiler::ParseNnvmGraph() {
       auto op_name = clean_opname(node->op()->name);
       auto op_node = std::make_shared<OpNode>(node, node->attrs.name, op_name);
 
+      // If it's a multi output op (and not Batchnorm)
+      // replace it with a set of nodes that correspond to each output of
+      // the op
+      // TODO(mbrookhart): Handle this more carefully somehow? 
+      // not sure how many ops there actually are that need multi-output
       if (node->num_outputs() > 1 && op_name != "BatchNorm") {
         for (size_t i = 0; i < node->num_outputs(); ++i) {
           auto tmpop = std::make_shared<OpNode>(
@@ -411,6 +434,7 @@ void Compiler::ParseNnvmGraph() {
     }
   });
 
+  // set up the inputs to all of the  nodes in the graph
   for (auto node : ngraph_.nodes_) {
     for (size_t i = 0; i < node->orig_node_->inputs.size(); ++i) {
       const nnvm::NodeEntry& e = node->orig_node_->inputs[i];
@@ -424,11 +448,12 @@ void Compiler::ParseNnvmGraph() {
     }
   }
 
+  // set up the outputs to the parsed bridge graph
   for (auto e : graph_.outputs) {
     ngraph_.outputs_.push_back(ngraph_[e]);
   }
 
-  // get the shape and data types of all of the nodes
+  // get the shape, data and storage types of all of the nodes
   const auto& idx = graph_.indexed_graph();
   const auto inferred_shapes =
       graph_.GetAttr<std::vector<nnvm::TShape>>("shape");

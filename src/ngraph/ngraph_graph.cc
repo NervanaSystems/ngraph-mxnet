@@ -195,6 +195,7 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
   /****************************************************************************/
   // Third Graph pass - Removing nodes that are no longer connected to the main
   // output
+  // TODO(mbrookhart)
   /****************************************************************************/
   GraphVisitor visitor3;
   std::unordered_map<NodePtr, bool> is_connected;
@@ -222,29 +223,35 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
   };
 
   GraphTraverse(node, visitor3);
-
+  // create a vector of those nodes marked as connected
   std::vector<NodePtr> out;
   for (auto node : outNodes) {
     if (is_connected[node]) {
       out.push_back(node);
     }
   }
+  // return the remaining connected nodes
   return out;
 }
 
 std::vector<NodePtr> GetSubgraphOutputs(
     const Graph& graph, const std::vector<NodePtr>& subgraph_nodes) {
   std::vector<NodePtr> outNodes;
+  // for every node in the subgraph, if the node is an input to other nodes
+  // that aren't in the subgraph, this node is an output of the subgraph
   for (auto n : graph.nodes_)
     if (!in_vec(subgraph_nodes, n))
       for (auto i : n->inputs_)
         if (in_vec(subgraph_nodes, i) && !in_vec(outNodes, i))
           outNodes.emplace_back(i);
 
+  // of nodes in the subgraph are outputs of the main graph, they need
+  // to be outputs of the subgraph
   for (auto n : graph.outputs_)
     if (in_vec(subgraph_nodes, n)) outNodes.emplace_back(n);
 
   if (outNodes.size() == 0) {
+    // this is here for algorithm debugging
     throw std::runtime_error(
         "This subgraph has no outputs, something is wrong!");
   }
@@ -265,37 +272,46 @@ std::vector<NodePtr> FindSubgraph(const Graph& graph, NodePtr node,
   return outNodes;
 }
 
+bool IdentifyOneSubgraph(Graph* graph, const std::function<bool(NodePtr)>& func, int current_subgraph_num, NodePtr n) {
+  bool found_subgraph = false;
+  if (n->subgraph_ == 0) {
+    // select nodes in the a subgraph starting here and going up the graph
+    auto subgraph_nodes = FindSubgraph(*graph, n, func);
+
+    // if we found a significantly large subgraph, label it
+    if (subgraph_nodes.size() > 0) {
+      for (auto node : subgraph_nodes) {
+        node->subgraph_ = current_subgraph_num;
+      }
+      CollapseSubgraph(graph, current_subgraph_num);
+      found_subgraph = true;
+    }
+  }
+  return found_subgraph;
+}
+
 // function to identify and label connected ngraph ops as subgraphs
 void IdentifySubgraphs(Graph* graph, const std::function<bool(NodePtr)>& func) {
   int sg = 1;
-  bool found_subgraph = false;
-  auto identify_inner_loop = [&graph, &func, &sg, &found_subgraph](NodePtr n) {
-    if (n->subgraph_ == 0) {
-      // select nodes in the a subgraph starting here and going up the graph
-      auto subgraph_nodes = FindSubgraph(*graph, n, func);
-
-      // if we found a significantly large subgraph, label it
-      if (subgraph_nodes.size() > 0) {
-        for (auto node : subgraph_nodes) {
-          node->subgraph_ = sg;
-        }
-        CollapseSubgraphs(graph, sg);
-        found_subgraph = true;
-        sg += 1;
-      }
-    }
-  };
 
   // collapse graphs from the outputs
   for (size_t i = 0; i < graph->num_outputs_; ++i) {
-    identify_inner_loop(graph->outputs_[i]);
+    bool found_subgraph = false;
+    found_subgraph = IdentifyOneSubgraph(graph, func, sg, graph->outputs_[i]);
+    if (found_subgraph) {
+      sg += 1;
+    }
   }
-  // loop over the nodes from the back
+
+  // loop over the nodes from the back and find any that aren't in subgraphs
   while (true) {
-    found_subgraph = false;
+    bool found_subgraph = false;
     for (auto n = graph->nodes_.rbegin(); n != graph->nodes_.rend(); ++n) {
-      identify_inner_loop(*n);
-      if (found_subgraph) break;
+      found_subgraph = IdentifyOneSubgraph(graph, func, sg, *n);
+      if (found_subgraph) {
+        sg += 1;
+        break;
+      }
     }
     if (found_subgraph) {
       continue;
@@ -307,7 +323,7 @@ void IdentifySubgraphs(Graph* graph, const std::function<bool(NodePtr)>& func) {
 
 // Function to collapse the intermediary graph into a graph
 // with subgraphs for nodes
-void CollapseSubgraphs(Graph* graph, int subgraph_num) {
+void CollapseSubgraph(Graph* graph, int subgraph_num) {
   // loop variable for undefined number of subgraphs
   auto tmpGraph = std::make_shared<Graph>(
       "subgraph_" + randomString(12) + std::to_string(subgraph_num),
@@ -343,7 +359,7 @@ void CollapseSubgraphs(Graph* graph, int subgraph_num) {
           tmpGraph->inputs_.emplace_back(input);
       }
     }
-
+    // create a map between base nodes and outputs for easier repalcement
     std::unordered_map<NodePtr, NodePtr> output_map;
     for (auto output : tmpGraph->output_elements_) {
       output_map.insert({output->base_node_, output});
