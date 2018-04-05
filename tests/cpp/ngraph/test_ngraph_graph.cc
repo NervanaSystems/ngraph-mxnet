@@ -135,7 +135,7 @@ TEST_F(NGRAPH_GRAPH, GRAPH_COLLAPSE_MULTIOUTPUT) {
   int subgraph_count = 0;
   for (auto node : complex_graph.nodes_) {
     if (node->type_ == NodeType::kGraph) {
-      subgraph_count +=1;
+      subgraph_count += 1;
       auto graph = std::dynamic_pointer_cast<Graph>(node);
       if (graph->subgraph_ == 1) {
         EXPECT_EQ(graph->nodes_.size(), 8ul);
