@@ -204,46 +204,39 @@ std::pair<std::shared_ptr<ngraph::Function>,
           std::vector<std::shared_ptr<ngraph::Node>>>
 SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
                                  std::shared_ptr<ngraph::Function> f) {
-  std::vector<std::shared_ptr<ngraph::op::Parameter>> adjoints;
-  ngraph::NodeVector derivatives;
-
   // get parameters
   std::vector<std::shared_ptr<ngraph::op::Parameter>> back_parameters =
       f->get_parameters();
 
-  bool first = true;
+  ngraph::NodeVector adjoints;
+  ngraph::NodeVector outputs;
   for (auto node : sub_graph->outputs_) {
     // Get the output
     auto Y = op_map_.at(node);
     // Create the Adjoint
-    auto C = std::make_shared<ngraph::op::Parameter>(Y->get_element_type(),
-                                                     Y->get_shape());
-
-    // Perform autodiff
-    std::vector<NgraphNodePtr> dYdXs(back_parameters.size());
-    transform(
-        back_parameters.begin(), back_parameters.end(), dYdXs.begin(),
-        [C, Y](const NgraphNodePtr &X) { return Y->backprop_node(X, C); });
-    if (first) {
-      derivatives = dYdXs;
-      first = false;
-    } else {
-      for (size_t i = 0; i < derivatives.size(); ++i) {
-        derivatives[i] = derivatives[i] + dYdXs[i];
-      }
-    }
+    NgraphNodePtr C = std::make_shared<ngraph::op::Parameter>(
+        Y->get_element_type(), Y->get_shape());
+    outputs.push_back(Y);
     adjoints.push_back(C);
   }
 
+  ngraph::autodiff::Adjoints adjoint{outputs, adjoints};
+
+  // Perform autodiff
+  std::vector<NgraphNodePtr> dYdXs(back_parameters.size());
+  transform(
+      back_parameters.begin(), back_parameters.end(), dYdXs.begin(),
+      [&adjoint](const NgraphNodePtr &X) { return adjoint.backprop_node(X); });
+
   // create the backward function
-  back_parameters.insert(back_parameters.begin(), adjoints.begin(),
-                         adjoints.end());
+  std::vector<std::shared_ptr<ngraph::op::Parameter>> param_adjoints;
+  for (auto n : adjoints)
+    param_adjoints.push_back(
+        std::dynamic_pointer_cast<ngraph::op::Parameter>(n));
+  back_parameters.insert(back_parameters.begin(), param_adjoints.begin(),
+                         param_adjoints.end());
 
-  std::vector<std::shared_ptr<ngraph::Node>> output_adjoints;
-  for (auto n : adjoints) output_adjoints.push_back(n);
-
-  return {std::make_shared<ngraph::Function>(derivatives, back_parameters),
-          output_adjoints};
+  return {std::make_shared<ngraph::Function>(dYdXs, back_parameters), adjoints};
 }
 
 // Compile a Subgraph into ngraph forward and backward call frames
