@@ -156,17 +156,17 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 // check if last node in graph is an op that doesnt need head-gradient
 bool check_zero_grad(const std::shared_ptr<Graph> &graph) {
   auto size = graph->nodes_.size();
-  if ((size < 1) || (graph->nodes_[size - 1]->type_ != NodeType::kOp))
-    return false;
-  bool zero_grad = true;
+  if (size < 1) return false;
+
   // if all of the outputs of the graph don't need gradient calculation,
   // don't autodiff this graph. Otherwise, do.
   for (auto node : graph->outputs_) {
     if (ops_no_head_grad.count(node->operation_) == 0) {
-      zero_grad = false;
+      return false;
     }
   }
-  return zero_grad;
+
+  return true;
 }
 
 void register_forward_op(std::shared_ptr<Graph> graph) {
