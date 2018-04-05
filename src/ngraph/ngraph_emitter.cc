@@ -19,11 +19,13 @@
 
 #include <functional>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
 #include <ngraph/op/get_output_element.hpp>
 #include "ngraph_sgcompiler_utils.h"
+#include "ops/batchnorm.h"
 
 namespace ngraph_bridge {
 
@@ -76,7 +78,7 @@ inline size_t get_default_transformed_axis(const NodePtr& node,
  * @param exclude if true should use node axes not listed in axes parameter,
  *  otherwise use input axes for the reduction operation.
  * @param keepdims if true the result will be reshaped to have the same
- *  dimention as the node (where reduction axes will have size 1), otherwise
+ *  dimension as the node (where reduction axes will have size 1), otherwise
  *  leave the resulting shape produced by func unchanged.
  * @param func reduction operation
  * @return resulting node of the reduction operation
@@ -121,8 +123,8 @@ NgraphNodePtr Emitter::ReduceAxes(
 NgraphNodePtr Emitter::ReduceAxes(
     const NodePtr& node,
     const std::function<NgraphNodePtr(const NgraphNodePtr&,
-                                      const ngraph::AxisSet&)>& func) {
-  auto input = op_map_[node->inputs_[0]];
+                                      const ngraph::AxisSet&)>& func) const {
+  auto input = checked_lookup(op_map_, node->inputs_[0]);
   return ReduceAxes(
       input, get_default(node, "axis", pyrange(input->get_shape().size())),
       get_default(node, "exclude", false), get_default(node, "keepdims", false),
@@ -923,112 +925,99 @@ void Emitter::CreateLayerOps() {
     const size_t channel_axis =
         get_default_transformed_axis(node, "axis", 1, node->shape_.ndim());
 
-    NgraphNodePtr ng_mean{nullptr};
-    NgraphNodePtr ng_var{nullptr};
+    const NgraphNodePtr ng_maybe_gamma = fix_gamma
+      ? NgraphNodePtr{}
+      : ng_in_gamma;
+
+    const NgraphNodePtr ng_actual_gamma = fix_gamma
+      ? makeConstant(ng_in_moving_mean->get_element_type(),
+                             ng_in_moving_mean->get_shape(), 1)
+      : ng_in_gamma;
 
     using ngraph::builder::make_with_numpy_broadcast;
 
-    // we need to convert some of the input data to proper shape similar to mean
-    // and variance through ReduceAxes. They should already have shape
-    // like [1, C], we want to make sure it's properly shape to [C, 1] depending
-    // on the index of channel.
-    auto convert_order = pyrange(ng_in_gamma->get_shape().size());
-    // fill the shape with (shape_size - 1) of 1s.
-    ngraph::Shape convert_shape(data_shape_size - 1, 1);
-    // number of elements for channel axis
-    size_t channel_size = ng_in_data->get_shape()[channel_axis];
-    // insert channel size at the proper index for the channel
-    convert_shape.insert(convert_shape.begin() + channel_axis, channel_size);
+    const bool ngraph_bn_op_available = (data_shape_size == 4) && (channel_axis == 1) &&
+        (node->dtype_ == mshadow::kFloat32);
 
-    if (data_shape_size == 4 && channel_axis == 1 &&
-        node->dtype_ == mshadow::kFloat32 &&
-        exe_mode_ == GraphExeMode::kTrain && !use_global_stats) {
-      NgraphNodePtr gamma;
-      if (fix_gamma) {
-        gamma = makeConstant(ng_in_moving_mean->get_element_type(),
-                             ng_in_moving_mean->get_shape(), "1");
+    //----------------------------------------------------------------------------------------------
+    // Traditional training mode...
+    //----------------------------------------------------------------------------------------------
+    if ((exe_mode_ == GraphExeMode::kTrain) && (!use_global_stats)) {
+      NgraphNodePtr ng_normalized_data;
+      NgraphNodePtr ng_batch_mean;
+      NgraphNodePtr ng_batch_var;
+
+      if (ngraph_bn_op_available) {
+        const NgraphNodePtr BN = std::make_shared<ngraph::op::BatchNorm>(eps, ng_actual_gamma,
+            ng_in_beta, ng_in_data);
+        ng_normalized_data = std::make_shared<ngraph::op::GetOutputElement>(BN, 0);
+        ng_batch_mean = std::make_shared<ngraph::op::GetOutputElement>(BN, 1);
+        ng_batch_var = std::make_shared<ngraph::op::GetOutputElement>(BN, 2);
       } else {
-        gamma = ng_in_gamma;
+        std::tie(ng_normalized_data, ng_batch_mean, ng_batch_var) =
+          create_batchnorm_training_without_ngraph_bn_op(
+              eps,
+              ng_maybe_gamma,
+              ng_in_beta,
+              ng_in_data,
+              channel_axis);
       }
-      auto BN = std::make_shared<ngraph::op::BatchNorm>(eps, gamma, ng_in_beta,
-                                                        ng_in_data);
-      ng_mean = std::make_shared<ngraph::op::GetOutputElement>(BN, 1);
-      ng_var = std::make_shared<ngraph::op::GetOutputElement>(BN, 2);
 
-      NgraphNodePtr ng_one = makeConstant(ng_in_moving_mean->get_element_type(),
-                                          ng_in_moving_mean->get_shape(), "1");
-      NgraphNodePtr ng_momentum =
-          makeConstant(ng_in_moving_var->get_element_type(),
-                       ng_in_moving_var->get_shape(), std::to_string(momentum));
+      const NgraphNodePtr ng_one = makeConstant(ng_in_moving_mean->get_element_type(),
+          ng_in_moving_mean->get_shape(), 1);
+
+      const NgraphNodePtr ng_momentum =
+        makeConstant(ng_in_moving_var->get_element_type(),
+            ng_in_moving_var->get_shape(), momentum);
 
       aux_op_map_[node->inputs_[kMovingMean]] =
-          ng_in_moving_mean * ng_momentum + ng_mean * (ng_one - ng_momentum);
+          ng_in_moving_mean * ng_momentum + ng_batch_mean * (ng_one - ng_momentum);
+
       aux_op_map_[node->inputs_[kMovingVar]] =
-          ng_in_moving_var * ng_momentum + ng_var * (ng_one - ng_momentum);
-      return std::make_shared<ngraph::op::GetOutputElement>(BN, 0);
+          ng_in_moving_var * ng_momentum + ng_batch_var * (ng_one - ng_momentum);
+
+      return ng_normalized_data;
     }
 
-    if (exe_mode_ == GraphExeMode::kTrain && !use_global_stats) {
-      ng_mean = ReduceAxes(ng_in_data, {channel_axis}, true, true,
-                           ngraph::builder::mean);
-      ng_var = ReduceAxes(ng_in_data, {channel_axis}, true, true,
-                          [](const std::shared_ptr<ngraph::Node>& node,
-                             const ngraph::AxisSet& axes) {
-                            return ngraph::builder::variance(node, axes);
-                          });
-      ngraph::AxisVector order(ng_mean->get_shape().size());
-      std::iota(order.begin(), order.end(), 0);
-      auto ng_mean_temp = std::make_shared<ngraph::op::Reshape>(
-          ng_mean, order, ng_in_moving_mean->get_shape());
-      auto ng_var_temp = std::make_shared<ngraph::op::Reshape>(
-          ng_var, order, ng_in_moving_var->get_shape());
-
-      // update running averages
-
-      NgraphNodePtr ng_one = makeConstant(ng_in_moving_mean->get_element_type(),
-                                          ng_in_moving_mean->get_shape(), "1");
-      NgraphNodePtr ng_momentum =
-          makeConstant(ng_in_moving_var->get_element_type(),
-                       ng_in_moving_var->get_shape(), std::to_string(momentum));
-      ngraph::Shape s = ng_in_moving_mean->get_shape();
-
-      aux_op_map_[node->inputs_[kMovingMean]] =
-          ng_in_moving_mean * ng_momentum +
-          ng_mean_temp * (ng_one - ng_momentum);
-      aux_op_map_[node->inputs_[kMovingVar]] =
-          ng_in_moving_var * ng_momentum + ng_var_temp * (ng_one - ng_momentum);
-
-    } else {
-      // we expect to use global stats with inference
-      ng_mean = std::make_shared<ngraph::op::Reshape>(
-          ng_in_moving_mean, convert_order, convert_shape);
-      ng_var = std::make_shared<ngraph::op::Reshape>(
-          ng_in_moving_var, convert_order, convert_shape);
+    //----------------------------------------------------------------------------------------------
+    // Hybrid mode: use externally supplied mean/variance (as with inference), but also allow
+    // autodifferentiation (as with training).
+    //----------------------------------------------------------------------------------------------
+    if ((exe_mode_ == GraphExeMode::kTrain) && (use_global_stats)) {
+      CHECK(false && "Hybrid-mode batchnorm not implemented yet.");
+      return {};
     }
 
-    NgraphNodePtr ng_eps = makeConstant(
-        ng_var->get_element_type(), ng_var->get_shape(), std::to_string(eps));
-    NgraphNodePtr denom = std::make_shared<ngraph::op::Sqrt>(ng_var + ng_eps);
+    //----------------------------------------------------------------------------------------------
+    // Traditional inference mode...
+    //----------------------------------------------------------------------------------------------
+    if (exe_mode_ == GraphExeMode::kInfer) {
+      if (ngraph_bn_op_available) {
+        const NgraphNodePtr ng_normalized_data = std::make_shared<ngraph::op::BatchNorm>(eps,
+            ng_actual_gamma,
+            ng_in_beta,
+            ng_in_data,
+            ng_in_moving_mean,
+            ng_in_moving_var,
+            false);
 
-    NgraphNodePtr numerator =
-        make_with_numpy_broadcast<ngraph::op::Subtract>(ng_in_data, ng_mean);
+        return ng_normalized_data;
+      } else {
+        const NgraphNodePtr ng_normalized_data = create_batchnorm_inference_without_ngraph_bn_op(
+            eps,
+            ng_maybe_gamma,
+            ng_in_beta,
+            ng_in_data,
+            ng_in_moving_mean,
+            ng_in_moving_var,
+            channel_axis);
 
-    NgraphNodePtr result =
-        make_with_numpy_broadcast<ngraph::op::Divide>(numerator, denom);
-
-    ng_in_gamma = std::make_shared<ngraph::op::Reshape>(
-        ng_in_gamma, convert_order, convert_shape);
-    ng_in_beta = std::make_shared<ngraph::op::Reshape>(
-        ng_in_beta, convert_order, convert_shape);
-
-    // If fix_gamma is true, we assume it to be 1, otherwise, we need to scale
-    // result with gamma
-    if (!fix_gamma) {
-      result =
-          make_with_numpy_broadcast<ngraph::op::Multiply>(result, ng_in_gamma);
+        return ng_normalized_data;
+      }
     }
-    result = make_with_numpy_broadcast<ngraph::op::Add>(result, ng_in_beta);
-    return result;
+
+    CHECK(false && "UNEXPECTED: Unhandled BatchNorm mode.");
+    return {};
   };
 
   ngraph_op_funcs_["Convolution"] =

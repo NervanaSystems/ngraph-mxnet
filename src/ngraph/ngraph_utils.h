@@ -271,6 +271,50 @@ inline std::size_t hash_combine(const std::size_t& seed, const T& val) {
 void dump_graph(std::shared_ptr<ngraph::Function> f, std::string src_loc = "",
                 std::string filename_suffix = "");
 
+// We define the term "vector plus axes" to refer to tensor shapes meeting the following criteria:
+// For some shape 'S' to be a vector-plus-axes shape:
+//   - 'S' has rank >= 1.
+//   - At most one axis of 'S' is considered to be the 'vector' axis.  The vector axis may have
+//     may have span = 1.
+//   - All other axes have span = 1.
+//
+// These shapes sometimes arise in the processing of image data.  By way of example, one typical
+// format for image-related tensors is [N,C,H,W].  Some intermediate nodes in these graphs produce
+// or consume tensors of shape [1,C,1,1].  We coin the term "vector plus axes" to describe such
+// shapes.
+
+/// Return true iff 's' meets the definition of a 'vector-plus-axes' shape, false if not.
+bool has_vector_plus_axes_shape(const ngraph::Shape & s);
+
+/// Create a vector-plus-axes shape with the specified characteristics.
+ngraph::Shape get_vector_plus_axes_shape(
+    const size_t rank,
+    const size_t vector_axis,
+    const size_t vector_length);
+
+// Assume that 'n' has a vector-plus-axes shape.  Return an operator that (if necessary) reshapes
+// 'n' to continue to (still) have a vector-plus-axes shape, with rank 'output_rank' and with the
+// vector-axis specified by 'output_vector_axis'.
+//
+// If 'n' already meets those criteria, simply return 'n'.
+NgraphNodePtr ensure_vector_plus_axes_shape(
+    const NgraphNodePtr n,
+    const size_t n_vector_axis,
+    const size_t output_rank,
+    const size_t output_vector_axis);
+
+// Assume that 'n' has vector-plus-axes shape.  Return a node that (if necessary) reshapes 'n' to
+// remove all axes other than the vector axis.  Examples:
+//   [1,C,1,1] --> [C]
+//   [1,1,1,1] --> [1]
+//   [C]       --> [C]
+//   []        --> error // not in vector-plus-axes form
+//   [1,C,0,1] --> error // not in vector-plus-axes form
+//
+// If 'n' already has the required shape, return 'n'.
+NgraphNodePtr ensure_vector_only_shape(
+    const NgraphNodePtr n);
+
 }  // namespace ngraph_bridge
 
 #endif  // MXNET_NGRAPH_NGRAPH_UTILS_H_
