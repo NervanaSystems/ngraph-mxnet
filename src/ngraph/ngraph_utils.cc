@@ -17,8 +17,8 @@
 #include "ngraph_utils.h"
 
 #include <algorithm>
-#include <stdexcept>
 #include <ngraph/serializer.hpp>
+#include <stdexcept>
 
 #include "nnvm/tuple.h"
 
@@ -64,7 +64,7 @@ ngraph::AxisSet ngraph_remaining_axes(const NgraphNodePtr& n,
 }
 
 void dump_graph(std::shared_ptr<ngraph::Function> f, std::string src_loc,
-    std::string filename_suffix) {
+                std::string filename_suffix) {
   std::stringstream fname;
   fname << "mxnet-ngraph";
   fname << "-" << f->get_name();

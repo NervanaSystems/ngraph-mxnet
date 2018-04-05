@@ -78,9 +78,9 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   graph->ngraph_forward[mode]->call(results, placeholders);
 
   std::vector<mxnet::NDArray> outs;
-  for (size_t i = 0; i < graph->num_outputs_; ++i) {
-    outs.push_back(outputs[i]);
-  }
+  CHECK(graph->num_outputs_ == outputs.size());
+  outs.insert(outs.end(), outputs.begin(), outputs.end());
+
   result_to_NDArray(results, req, outs);
 }
 
@@ -159,6 +159,8 @@ bool check_zero_grad(const std::shared_ptr<Graph> &graph) {
   if ((size < 1) || (graph->nodes_[size - 1]->type_ != NodeType::kOp))
     return false;
   bool zero_grad = true;
+  // if all of the outputs of the graph don't need gradient calculation,
+  // don't autodiff this graph. Otherwise, do.
   for (auto node : graph->outputs_) {
     if (ops_no_head_grad.count(node->operation_)) {
       zero_grad = zero_grad && true;
@@ -267,9 +269,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
       "FInferShape", [shapes](const nnvm::NodeAttrs &attrs,
                               std::vector<nnvm::TShape> *in_attrs,
                               std::vector<nnvm::TShape> *out_attrs) -> bool {
-        for (size_t i = 0; i < shapes.size(); ++i) {
-          (*out_attrs)[i] = shapes[i];
-        }
+        (*out_attrs) = shapes;
         return true;
       });
 
@@ -330,9 +330,7 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
       "FInferShape", [shapes](const nnvm::NodeAttrs &attrs,
                               std::vector<nnvm::TShape> *in_attrs,
                               std::vector<nnvm::TShape> *out_attrs) -> bool {
-        for (size_t i = 0; i < shapes.size(); ++i) {
-          (*out_attrs)[i] = shapes[i];
-        }
+        (*out_attrs) = shapes;
         return true;
       });
 

@@ -258,8 +258,7 @@ class Graph : public Node {
   std::vector<NodePtr> nodes_;
   // functions to execute this graph in ngraph.
   // Note: ngraph_backward[GraphExeMode::kInfer] should always be null, but we
-  // define it for
-  // consisteny.
+  // define it for consisteny.
   std::shared_ptr<ngraph::runtime::CallFrame>
       ngraph_forward[kGraphExeModeCount];
   std::shared_ptr<ngraph::runtime::CallFrame>
@@ -279,7 +278,7 @@ class Graph : public Node {
   std::vector<std::shared_ptr<OutputElement>> output_elements_;
 };
 
-// Element to represent outputs of fused Graphs
+// Element to represent outputs of Graph objects embedded in other Graph objects
 class OutputElement : public Node {
  public:
   OutputElement(std::shared_ptr<Graph> node, size_t index)

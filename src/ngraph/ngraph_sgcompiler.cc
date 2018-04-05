@@ -243,7 +243,6 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     dump_graph(f, __func__, "pre-optimized-fprop");
   }
 
-
   std::shared_ptr<ngraph::Function> maybe_bf;
   std::vector<std::shared_ptr<ngraph::Node>> adjoints;
   if (exe_mode_ == GraphExeMode::kTrain) {

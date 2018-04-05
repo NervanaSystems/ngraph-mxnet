@@ -314,9 +314,7 @@ void IdentifySubgraphs(Graph* graph, const std::function<bool(NodePtr)>& func) {
         break;
       }
     }
-    if (found_subgraph) {
-      continue;
-    } else {
+    if (!found_subgraph) {
       break;
     }
   }
@@ -329,6 +327,7 @@ void CollapseSubgraph(Graph* graph, int subgraph_num) {
   auto tmpGraph = std::make_shared<Graph>(
       "subgraph_" + randomString(12) + std::to_string(subgraph_num),
       graph->context_);
+
   // loop over all nodes and add nodes in the current subgraph to
   for (auto node : graph->nodes_) {
     if (node->subgraph_ == subgraph_num) {
@@ -336,7 +335,7 @@ void CollapseSubgraph(Graph* graph, int subgraph_num) {
     }
   }
 
-  if (tmpGraph->nodes_.size() != 0) {
+  if (!tmpGraph->nodes_.empty()) {
     tmpGraph->outputs_ = GetSubgraphOutputs(*graph, tmpGraph->nodes_);
     tmpGraph->num_outputs_ = tmpGraph->outputs_.size();
     for (size_t i = 0; i < tmpGraph->outputs_.size(); ++i) {
@@ -344,6 +343,7 @@ void CollapseSubgraph(Graph* graph, int subgraph_num) {
           std::make_shared<OutputElement>(tmpGraph, i));
       tmpGraph->output_elements_.back()->subgraph_ = subgraph_num;
     }
+
     // if we found nodes, setup subgraph
     tmpGraph->in_ngraph_ = true;
     tmpGraph->subgraph_ = subgraph_num;
@@ -360,7 +360,8 @@ void CollapseSubgraph(Graph* graph, int subgraph_num) {
           tmpGraph->inputs_.emplace_back(input);
       }
     }
-    // create a map between base nodes and outputs for easier repalcement
+
+    // create a map between base nodes and outputs for easier replacement
     std::unordered_map<NodePtr, NodePtr> output_map;
     for (auto output : tmpGraph->output_elements_) {
       output_map.insert({output->base_node_, output});
@@ -372,6 +373,7 @@ void CollapseSubgraph(Graph* graph, int subgraph_num) {
         graph->outputs_[i] = output_map[graph->outputs_[i]];
       }
     }
+
     // insert the new outputs
     for (auto output : tmpGraph->output_elements_) {
       auto it = std::find_if(
@@ -379,6 +381,7 @@ void CollapseSubgraph(Graph* graph, int subgraph_num) {
           [output](NodePtr n) -> bool { return (n == output->base_node_); });
       graph->nodes_.insert(it, output);
     }
+
     // delete all the nodes we're replacing with the subgraph
     graph->nodes_.erase(
         std::remove_if(graph->nodes_.begin(), graph->nodes_.end(),
@@ -396,6 +399,7 @@ void CollapseSubgraph(Graph* graph, int subgraph_num) {
         }
       }
     }
+
     // set new subgraph as inputs to other subgraphs
     for (auto n : graph->nodes_) {
       if (n->type_ == NodeType::kGraph) {
@@ -408,6 +412,7 @@ void CollapseSubgraph(Graph* graph, int subgraph_num) {
         }
       }
     }
+
     // add the subraph to to Graph nodes
     graph->nodes_.push_back(tmpGraph);
   }
