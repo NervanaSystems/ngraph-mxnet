@@ -89,10 +89,10 @@ run_RESNET110_CIFAR10() {
     export TEST_RESNET110_CIFAR10_LOG_DIR="${HOME}/ng-mx"
     export TEST_RESNET110_CIFAR10_EPOCHS="${MX_NG_EPOCHS:-}"
     if [ -z "${TEST_RESNET110_CIFAR10_EPOCHS}" ] ; then
-        export TEST_RESNET110_CIFAR10_EPOCHS=300  # Default is 300 epoches
+        export TEST_RESNET110_CIFAR10_EPOCHS=1  # Default is 300 epoches
     fi
     # Run the test
-    python example/image-classification/train_cifar10.py --num_epochs ${TEST_RESNET110_CIFAR10_EPOCHS}
+    python example/image-classification/train_cifar10.py --num-epochs ${TEST_RESNET110_CIFAR10_EPOCHS}
     echo "===== Daily Validation CPU-Backend Pipeline Exited with $? ====="
 
 }  # run_RESNET110_CIFAR10()
