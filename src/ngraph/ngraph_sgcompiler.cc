@@ -214,10 +214,13 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeBackwardFunction(
   // get parameters
   std::vector<std::shared_ptr<ngraph::op::Parameter>> back_parameters =
       f->get_parameters();
+  ngraph::autodiff::Adjoints adjoints{{Y}, {C}};
   // Perform autodiff
   std::vector<NgraphNodePtr> dYdXs(back_parameters.size());
   transform(back_parameters.begin(), back_parameters.end(), dYdXs.begin(),
-            [C, Y](const NgraphNodePtr &X) { return Y->backprop_node(X, C); });
+            [&adjoints](const NgraphNodePtr &X) {
+              return adjoints.backprop_node(X);
+            });
 
   // create the backward function
   back_parameters.insert(back_parameters.begin(), C);
