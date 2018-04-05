@@ -84,7 +84,13 @@ inline ngraph::Shape TShape_to_NShape(const nnvm::TShape& inshape) {
 }
 
 // Create a runtime typed constant defined by type, shape, and a string
-// representing the number
+// representing the number.
+//
+// Note that this function is NOT equivalent to nGraph's
+// 'ngraph::op::Constant::create(...)' family of functions: This
+// function uses the Broadacst op to achieve the desired shape.  This
+// in some cases results in more efficient JIT compilation and runtime
+// performance.
 template<typename T>
 inline std::shared_ptr<ngraph::Node> makeConstant(
     const ngraph::element::Type& type, const ngraph::Shape& shape,
