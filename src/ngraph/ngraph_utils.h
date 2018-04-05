@@ -230,26 +230,23 @@ ngraph::AxisSet ngraph_remaining_axes(const NgraphNodePtr& n,
                                       const ngraph::AxisSet& a);
 
 /// A convenience method for looking up values in const std::map objects.
-template<typename MapType>
+template <typename MapType>
 typename MapType::mapped_type checked_lookup(
-    const MapType & m, const typename MapType::key_type & k) {
+    const MapType& m, const typename MapType::key_type& k) {
   const auto iter = m.find(k);
   CHECK(iter != m.end());
   return iter->second;
 }
 
-template<typename T>
-std::ostream & container_to_debug_stream(
-    std::ostream & os,
-    const T & container,
-    const std::string separator = ", ",
+template <typename T>
+std::ostream& container_to_debug_stream(
+    std::ostream& os, const T& container, const std::string separator = ", ",
     const std::string opening_delimiter = "[",
-    const std::string closing_delimiter = "]"
-    ) {
+    const std::string closing_delimiter = "]") {
   os << opening_delimiter;
 
   bool is_first = true;
-  for (const auto & element : container) {
+  for (const auto& element : container) {
     if (is_first) {
       is_first = false;
     } else {

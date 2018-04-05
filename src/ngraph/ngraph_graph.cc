@@ -272,7 +272,8 @@ std::vector<NodePtr> FindSubgraph(const Graph& graph, NodePtr node,
   return outNodes;
 }
 
-bool IdentifyOneSubgraph(Graph* graph, const std::function<bool(NodePtr)>& func, int current_subgraph_num, NodePtr n) {
+bool IdentifyOneSubgraph(Graph* graph, const std::function<bool(NodePtr)>& func,
+                         int current_subgraph_num, NodePtr n) {
   bool found_subgraph = false;
   if (n->subgraph_ == 0) {
     // select nodes in the a subgraph starting here and going up the graph

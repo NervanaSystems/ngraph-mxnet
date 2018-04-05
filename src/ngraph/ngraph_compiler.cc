@@ -419,7 +419,7 @@ void Compiler::ParseNnvmGraph() {
       // If it's a multi output op (and not Batchnorm)
       // replace it with a set of nodes that correspond to each output of
       // the op
-      // TODO(mbrookhart): Handle this more carefully somehow? 
+      // TODO(mbrookhart): Handle this more carefully somehow?
       // not sure how many ops there actually are that need multi-output
       if (node->num_outputs() > 1 && op_name != "BatchNorm") {
         for (size_t i = 0; i < node->num_outputs(); ++i) {

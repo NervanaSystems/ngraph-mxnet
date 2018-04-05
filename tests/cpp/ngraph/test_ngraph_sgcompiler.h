@@ -59,7 +59,7 @@ class NGRAPH_SGCOMPILER : public ::testing::Test {
     subgraph->nodes_.push_back(node2);
     subgraph->outputs_.push_back(node2);
     subgraph->output_elements_.emplace_back(
-          std::make_shared<OutputElement>(subgraph, 0));
+        std::make_shared<OutputElement>(subgraph, 0));
   }
 
   virtual void TearDown() {}

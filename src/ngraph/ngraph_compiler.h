@@ -202,7 +202,7 @@ class Compiler {
   void MakeCopiedInputs(const NNVMNodeVec& inputs);
 
   void IdentifyCollapseGraphs();
-  
+
   void CreateSubgraphNNVMNodes();
   void ConnectSubgraphNodes();
   void CollapseNNVMGraph();
