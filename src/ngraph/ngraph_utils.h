@@ -265,6 +265,12 @@ inline std::size_t hash_combine(const std::size_t& seed, const T& val) {
   return seed + std::hash<T>()(val) + (seed << 1);
 }
 
+/// Use ngraph::serialize(...) to create a JSON rendition of 'f'.
+/// Compute the filename based on this function's parameters.
+/// If a file with that name already exists, overwrite it.
+void dump_graph(std::shared_ptr<ngraph::Function> f, std::string src_loc = "",
+    std::string filename_suffix = "");
+
 }  // namespace ngraph_bridge
 
 #endif  // MXNET_NGRAPH_NGRAPH_UTILS_H_

@@ -20,7 +20,6 @@
 #include <nnvm/pass.h>
 
 #include <algorithm>
-#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <utility>
@@ -37,18 +36,6 @@
 
 namespace ngraph_bridge {
 
-static int fcount = 0;
-
-void dump_graph(std::shared_ptr<ngraph::Function> f) {
-  std::stringstream fname;
-  fname << "Graph_" << fcount << ".json";
-  fcount += 1;
-  std::ofstream file;
-  file.open(fname.str());
-  file << ngraph::serialize(f) << std::endl;
-  file.close();
-}
-
 void CompileForward(std::shared_ptr<Graph> sub_graph,
                     std::shared_ptr<ngraph::Function> f,
                     GraphExeMode exe_mode) {
@@ -59,7 +46,7 @@ void CompileForward(std::shared_ptr<Graph> sub_graph,
 
   // Log the graph so Graph_* corresponds to Function_* in codgen
   if (ngraph_log_graph) {
-    dump_graph(f);
+    dump_graph(f, __func__, "fprop");
   }
 
   sub_graph->ngraph_forward[mode] =
@@ -86,8 +73,8 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
 
   // Log the graphs so Graph_* corresponds to Function_* in codgen
   if (ngraph_log_graph) {
-    dump_graph(f_copy);
-    dump_graph(bf_copy);
+    dump_graph(f_copy, __func__, "fprop");
+    dump_graph(bf_copy, __func__, "bprop");
   }
 
   sub_graph->ngraph_forward[mode] =
@@ -252,6 +239,10 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   auto f = MakeForwardFunction(sub_graph);
+  if (ngraph_log_graph) {
+    dump_graph(f, __func__, "pre-optimized-fprop");
+  }
+
 
   std::shared_ptr<ngraph::Function> maybe_bf;
   std::vector<std::shared_ptr<ngraph::Node>> adjoints;
@@ -259,6 +250,9 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     auto bfa = MakeBackwardFunction(sub_graph, f);
     maybe_bf = bfa.first;
     adjoints = bfa.second;
+    if (ngraph_log_graph) {
+      dump_graph(maybe_bf, __func__, "pre-optimized-bprop");
+    }
 
     // OptimizeGraph's real benefit comes from optimizing the fprop cache, so we
     // only call it when
@@ -267,9 +261,10 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   if (ngraph_log_graph) {
-    dump_graph(f);
+    dump_graph(f, __func__, "post-optimized-fprop");
+
     if (maybe_bf) {
-      dump_graph(maybe_bf);
+      dump_graph(maybe_bf, __func__, "post-optimized-bprop");
     }
   }
 
@@ -277,8 +272,8 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     auto fprop_cache = ngraph::cache_fprop(f, maybe_bf, adjoints);
 
     if (ngraph_log_graph) {
-      dump_graph(fprop_cache.fprop);
-      dump_graph(fprop_cache.bprop);
+      dump_graph(fprop_cache.fprop, __func__, "fprop_cache.fprop");
+      dump_graph(fprop_cache.bprop, __func__, "fprop_cache.bprop");
     }
 
     CompileForwardBackward(sub_graph, fprop_cache.fprop, fprop_cache.bprop,
