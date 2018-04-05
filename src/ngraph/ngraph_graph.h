@@ -85,7 +85,14 @@ class Node {
 
   // information to store graph parsing in
   size_t multi_output_index_ = 0;
+
+  /// Indicates that this node is permitted to be part of a subgraph that's
+  /// compiled by nGraph.
+  /// The only likely reasons for leaving this false are:
+  /// (a) nGraph cannot yet handle this kind of node properly, or
+  /// (b) performance considerations.
   bool in_ngraph_ = false;
+
   std::string operation_ = "";
   int subgraph_ = 0;
 };
