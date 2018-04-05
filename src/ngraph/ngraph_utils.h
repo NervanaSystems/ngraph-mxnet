@@ -18,8 +18,7 @@
 #define MXNET_NGRAPH_NGRAPH_UTILS_H_
 #include <mxnet/ndarray.h>
 #include <algorithm>
-#include <chrono>
-#include <iostream>
+
 #include <iterator>
 #include <set>
 #include <sstream>
@@ -29,6 +28,7 @@
 #include <vector>
 
 #include "ngraph_graph.h"
+#include "mxnet/ndarray.h"
 
 namespace ngraph_bridge {
 
@@ -261,6 +261,12 @@ std::ostream & container_to_debug_stream(
 
   return os;
 }
+
+/// Use ngraph::serialize(...) to create a JSON rendition of 'f'.
+/// Compute the filename based on this function's parameters.
+/// If a file with that name already exists, overwrite it.
+void dump_graph(std::shared_ptr<ngraph::Function> f, std::string src_loc = "",
+    std::string filename_suffix = "");
 
 }  // namespace ngraph_bridge
 
