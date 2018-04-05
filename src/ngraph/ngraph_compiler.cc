@@ -202,24 +202,46 @@ void Compiler::CreateSubgraphNNVMNodes() {
   }
 }
 
+struct NodeEntryHash {
+  size_t operator()(const nnvm::NodeEntry& key) const {
+    size_t hash = std::hash<nnvm::NodePtr>()(key.node);
+    hash = hash_combine(hash, key.index);
+    hash = hash_combine(hash, key.version);
+    return hash;
+  }
+};
+
+struct NodeEntryEqual {
+  bool operator()(const nnvm::NodeEntry& lhs,
+                  const nnvm::NodeEntry& rhs) const {
+    return ((lhs.node == rhs.node) && (lhs.index == rhs.index) &&
+            (lhs.version == rhs.version));
+  }
+};
+
 void Compiler::ConnectSubgraphNodes() {
-  // TODO(mbrookhart) This is gross. Need to find a better way to
-  // set nnvm subgraph nodes as inputs to each other.
-  for (auto kv1 : compiled_nodes_) {
-    for (auto output : kv1.first->output_elements_) {
-      auto matches = [&output](const nnvm::NodeEntry& n) -> bool {
-        return (n.node == output->base_node_->orig_node_) &&
-               (n.index == output->base_node_->multi_output_index_);
-      };
-      nnvm::NodeEntry sg_node{
-          kv1.second, static_cast<uint32_t>(output->multi_output_index_),
+  // create a map of original NodeEntries -> subgraph output NodeEntries
+  std::unordered_map<nnvm::NodeEntry, nnvm::NodeEntry, NodeEntryHash,
+                     NodeEntryEqual>
+      out_map;
+  for (auto kv : compiled_nodes_) {
+    for (auto output : kv.first->output_elements_) {
+      nnvm::NodeEntry orig_entry{
+          output->base_node_->orig_node_,
+          static_cast<uint32_t>(output->base_node_->multi_output_index_),
           static_cast<uint32_t>(0)};
-      for (auto kv2 : compiled_nodes_) {
-        for (auto& input : kv2.second->inputs) {
-          if (matches(input)) {
-            input = sg_node;
-          }
-        }
+      nnvm::NodeEntry new_entry{
+          kv.second, static_cast<uint32_t>(output->multi_output_index_),
+          static_cast<uint32_t>(0)};
+      out_map[orig_entry] = new_entry;
+    }
+  }
+  // replace inputs in all of the graphs if they are now outputs of other
+  // subgraphs
+  for (auto kv : compiled_nodes_) {
+    for (auto& input : kv.second->inputs) {
+      if (out_map.count(input) != 0) {
+        input = out_map[input];
       }
     }
   }

@@ -25,6 +25,7 @@
 #include <vector>
 #include "ngraph_compiler.h"
 #include "ngraph_graph.h"
+#include "ngraph_utils.h"
 
 namespace ngraph_bridge {
 
@@ -88,12 +89,6 @@ struct NGIOpEqual {
 };
 using NGIOpCache =
     std::unordered_map<NGIOpKey, std::shared_ptr<Graph>, NGIOpHash, NGIOpEqual>;
-
-// generates hash for any standard type val, and combines with seed.
-template <typename T>
-inline std::size_t hash_combine(const std::size_t &seed, const T &val) {
-  return seed + std::hash<T>()(val) + (seed << 1);
-}
 
 }  // namespace ngraph_bridge
 #endif  // MXNET_NGRAPH_NGRAPH_IMPERATIVE_H_
