@@ -162,9 +162,7 @@ bool check_zero_grad(const std::shared_ptr<Graph> &graph) {
   // if all of the outputs of the graph don't need gradient calculation,
   // don't autodiff this graph. Otherwise, do.
   for (auto node : graph->outputs_) {
-    if (ops_no_head_grad.count(node->operation_)) {
-      zero_grad = zero_grad && true;
-    } else {
+    if (ops_no_head_grad.count(node->operation_) == 0) {
       zero_grad = false;
     }
   }
