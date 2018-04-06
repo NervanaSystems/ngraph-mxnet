@@ -58,6 +58,8 @@ class CPUDeviceStorage {
   // MKLDNN requires special alignment. 64 is used by the MKLDNN library in
   // memory allocation.
   static constexpr size_t alignment_ = kMKLDNNAlign;
+#elif MXNET_USE_NGRAPH == 1
+  static constexpr size_t alignment_ = 64;
 #else
   static constexpr size_t alignment_ = 16;
 #endif
