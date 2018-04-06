@@ -765,7 +765,7 @@ void Emitter::CreateLayerOps() {
       shape.insert(shape.begin(), 1);
     }
     // propote the reps if it's smaller
-    while (shape.size() < reps.size()) {
+    while (reps.size() < shape.size()) {
       reps.insert(reps.begin(), 1);
     }
     // reshape the input if needed
