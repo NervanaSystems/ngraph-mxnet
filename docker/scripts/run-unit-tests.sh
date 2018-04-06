@@ -21,7 +21,7 @@ set -u
 
 cd "$HOME/ng-mx"
 
-cd python && sudo -E pip install -e . && sudo -E pip install pylint cpplint && cd ../
+cd python && sudo -E pip install -e . && cd ../
 
 ## Unit tests test_operator.py 
 ##cmd="OMP_NUM_THREADS=4 pytest -s -n 2 tests/python/unittest/test_operator.py --verbose --capture=no --junit-xml=result_test_operator.xml --junit-prefix=result_test_operator"
