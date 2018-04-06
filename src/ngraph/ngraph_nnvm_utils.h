@@ -76,17 +76,17 @@ inline TensorViewVector make_ngraph_placeholders(
   return out;
 }
 
-// creates and returns vector of TensorViews for corresponding NDArrays 
+// creates and returns vector of TensorViews for corresponding NDArrays
 // reuses NDArray memory for each TensorView if req is not kAddTo
 inline TensorViewVector get_tensor_views(
     const std::vector<mxnet::NDArray>& ndarrays,
     std::shared_ptr<ngraph::runtime::Backend> backend,
     const std::vector<mxnet::OpReqType>* req = nullptr) {
   TensorViewVector out;
-  for (int i = 0; i < ndarrays.size(); ++i) {
+  for (size_t i = 0; i < ndarrays.size(); ++i) {
     auto shape = TShape_to_NShape(ndarrays[i].shape());
     const auto& element_type = getType(ndarrays[i].dtype());
-    if ((req != nullptr) && (*req[i] == mxnet::kAddTo))
+    if ((req != nullptr) && ((*req)[i] == mxnet::kAddTo))
       out.push_back(backend->make_primary_tensor_view(element_type, shape));
     else
       out.push_back(backend->make_primary_tensor_view(
@@ -111,13 +111,12 @@ inline void result_to_NDArray(
     const std::vector<mxnet::OpReqType>& req,
     const std::vector<mxnet::NDArray>& outputs) {
   for (size_t i = 0; i < outputs.size(); ++i) {
-    if (req[i] == mxnet::kNullOp) continue;
-
-    const auto& element_type = getType(outputs[i].dtype());
-    auto buffer_size = get_buffer_size(outputs[i].shape(), element_type.size());
-
-    void* mxnet_ndarray = outputs[i].storage_handle().dptr;
     if (req[i] == mxnet::kAddTo) {
+      const auto& element_type = getType(outputs[i].dtype());
+      auto buffer_size =
+          get_buffer_size(outputs[i].shape(), element_type.size());
+
+      void* mxnet_ndarray = outputs[i].storage_handle().dptr;
       void* ngraph_tv = malloc(buffer_size);
       results[i]->read(ngraph_tv, 0, buffer_size);
 
@@ -135,9 +134,6 @@ inline void result_to_NDArray(
         result_plus_NDArray<int64_t>(mxnet_ndarray, ngraph_tv, buffer_size);
 
       free(ngraph_tv);
-    } else {
-      // TODO(adstraw): Add support for kWriteInplace
-      results[i]->read(mxnet_ndarray, 0, buffer_size);
     }
   }
 }
