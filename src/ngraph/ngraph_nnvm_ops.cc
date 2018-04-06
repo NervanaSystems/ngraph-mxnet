@@ -67,7 +67,7 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   auto backend = GetBackendFromContext(graph->context_);
   auto placeholders = get_tensor_views(inputs, backend);
   // for outputs we need to comply with req
-  auto results = get_tensor_views(outputs, backend, req);
+  auto results = get_tensor_views(outputs, backend, &req);
 
   int mode = static_cast<int>(GraphExeMode::kInfer);
   if (ctx.is_train) {
