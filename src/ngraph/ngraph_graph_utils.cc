@@ -29,14 +29,38 @@ void WriteDot(const Graph& graph, const std::string& fname) {
   dotfile << "digraph G { " << std::endl;
   dotfile << "size=\"8,10.5\"" << std::endl;
 
-  // Loop over inputs, write graph connections
-  for (auto n : graph.nodes_)
-    for (auto i : n->inputs_) {
-      dotfile << i->name_ << i.get() << " -> " << n->name_ << n.get() << ";"
-              << std::endl;
+  GraphVisitor visitor;
+
+  std::unordered_set<NodePtr> visited;
+  // save nodes that match some function condition
+  visitor.operation = [&dotfile, &visited](NodePtr node) {
+    if (visited.count(node)) {
+      return;
+    } else {
+      visited.insert(node);
     }
-  // Loop over nodes and write labels
-  for (auto n : graph.nodes_) dotfile << n->createNodeLabel() << std::endl;
+    for (auto i : node->inputs_) {
+      dotfile << i->name_ << i.get() << " -> " << node->name_ << node.get()
+              << ";" << std::endl;
+    }
+    // write label
+    dotfile << node->createNodeLabel() << std::endl;
+  };
+
+  visitor.stop_condition = [&visited, &graph](NodePtr node, NodePtr input) {
+    // continue if...
+    // 2) input not visited
+    if (!visited.count(input) && in_vec(graph.nodes_, input)) {
+      return false;
+    }
+    // else, stop traversing the graph
+    return true;
+  };
+
+  for (auto node : graph.outputs_) GraphTraverse(node, visitor);
+  for (auto node : graph.inputs_)
+    dotfile << node->createNodeLabel() << std::endl;
+
   // Finish file.
   dotfile << "}" << std::endl;
   dotfile.close();

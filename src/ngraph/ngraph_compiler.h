@@ -133,6 +133,7 @@ static std::unordered_map<std::string, std::string> nameswitch({
     {"SwapAxis", "swapaxes"},
     {"Cast", "cast"},
     {"sum_axis", "sum"},
+    {"SliceChannel", "split"},
 });
 
 // MxNet OPs that do not have gradient should work when head-gradient is not
@@ -200,6 +201,12 @@ class Compiler {
   // create a copied representation of the inputs
   void MakeCopiedInputs(const NNVMNodeVec& inputs);
 
+  void IdentifyCollapseGraphs();
+
+  void CreateSubgraphNNVMNodes();
+  void ConnectSubgraphNodes();
+  void CollapseNNVMGraph();
+  void CleanUpUneededReferences();
   // class to compile subgraphs
   SGCompiler compiler_;
   // storage for copied nodes
@@ -227,6 +234,7 @@ class Compiler {
   nnvm::DTypeVector dtypes_;
   // inferred nnvm::Graph storage type
   nnvm::StorageVector stypes_;
+  std::unordered_map<std::shared_ptr<Graph>, nnvm::NodePtr> compiled_nodes_;
 };
 
 }  // namespace ngraph_bridge

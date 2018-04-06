@@ -77,7 +77,7 @@ NGImperative::NGImperative(const nnvm::NodeAttrs &attrs,
 // process ngraph composed of nnvm symbol graph
 void NGImperative::parse_ngraph() {
   ProcessGraph(NDArrayMap());
-  CollapseSubgraphs(&ngraph_);
+  IdentifyCollapseGraphs();
   // imperative assumes graph is just one node
   for (auto n : ngraph_.nodes_)
     if (n->type_ == NodeType::kGraph) {

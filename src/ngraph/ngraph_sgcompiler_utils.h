@@ -91,10 +91,10 @@ inline ngraph::Shape TShape_to_NShape(const nnvm::TShape& inshape) {
 // function uses the Broadacst op to achieve the desired shape.  This
 // in some cases results in more efficient JIT compilation and runtime
 // performance.
-template<typename T>
+template <typename T>
 inline std::shared_ptr<ngraph::Node> makeConstant(
     const ngraph::element::Type& type, const ngraph::Shape& shape,
-    const T & num) {
+    const T& num) {
   NgraphNodePtr val = std::make_shared<ngraph::op::Constant>(
       type, ngraph::Shape{}, std::vector<T>{num});
 

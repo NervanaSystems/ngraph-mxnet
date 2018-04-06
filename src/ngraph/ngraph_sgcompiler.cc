@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <utility>
 #include <vector>
 
 #include <ngraph/graph_util.hpp>
@@ -36,8 +37,8 @@
 namespace ngraph_bridge {
 
 void CompileForward(std::shared_ptr<Graph> sub_graph,
-                            std::shared_ptr<ngraph::Function> f,
-                            GraphExeMode exe_mode) {
+                    std::shared_ptr<ngraph::Function> f,
+                    GraphExeMode exe_mode) {
   const int mode = static_cast<int>(exe_mode);
 
   auto manager = GetManagerFromContext(sub_graph->context_);
@@ -51,7 +52,6 @@ void CompileForward(std::shared_ptr<Graph> sub_graph,
   sub_graph->ngraph_forward[mode] =
       backend->make_call_frame(manager->compile(f));
 }
-
 
 void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
                             std::shared_ptr<ngraph::Function> f,
@@ -155,16 +155,13 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
         std::dynamic_pointer_cast<ngraph::op::Parameter>(op_map_.at(input)));
   }
 
-  // calcuate the shape and return type of the subgraph
-  auto Y = op_map_.at(sub_graph->nodes_.back());
-
   const int mode = static_cast<int>(exe_mode_);
 
-  // build ngraph function outputs based on default and aux nodes
-  OpNodePtr op_node =
-      std::dynamic_pointer_cast<OpNode>(sub_graph->nodes_.back());
   // default output
-  ngraph::NodeVector outputs{Y};
+  ngraph::NodeVector outputs;
+  for (auto output : sub_graph->outputs_) {
+    outputs.push_back(op_map_.at(output));
+  }
 
   auto backend = GetBackendFromContext(sub_graph->context_);
 
@@ -190,29 +187,43 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   return std::make_shared<ngraph::Function>(outputs, parameters);
 }
 
-std::shared_ptr<ngraph::Function> SGCompiler::MakeBackwardFunction(
-    std::shared_ptr<Graph> sub_graph, std::shared_ptr<ngraph::Function> f) {
-  // Get the output
-  auto Y = f->get_output_op(0)->get_input_op(0);
-
-  // Create the Adjoint
-  auto C = std::make_shared<ngraph::op::Parameter>(Y->get_element_type(),
-                                                   Y->get_shape());
+std::pair<std::shared_ptr<ngraph::Function>,
+          std::vector<std::shared_ptr<ngraph::Node>>>
+SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
+                                 std::shared_ptr<ngraph::Function> f) {
   // get parameters
   std::vector<std::shared_ptr<ngraph::op::Parameter>> back_parameters =
       f->get_parameters();
-  ngraph::autodiff::Adjoints adjoints{{Y}, {C}};
+
+  ngraph::NodeVector adjoints;
+  ngraph::NodeVector outputs;
+  for (auto node : sub_graph->outputs_) {
+    // Get the output
+    auto Y = op_map_.at(node);
+    // Create the Adjoint
+    NgraphNodePtr C = std::make_shared<ngraph::op::Parameter>(
+        Y->get_element_type(), Y->get_shape());
+    outputs.push_back(Y);
+    adjoints.push_back(C);
+  }
+
+  ngraph::autodiff::Adjoints adjoint{outputs, adjoints};
+
   // Perform autodiff
   std::vector<NgraphNodePtr> dYdXs(back_parameters.size());
-  transform(back_parameters.begin(), back_parameters.end(), dYdXs.begin(),
-            [&adjoints](const NgraphNodePtr &X) {
-              return adjoints.backprop_node(X);
-            });
+  transform(
+      back_parameters.begin(), back_parameters.end(), dYdXs.begin(),
+      [&adjoint](const NgraphNodePtr &X) { return adjoint.backprop_node(X); });
 
   // create the backward function
-  back_parameters.insert(back_parameters.begin(), C);
+  std::vector<std::shared_ptr<ngraph::op::Parameter>> param_adjoints;
+  for (auto n : adjoints)
+    param_adjoints.push_back(
+        std::dynamic_pointer_cast<ngraph::op::Parameter>(n));
+  back_parameters.insert(back_parameters.begin(), param_adjoints.begin(),
+                         param_adjoints.end());
 
-  return std::make_shared<ngraph::Function>(dYdXs, back_parameters);
+  return {std::make_shared<ngraph::Function>(dYdXs, back_parameters), adjoints};
 }
 
 // Compile a Subgraph into ngraph forward and backward call frames
@@ -223,22 +234,27 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   for (auto i : sub_graph->inputs_) placeholder_order_.push_back(i);
 
   // compile all the nodes in the graph
-  CompileNodes(sub_graph->nodes_.back(), sub_graph);
+  for (auto output : sub_graph->outputs_) {
+    CompileNodes(output, sub_graph);
+  }
 
   auto f = MakeForwardFunction(sub_graph);
   if (ngraph_log_graph) {
     dump_graph(f, __func__, "pre-optimized-fprop");
   }
 
-
   std::shared_ptr<ngraph::Function> maybe_bf;
+  std::vector<std::shared_ptr<ngraph::Node>> adjoints;
   if (exe_mode_ == GraphExeMode::kTrain) {
-    maybe_bf = MakeBackwardFunction(sub_graph, f);
+    auto bfa = MakeBackwardFunction(sub_graph, f);
+    maybe_bf = bfa.first;
+    adjoints = bfa.second;
     if (ngraph_log_graph) {
       dump_graph(maybe_bf, __func__, "pre-optimized-bprop");
     }
 
-    // OptimizeGraph's real benefit comes from optimizing the fprop cache, so we only call it when
+    // OptimizeGraph's real benefit comes from optimizing the fprop cache, so we
+    // only call it when
     // we're in training mode...
     OptimizeGraph(sub_graph, f, maybe_bf);
   }
@@ -252,7 +268,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   if (sub_graph->enable_fprop_cache && exe_mode_ == GraphExeMode::kTrain) {
-    auto fprop_cache = ngraph::cache_fprop(f, maybe_bf, {maybe_bf->get_parameters()[0]});
+    auto fprop_cache = ngraph::cache_fprop(f, maybe_bf, adjoints);
 
     if (ngraph_log_graph) {
       dump_graph(fprop_cache.fprop, __func__, "fprop_cache.fprop");
@@ -279,7 +295,8 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   CHECK(exe_mode_ == GraphExeMode::kInfer);
-  // No need to compile the backprop function if we're running in inference mode.
+  // No need to compile the backprop function if we're running in inference
+  // mode.
   CompileForward(sub_graph, f, exe_mode_);
 }
 
@@ -301,7 +318,8 @@ void SGCompiler::CompileNodes(NodePtr node,
       if (!in_vec(sub_graph->nodes_, node)) {
         this->CompileInput(node);
       } else {
-        this->op_map_[node] = this->ngraph_op_funcs_[node->operation_](node);
+        this->op_map_.insert(
+            {node, this->ngraph_op_funcs_[node->operation_](node)});
 
         // Verify that the shapes computed by NNVM and nGraph are identical...
         const nnvm::TShape &nnvm_shape = node->shape_;
@@ -337,7 +355,7 @@ void SGCompiler::CompileNodes(NodePtr node,
           throw std::runtime_error(os.str());
         }
 
-        // Verify that the element-types computed by NNM and nGraph are
+        // Verify that the element-types computed by NNVM and nGraph are
         // identical...
         const ngraph::element::Type &ng_type = ngraph_node->get_element_type();
         const ngraph::element::Type &nnvm_type_as_ng_type =
@@ -356,13 +374,11 @@ void SGCompiler::CompileNodes(NodePtr node,
     }
   };
 
-  std::unordered_set<NodePtr> visited;
-  visitor.stop_condition = [sub_graph, &visited](NodePtr node, NodePtr input) {
+  visitor.stop_condition = [this, sub_graph](NodePtr node, NodePtr input) {
     // continue if...
     // 1) node is in subgraph or a subgraph input
     // 2) input not visited
-    if (in_vec(sub_graph->nodes_, node) && !visited.count(input)) {
-      visited.insert(input);
+    if (in_vec(sub_graph->nodes_, node) && !(this->op_map_.count(input))) {
       return false;
     }
     // else, stop traversing the graph
@@ -377,8 +393,8 @@ void SGCompiler::CompileInput(NodePtr input) {
   auto shape = TShape_to_NShape(input->shape_);
   // make a shaped and typed parameter based on the input node
   // store it in the op_map_
-  op_map_[input] =
-      std::make_shared<ngraph::op::Parameter>(getType(input->dtype_), shape);
+  op_map_.insert({input, std::make_shared<ngraph::op::Parameter>(
+                             getType(input->dtype_), shape)});
 }
 
 }  // namespace ngraph_bridge

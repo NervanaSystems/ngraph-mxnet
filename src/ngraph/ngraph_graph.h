@@ -44,7 +44,7 @@ using NgraphNodePtr = std::shared_ptr<ngraph::Node>;
 using nnvmNodePtr = std::shared_ptr<nnvm::Node>;
 
 // Possible Types of nodes in Current Version
-enum class NodeType { kVariable, kAux, kOp, kGraph };
+enum class NodeType { kVariable, kAux, kOp, kGraph, kOutput };
 enum class GraphExeMode { kInfer = 0, kTrain };
 constexpr int kGraphExeModeCount = static_cast<int>(GraphExeMode::kTrain) -
                                    static_cast<int>(GraphExeMode::kInfer) + 1;
@@ -68,7 +68,8 @@ class Node {
   virtual std::string createNodeLabel() {
     std::ostringstream stream;
     stream << name_ << this << " [label = \"" << name_ << this << shape_
-           << " \n sg=" << subgraph_ << "\"];";
+           << " \n sg=" << subgraph_ << " index=" << multi_output_index_
+           << "\"];";
     return stream.str();
   }
   // basic information about node
@@ -193,6 +194,8 @@ inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
   return backends[backend_name];
 }
 
+class OutputElement;
+
 /*
 Graph class
 Graph subclasses Node so that we can embed graphs into other graphs
@@ -208,6 +211,14 @@ class Graph : public Node {
       : Node(NodeType::kGraph, nullptr, name),
         context_(context),
         enable_fprop_cache(enable_fprop_cache) {}
+
+  std::string createNodeLabel() override {
+    std::ostringstream stream;
+    stream << name_ << this << " [label = \"" << name_ << this << shape_
+           << " \n sg=" << subgraph_ << " index=" << multi_output_index_
+           << "\", fillcolor = green, style = filled];";
+    return stream.str();
+  }
   // Delete the ngraph objects so we don't have a large memory leak
   // when running multiple graphs back to back
   void CleanUp() {
@@ -219,6 +230,9 @@ class Graph : public Node {
       ngraph_forward[i] = nullptr;
       ngraph_backward[i] = nullptr;
     }
+    inputs_.clear();
+    outputs_.clear();
+    output_elements_.clear();
   }
 
   // Add a node to the graph
@@ -226,21 +240,25 @@ class Graph : public Node {
 
   // get the node corresponding to an orig_node
   NodePtr operator[](const nnvm::NodeEntry &entry) {
-    for (auto n : nodes_)
+    for (auto n : nodes_) {
+      if (n->name_ == "gelqf0")
+        std::cout << n->orig_node_.get() << " " << n->multi_output_index_
+                  << std::endl;
       if ((n->orig_node_ == entry.node) &&
           (n->multi_output_index_ == entry.index)) {
         return n;
       }
+    }
     return nullptr;
   }
 
   bool forward_train_computed{false};
-  int num_outputs = 1;
+  size_t num_outputs_ = 1;
   // nodes in this graph
   std::vector<NodePtr> nodes_;
   // functions to execute this graph in ngraph.
-  // Note: ngraph_backward[GraphExeMode::kInfer] should always be null, but we define it for
-  // consisteny.
+  // Note: ngraph_backward[GraphExeMode::kInfer] should always be null, but we
+  // define it for consisteny.
   std::shared_ptr<ngraph::runtime::CallFrame>
       ngraph_forward[kGraphExeModeCount];
   std::shared_ptr<ngraph::runtime::CallFrame>
@@ -255,19 +273,48 @@ class Graph : public Node {
   std::vector<int> cached_aux_positions[kGraphExeModeCount];
 
   const bool enable_fprop_cache;
+
+  std::vector<NodePtr> outputs_;
+  std::vector<std::shared_ptr<OutputElement>> output_elements_;
+};
+
+// Element to represent outputs of Graph objects embedded in other Graph objects
+class OutputElement : public Node {
+ public:
+  OutputElement(std::shared_ptr<Graph> node, size_t index)
+      : Node(NodeType::kOutput, node->outputs_[index]->orig_node_,
+             node->outputs_[index]->name_),
+        base_node_(node->outputs_[index]) {
+    shape_ = base_node_->shape_;
+    dtype_ = base_node_->dtype_;
+
+    inputs_.push_back(node);
+
+    multi_output_index_ = index;
+    subgraph_ = base_node_->subgraph_;
+  }
+
+  std::string createNodeLabel() override {
+    std::ostringstream stream;
+    stream << name_ << this << " [label = \"" << name_ << this << shape_
+           << " \n sg=" << subgraph_ << " index=" << multi_output_index_
+           << "\", fillcolor = purple, style = filled];";
+    return stream.str();
+  }
+
+  NodePtr base_node_;
 };
 
 /**
  * High level function that does the subgraph identification
  */
-void IdentifySubgraphs(const Graph &graph,
-                       const std::function<bool(NodePtr)> &func);
+void IdentifySubgraphs(Graph *graph, const std::function<bool(NodePtr)> &func);
 
 /**
  * Convert graph from identified nodes to a network of nodes and graphs,
  * each graph node represented a combined ngraph operation
  */
-void CollapseSubgraphs(Graph *graph);
+void CollapseSubgraph(Graph *graph, int subgraph_num);
 
 /**
  * Selection of nodes based on function criterion.

@@ -14,8 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "../../src/ngraph/ngraph_nnvm_ops.h"
 #include "test_ngraph_imperative.h"
+#include "../../src/ngraph/ngraph_nnvm_ops.h"
 
 namespace ngraph_bridge {
 
@@ -46,7 +46,6 @@ TEST_F(NGRAPH_IMPERATIVE, PARSE_OPGRAPH) {
   EXPECT_FALSE(test.op_ngraph_);
   test.parse_ngraph();
   EXPECT_TRUE(test.op_ngraph_);
-  EXPECT_EQ(test.ngraph_.nodes_.size(), inputs.size() + 1);
   for (auto n : test.ngraph_.nodes_) {
     if (n->type_ == NodeType::kGraph)
       EXPECT_EQ(n->in_ngraph_, true);

@@ -29,56 +29,32 @@
 namespace ngraph_bridge {
 
 // Function to create an nnvm node from a ngraph subgraph
-nnvm::NodeEntry CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
+nnvm::NodePtr CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
   // init node, set name
   auto node = nnvm::Node::Create();
   node->attrs.name = subgraph->name_;
   // get the registered operation for the node
   node->attrs.op = get_subgraph_op(subgraph);
-  // setup the ninputs to the node
+  // setup the inputs to the node
   for (auto input : subgraph->inputs_)
-    node->inputs.emplace_back(nnvm::NodeEntry{input->orig_node_, 0, 0});
+    if (input->type_ == NodeType::kOutput) {
+      auto n = std::dynamic_pointer_cast<OutputElement>(input);
+      node->inputs.emplace_back(nnvm::NodeEntry{
+          n->base_node_->orig_node_,
+          static_cast<uint32_t>(n->base_node_->multi_output_index_),
+          static_cast<uint32_t>(0)});
+
+    } else {
+      node->inputs.emplace_back(nnvm::NodeEntry{
+          input->orig_node_, static_cast<uint32_t>(input->multi_output_index_),
+          static_cast<uint32_t>(0)});
+    }
   // create dummy node parameters
   NGraphParam op;
   op.g = subgraph;
 
   node->attrs.parsed = std::move(op);
-
-  // init and return NodeEntry
-  return nnvm::NodeEntry{node, 0, 0};
-}
-
-// Generator to create functions that convert mxnet layer operations
-// into a series of ngraph operations
-LayerGraphs create_layer_graphs() {
-  LayerGraphs layer_funcs;
-
-  // Split is an operation with multiple outputs that splits
-  // a tensor into multiple tensors by creating even slices along
-  // one axis. To ease the interface with ngraph, we convert split into
-  // a slice based subgraph.
-  layer_funcs[std::string("split")] = [](const NodePtr node) {
-    Graph tmpGraph(node->name_);
-    int num_outputs = 1;
-    for (auto& kv : node->orig_node_->attrs.dict)
-      if (kv.first == "num_outputs") num_outputs = std::stoi(kv.second);
-
-    tmpGraph.num_outputs = num_outputs;
-    for (int i = 0; i < num_outputs; ++i) {
-      auto tmpslice = std::make_shared<OpNode>(
-          node->orig_node_, node->name_ + "_" + std::to_string(i), "split");
-      tmpslice->inputs_.push_back(node->inputs_[0]);
-      tmpslice->multi_output_index_ = i;
-      tmpGraph.AddNode(tmpslice);
-    }
-
-    return tmpGraph;
-  };
-
-  // Slice channel is an alias for split
-  layer_funcs[std::string("SliceChannel")] = layer_funcs["split"];
-
-  return layer_funcs;
+  return node;
 }
 
 // infer nnvm::Graph shape and dtype for bind case
@@ -180,10 +156,15 @@ void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
   MakeCopiedFeedDict(feed_dict);
   ParseNnvmGraph();
   CheckInNgraph();
+}
 
-  IdentifySubgraphs(ngraph_, [&feed_dict](NodePtr s) -> bool {
+void Compiler::IdentifyCollapseGraphs() {
+  // Output Graphviz dot files (pre collapse) for vizualization
+  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, std::string("pre_collapse"));
+
+  IdentifySubgraphs(&ngraph_, [this](NodePtr s) -> bool {
     bool in_feed_dict = false;
-    for (auto kv : feed_dict) {
+    for (auto kv : feed_dict_) {
       if (kv.first.node->attrs.name == s->name_) {
         in_feed_dict = true;
         break;
@@ -191,17 +172,147 @@ void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
     }
     return (s->in_ngraph_ && s->type_ == NodeType::kOp && !in_feed_dict);
   });
+
+  // Output Graphviz dot files (post collapse) for vizualization
+  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, "post_collapse");
+}
+
+void Compiler::CreateSubgraphNNVMNodes() {
+  // find the subgraphs
+  for (auto n : ngraph_.nodes_) {
+    if (n->type_ == NodeType::kGraph) {
+      // extract and compile subgraph
+      compiler_.setExeMode(GraphExeMode::kInfer);
+      auto sg = compiler_.Compile(n);
+
+      // compile subgraph in other execution modes,
+      for (int i = 1; i < kGraphExeModeCount; ++i) {
+        // set graph execution mode
+        compiler_.setExeMode(static_cast<GraphExeMode>(i));
+        compiler_.Compile(n);
+      }
+
+      // register compiled subgraph with nnvm
+      register_subgraph(sg);
+
+      // create nnvm node
+      auto node = CreateNNVMNode(sg);
+      compiled_nodes_.insert({sg, node});
+    }
+  }
+}
+
+struct NodeEntryHash {
+  size_t operator()(const nnvm::NodeEntry& key) const {
+    size_t hash = std::hash<nnvm::NodePtr>()(key.node);
+    hash = hash_combine(hash, key.index);
+    hash = hash_combine(hash, key.version);
+    return hash;
+  }
+};
+
+struct NodeEntryEqual {
+  bool operator()(const nnvm::NodeEntry& lhs,
+                  const nnvm::NodeEntry& rhs) const {
+    return ((lhs.node == rhs.node) && (lhs.index == rhs.index) &&
+            (lhs.version == rhs.version));
+  }
+};
+
+void Compiler::ConnectSubgraphNodes() {
+  // create a map of original NodeEntries -> subgraph output NodeEntries
+  std::unordered_map<nnvm::NodeEntry, nnvm::NodeEntry, NodeEntryHash,
+                     NodeEntryEqual>
+      out_map;
+  for (auto kv : compiled_nodes_) {
+    for (auto output : kv.first->output_elements_) {
+      nnvm::NodeEntry orig_entry{
+          output->base_node_->orig_node_,
+          static_cast<uint32_t>(output->base_node_->multi_output_index_),
+          static_cast<uint32_t>(0)};
+      nnvm::NodeEntry new_entry{
+          kv.second, static_cast<uint32_t>(output->multi_output_index_),
+          static_cast<uint32_t>(0)};
+      out_map[orig_entry] = new_entry;
+    }
+  }
+  // replace inputs in all of the graphs if they are now outputs of other
+  // subgraphs
+  for (auto kv : compiled_nodes_) {
+    for (auto& input : kv.second->inputs) {
+      if (out_map.count(input) != 0) {
+        input = out_map[input];
+      }
+    }
+  }
+}
+
+void Compiler::CollapseNNVMGraph() {
+  for (auto n : ngraph_.nodes_) {
+    // Find the subgraphs
+    if (n->type_ == NodeType::kGraph) {
+      auto sg = std::dynamic_pointer_cast<Graph>(n);
+      // get the NNVM node
+      auto node = compiled_nodes_.at(sg);
+      // Loop over the output elements, and replace NNVM node entries
+      // with output Node Entries
+      for (auto output : sg->output_elements_) {
+        nnvm::NodeEntry sg_node{
+            node, static_cast<uint32_t>(output->multi_output_index_),
+            static_cast<uint32_t>(0)};
+
+        auto matches = [&output](nnvm::NodeEntry n) -> bool {
+          return (n.node == output->base_node_->orig_node_) &&
+                 (n.index == output->base_node_->multi_output_index_);
+        };
+
+        // Replace outputs if needed
+        for (auto& nnvm_output : graph_.outputs)
+          if (matches(nnvm_output)) nnvm_output = sg_node;
+
+        // use nnvm depth first search to fix node connections in nnvm
+        nnvm::DFSVisit(graph_.outputs,
+                       [sg_node, &output, &matches](const nnvm::NodePtr node) {
+                         for (auto input : node->inputs) {
+                           auto it = std::find_if(node->inputs.begin(),
+                                                  node->inputs.end(), matches);
+
+                           if (it != node->inputs.end()) {
+                             node->inputs[it - node->inputs.begin()] = sg_node;
+                           } else {
+                             break;
+                           }
+                         }
+                       });
+      }
+    }
+  }
+}
+
+void Compiler::CleanUpUneededReferences() {
+  // Clean up the nodes in the subgraph that we don't need anymore
+  // so we don't keep extra shared pointers around
+  // this is spaghetti
+  // TODO(mbrookhart): Ask DLMC for the capability to destroy nnvm::op
+  // objects so we don't have to do this anymore.
+  for (auto kv : compiled_nodes_) {
+    for (auto input : kv.first->inputs_) {
+      input->inputs_.clear();
+    }
+    for (auto output : kv.first->outputs_) {
+      output->inputs_.clear();
+    }
+    for (auto output_element : kv.first->output_elements_) {
+      output_element->inputs_.clear();
+      output_element->base_node_ = nullptr;
+    }
+    kv.first->nodes_.clear();
+  }
 }
 
 // Main compilation function
 nnvm::Graph Compiler::Compile() {
-  // Output Graphviz dot files (pre collapse) for vizualization
-  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, "pre_collapse");
-
-  CollapseSubgraphs(&ngraph_);
-
-  // Output Graphviz dot files (post collapse) for vizualization
-  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, "post_collapse");
+  IdentifyCollapseGraphs();
 
   for (auto node : ngraph_.nodes_) {
     // store the input variable shape for use by nnvm
@@ -216,58 +327,15 @@ nnvm::Graph Compiler::Compile() {
     }
   }
 
-  // find the subgraphs
-  for (auto n : ngraph_.nodes_) {
-    if (n->type_ == NodeType::kGraph) {
-      // extract and compile subgraph
-      compiler_.setExeMode(GraphExeMode::kInfer);
-      auto sg = compiler_.Compile(n);
-      // register compiled subgraph with nnvm
-      register_subgraph(sg);
-      // create nnvm node
-
-      auto sg_node = CreateNNVMNode(sg);
-
-      // compile subgraph in other execution modes,
-      for (int i = 1; i < kGraphExeModeCount; ++i) {
-        // set graph execution mode
-        compiler_.setExeMode(static_cast<GraphExeMode>(i));
-        compiler_.Compile(n);
-      }
-
-      auto matches = [&sg](nnvm::NodeEntry n) -> bool {
-        return (n.node == sg->nodes_.back()->orig_node_) &&
-               (n.index == sg->nodes_.back()->multi_output_index_);
-      };
-
-      // Replace outputs if needed
-      for (auto& output : graph_.outputs)
-        if (matches(output)) output = sg_node;
-
-      // use nnvm depth first search to fix node connections in nnvm
-      nnvm::DFSVisit(
-          graph_.outputs, [sg_node, &matches](const nnvm::NodePtr node) {
-            for (auto input : node->inputs) {
-              auto it = std::find_if(node->inputs.begin(), node->inputs.end(),
-                                     matches);
-
-              if (it != node->inputs.end()) {
-                node->inputs.insert(it, sg_node);
-                node->inputs.erase(std::remove_if(node->inputs.begin(),
-                                                  node->inputs.end(), matches),
-                                   node->inputs.end());
-              }
-            }
-          });
-    }
-  }
-
+  CreateSubgraphNNVMNodes();
+  ConnectSubgraphNodes();
+  CollapseNNVMGraph();
+  CleanUpUneededReferences();
   // create a new output graph
   nnvm::Graph out_graph;
 
   // initialize it with original graph nodes
   out_graph.outputs = graph_.outputs;
-
   return std::move(out_graph);
 }
 
@@ -351,12 +419,9 @@ void Compiler::CheckInNgraph() {
 
 // Function that parses an nnvm Graph into an intermediary graph
 void Compiler::ParseNnvmGraph() {
-  // Create dictionary of layer->ngraph functions
-  auto layer_funcs = create_layer_graphs();
   // Use NNVM's depth first search to trace the tree and construct the
   // intermediary graph
-  nnvm::DFSVisit(graph_.outputs, [this,
-                                  &layer_funcs](const nnvm::NodePtr node) {
+  nnvm::DFSVisit(graph_.outputs, [this](const nnvm::NodePtr node) {
     const auto& idx = this->graph_.indexed_graph();
 
     const auto& mutable_nodes = idx.mutable_input_nodes();
@@ -372,35 +437,23 @@ void Compiler::ParseNnvmGraph() {
       // create operation node
       auto op_name = clean_opname(node->op()->name);
       auto op_node = std::make_shared<OpNode>(node, node->attrs.name, op_name);
-      // setup operation inputs
-      for (size_t i = 0; i < node->inputs.size(); ++i) {
-        const nnvm::NodeEntry& e = node->inputs[i];
-        std::shared_ptr<Node> tmpnode;
-        tmpnode = this->ngraph_[e];
-        if (tmpnode == nullptr) {
-          tmpnode = std::make_shared<VariableNode>(node, e.node->attrs.name);
-          this->ngraph_.AddNode(tmpnode);
+
+      // If it's a multi output op (and not Batchnorm)
+      // replace it with a set of nodes that correspond to each output of
+      // the op
+      // TODO(mbrookhart): Handle this more carefully somehow?
+      // not sure how many ops there actually are that need multi-output
+      if (node->num_outputs() > 1 && op_name != "BatchNorm") {
+        for (size_t i = 0; i < node->num_outputs(); ++i) {
+          auto tmpop = std::make_shared<OpNode>(
+              op_node->orig_node_, op_node->name_ + "_" + std::to_string(i),
+              op_node->operation_);
+
+          for (auto input : op_node->inputs_) tmpop->inputs_.push_back(input);
+          tmpop->multi_output_index_ = i;
+
+          this->ngraph_.AddNode(tmpop);
         }
-        op_node->inputs_.emplace_back(tmpnode);
-      }
-
-      // function that renames or expands things like activation and
-      // split
-      auto expand_layers = [this,
-                            &layer_funcs](std::shared_ptr<OpNode>& op_node) {
-        auto tmp = layer_funcs[op_node->operation_](op_node);
-        if (tmp.num_outputs > 1)
-          this->ngraph_.nodes_.erase(
-              std::remove(this->ngraph_.nodes_.begin(),
-                          this->ngraph_.nodes_.end(), op_node),
-              this->ngraph_.nodes_.end());
-
-        for (auto n : tmp.nodes_) this->ngraph_.AddNode(n);
-      };
-
-      if (layer_funcs.count(op_node->operation_) != 0) {
-        // perform layer expansions
-        expand_layers(op_node);
       } else {
         // add operation
         this->ngraph_.AddNode(op_node);
@@ -408,7 +461,26 @@ void Compiler::ParseNnvmGraph() {
     }
   });
 
-  // get the shape and data types of all of the nodes
+  // set up the inputs to all of the  nodes in the graph
+  for (auto node : ngraph_.nodes_) {
+    for (size_t i = 0; i < node->orig_node_->inputs.size(); ++i) {
+      const nnvm::NodeEntry& e = node->orig_node_->inputs[i];
+      std::shared_ptr<Node> tmpnode;
+      tmpnode = this->ngraph_[e];
+      if (tmpnode == nullptr) {
+        throw std::runtime_error(
+            "NGRAPH_BRIDGE: couldn't parse the NNVM graph");
+      }
+      node->inputs_.emplace_back(tmpnode);
+    }
+  }
+
+  // set up the outputs to the parsed bridge graph
+  for (auto e : graph_.outputs) {
+    ngraph_.outputs_.push_back(ngraph_[e]);
+  }
+
+  // get the shape, data and storage types of all of the nodes
   const auto& idx = graph_.indexed_graph();
   const auto inferred_shapes =
       graph_.GetAttr<std::vector<nnvm::TShape>>("shape");
@@ -417,7 +489,7 @@ void Compiler::ParseNnvmGraph() {
       graph_.GetAttr<mxnet::StorageTypeVector>("storage_type");
   for (auto node : this->ngraph_.nodes_) {
     const uint32_t nid = idx.node_id(node->orig_node_.get());
-    const uint32_t eid = idx.entry_id(nid, 0);
+    const uint32_t eid = idx.entry_id(nid, node->multi_output_index_);
     node->shape_ = inferred_shapes[eid];
     node->dtype_ = inferred_dtypes[eid];
     node->stype_ = inferred_stypes[eid];

@@ -51,7 +51,7 @@ struct NGraphParam {
   void Init(const nnvm::NodeAttrs& attrs) {}
   // Clean up the graph when this param is deleted
   // if we have 3 or fewer references left
-  // forward func/backward func/this param object
+  // i.e., forward & backward computes and this param object
   ~NGraphParam() {
     if (g != nullptr && g.use_count() <= 3) {
       g->CleanUp();

@@ -15,6 +15,8 @@
 *******************************************************************************/
 
 #include "test_ngraph_graph.h"
+#include "../../src/ngraph/ngraph_graph_utils.h"
+#include "../../src/ngraph/ngraph_utils.h"
 
 namespace ngraph_bridge {
 
@@ -88,7 +90,7 @@ TEST_F(NGRAPH_GRAPH, GRAPH_FIND_SUBGRAPH) {
   // branching
   EXPECT_EQ(
       FindSubgraph(branching_graph, branching_graph.nodes_[2], isop).size(),
-      1ul);
+      2ul);
   EXPECT_EQ(
       FindSubgraph(branching_graph, branching_graph.nodes_[4], isop).size(),
       2ul);
@@ -97,45 +99,54 @@ TEST_F(NGRAPH_GRAPH, GRAPH_FIND_SUBGRAPH) {
       3ul);
   // multi
   EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[2], isop).size(), 1ul);
-  EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[4], isop).size(), 1ul);
-  EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[5], isop).size(), 1ul);
-  EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[7], isop).size(), 2ul);
+  EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[4], isop).size(), 2ul);
+  EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[5], isop).size(), 2ul);
+  EXPECT_EQ(FindSubgraph(multi_graph, multi_graph.nodes_[7], isop).size(), 4ul);
   // complex
   EXPECT_EQ(FindSubgraph(complex_graph, complex_graph.nodes_[9], isop).size(),
-            1ul);
+            5ul);
   EXPECT_EQ(FindSubgraph(complex_graph, complex_graph.nodes_[20], isop).size(),
-            3ul);
-  EXPECT_EQ(FindSubgraph(complex_graph, complex_graph.nodes_[24], isop).size(),
             6ul);
+  EXPECT_EQ(FindSubgraph(complex_graph, complex_graph.nodes_[24], isop).size(),
+            8ul);
   EXPECT_EQ(FindSubgraph(complex_graph, complex_graph.nodes_[25], isop).size(),
             6ul);
 }
 
-TEST_F(NGRAPH_GRAPH, GRAPH_IDENTIFY_SUBGRAPHS) {
-  IdentifySubgraphs(branching_graph, isop);
-  EXPECT_EQ(branching_graph.nodes_[0]->subgraph_, 0);
-  EXPECT_EQ(branching_graph.nodes_[1]->subgraph_, -1);
-  EXPECT_EQ(branching_graph.nodes_[2]->subgraph_, 1);
-  EXPECT_EQ(branching_graph.nodes_[3]->subgraph_, -1);
-  EXPECT_EQ(branching_graph.nodes_[4]->subgraph_, 1);
-  EXPECT_EQ(branching_graph.nodes_[5]->subgraph_, 1);
-  EXPECT_EQ(branching_graph.nodes_[6]->subgraph_, 0);
-}
-
 TEST_F(NGRAPH_GRAPH, GRAPH_COLLAPSE_SUBGRAPHS) {
-  IdentifySubgraphs(branching_graph, isop);
-  CollapseSubgraphs(&branching_graph);
+  IdentifySubgraphs(&branching_graph, isop);
   auto size = branching_graph.nodes_.size();
-  EXPECT_EQ(size, 5ul);
+  EXPECT_EQ(size, 7ul);
   auto subgraph =
       std::dynamic_pointer_cast<Graph>(branching_graph.nodes_[size - 2]);
   EXPECT_NE(subgraph, nullptr);
   EXPECT_EQ(subgraph->nodes_.size(), 3ul);
 }
 
-// TEST(NGRAPH_GRAPH, PARSENNVM) {
-//   // TODO:: Perhaps in python?
-//   EXPECT_EQ(0,1);
-// }
+TEST_F(NGRAPH_GRAPH, GRAPH_COLLAPSE_MULTIOUTPUT) {
+  if (ngraph_log_viz)
+    WriteSubgraphDots(complex_graph, "complex_graph_test_pre_collapse");
+
+  IdentifySubgraphs(&complex_graph, isop);
+
+  if (ngraph_log_viz)
+    WriteSubgraphDots(complex_graph, "complex_graph_test_post_collapse");
+
+  int subgraph_count = 0;
+  for (auto node : complex_graph.nodes_) {
+    if (node->type_ == NodeType::kGraph) {
+      subgraph_count += 1;
+      auto graph = std::dynamic_pointer_cast<Graph>(node);
+      if (graph->subgraph_ == 1) {
+        EXPECT_EQ(graph->nodes_.size(), 8ul);
+        EXPECT_EQ(graph->outputs_.size(), 3ul);
+      } else if (graph->subgraph_ == 2) {
+        EXPECT_EQ(graph->nodes_.size(), 4ul);
+      }
+    }
+  }
+
+  EXPECT_EQ(subgraph_count, 6);
+}
 
 }  // namespace ngraph_bridge

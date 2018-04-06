@@ -18,7 +18,8 @@
 #define MXNET_NGRAPH_NGRAPH_UTILS_H_
 #include <mxnet/ndarray.h>
 #include <algorithm>
-
+#include <chrono>
+#include <iostream>
 #include <iterator>
 #include <set>
 #include <sstream>
@@ -28,7 +29,6 @@
 #include <vector>
 
 #include "ngraph_graph.h"
-#include "mxnet/ndarray.h"
 
 namespace ngraph_bridge {
 
@@ -230,26 +230,23 @@ ngraph::AxisSet ngraph_remaining_axes(const NgraphNodePtr& n,
                                       const ngraph::AxisSet& a);
 
 /// A convenience method for looking up values in const std::map objects.
-template<typename MapType>
+template <typename MapType>
 typename MapType::mapped_type checked_lookup(
-    const MapType & m, const typename MapType::key_type & k) {
+    const MapType& m, const typename MapType::key_type& k) {
   const auto iter = m.find(k);
   CHECK(iter != m.end());
   return iter->second;
 }
 
-template<typename T>
-std::ostream & container_to_debug_stream(
-    std::ostream & os,
-    const T & container,
-    const std::string separator = ", ",
+template <typename T>
+std::ostream& container_to_debug_stream(
+    std::ostream& os, const T& container, const std::string separator = ", ",
     const std::string opening_delimiter = "[",
-    const std::string closing_delimiter = "]"
-    ) {
+    const std::string closing_delimiter = "]") {
   os << opening_delimiter;
 
   bool is_first = true;
-  for (const auto & element : container) {
+  for (const auto& element : container) {
     if (is_first) {
       is_first = false;
     } else {
@@ -262,11 +259,17 @@ std::ostream & container_to_debug_stream(
   return os;
 }
 
+// generates hash for any standard type val, and combines with seed.
+template <typename T>
+inline std::size_t hash_combine(const std::size_t& seed, const T& val) {
+  return seed + std::hash<T>()(val) + (seed << 1);
+}
+
 /// Use ngraph::serialize(...) to create a JSON rendition of 'f'.
 /// Compute the filename based on this function's parameters.
 /// If a file with that name already exists, overwrite it.
 void dump_graph(std::shared_ptr<ngraph::Function> f, std::string src_loc = "",
-    std::string filename_suffix = "");
+                std::string filename_suffix = "");
 
 }  // namespace ngraph_bridge
 
