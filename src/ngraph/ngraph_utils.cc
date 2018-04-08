@@ -17,10 +17,10 @@
 #include "ngraph_utils.h"
 
 #include <algorithm>
-#include <ngraph/serializer.hpp>
 #include <stdexcept>
 
 #include "nnvm/tuple.h"
+#include <ngraph/serializer.hpp>
 
 using namespace std;
 
