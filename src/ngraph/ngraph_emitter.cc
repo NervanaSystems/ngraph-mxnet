@@ -822,6 +822,14 @@ void Emitter::CreateLayerOps() {
     auto condition = op_map_[node->inputs_[0]];
     auto x = op_map_[node->inputs_[1]];
     auto y = op_map_[node->inputs_[2]];
+    if (condition->get_shape() != x->get_shape()) {
+      ngraph::AxisSet axes;
+      for (size_t i = 1; i < x->get_shape().size(); ++i) {
+        axes.insert(i);
+      }
+      condition = std::make_shared<ngraph::op::Broadcast>(condition,
+                                                          x->get_shape(), axes);
+    }
     condition = std::make_shared<ngraph::op::Convert>(condition,
                                                       ngraph::element::boolean);
     return std::make_shared<ngraph::op::Select>(condition, x, y);

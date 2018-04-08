@@ -159,7 +159,13 @@ static std::unordered_set<std::string> ops_no_head_grad{
     "broadcast_greater",
     "broadcast_greater_equal",
     "broadcast_lesser",
-    "broadcast_lesser_equal"};
+    "broadcast_lesser_equal",
+    "_equal_scalar",
+    "_not_equal_scalar",
+    "_greater_scalar",
+    "_greater_equal_scalar",
+    "_lesser_scalar",
+    "_lesser_equal_scalar"};
 
 // Utility function for replacing operation names
 // based on the dict above
