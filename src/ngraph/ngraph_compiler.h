@@ -113,7 +113,7 @@ static std::unordered_map<std::string, std::string> nameswitch({
     {"_GreaterScalar", "_greater_scalar"},
     {"_GreaterEqualScalar", "_greater_equal_scalar"},
     {"_LesserScalar", "_lesser_scalar"},
-    {"_LesserEqualScalar", "_esser_equal_scalar"},
+    {"_LesserEqualScalar", "_lesser_equal_scalar"},
     // Binary Basic
     {"_add", "_plus"},
     {"_Plus", "_plus"},
