@@ -64,6 +64,9 @@ RUN pip install --upgrade pytest
 # We include pytest-xdist to speed up the testing
 RUN pip install pytest-xdist
 
+# We include pylint cpplint to check the C++ code styling
+RUN pip install pylint cpplint
+
 # Copy in the run-as-user.sh script
 # This will allow the builds, which are done in a mounted directory, to
 # be run as the user who runs "docker run".  This then allows the mounted
