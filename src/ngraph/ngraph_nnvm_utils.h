@@ -49,7 +49,9 @@ inline std::shared_ptr<TensorView> NDArray_to_TensorView(
   auto shape = TShape_to_NShape(input.shape());
   const auto& element_type = getType(input.dtype());
 
-  auto TV = backend->make_primary_tensor_view(element_type, shape);
+  // TODO(mbrookhart): I don't think Ashok's memory sharing PR has a
+  // create_tensor implementation? this will probably conflict
+  auto TV = backend->create_tensor(element_type, shape);
 
   if (copy) {
     auto buffer_size = get_buffer_size(shape, element_type.size());

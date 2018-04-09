@@ -41,7 +41,6 @@ void CompileForward(std::shared_ptr<Graph> sub_graph,
                     GraphExeMode exe_mode) {
   const int mode = static_cast<int>(exe_mode);
 
-  auto manager = GetManagerFromContext(sub_graph->context_);
   auto backend = GetBackendFromContext(sub_graph->context_);
 
   // Log the graph so Graph_* corresponds to Function_* in codgen
@@ -49,8 +48,8 @@ void CompileForward(std::shared_ptr<Graph> sub_graph,
     dump_graph(f, __func__, "fprop");
   }
 
-  sub_graph->ngraph_forward[mode] =
-      backend->make_call_frame(manager->compile(f));
+  backend->compile(*f);
+  sub_graph->ngraph_forward[mode] = f;
 }
 
 void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
@@ -60,7 +59,6 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
                             const ngraph::FpropCache &fprop_cache) {
   const int mode = static_cast<int>(exe_mode);
 
-  auto manager = GetManagerFromContext(sub_graph->context_);
   auto backend = GetBackendFromContext(sub_graph->context_);
 
   // clone the functions to ensure we don't have
@@ -68,8 +66,8 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
   ngraph::NodeMap fmap;
   ngraph::NodeMap bfmap;
 
-  auto f_copy = ngraph::clone_function(f, fmap);
-  auto bf_copy = ngraph::clone_function(bf, bfmap);
+  auto f_copy = ngraph::clone_function(*f, fmap);
+  auto bf_copy = ngraph::clone_function(*bf, bfmap);
 
   // Log the graphs so Graph_* corresponds to Function_* in codgen
   if (ngraph_log_graph) {
@@ -77,8 +75,7 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
     dump_graph(bf_copy, __func__, "bprop");
   }
 
-  sub_graph->ngraph_forward[mode] =
-      backend->make_call_frame(manager->compile(f_copy));
+  backend->compile(*f_copy);
 
   for (auto result : f->get_results()) {
     if (fprop_cache.node_param_map->exists(result->get_input_op(0))) {
@@ -90,9 +87,10 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
       cloned_bf_param->get_output_tensor_view()->set_tensor_view_layout(layout);
     }
   }
+  backend->compile(*bf_copy);
 
-  sub_graph->ngraph_backward[mode] =
-      backend->make_call_frame(manager->compile(bf_copy));
+  sub_graph->ngraph_forward[mode] = f_copy;
+  sub_graph->ngraph_backward[mode] = bf_copy;
 }
 
 void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
