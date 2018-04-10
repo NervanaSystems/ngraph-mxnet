@@ -48,7 +48,7 @@ void CompileForward(std::shared_ptr<Graph> sub_graph,
     dump_graph(f, __func__, "fprop");
   }
 
-  backend->compile(*f);
+  backend->compile(f);
   sub_graph->ngraph_forward[mode] = f;
 }
 
@@ -75,7 +75,7 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
     dump_graph(bf_copy, __func__, "bprop");
   }
 
-  backend->compile(*f_copy);
+  backend->compile(f_copy);
 
   for (auto result : f->get_results()) {
     if (fprop_cache.node_param_map->exists(result->get_input_op(0))) {
@@ -87,7 +87,7 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
       cloned_bf_param->get_output_tensor_view()->set_tensor_view_layout(layout);
     }
   }
-  backend->compile(*bf_copy);
+  backend->compile(bf_copy);
 
   sub_graph->ngraph_forward[mode] = f_copy;
   sub_graph->ngraph_backward[mode] = bf_copy;

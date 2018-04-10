@@ -210,8 +210,8 @@ class Graph : public Node {
       cached_aux_values[i].clear();
       cached_aux_positions[i].clear();
 
-      backend->remove_compiled_function(*ngraph_forward[i]);
-      backend->remove_compiled_function(*ngraph_backward[i]);
+      backend->remove_compiled_function(ngraph_forward[i]);
+      backend->remove_compiled_function(ngraph_backward[i]);
       ngraph_forward[i] = nullptr;
       ngraph_backward[i] = nullptr;
     }
