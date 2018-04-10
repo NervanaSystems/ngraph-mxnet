@@ -101,10 +101,19 @@ static std::unordered_map<std::string, std::string> nameswitch({
     {"broadcast_plus", "broadcast_add"},
     {"broadcast_minus", "broadcast_sub"},
     // scalar
-    {"_AddScalar", "_add_scalar"},
+    {"_PlusScalar", "_plus_scalar"},
     {"_MinusScalar", "_minus_scalar"},
+    {"_RMinusScalar", "_rminus_scalar"},
     {"_MulScalar", "_mul_scalar"},
     {"_DivScalar", "_div_scalar"},
+    {"_RDivScalar", "_rdiv_scalar"},
+    {"_EqualScalar", "_equal_scalar"},
+    {"_NotEqualScalar", "_not_equal_scalar"},
+    {"_RMinusScalar", "_rminus_scalar"},
+    {"_GreaterScalar", "_greater_scalar"},
+    {"_GreaterEqualScalar", "_greater_equal_scalar"},
+    {"_LesserScalar", "_lesser_scalar"},
+    {"_LesserEqualScalar", "_lesser_equal_scalar"},
     // Binary Basic
     {"_add", "_plus"},
     {"_Plus", "_plus"},
@@ -150,7 +159,13 @@ static std::unordered_set<std::string> ops_no_head_grad{
     "broadcast_greater",
     "broadcast_greater_equal",
     "broadcast_lesser",
-    "broadcast_lesser_equal"};
+    "broadcast_lesser_equal",
+    "_equal_scalar",
+    "_not_equal_scalar",
+    "_greater_scalar",
+    "_greater_equal_scalar",
+    "_lesser_scalar",
+    "_lesser_equal_scalar"};
 
 // Utility function for replacing operation names
 // based on the dict above

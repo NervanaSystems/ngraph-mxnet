@@ -17,9 +17,9 @@
 #include "ngraph_utils.h"
 
 #include <algorithm>
-#include <ngraph/serializer.hpp>
 #include <stdexcept>
 
+#include <ngraph/serializer.hpp>
 #include "nnvm/tuple.h"
 
 using namespace std;

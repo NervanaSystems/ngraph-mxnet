@@ -366,9 +366,8 @@ std::shared_ptr<ngraph::Node> Emitter::CreateAutoBroadcast(
 template <class op>
 std::shared_ptr<ngraph::Node> Emitter::CreateScalarOp(const NodePtr& node) {
   auto arg0 = op_map_[node->inputs_[0]];
-  auto arg1 =
-      makeConstant(node, std::to_string(get_default(node, "scalar", 0.0f)));
-  return ngraph::builder::make_with_numpy_broadcast<op>(arg0, arg1);
+  auto arg1 = makeConstant(node, get_default(node, "scalar", std::string("0")));
+  return std::make_shared<op>(arg0, arg1);
 }
 // cast result of op to given type
 NgraphNodePtr cast_result(const NgraphNodePtr& op,
@@ -532,17 +531,53 @@ void Emitter::CreateBinaryOps() {
     return std::make_shared<ngraph::op::Reshape>(
         arg0, pyrange(arg0->get_shape().size()), reshape);
   };
-  ngraph_op_funcs_["_add_scalar"] = [this](const NodePtr& node) {
+  ngraph_op_funcs_["_plus_scalar"] = [this](const NodePtr& node) {
     return CreateScalarOp<ngraph::op::Add>(node);
   };
   ngraph_op_funcs_["_minus_scalar"] = [this](const NodePtr& node) {
     return CreateScalarOp<ngraph::op::Subtract>(node);
+  };
+  ngraph_op_funcs_["_rminus_scalar"] = [this](const NodePtr& node) {
+    auto arg0 =
+        makeConstant(node, get_default(node, "scalar", std::string("0")));
+    auto arg1 = op_map_[node->inputs_[0]];
+    return std::make_shared<ngraph::op::Subtract>(arg0, arg1);
   };
   ngraph_op_funcs_["_mul_scalar"] = [this](const NodePtr& node) {
     return CreateScalarOp<ngraph::op::Multiply>(node);
   };
   ngraph_op_funcs_["_div_scalar"] = [this](const NodePtr& node) {
     return CreateScalarOp<ngraph::op::Divide>(node);
+  };
+  ngraph_op_funcs_["_rdiv_scalar"] = [this](const NodePtr& node) {
+    auto arg0 =
+        makeConstant(node, get_default(node, "scalar", std::string("0")));
+    auto arg1 = op_map_[node->inputs_[0]];
+    return std::make_shared<ngraph::op::Divide>(arg0, arg1);
+  };
+  ngraph_op_funcs_["_equal_scalar"] = [this](const NodePtr& node) {
+    return cast_result(CreateScalarOp<ngraph::op::Equal>(node),
+                       getType(node->dtype_));
+  };
+  ngraph_op_funcs_["_not_equal_scalar"] = [this](const NodePtr& node) {
+    return cast_result(CreateScalarOp<ngraph::op::NotEqual>(node),
+                       getType(node->dtype_));
+  };
+  ngraph_op_funcs_["_greater_scalar"] = [this](const NodePtr& node) {
+    return cast_result(CreateScalarOp<ngraph::op::Greater>(node),
+                       getType(node->dtype_));
+  };
+  ngraph_op_funcs_["_greater_equal_scalar"] = [this](const NodePtr& node) {
+    return cast_result(CreateScalarOp<ngraph::op::GreaterEq>(node),
+                       getType(node->dtype_));
+  };
+  ngraph_op_funcs_["_lesser_scalar"] = [this](const NodePtr& node) {
+    return cast_result(CreateScalarOp<ngraph::op::Less>(node),
+                       getType(node->dtype_));
+  };
+  ngraph_op_funcs_["_lesser_equal_scalar"] = [this](const NodePtr& node) {
+    return cast_result(CreateScalarOp<ngraph::op::LessEq>(node),
+                       getType(node->dtype_));
   };
   ngraph_op_funcs_["broadcast_add"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Add>(node);
@@ -765,7 +800,7 @@ void Emitter::CreateLayerOps() {
       shape.insert(shape.begin(), 1);
     }
     // propote the reps if it's smaller
-    while (shape.size() < reps.size()) {
+    while (reps.size() < shape.size()) {
       reps.insert(reps.begin(), 1);
     }
     // reshape the input if needed
@@ -781,6 +816,23 @@ void Emitter::CreateLayerOps() {
     }
 
     return input;
+  };
+  // where is mxnet's version of select
+  ngraph_op_funcs_["where"] = [this](const NodePtr& node) {
+    auto condition = op_map_[node->inputs_[0]];
+    auto x = op_map_[node->inputs_[1]];
+    auto y = op_map_[node->inputs_[2]];
+    if (condition->get_shape() != x->get_shape()) {
+      ngraph::AxisSet axes;
+      for (size_t i = 1; i < x->get_shape().size(); ++i) {
+        axes.insert(i);
+      }
+      condition = std::make_shared<ngraph::op::Broadcast>(condition,
+                                                          x->get_shape(), axes);
+    }
+    condition = std::make_shared<ngraph::op::Convert>(condition,
+                                                      ngraph::element::boolean);
+    return std::make_shared<ngraph::op::Select>(condition, x, y);
   };
   // Fully connected is the main linear transformation layer in MXNet
   // it implements dot(data, W.T) + b
