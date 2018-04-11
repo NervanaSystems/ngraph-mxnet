@@ -148,12 +148,6 @@ class OpNode : public Node {
   }
 };
 
-// makes sure you have only one manager of one type
-
-static std::unordered_map<std::string,
-                          std::shared_ptr<ngraph::runtime::Manager>>
-    backend_managers;
-
 static std::unordered_map<std::string,
                           std::shared_ptr<ngraph::runtime::Backend>>
     backends;
@@ -172,23 +166,11 @@ inline std::string get_backend_name(const mxnet::Context &context) {
   }
 }
 
-inline std::shared_ptr<ngraph::runtime::Manager> GetManagerFromContext(
-    const mxnet::Context &context) {
-  auto backend_name = get_backend_name(context);
-  if (backend_managers.count(backend_name) == 0) {
-    auto manager = ngraph::runtime::Manager::get(backend_name);
-    backend_managers[backend_name] = manager;
-  }
-  return backend_managers[backend_name];
-}
-
 inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
     const mxnet::Context &context) {
   auto backend_name = get_backend_name(context);
-  if (backend_managers.count(backend_name) == 0) GetManagerFromContext(context);
-
   if (backends.count(backend_name) == 0) {
-    auto backend = backend_managers[backend_name]->allocate_backend();
+    auto backend = ngraph::runtime::Backend::create(backend_name);
     backends[backend_name] = backend;
   }
   return backends[backend_name];
@@ -222,11 +204,14 @@ class Graph : public Node {
   // Delete the ngraph objects so we don't have a large memory leak
   // when running multiple graphs back to back
   void CleanUp() {
+    auto backend = GetBackendFromContext(context_);
     for (int i = 0; i < kGraphExeModeCount; ++i) {
       cached_values[i].clear();
       cached_aux_values[i].clear();
       cached_aux_positions[i].clear();
 
+      backend->remove_compiled_function(ngraph_forward[i]);
+      backend->remove_compiled_function(ngraph_backward[i]);
       ngraph_forward[i] = nullptr;
       ngraph_backward[i] = nullptr;
     }
@@ -259,10 +244,8 @@ class Graph : public Node {
   // functions to execute this graph in ngraph.
   // Note: ngraph_backward[GraphExeMode::kInfer] should always be null, but we
   // define it for consisteny.
-  std::shared_ptr<ngraph::runtime::CallFrame>
-      ngraph_forward[kGraphExeModeCount];
-  std::shared_ptr<ngraph::runtime::CallFrame>
-      ngraph_backward[kGraphExeModeCount];
+  std::shared_ptr<ngraph::Function> ngraph_forward[kGraphExeModeCount];
+  std::shared_ptr<ngraph::Function> ngraph_backward[kGraphExeModeCount];
 
   const mxnet::Context context_;
   std::vector<std::shared_ptr<ngraph::runtime::TensorView>>
