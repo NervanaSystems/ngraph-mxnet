@@ -90,24 +90,42 @@ bool has_vector_plus_axes_shape(const ngraph::Shape & s) {
     return false;
   }
 
-  bool already_found_big_axis = false;
-  for (size_t axis_span : s) {
-    if (axis_span == 0) {
-      return false;
-    }
+  // Are all axis spans positive?
+  if (std::find(s.begin(), s.end(), 0) != s.end()) {
+    return false;
+  }
 
-    const bool is_big_axis = (axis_span > 1);
+  // Is there at most one axis with a span > 1?
+  const auto long_axis_pred = [](const size_t & span){
+      return span > 1;
+  };
 
-    if (is_big_axis) {
-      if (already_found_big_axis) {
-        return false;
-      } else {
-        already_found_big_axis = true;
-      }
-    }
+  if (std::count_if(s.begin(), s.end(), long_axis_pred) > 1) {
+    return false;
   }
 
   return true;
+}
+
+// If the vector-axis has length greater than 1, return its index.  Otherwise return 0.
+// If 's' is not in vector-plus-axes form, throw an exception.
+static size_t get_vector_axis_index(const ngraph::Shape & s) {
+  if (!has_vector_plus_axes_shape(s)) {
+    std::ostringstream os;
+    os << "Shape " << s << " not in vector-plus-axes form.";
+    throw os.str();
+  }
+
+  const auto long_axis_pred = [](const size_t & span){
+      return span > 1;
+  };
+
+  const auto iter = std::find_if(s.begin(), s.end(), long_axis_pred);
+  if (iter == s.end()) {
+    return 0;
+  } else {
+    return std::distance(s.begin(), iter);
+  }
 }
 
 ngraph::Shape get_vector_plus_axes_shape(
@@ -152,17 +170,16 @@ NgraphNodePtr ensure_vector_only_shape(
 
 NgraphNodePtr ensure_vector_plus_axes_shape(
     const NgraphNodePtr n,
-    const size_t n_vector_axis,
     const size_t output_rank,
     const size_t output_vector_axis) {
   CHECK(n);
   const ngraph::Shape & n_shape = n->get_shape();
   const size_t n_rank = n_shape.size();
 
-  CHECK(n_vector_axis < n_rank);
   CHECK(n_rank <= output_rank);
   CHECK(output_vector_axis < output_rank);
 
+  const size_t n_vector_axis = get_vector_axis_index(n_shape);
   const size_t n_vector_length = n_shape[n_vector_axis];
 
   const ngraph::Shape output_shape = get_vector_plus_axes_shape(

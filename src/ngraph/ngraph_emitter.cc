@@ -124,7 +124,7 @@ NgraphNodePtr Emitter::ReduceAxes(
     const NodePtr& node,
     const std::function<NgraphNodePtr(const NgraphNodePtr&,
                                       const ngraph::AxisSet&)>& func) const {
-  auto input = checked_lookup(op_map_, node->inputs_[0]);
+  auto input = op_map_.at(node->inputs_[0]);
   return ReduceAxes(
       input, get_default(node, "axis", pyrange(input->get_shape().size())),
       get_default(node, "exclude", false), get_default(node, "keepdims", false),

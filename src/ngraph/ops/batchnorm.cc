@@ -27,30 +27,64 @@ using ngraph::builder::make_with_numpy_broadcast;
 
 namespace ngraph_bridge {
 
+/// Create a subgraph that computes BatchNorm _without_ using the nGraph
+/// BatchNorm operator.
 static NgraphNodePtr create_batchnorm_basic_computation_nodes(
     const NgraphNodePtr& ng_mean, const NgraphNodePtr& ng_variance,
-    const NgraphNodePtr& ng_in_data, const NgraphNodePtr& ng_epsilon,
-    const NgraphNodePtr& ng_in_gamma_reshaped_or_null,
-    const NgraphNodePtr& ng_in_beta_reshaped) {
+    const NgraphNodePtr& ng_in_data,
+    const size_t channel_axis,
+    const float epsilon,
+    const NgraphNodePtr& ng_maybe_gamma,
+    const NgraphNodePtr& ng_beta) {
+  const ngraph::Shape & batch_data_shape = ng_in_data->get_shape();
+  const size_t batch_data_rank = batch_data_shape.size();
+
+  const ngraph::element::Type et = ng_in_data->get_element_type();
+  CHECK(ng_beta->get_element_type() == et);
+
+  CHECK(channel_axis < batch_data_rank);
+  const size_t channel_axis_length = batch_data_shape[ channel_axis ];
+
+  // Get our input tensors / constants into the required shape...
+  const ngraph::Shape channel_vector_plus_axes_shape = get_vector_plus_axes_shape(
+      batch_data_rank, channel_axis, channel_axis_length);
+
+  const NgraphNodePtr ng_mean_shaped =
+    ensure_vector_plus_axes_shape(ng_mean, batch_data_rank, channel_axis);
+
+  const NgraphNodePtr ng_var_shaped =
+    ensure_vector_plus_axes_shape(ng_variance, batch_data_rank, channel_axis);
+
+  const NgraphNodePtr ng_epsilon_shaped = makeConstant(et, channel_vector_plus_axes_shape, epsilon);
+
+  const NgraphNodePtr ng_beta_shaped =
+    ensure_vector_plus_axes_shape(ng_beta, batch_data_rank, channel_axis);
+
+  // Create the computation nodes...
   const NgraphNodePtr denom =
-      make_shared<ngraph::op::Sqrt>(ng_variance + ng_epsilon);
+      make_shared<ngraph::op::Sqrt>(ng_var_shaped + ng_epsilon_shaped);
 
   const NgraphNodePtr numerator =
-      make_with_numpy_broadcast<ngraph::op::Subtract>(ng_in_data, ng_mean);
+      make_with_numpy_broadcast<ngraph::op::Subtract>(ng_in_data, ng_mean_shaped);
 
-  const NgraphNodePtr result_simply_normalized =
+  const NgraphNodePtr ng_post_simply_normalized =
       make_with_numpy_broadcast<ngraph::op::Divide>(numerator, denom);
 
-  NgraphNodePtr result_maybe_with_gamma;
-  if (ng_in_gamma_reshaped_or_null) {
-    result_maybe_with_gamma = make_with_numpy_broadcast<ngraph::op::Multiply>(
-        result_simply_normalized, ng_in_gamma_reshaped_or_null);
+  NgraphNodePtr ng_post_gamma_result;
+  if (ng_maybe_gamma) {
+    const NgraphNodePtr ng_gamma_shaped =
+      ensure_vector_plus_axes_shape(ng_maybe_gamma, batch_data_rank, channel_axis);
+
+    ng_post_gamma_result =
+      make_with_numpy_broadcast<ngraph::op::Multiply>(ng_post_simply_normalized, ng_gamma_shaped);
   } else {
-    result_maybe_with_gamma = result_simply_normalized;
+    ng_post_gamma_result = ng_post_simply_normalized;
   }
 
-  return make_with_numpy_broadcast<ngraph::op::Add>(
-      result_maybe_with_gamma, ng_in_beta_reshaped);
+  const NgraphNodePtr ng_post_beta_result =
+    make_with_numpy_broadcast<ngraph::op::Add>(ng_post_gamma_result, ng_beta_shaped);
+
+  return ng_post_beta_result;
 }
 
 std::tuple<NgraphNodePtr, NgraphNodePtr, NgraphNodePtr>
@@ -72,8 +106,6 @@ create_batchnorm_training_without_ngraph_bn_op(
   const ngraph::Shape channel_vector_plus_axes_shape = get_vector_plus_axes_shape(
       batch_data_rank, channel_axis, channel_axis_length);
 
-  NgraphNodePtr ng_normalized_batch;
-
   const NgraphNodePtr ng_batch_means =
     Emitter::ReduceAxes(ng_in_data, {channel_axis}, true, true, ngraph::builder::mean);
 
@@ -84,18 +116,8 @@ create_batchnorm_training_without_ngraph_bn_op(
         return ngraph::builder::variance(node, axes);
         });
 
-  const NgraphNodePtr ng_epsilon_shaped = makeConstant(et, channel_vector_plus_axes_shape, epsilon);
-
-  const NgraphNodePtr ng_beta_shaped =
-    ensure_vector_plus_axes_shape(ng_beta, 0, batch_data_rank, channel_axis);
-
-  const NgraphNodePtr ng_gamma_shaped_or_null = ng_maybe_gamma
-    ? ensure_vector_plus_axes_shape(ng_maybe_gamma, 0, batch_data_rank, channel_axis)
-    : NgraphNodePtr{};
-
-  ng_normalized_batch = create_batchnorm_basic_computation_nodes(
-      ng_batch_means, ng_batch_variances, ng_in_data, ng_epsilon_shaped,
-      ng_gamma_shaped_or_null, ng_beta_shaped);
+  const NgraphNodePtr ng_normalized_batch = create_batchnorm_basic_computation_nodes(
+    ng_batch_means, ng_batch_variances, ng_in_data, channel_axis, epsilon, ng_maybe_gamma, ng_beta);
 
   const NgraphNodePtr ng_batch_means_vector_shaped =
     ensure_vector_only_shape(ng_batch_means);
@@ -123,44 +145,10 @@ NgraphNodePtr create_batchnorm_inference_without_ngraph_bn_op(
   CHECK(channel_axis < batch_data_rank);
   const size_t channel_axis_length = batch_data_shape[ channel_axis ];
 
-  const NgraphNodePtr ng_mean_shaped =
-    ensure_vector_plus_axes_shape(ng_moving_mean, 0, batch_data_rank, channel_axis);
+  const NgraphNodePtr ng_normalized_batch = create_batchnorm_basic_computation_nodes(
+    ng_moving_mean, ng_moving_var, ng_in_data, channel_axis, epsilon, ng_maybe_gamma, ng_beta);
 
-  const NgraphNodePtr ng_var_shaped =
-    ensure_vector_plus_axes_shape(ng_moving_var, 0, batch_data_rank, channel_axis);
-
-  const ngraph::Shape channel_vector_plus_axes_shape = get_vector_plus_axes_shape(
-      batch_data_rank, channel_axis, channel_axis_length);
-
-  const ngraph::element::Type et = ng_in_data->get_element_type();
-  CHECK(ng_beta->get_element_type() == et);
-
-  const NgraphNodePtr ng_epsilon_shaped = makeConstant(et, channel_vector_plus_axes_shape, epsilon);
-
-  const NgraphNodePtr denom = std::make_shared<ngraph::op::Sqrt>(ng_var_shaped + ng_epsilon_shaped);
-
-  const NgraphNodePtr numerator =
-    make_with_numpy_broadcast<ngraph::op::Subtract>(ng_in_data, ng_mean_shaped);
-
-  NgraphNodePtr result =
-    make_with_numpy_broadcast<ngraph::op::Divide>(numerator, denom);
-
-  if (ng_maybe_gamma) {
-    const NgraphNodePtr ng_gamma_shaped =
-      ensure_vector_plus_axes_shape(ng_maybe_gamma, 0, batch_data_rank, channel_axis);
-
-    const NgraphNodePtr ng_scale_by_gamma =
-      make_with_numpy_broadcast<ngraph::op::Multiply>(result, ng_gamma_shaped);
-
-    result = ng_scale_by_gamma;
-  }
-
-  const NgraphNodePtr ng_beta_shaped =
-    ensure_vector_plus_axes_shape(ng_beta, 0, batch_data_rank, channel_axis);
-
-  result = make_with_numpy_broadcast<ngraph::op::Add>(result, ng_beta_shaped);
-
-  return result;
+  return ng_normalized_batch;
 }
 
 }  // namespace ngraph_bridge

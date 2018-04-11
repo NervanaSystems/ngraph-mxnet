@@ -229,15 +229,6 @@ ngraph::AxisSet shape_to_axis_set(const ngraph::Shape& s);
 ngraph::AxisSet ngraph_remaining_axes(const NgraphNodePtr& n,
                                       const ngraph::AxisSet& a);
 
-/// A convenience method for looking up values in const std::map objects.
-template <typename MapType>
-typename MapType::mapped_type checked_lookup(
-    const MapType& m, const typename MapType::key_type& k) {
-  const auto iter = m.find(k);
-  CHECK(iter != m.end());
-  return iter->second;
-}
-
 template <typename T>
 std::ostream& container_to_debug_stream(
     std::ostream& os, const T& container, const std::string separator = ", ",
@@ -299,7 +290,6 @@ ngraph::Shape get_vector_plus_axes_shape(
 // If 'n' already meets those criteria, simply return 'n'.
 NgraphNodePtr ensure_vector_plus_axes_shape(
     const NgraphNodePtr n,
-    const size_t n_vector_axis,
     const size_t output_rank,
     const size_t output_vector_axis);
 
