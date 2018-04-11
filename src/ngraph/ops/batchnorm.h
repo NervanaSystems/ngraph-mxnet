@@ -26,6 +26,8 @@ namespace ngraph_bridge {
 // Create an subgraph of nGraph nodes that's functionally equivalent to nGraph's training-version
 // BatchNorm op, but which doesn't actually use that particular nGraph op.
 // This function exists as a crutch until nGraph's BatchNorm op is fully implemented.
+//
+// All of the nGraph nodes created by this function support autodiff.
 std::tuple<NgraphNodePtr, NgraphNodePtr, NgraphNodePtr>
 create_batchnorm_training_without_ngraph_bn_op(
     const float epsilon,
@@ -37,6 +39,8 @@ create_batchnorm_training_without_ngraph_bn_op(
 // Create an subgraph of nGraph nodes that's functionally equivalent to nGraph's inference-version
 // BatchNorm op, but which doesn't actually use that particular nGraph op.
 // This function exists as a crutch until nGraph's BatchNorm op is fully implemented.
+//
+// All of the nGraph nodes created by this function support autodiff.
 NgraphNodePtr create_batchnorm_inference_without_ngraph_bn_op(
     const float epsilon,
     const NgraphNodePtr ng_maybe_gamma,

@@ -984,8 +984,31 @@ void Emitter::CreateLayerOps() {
     // autodifferentiation (as with training).
     //----------------------------------------------------------------------------------------------
     if ((exe_mode_ == GraphExeMode::kTrain) && (use_global_stats)) {
-      CHECK(false && "Hybrid-mode batchnorm not implemented yet.");
-      return {};
+      if (ngraph_bn_op_available) {
+        const NgraphNodePtr ng_normalized_data = std::make_shared<ngraph::op::BatchNorm>(eps,
+            ng_actual_gamma,
+            ng_in_beta,
+            ng_in_data,
+            ng_in_moving_mean,
+            ng_in_moving_var,
+            true);
+
+        return ng_normalized_data;
+      } else {
+        // NOTE: This call is intentionally the same as another call below.  The function called
+        // here produces a subgraph suitable for training because all of its operators support
+        // autodiff.
+        const NgraphNodePtr ng_normalized_data = create_batchnorm_inference_without_ngraph_bn_op(
+            eps,
+            ng_maybe_gamma,
+            ng_in_beta,
+            ng_in_data,
+            ng_in_moving_mean,
+            ng_in_moving_var,
+            channel_axis);
+
+        return ng_normalized_data;
+      }
     }
 
     //----------------------------------------------------------------------------------------------
