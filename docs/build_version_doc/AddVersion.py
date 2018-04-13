@@ -36,7 +36,6 @@ if __name__ == '__main__':
     with open('tag_list.txt', 'r') as tag_file:
         for line in tag_file:
             tag_list.append(line.lstrip().rstrip())
-        tag_list.append('master')
 
     version_str = '<span id="dropdown-menu-position-anchor-version" ' \
                   'style="position: relative">' \
@@ -57,6 +56,9 @@ if __name__ == '__main__':
         for name in files:
             if not name.endswith('.html'):
                 continue
+            if 'install' in path:
+                print("Skipping this path: {}".format(path))
+                continue
             with open(os.path.join(path, name), 'r') as html_file:
                 content = bs(html_file, 'html.parser')
             navbar = content.find(id="main-nav")
@@ -74,7 +76,7 @@ if __name__ == '__main__':
                 outstr = str(content).replace('&lt;', '<').replace('&gt;', '>')
             # Fix link
             if args.current_version == tag_list[0]:
-                print("Fixing" + os.path.join(path, name))
+                print("Fixing " + os.path.join(path, name))
                 outstr = outstr.replace('https://mxnet.io', 'https://mxnet.incubator.apache.org')
                 outstr = outstr.replace('http://mxnet.io', 'https://mxnet.incubator.apache.org')
             else:

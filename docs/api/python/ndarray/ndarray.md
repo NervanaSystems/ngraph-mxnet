@@ -323,6 +323,7 @@ The `ndarray` package provides several classes:
     NDArray.__setitem__
     NDArray.slice
     NDArray.slice_axis
+    NDArray.slice_like
     NDArray.take
     NDArray.one_hot
     NDArray.pick
@@ -423,6 +424,7 @@ The `ndarray` package provides several classes:
 
     slice
     slice_axis
+    slice_like
     take
     batch_take
     one_hot
@@ -640,6 +642,7 @@ The `ndarray` package provides several classes:
     Embedding
     LeakyReLU
     InstanceNorm
+    LayerNorm
     L2Normalization
     LRN
     ROIPooling

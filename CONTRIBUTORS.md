@@ -29,6 +29,7 @@ The committers are the granted write access to the project.
 * [Chiyuan Zhang](https://github.com/pluskid)
   - Chiyuan is the creator of MXNet Julia Package.
 * [Junyuan Xie](https://github.com/piiswrong)
+* [Haibin Lin](https://github.com/eric-haibin-lin)
 * [Qiang Kou](https://github.com/thirdwing)
   - KK is a R ninja, he makes mxnet available for R users.
 * [Tong He](https://github.com/hetong007)
@@ -39,6 +40,10 @@ The committers are the granted write access to the project.
   - Zixuan is one of major maintainers of mxnet scala package.
 * [Yuan Tang](https://github.com/terrytangyuan)
   - Yuan is one of major maintainers of mxnet scala package.
+* [Chris Olivier](https://github.com/cjolivier01)
+* [Sergey Kolychev](https://github.com/sergeykolychev)
+  - Sergey is original author and current maintainer of Perl5 interface.
+* [Naveen Swamy](https://github.com/nswamy)
 
 ### Become a Committer
 MXNet is a opensource project and we are actively looking for new committers
@@ -127,8 +132,6 @@ List of Contributors
 * [Freddy Chua](https://github.com/freddycct)
 * [Jie Zhang](https://github.com/luoyetx)
 * [Leonard Lausen](https://github.com/leezu)
-* [Sergey Kolychev](https://github.com/sergeykolychev)
-  - Sergey is original author and current maintainer of Perl5 interface.
 * [Robert Stone](https://github.com/tlby)
 * [Pedro Larroy](https://github.com/larroy)
 * [Jun Wu](https://github.com/reminisce)
@@ -154,3 +157,11 @@ List of Contributors
  - Marco is the creator of the current MXNet CI.
 * [Julian Salazar](https://github.com/JulianSlzr)
 * [Meghna Baijal](https://github.com/mbaijal)
+* [Tao Hu](https://github.com/dongzhuoyao)
+* [Sorokin Evgeniy](https://github.com/TheTweak)
+* [dwSun](https://github.com/dwSun/)
+* [David Braude](https://github.com/dabraude/)
+* [Nick Robinson](https://github.com/nickrobinson)
+* [Kan Wu](https://github.com/wkcn)
+* [Rahul Huilgol](https://github.com/rahul003)
+* [Anirudh Subramanian](https://github.com/anirudh2290/)

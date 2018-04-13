@@ -17,9 +17,12 @@
 /perl-package/    @sergeykolychev
 /python/          @szha
 
+# C++ base
+/src/kvstore/     @rahul003
+
 # CMake
-CMakeLists.txt    @cjolivier01 @szha
-/cmake/           @cjolivier01 @szha
+CMakeLists.txt    @szha @rahul003
+/cmake/           @szha @rahul003
 
 # MXNet CI
 /tests/ci_build/    @marcoabreu
@@ -45,3 +48,4 @@ prepare_mkl.sh    @szha
 
 # Github templates
 /.github/         @szha
+
