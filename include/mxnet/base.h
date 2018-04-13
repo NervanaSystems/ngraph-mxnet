@@ -136,6 +136,7 @@ struct Context {
     kCPU = cpu::kDevMask,
     kGPU = gpu::kDevMask,
     kCPUPinned = 3,
+    kNNP = 4,
     kCPUShared = 5,
   };
   /*! \brief the device type we run the op on */
@@ -316,7 +317,7 @@ inline Context Context::GPU(int32_t dev_id) {
 inline Context Context::NNP(int32_t dev_id) {
   return Create(kNNP, dev_id);
 }
-inline Context Context::FromString(std::string str) {
+inline Context Context::FromString(const std::string& str) {
   Context ret;
   try {
     const std::string::size_type l = str.find('(');

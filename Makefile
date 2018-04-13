@@ -101,12 +101,13 @@ ifndef NGRAPH_DIR
   endif
 endif
 
+LDFLAGS =
 ifeq ($(USE_NGRAPH),1)
         CFLAGS += -I$(ROOTDIR)/src/ngraph -I$(NGRAPH_DIR)/include -DMXNET_USE_NGRAPH=1
         LDFLAGS += -L$(NGRAPH_DIR)/lib -liomp5 -lmkldnn -lngraph -lmklml_intel -Wl,--as-needed
 endif
 
-LDFLAGS = -pthread $(MSHADOW_LDFLAGS) $(DMLC_LDFLAGS)
+LDFLAGS += -pthread $(MSHADOW_LDFLAGS) $(DMLC_LDFLAGS)
 
 
 ifeq ($(DEBUG), 1)
