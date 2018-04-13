@@ -985,11 +985,18 @@ void Emitter::CreateLayerOps() {
     // autodifferentiation (as with training).
     //----------------------------------------------------------------------------------------------
     if ((exe_mode_ == GraphExeMode::kTrain) && (use_global_stats)) {
-      if (ngraph_bn_op_available) {
-        const NgraphNodePtr ng_normalized_data =
-            std::make_shared<ngraph::op::BatchNorm>(
-                eps, ng_actual_gamma, ng_in_beta, ng_in_data, ng_in_moving_mean,
-                ng_in_moving_var, true);
+      // FIXME: We suspect there's a bug in the gradient calculations performed by this version of
+      // nGraph's BatchNorm operator. So for now we'll avoid using it.  -cconvey 2018-04-12.
+      // if (ngraph_bn_op_available) {
+      if (false) {
+        const NgraphNodePtr ng_normalized_data = std::make_shared<ngraph::op::BatchNorm>(
+            eps,
+            ng_actual_gamma,
+            ng_in_beta,
+            ng_in_data,
+            ng_in_moving_mean,
+            ng_in_moving_var,
+            true);
 
         return ng_normalized_data;
       } else {
@@ -1012,10 +1019,14 @@ void Emitter::CreateLayerOps() {
     //----------------------------------------------------------------------------------------------
     if (exe_mode_ == GraphExeMode::kInfer) {
       if (ngraph_bn_op_available) {
-        const NgraphNodePtr ng_normalized_data =
-            std::make_shared<ngraph::op::BatchNorm>(
-                eps, ng_actual_gamma, ng_in_beta, ng_in_data, ng_in_moving_mean,
-                ng_in_moving_var, false);
+        const NgraphNodePtr ng_normalized_data = std::make_shared<ngraph::op::BatchNorm>(
+            eps,
+            ng_actual_gamma,
+            ng_in_beta,
+            ng_in_data,
+            ng_in_moving_mean,
+            ng_in_moving_var,
+            false);
 
         return ng_normalized_data;
       } else {
