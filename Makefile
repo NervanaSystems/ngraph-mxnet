@@ -277,10 +277,23 @@ ifneq ($(ADD_LDFLAGS), NONE)
 	LDFLAGS += $(ADD_LDFLAGS)
 endif
 
-ifeq ($(NVCC), NONE)
-	ifneq ($(USE_CUDA_PATH), NONE)
-		NVCC=$(USE_CUDA_PATH)/bin/nvcc
-	endif
+ifeq ($(USE_CUDA), 1)
+ifeq ($(NVCC),)
+ifneq ($(USE_CUDA_PATH),)
+  NVCC := $(USE_CUDA_PATH)/bin/nvcc
+else
+  NVCC := $(shell which nvcc)
+endif
+endif
+
+# Verify that NVCC points to an actual executable, to avoid confusing error messages
+# later...
+NVCC_PATH := $(shell which $(NVCC))
+ifeq ($(NVCC_PATH),)
+  $(error NVCC refers to a non-existant file: '$(NVCC)')
+else
+  $(info NVCC refers to program "$(NVCC_PATH)")
+endif
 endif
 
 # Sets 'CUDA_ARCH', which determines the GPU architectures supported
@@ -294,6 +307,7 @@ endif
 # If these kernels are then run on a newer-architecture GPU, the binary will
 # be JIT-compiled by the updated driver from the included PTX.
 ifeq ($(USE_CUDA), 1)
+
 ifeq ($(CUDA_ARCH),)
 	KNOWN_CUDA_ARCHS := 30 35 50 52 60 61 70
 	# Run nvcc on a zero-length file to check architecture-level support.
