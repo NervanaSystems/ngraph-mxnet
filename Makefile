@@ -15,6 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# To assist with Makefile debugging.  Print any Make variable's value using
+# make ... print-VARNAME
+#
+# For example: "make print-NNVM_PATH"
+print-%:
+	@echo '$*=$($*)'
+
 ROOTDIR = $(CURDIR)
 TPARTYDIR = $(ROOTDIR)/3rdparty
 
