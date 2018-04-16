@@ -97,14 +97,15 @@ struct NGraphParam {
   ~NGraphParam() {
     if (g != nullptr && g.use_count() <= 3) {
       std::cout << "cleanup" << std::endl;
+      auto backend = GetBackendFromContext(g->context_);
       {
-          vector<runtime::PerformanceCounter> perf_data = g->ngraph_forward[1]->get_performance_data();
+          vector<runtime::PerformanceCounter> perf_data = backend->get_performance_data(g->ngraph_forward[1]);
           if (perf_data.size() >0)
               forward_perf.insert(forward_perf.end(), perf_data.begin(), perf_data.end());
           //print_perf_data(forward_perf);
       }
       {
-          vector<runtime::PerformanceCounter> perf_data = g->ngraph_backward[1]->get_performance_data();
+          vector<runtime::PerformanceCounter> perf_data = backend->get_performance_data(g->ngraph_backward[1]);
           if (perf_data.size() >0)
               forward_perf.insert(forward_perf.end(), perf_data.begin(), perf_data.end());
           print_perf_data(forward_perf);

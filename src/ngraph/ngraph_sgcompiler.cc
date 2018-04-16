@@ -75,6 +75,7 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
     dump_graph(bf_copy, __func__, "bprop");
   }
 
+  backend->enable_performance_data(f_copy, true);
   backend->compile(f_copy);
 
   for (auto result : f->get_results()) {
@@ -87,6 +88,7 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
       cloned_bf_param->get_output_tensor_view()->set_tensor_view_layout(layout);
     }
   }
+  backend->enable_performance_data(bf_copy, true);
   backend->compile(bf_copy);
 
   sub_graph->ngraph_forward[mode] = f_copy;
