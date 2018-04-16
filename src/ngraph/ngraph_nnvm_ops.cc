@@ -107,7 +107,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     for (size_t i = 0; i < graph->num_outputs_; ++i) {
       auto shape = TShape_to_NShape(graph->outputs_[i]->shape_);
       const auto &element_type = getType(graph->outputs_[i]->dtype_);
-      auto output_tv = backend->make_primary_tensor_view(element_type, shape);
+      auto output_tv = backend->create_tensor(element_type, shape);
       results.push_back(output_tv);
     }
     append_cached_to_forward(&results, graph, mode);
