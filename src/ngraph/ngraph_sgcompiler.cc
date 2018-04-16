@@ -78,9 +78,9 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
   backend->compile(f_copy);
 
   for (auto result : f->get_results()) {
-    if (fprop_cache.node_param_map->exists(result->get_input_op(0))) {
+    if (fprop_cache.node_param_map->exists(result->get_argument(0))) {
       auto cloned_result = fmap.get(result);
-      auto bf_param = fprop_cache.node_param_map->get(result->get_input_op(0));
+      auto bf_param = fprop_cache.node_param_map->get(result->get_argument(0));
       auto cloned_bf_param = bfmap.get(bf_param);
       auto layout =
           cloned_result->get_output_tensor_view()->get_tensor_view_layout();
@@ -108,9 +108,9 @@ void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
     // if we're in CPU, combine the graphs
     ngraph::NodeVector dYdXs;
     for (size_t i = 0; i < bf->get_output_size(); ++i) {
-      dYdXs.push_back(bf->get_output_op(i)->get_input_op(0));
+      dYdXs.push_back(bf->get_output_op(i)->get_argument(0));
     }
-    ngraph::NodeVector combined_outputs{f->get_output_op(0)->get_input_op(0)};
+    ngraph::NodeVector combined_outputs{f->get_output_op(0)->get_argument(0)};
     combined_outputs.insert(combined_outputs.end(), dYdXs.begin(), dYdXs.end());
 
     std::vector<std::shared_ptr<ngraph::op::Parameter>> combined_parameters =
