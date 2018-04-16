@@ -19,10 +19,13 @@
 
 #include <functional>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
+#include <ngraph/op/get_output_element.hpp>
 #include "ngraph_sgcompiler_utils.h"
+#include "ops/batchnorm.h"
 
 namespace ngraph_bridge {
 
@@ -51,13 +54,6 @@ void Emitter::ClearOpMap() {
   placeholder_order_.clear();
 }
 
-void Emitter::InitOpConfig(OpNodePtr op_node) const {
-  if (op_node->operation_ == "BatchNorm") {
-    op_node->config_ = std::dynamic_pointer_cast<OpNode::OpConfig>(
-        std::make_shared<BatchNormOpConfig>());
-  }
-}
-
 /**
  * Transforms input axis attribute with name in key based on MXNet convention (0
  * based index), where
@@ -82,7 +78,7 @@ inline size_t get_default_transformed_axis(const NodePtr& node,
  * @param exclude if true should use node axes not listed in axes parameter,
  *  otherwise use input axes for the reduction operation.
  * @param keepdims if true the result will be reshaped to have the same
- *  dimention as the node (where reduction axes will have size 1), otherwise
+ *  dimension as the node (where reduction axes will have size 1), otherwise
  *  leave the resulting shape produced by func unchanged.
  * @param func reduction operation
  * @return resulting node of the reduction operation
@@ -127,8 +123,8 @@ NgraphNodePtr Emitter::ReduceAxes(
 NgraphNodePtr Emitter::ReduceAxes(
     const NodePtr& node,
     const std::function<NgraphNodePtr(const NgraphNodePtr&,
-                                      const ngraph::AxisSet&)>& func) {
-  auto input = op_map_[node->inputs_[0]];
+                                      const ngraph::AxisSet&)>& func) const {
+  auto input = op_map_.at(node->inputs_[0]);
   return ReduceAxes(
       input, get_default(node, "axis", pyrange(input->get_shape().size())),
       get_default(node, "exclude", false), get_default(node, "keepdims", false),
@@ -372,9 +368,8 @@ std::shared_ptr<ngraph::Node> Emitter::CreateAutoBroadcast(
 template <class op>
 std::shared_ptr<ngraph::Node> Emitter::CreateScalarOp(const NodePtr& node) {
   auto arg0 = op_map_[node->inputs_[0]];
-  auto arg1 =
-      makeConstant(node, std::to_string(get_default(node, "scalar", 0.0f)));
-  return ngraph::builder::make_with_numpy_broadcast<op>(arg0, arg1);
+  auto arg1 = makeConstant(node, get_default(node, "scalar", std::string("0")));
+  return std::make_shared<op>(arg0, arg1);
 }
 // cast result of op to given type
 NgraphNodePtr cast_result(const NgraphNodePtr& op,
@@ -450,42 +445,36 @@ void Emitter::CreateBinaryOps() {
         std::make_shared<ngraph::op::Equal>(op_map_[node->inputs_[0]],
                                             op_map_[node->inputs_[1]]),
         getType(node->dtype_));
-
   };
   ngraph_op_funcs_["_not_equal"] = [this](const NodePtr& node) {
     return cast_result(
         std::make_shared<ngraph::op::NotEqual>(op_map_[node->inputs_[0]],
                                                op_map_[node->inputs_[1]]),
         getType(node->dtype_));
-
   };
   ngraph_op_funcs_["_greater"] = [this](const NodePtr& node) {
     return cast_result(
         std::make_shared<ngraph::op::Greater>(op_map_[node->inputs_[0]],
                                               op_map_[node->inputs_[1]]),
         getType(node->dtype_));
-
   };
   ngraph_op_funcs_["_greater_equal"] = [this](const NodePtr& node) {
     return cast_result(
         std::make_shared<ngraph::op::GreaterEq>(op_map_[node->inputs_[0]],
                                                 op_map_[node->inputs_[1]]),
         getType(node->dtype_));
-
   };
   ngraph_op_funcs_["_lesser"] = [this](const NodePtr& node) {
     return cast_result(
         std::make_shared<ngraph::op::Less>(op_map_[node->inputs_[0]],
                                            op_map_[node->inputs_[1]]),
         getType(node->dtype_));
-
   };
   ngraph_op_funcs_["_lesser_equal"] = [this](const NodePtr& node) {
     return cast_result(
         std::make_shared<ngraph::op::LessEq>(op_map_[node->inputs_[0]],
                                              op_map_[node->inputs_[1]]),
         getType(node->dtype_));
-
   };
   auto dot_transpose = [this](const NodePtr& node, NgraphNodePtr left,
                               NgraphNodePtr right) {
@@ -544,17 +533,53 @@ void Emitter::CreateBinaryOps() {
     return std::make_shared<ngraph::op::Reshape>(
         arg0, pyrange(arg0->get_shape().size()), reshape);
   };
-  ngraph_op_funcs_["_add_scalar"] = [this](const NodePtr& node) {
+  ngraph_op_funcs_["_plus_scalar"] = [this](const NodePtr& node) {
     return CreateScalarOp<ngraph::op::Add>(node);
   };
   ngraph_op_funcs_["_minus_scalar"] = [this](const NodePtr& node) {
     return CreateScalarOp<ngraph::op::Subtract>(node);
+  };
+  ngraph_op_funcs_["_rminus_scalar"] = [this](const NodePtr& node) {
+    auto arg0 =
+        makeConstant(node, get_default(node, "scalar", std::string("0")));
+    auto arg1 = op_map_[node->inputs_[0]];
+    return std::make_shared<ngraph::op::Subtract>(arg0, arg1);
   };
   ngraph_op_funcs_["_mul_scalar"] = [this](const NodePtr& node) {
     return CreateScalarOp<ngraph::op::Multiply>(node);
   };
   ngraph_op_funcs_["_div_scalar"] = [this](const NodePtr& node) {
     return CreateScalarOp<ngraph::op::Divide>(node);
+  };
+  ngraph_op_funcs_["_rdiv_scalar"] = [this](const NodePtr& node) {
+    auto arg0 =
+        makeConstant(node, get_default(node, "scalar", std::string("0")));
+    auto arg1 = op_map_[node->inputs_[0]];
+    return std::make_shared<ngraph::op::Divide>(arg0, arg1);
+  };
+  ngraph_op_funcs_["_equal_scalar"] = [this](const NodePtr& node) {
+    return cast_result(CreateScalarOp<ngraph::op::Equal>(node),
+                       getType(node->dtype_));
+  };
+  ngraph_op_funcs_["_not_equal_scalar"] = [this](const NodePtr& node) {
+    return cast_result(CreateScalarOp<ngraph::op::NotEqual>(node),
+                       getType(node->dtype_));
+  };
+  ngraph_op_funcs_["_greater_scalar"] = [this](const NodePtr& node) {
+    return cast_result(CreateScalarOp<ngraph::op::Greater>(node),
+                       getType(node->dtype_));
+  };
+  ngraph_op_funcs_["_greater_equal_scalar"] = [this](const NodePtr& node) {
+    return cast_result(CreateScalarOp<ngraph::op::GreaterEq>(node),
+                       getType(node->dtype_));
+  };
+  ngraph_op_funcs_["_lesser_scalar"] = [this](const NodePtr& node) {
+    return cast_result(CreateScalarOp<ngraph::op::Less>(node),
+                       getType(node->dtype_));
+  };
+  ngraph_op_funcs_["_lesser_equal_scalar"] = [this](const NodePtr& node) {
+    return cast_result(CreateScalarOp<ngraph::op::LessEq>(node),
+                       getType(node->dtype_));
   };
   ngraph_op_funcs_["broadcast_add"] = [this](const NodePtr& node) {
     return CreateAutoBroadcast<ngraph::op::Add>(node);
@@ -600,22 +625,79 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["broadcast_greater"] = [this](const NodePtr& node) {
     return cast_result(CreateAutoBroadcast<ngraph::op::Greater>(node),
                        getType(node->dtype_));
-
   };
   ngraph_op_funcs_["broadcast_greater_equal"] = [this](const NodePtr& node) {
     return cast_result(CreateAutoBroadcast<ngraph::op::GreaterEq>(node),
                        getType(node->dtype_));
-
   };
   ngraph_op_funcs_["broadcast_lesser"] = [this](const NodePtr& node) {
     return cast_result(CreateAutoBroadcast<ngraph::op::Less>(node),
                        getType(node->dtype_));
-
   };
   ngraph_op_funcs_["broadcast_lesser_equal"] = [this](const NodePtr& node) {
     return cast_result(CreateAutoBroadcast<ngraph::op::LessEq>(node),
                        getType(node->dtype_));
+  };
+  ngraph_op_funcs_["SequenceMask"] = [this](const NodePtr& node) {
+    auto data = op_map_[node->inputs_[0]];
 
+    // if sequence lengths specified
+    auto use_sequence_length = get_default(node, "use_sequence_length", false);
+    if (use_sequence_length) {
+      auto sequence_lengths = op_map_[node->inputs_[1]];
+
+      // default: sequence axis = 0; batch axis = 1
+      // alternative:  sequence axis = 1; batch axis = 0
+      auto sequence_axis = get_default(node, "axis", 0);
+      auto batch_axis = (sequence_axis == 0) ? 1 : 0;
+
+      // create a mask from sequence lengths, same shape as node
+      auto mask = ngraph::builder::tensor_mask<ngraph::op::Less>(
+          sequence_lengths, sequence_axis, batch_axis, data->get_shape(), 0);
+
+      // create value constant, same shape as node
+      auto value = get_default(node, "value", std::string("0"));
+      auto value_constant =
+          makeConstant(ngraph::element::f32, data->get_shape(), value);
+
+      // data[mask==False] = value
+      data = std::make_shared<ngraph::op::Select>(mask, data, value_constant);
+    }
+    return data;
+  };
+  ngraph_op_funcs_["SequenceLast"] = [this](const NodePtr& node) {
+    auto data = op_map_[node->inputs_[0]];
+
+    size_t sequence_axis = get_default(node, "axis", 0);
+
+    // if sequence lengths specified
+    auto use_sequence_length = get_default(node, "use_sequence_length", false);
+    if (use_sequence_length) {
+      auto sequence_lengths = op_map_[node->inputs_[1]];
+
+      // default: sequence axis = 0; batch axis = 1
+      // alternative:  sequence axis = 1; batch axis = 0
+      size_t batch_axis = (sequence_axis == 0) ? 1 : 0;
+
+      // create a mask from sequence lengths, same shape as node
+      auto mask = ngraph::builder::tensor_mask<ngraph::op::Equal>(
+          sequence_lengths, sequence_axis, batch_axis, data->get_shape(), 1);
+
+      // convert the mask to 0/1 from True/False
+      auto convert_mask =
+          std::make_shared<ngraph::op::Convert>(mask, data->get_element_type());
+
+      // zero out non-last locations
+      data = data * convert_mask;
+
+      // collapse to only last locations
+      data = std::make_shared<ngraph::op::Sum>(data,
+                                               ngraph::AxisSet{sequence_axis});
+    } else {
+      data = slice_data_on_axis(data, data->get_shape().at(sequence_axis) - 1,
+                                1, sequence_axis, true);
+    }
+    return data;
   };
 }
 
@@ -674,6 +756,25 @@ void Emitter::CreateLayerOps() {
                               squeeze_axis && (slice_step == 1));
   };
 
+  // stack takes a list of tensors of equal shape and
+  // concatenates them along a given axis expanded for each input
+  ngraph_op_funcs_["stack"] = [this](const NodePtr& node) {
+    // get the concat axis
+    size_t axis = get_default_transformed_axis(
+        node, "axis", 0, node->inputs_[0]->shape_.ndim() + 1);
+    auto shape = op_map_[node->inputs_[0]]->get_shape();
+    shape.insert(shape.begin() + axis, 1);
+    // grab input ngraph nodes and Reshape them
+    std::vector<NgraphNodePtr> args;
+    for (auto i : node->inputs_) {
+      args.push_back(std::make_shared<ngraph::op::Reshape>(
+          op_map_[i], pyrange(shape.size() - 1), shape));
+    }
+
+    // run concat
+    return std::make_shared<ngraph::op::Concat>(args, axis);
+  };
+
   // concat takes a list of tensors of equal shape and
   // concatenates them along a given axis
   ngraph_op_funcs_["concat"] = [this](const NodePtr& node) {
@@ -688,6 +789,53 @@ void Emitter::CreateLayerOps() {
     return std::make_shared<ngraph::op::Concat>(args, axis);
   };
 
+  // tile takes a tensor and replicates it along
+  // a given set of axes a given number of times
+  ngraph_op_funcs_["tile"] = [this](const NodePtr& node) {
+    auto input = op_map_[node->inputs_[0]];
+    auto shape = input->get_shape();
+    // get the concat axis
+    std::vector<size_t> reps;
+    reps = get_default(node, "reps", reps);
+    // promote the shape if it's smaller
+    while (shape.size() < reps.size()) {
+      shape.insert(shape.begin(), 1);
+    }
+    // propote the reps if it's smaller
+    while (reps.size() < shape.size()) {
+      reps.insert(reps.begin(), 1);
+    }
+    // reshape the input if needed
+    if (shape != input->get_shape()) {
+      input = std::make_shared<ngraph::op::Reshape>(
+          input, pyrange(input->get_shape().size()), shape);
+    }
+    // tile along all the axes
+    for (size_t i = 0; i < reps.size(); ++i) {
+      std::vector<NgraphNodePtr> args;
+      for (size_t j = 0; j < reps[i]; ++j) args.push_back(input);
+      input = std::make_shared<ngraph::op::Concat>(args, i);
+    }
+
+    return input;
+  };
+  // where is mxnet's version of select
+  ngraph_op_funcs_["where"] = [this](const NodePtr& node) {
+    auto condition = op_map_[node->inputs_[0]];
+    auto x = op_map_[node->inputs_[1]];
+    auto y = op_map_[node->inputs_[2]];
+    if (condition->get_shape() != x->get_shape()) {
+      ngraph::AxisSet axes;
+      for (size_t i = 1; i < x->get_shape().size(); ++i) {
+        axes.insert(i);
+      }
+      condition = std::make_shared<ngraph::op::Broadcast>(condition,
+                                                          x->get_shape(), axes);
+    }
+    condition = std::make_shared<ngraph::op::Convert>(condition,
+                                                      ngraph::element::boolean);
+    return std::make_shared<ngraph::op::Select>(condition, x, y);
+  };
   // Fully connected is the main linear transformation layer in MXNet
   // it implements dot(data, W.T) + b
   ngraph_op_funcs_["FullyConnected"] = [this](const NodePtr& node) {
@@ -758,7 +906,7 @@ void Emitter::CreateLayerOps() {
   };
 
   // batch norm operation
-  ngraph_op_funcs_["BatchNorm"] = [this](const NodePtr& node) {
+  ngraph_op_funcs_["BatchNorm"] = [this](const NodePtr& node) -> NgraphNodePtr {
     enum InputName { kData = 0, kGamma, kBeta, kMovingMean, kMovingVar };
     NgraphNodePtr ng_in_data = op_map_[node->inputs_[kData]];
     NgraphNodePtr ng_in_gamma = op_map_[node->inputs_[kGamma]];
@@ -777,83 +925,122 @@ void Emitter::CreateLayerOps() {
     const size_t channel_axis =
         get_default_transformed_axis(node, "axis", 1, node->shape_.ndim());
 
-    NgraphNodePtr ng_mean{nullptr};
-    NgraphNodePtr ng_var{nullptr};
+    const NgraphNodePtr ng_maybe_gamma = fix_gamma
+      ? NgraphNodePtr{}
+      : ng_in_gamma;
+
+    const NgraphNodePtr ng_actual_gamma = fix_gamma
+      ? makeConstant(ng_in_moving_mean->get_element_type(),
+                             ng_in_moving_mean->get_shape(), 1)
+      : ng_in_gamma;
 
     using ngraph::builder::make_with_numpy_broadcast;
 
-    // we need to convert some of the input data to proper shape similar to mean
-    // and variance through ReduceAxes. They should already have shape
-    // like [1, C], we want to make sure it's properly shape to [C, 1] depending
-    // on the index of channel.
-    auto convert_order = pyrange(ng_in_gamma->get_shape().size());
-    // fill the shape with (shape_size - 1) of 1s.
-    ngraph::Shape convert_shape(data_shape_size - 1, 1);
-    // number of elements for channel axis
-    size_t channel_size = ng_in_data->get_shape()[channel_axis];
-    // insert channel size at the proper index for the channel
-    convert_shape.insert(convert_shape.begin() + channel_axis, channel_size);
+    const bool ngraph_bn_op_available = (data_shape_size == 4) && (channel_axis == 1) &&
+        (node->dtype_ == mshadow::kFloat32);
 
-    if (exe_mode_ == GraphExeMode::kTrain && !use_global_stats) {
-      ng_mean = ReduceAxes(ng_in_data, {channel_axis}, true, true,
-                           ngraph::builder::mean);
-      ng_var = ReduceAxes(ng_in_data, {channel_axis}, true, true,
-                          [](const std::shared_ptr<ngraph::Node>& node,
-                             const ngraph::AxisSet& axes) {
-                            return ngraph::builder::variance(node, axes);
-                          });
-      ngraph::AxisVector order(ng_mean->get_shape().size());
-      std::iota(order.begin(), order.end(), 0);
-      auto ng_mean_temp = std::make_shared<ngraph::op::Reshape>(
-          ng_mean, order, ng_in_moving_mean->get_shape());
-      auto ng_var_temp = std::make_shared<ngraph::op::Reshape>(
-          ng_var, order, ng_in_moving_var->get_shape());
+    //----------------------------------------------------------------------------------------------
+    // Traditional training mode...
+    //----------------------------------------------------------------------------------------------
+    if ((exe_mode_ == GraphExeMode::kTrain) && (!use_global_stats)) {
+      NgraphNodePtr ng_normalized_data;
+      NgraphNodePtr ng_batch_mean;
+      NgraphNodePtr ng_batch_var;
 
-      // update running averages
-      OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(node);
-      const std::vector<NodePtr>& aux_nodes = op_node->config_->AuxNodes();
-      NgraphNodePtr ng_one = makeConstant(ng_in_moving_mean->get_element_type(),
-                                          ng_in_moving_mean->get_shape(), "1");
-      NgraphNodePtr ng_momentum =
-          makeConstant(ng_in_moving_var->get_element_type(),
-                       ng_in_moving_var->get_shape(), std::to_string(momentum));
-      ngraph::Shape s = ng_in_moving_mean->get_shape();
-      aux_op_map_[aux_nodes[BatchNormOpConfig::kMovingMean]] =
-          ng_in_moving_mean * ng_momentum +
-          ng_mean_temp * (ng_one - ng_momentum);
-      aux_op_map_[aux_nodes[BatchNormOpConfig::kMovingVar]] =
-          ng_in_moving_var * ng_momentum + ng_var_temp * (ng_one - ng_momentum);
-    } else {
-      // we expect to use global stats with inference
-      ng_mean = std::make_shared<ngraph::op::Reshape>(
-          ng_in_moving_mean, convert_order, convert_shape);
-      ng_var = std::make_shared<ngraph::op::Reshape>(
-          ng_in_moving_var, convert_order, convert_shape);
+      if (ngraph_bn_op_available) {
+        const NgraphNodePtr BN = std::make_shared<ngraph::op::BatchNorm>(eps, ng_actual_gamma,
+            ng_in_beta, ng_in_data);
+        ng_normalized_data = std::make_shared<ngraph::op::GetOutputElement>(BN, 0);
+        ng_batch_mean = std::make_shared<ngraph::op::GetOutputElement>(BN, 1);
+        ng_batch_var = std::make_shared<ngraph::op::GetOutputElement>(BN, 2);
+      } else {
+        std::tie(ng_normalized_data, ng_batch_mean, ng_batch_var) =
+          create_batchnorm_training_without_ngraph_bn_op(
+              eps,
+              ng_maybe_gamma,
+              ng_in_beta,
+              ng_in_data,
+              channel_axis);
+      }
+
+      const NgraphNodePtr ng_one = makeConstant(ng_in_moving_mean->get_element_type(),
+          ng_in_moving_mean->get_shape(), 1);
+
+      const NgraphNodePtr ng_momentum =
+        makeConstant(ng_in_moving_var->get_element_type(),
+            ng_in_moving_var->get_shape(), momentum);
+
+      aux_op_map_[node->inputs_[kMovingMean]] =
+          ng_in_moving_mean * ng_momentum + ng_batch_mean * (ng_one - ng_momentum);
+
+      aux_op_map_[node->inputs_[kMovingVar]] =
+          ng_in_moving_var * ng_momentum + ng_batch_var * (ng_one - ng_momentum);
+
+      return ng_normalized_data;
     }
 
-    NgraphNodePtr ng_eps = makeConstant(
-        ng_var->get_element_type(), ng_var->get_shape(), std::to_string(eps));
-    NgraphNodePtr denom = std::make_shared<ngraph::op::Sqrt>(ng_var + ng_eps);
+    //----------------------------------------------------------------------------------------------
+    // Hybrid mode: use externally supplied mean/variance (as with inference), but also allow
+    // autodifferentiation (as with training).
+    //----------------------------------------------------------------------------------------------
+    if ((exe_mode_ == GraphExeMode::kTrain) && (use_global_stats)) {
+      if (ngraph_bn_op_available) {
+        const NgraphNodePtr ng_normalized_data = std::make_shared<ngraph::op::BatchNorm>(eps,
+            ng_actual_gamma,
+            ng_in_beta,
+            ng_in_data,
+            ng_in_moving_mean,
+            ng_in_moving_var,
+            true);
 
-    NgraphNodePtr numerator =
-        make_with_numpy_broadcast<ngraph::op::Subtract>(ng_in_data, ng_mean);
+        return ng_normalized_data;
+      } else {
+        // NOTE: This call is intentionally the same as another call below.  The function called
+        // here produces a subgraph suitable for training because all of its operators support
+        // autodiff.
+        const NgraphNodePtr ng_normalized_data = create_batchnorm_inference_without_ngraph_bn_op(
+            eps,
+            ng_maybe_gamma,
+            ng_in_beta,
+            ng_in_data,
+            ng_in_moving_mean,
+            ng_in_moving_var,
+            channel_axis);
 
-    NgraphNodePtr result =
-        make_with_numpy_broadcast<ngraph::op::Divide>(numerator, denom);
-
-    ng_in_gamma = std::make_shared<ngraph::op::Reshape>(
-        ng_in_gamma, convert_order, convert_shape);
-    ng_in_beta = std::make_shared<ngraph::op::Reshape>(
-        ng_in_beta, convert_order, convert_shape);
-
-    // If fix_gamma is true, we assume it to be 1, otherwise, we need to scale
-    // result with gamma
-    if (!fix_gamma) {
-      result =
-          make_with_numpy_broadcast<ngraph::op::Multiply>(result, ng_in_gamma);
+        return ng_normalized_data;
+      }
     }
-    result = make_with_numpy_broadcast<ngraph::op::Add>(result, ng_in_beta);
-    return result;
+
+    //----------------------------------------------------------------------------------------------
+    // Traditional inference mode...
+    //----------------------------------------------------------------------------------------------
+    if (exe_mode_ == GraphExeMode::kInfer) {
+      if (ngraph_bn_op_available) {
+        const NgraphNodePtr ng_normalized_data = std::make_shared<ngraph::op::BatchNorm>(eps,
+            ng_actual_gamma,
+            ng_in_beta,
+            ng_in_data,
+            ng_in_moving_mean,
+            ng_in_moving_var,
+            false);
+
+        return ng_normalized_data;
+      } else {
+        const NgraphNodePtr ng_normalized_data = create_batchnorm_inference_without_ngraph_bn_op(
+            eps,
+            ng_maybe_gamma,
+            ng_in_beta,
+            ng_in_data,
+            ng_in_moving_mean,
+            ng_in_moving_var,
+            channel_axis);
+
+        return ng_normalized_data;
+      }
+    }
+
+    CHECK(false && "UNEXPECTED: Unhandled BatchNorm mode.");
+    return {};
   };
 
   ngraph_op_funcs_["Convolution"] =

@@ -33,6 +33,14 @@
 
 namespace ngraph_bridge {
 
+#if MXNET_USE_CUDA
+#define NGRAPH_TRANSFORMERS \
+  { "cpu", "gpu" }
+#else
+#define NGRAPH_TRANSFORMERS \
+  { "cpu" }
+#endif
+
 // get the OP from nnvm, return a pointer to it.
 nnvm::Op *get_subgraph_op(std::shared_ptr<Graph> graph) {
   return &(::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
@@ -54,9 +62,9 @@ void append_cached_to_forward(TensorViewVector *results,
 
 // function for computing forward on ngraph
 void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
-                     const std::vector<mxnet::TBlob> &inputs,
+                     const std::vector<mxnet::NDArray> &inputs,
                      const std::vector<mxnet::OpReqType> &req,
-                     const std::vector<mxnet::TBlob> &outputs) {
+                     const std::vector<mxnet::NDArray> &outputs) {
   auto backend = GetBackendFromContext(graph->context_);
   auto placeholders = make_ngraph_placeholders(inputs, backend, true);
   auto results = make_ngraph_placeholders(outputs, backend, false);
@@ -68,17 +76,20 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   }
   assert(graph->ngraph_forward[mode] != nullptr);
   append_cached_to_forward(&results, graph, mode);
-  graph->ngraph_forward[mode]->call(placeholders, results);
+  backend->call(graph->ngraph_forward[mode], results, placeholders);
 
-  std::vector<mxnet::TBlob> outs = {outputs[0]};
-  result_to_TBlob(results, req, outs);
+  std::vector<mxnet::NDArray> outs;
+  CHECK(graph->num_outputs_ == outputs.size());
+  outs.insert(outs.end(), outputs.begin(), outputs.end());
+
+  result_to_NDArray(results, req, outs);
 }
 
 // function for computing backward on ngraph
 void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
-                      const std::vector<mxnet::TBlob> &inputs,
+                      const std::vector<mxnet::NDArray> &inputs,
                       const std::vector<mxnet::OpReqType> &req,
-                      const std::vector<mxnet::TBlob> &outputs) {
+                      const std::vector<mxnet::NDArray> &outputs) {
   // only expect backward is called in training mode
   assert(ctx.is_train);
   auto backend = GetBackendFromContext(graph->context_);
@@ -89,56 +100,74 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // generate valid data in fprop cache
   if (graph->enable_fprop_cache && !graph->forward_train_computed) {
     // forward inputs
-    std::vector<mxnet::TBlob> fwd_inputs(inputs.begin() + graph->num_outputs,
-                                         inputs.end());
+    std::vector<mxnet::NDArray> fwd_inputs(inputs.begin() + graph->num_outputs_,
+                                           inputs.end());
     auto placeholders = make_ngraph_placeholders(fwd_inputs, backend, true);
     // forward outputs
-    auto shape = TShape_to_NShape(graph->nodes_.back()->shape_);
-    const auto &element_type = getType(graph->nodes_.back()->dtype_);
-    auto output_tv = backend->make_primary_tensor_view(element_type, shape);
-    TensorViewVector results{output_tv};
+    TensorViewVector results;
+    for (size_t i = 0; i < graph->num_outputs_; ++i) {
+      auto shape = TShape_to_NShape(graph->outputs_[i]->shape_);
+      const auto &element_type = getType(graph->outputs_[i]->dtype_);
+      auto output_tv = backend->create_tensor(element_type, shape);
+      results.push_back(output_tv);
+    }
     append_cached_to_forward(&results, graph, mode);
     // call forward
-    graph->ngraph_forward[mode]->call(placeholders, results);
+    backend->call(graph->ngraph_forward[mode], results, placeholders);
   }
 
   // backward op
+  std::vector<mxnet::NDArray> adjoints;
+  for (size_t i = 0; i < graph->num_outputs_; ++i) {
+    adjoints.push_back(inputs[i]);
+  }
+
   auto placeholders = graph->enable_fprop_cache
-                          ? make_ngraph_placeholders({inputs[0]}, backend, true)
+                          ? make_ngraph_placeholders(adjoints, backend, true)
                           : make_ngraph_placeholders(inputs, backend, true);
 
   auto results = make_ngraph_placeholders(outputs, backend, false);
   placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
                       graph->cached_values[mode].end());
-  graph->ngraph_backward[mode]->call(placeholders, results);
+
+  CHECK(graph->ngraph_backward[mode]);
+  backend->call(graph->ngraph_backward[mode], results, placeholders);
   // reset the forward training compute flag to ensure backward always have
   // updated data from forward
   graph->forward_train_computed = false;
-  result_to_TBlob(results, req, outputs);
+  result_to_NDArray(results, req, outputs);
 
   // overwrite aux data if they exist
-  // aux result outputs mapped to outputs
+  // aux result outputs mapped to inputs
   const size_t cached_aux_count = graph->cached_aux_values[mode].size();
   if (cached_aux_count > 0) {
     std::vector<mxnet::OpReqType> aux_req;
-    std::vector<mxnet::TBlob> aux_outs;
-    OpNodePtr op_node = std::dynamic_pointer_cast<OpNode>(graph->nodes_.back());
-    auto op_config = op_node->config_;
+    std::vector<mxnet::NDArray> aux_outs;
+
     for (size_t i = 0; i < cached_aux_count; ++i) {
-      aux_outs.push_back(outputs[op_config->MapAuxToOutput(i)]);
+      aux_outs.push_back(
+          inputs[graph->cached_aux_positions[mode][i] + graph->num_outputs_]);
       aux_req.push_back(mxnet::kWriteTo);
     }
-    result_to_TBlob(graph->cached_aux_values[mode], aux_req, aux_outs);
+
+    result_to_NDArray(graph->cached_aux_values[mode], aux_req, aux_outs);
   }
 }
 
 // check if last node in graph is an op that doesnt need head-gradient
 bool check_zero_grad(const std::shared_ptr<Graph> &graph) {
   auto size = graph->nodes_.size();
-  if ((size < 1) || (graph->nodes_[size - 1]->type_ != NodeType::kOp))
-    return false;
-  if (ops_no_head_grad.count(graph->nodes_[size - 1]->operation_)) return true;
-  return false;
+  if (size < 1) return false;
+
+  // if all of the outputs of the graph don't need gradient calculation,
+  // don't autodiff this graph. Otherwise, do.
+  for (auto node : graph->outputs_) {
+    if (ops_no_head_grad.count(node->operation_) == 0) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 void register_forward_op(std::shared_ptr<Graph> graph) {
@@ -147,8 +176,9 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
       "ngraph_" + graph->name_);
   // setup the inputs and outpus
   int num_inputs = graph->inputs_.size();
+  int num_outputs = graph->outputs_.size();
   op.set_num_inputs(num_inputs);
-  op.set_num_outputs(1);
+  op.set_num_outputs(num_outputs);
 
   // register the inputs with nnvm
   std::vector<std::string> input_names;
@@ -227,39 +257,52 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
         }
         return ret;
       });
-
-  // This is bad. need to redo
-  // currently just returing the data types and shapes of the output nodes
-  // this subgraph is replacing that were inferred by mxnet
-  // not currently checking with the ngraph operations to see if they
-  // return the same shape
-  auto shape = graph->shape_;
-  auto dtype = graph->dtype_;
+  std::vector<nnvm::TShape> shapes;
+  std::vector<int> dtypes;
+  for (auto output : graph->outputs_) {
+    shapes.push_back(output->shape_);
+    dtypes.push_back(output->dtype_);
+  }
+  // infer shapes
   op.set_attr<nnvm::FInferShape>(
-      "FInferShape",
-      [shape](const nnvm::NodeAttrs &attrs, std::vector<nnvm::TShape> *in_attrs,
-              std::vector<nnvm::TShape> *out_attrs) -> bool {
-        (*out_attrs)[0] = shape;
+      "FInferShape", [shapes](const nnvm::NodeAttrs &attrs,
+                              std::vector<nnvm::TShape> *in_attrs,
+                              std::vector<nnvm::TShape> *out_attrs) -> bool {
+        (*out_attrs) = shapes;
         return true;
       });
 
-  // similarly bad
+  // infer datatypes
   op.set_attr<nnvm::FInferType>(
       "FInferType",
-      [dtype](const nnvm::NodeAttrs &attrs, std::vector<int> *iattr,
-              std::vector<int> *oattr) -> bool {
-        return mxnet::op::type_assign(&((*oattr)[0]), dtype);
+      [dtypes](const nnvm::NodeAttrs &attrs, std::vector<int> *iattr,
+               std::vector<int> *oattr) -> bool {
+        for (size_t i = 0; i < dtypes.size(); ++i) {
+          mxnet::op::type_assign(&((*oattr)[i]), dtypes[i]);
+        }
+        return true;
       });
 
-  // create the compute lambda
-  op.set_attr<mxnet::FCompute>(
-      "FCompute<cpu>",
-      [graph](const nnvm::NodeAttrs &attrs, const mxnet::OpContext &ctx,
-              const std::vector<mxnet::TBlob> &inputs,
-              const std::vector<mxnet::OpReqType> &req,
-              const std::vector<mxnet::TBlob> &outputs) -> void {
-        compute_forward(ctx, graph, inputs, req, outputs);
+  op.set_attr<mxnet::FInferStorageType>(
+      "FInferStorageType",
+      [](const nnvm::NodeAttrs &attrs, const int dev_mask,
+         mxnet::DispatchMode *dispatch_mode, std::vector<int> *in_attrs,
+         std::vector<int> *out_attrs) {
+        return mxnet::op::storage_type_assign(out_attrs, mxnet::kDefaultStorage,
+                                              dispatch_mode,
+                                              mxnet::DispatchMode::kFComputeEx);
       });
+  // create the cpu & gpu forward compute lambdas
+  for (std::string arch : NGRAPH_TRANSFORMERS) {
+    op.set_attr<mxnet::FComputeEx>(
+        "FComputeEx<" + arch + ">",
+        [graph](const nnvm::NodeAttrs &attrs, const mxnet::OpContext &ctx,
+                const std::vector<mxnet::NDArray> &inputs,
+                const std::vector<mxnet::OpReqType> &req,
+                const std::vector<mxnet::NDArray> &outputs) -> void {
+          compute_forward(ctx, graph, inputs, req, outputs);
+        });
+  }
 }
 
 void register_backward_op(std::shared_ptr<Graph> graph) {
@@ -268,21 +311,59 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
       "_backward_" + ("ngraph_" + graph->name_));
   // setup the inputs and outpus
   int num_inputs = graph->inputs_.size();
-  op.set_num_inputs(num_inputs + 1);
+  int num_outputs = graph->outputs_.size();
+  op.set_num_inputs(num_outputs + num_inputs);
   op.set_num_outputs(num_inputs);
 
   // Mark as backward
   op.set_attr<bool>("TIsBackward", true);
 
-  // create the compute lambda
-  op.set_attr<mxnet::FCompute>(
-      "FCompute<cpu>",
-      [graph](const nnvm::NodeAttrs &attrs, const mxnet::OpContext &ctx,
-              const std::vector<mxnet::TBlob> &inputs,
-              const std::vector<mxnet::OpReqType> &req,
-              const std::vector<mxnet::TBlob> &outputs) -> void {
-        compute_backward(ctx, graph, inputs, req, outputs);
+  std::vector<nnvm::TShape> shapes;
+  std::vector<int> dtypes;
+  for (auto input : graph->inputs_) {
+    shapes.push_back(input->shape_);
+    dtypes.push_back(input->dtype_);
+  }
+  // infer shapes
+  op.set_attr<nnvm::FInferShape>(
+      "FInferShape", [shapes](const nnvm::NodeAttrs &attrs,
+                              std::vector<nnvm::TShape> *in_attrs,
+                              std::vector<nnvm::TShape> *out_attrs) -> bool {
+        (*out_attrs) = shapes;
+        return true;
       });
+
+  // infer datatypes
+  op.set_attr<nnvm::FInferType>(
+      "FInferType",
+      [dtypes](const nnvm::NodeAttrs &attrs, std::vector<int> *iattr,
+               std::vector<int> *oattr) -> bool {
+        for (size_t i = 0; i < dtypes.size(); ++i) {
+          mxnet::op::type_assign(&((*oattr)[i]), dtypes[i]);
+        }
+        return true;
+      });
+
+  op.set_attr<mxnet::FInferStorageType>(
+      "FInferStorageType",
+      [](const nnvm::NodeAttrs &attrs, const int dev_mask,
+         mxnet::DispatchMode *dispatch_mode, std::vector<int> *in_attrs,
+         std::vector<int> *out_attrs) {
+        return mxnet::op::storage_type_assign(out_attrs, mxnet::kDefaultStorage,
+                                              dispatch_mode,
+                                              mxnet::DispatchMode::kFComputeEx);
+      });
+  // create the cpu & gpu backward compute lambdas
+  for (std::string arch : NGRAPH_TRANSFORMERS) {
+    op.set_attr<mxnet::FComputeEx>(
+        "FComputeEx<" + arch + ">",
+        [graph](const nnvm::NodeAttrs &attrs, const mxnet::OpContext &ctx,
+                const std::vector<mxnet::NDArray> &inputs,
+                const std::vector<mxnet::OpReqType> &req,
+                const std::vector<mxnet::NDArray> &outputs) -> void {
+          compute_backward(ctx, graph, inputs, req, outputs);
+        });
+  }
 }
 // register subgraph ops with nnvm.
 void register_subgraph(std::shared_ptr<Graph> graph) {

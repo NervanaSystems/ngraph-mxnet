@@ -37,9 +37,9 @@ namespace ngraph_bridge {
 // NGImperative constructor for mxnet compute kernel(s)
 NGImperative::NGImperative(const nnvm::NodeAttrs &attrs,
                            const mxnet::Context &ctx,
-                           const std::vector<mxnet::TBlob> &inputs,
+                           const std::vector<mxnet::NDArray> &inputs,
                            const std::vector<mxnet::OpReqType> *req,
-                           const std::vector<mxnet::TBlob> &outputs)
+                           const std::vector<mxnet::NDArray> &outputs)
     : Compiler(ctx) {
   // Construct nnvm symbol to represent the computation
   auto sym = nnvm::Symbol::CreateFunctor(attrs.op, attrs.dict);
@@ -63,18 +63,21 @@ NGImperative::NGImperative(const nnvm::NodeAttrs &attrs,
   nnvm::Graph g;
   g.outputs = sym.outputs;
   for (auto i : inputs) {
-    shapes_.push_back(i.shape_);
-    dtypes_.push_back(i.type_flag_);
+    shapes_.push_back(i.shape());
+    dtypes_.push_back(i.dtype());
+    stypes_.push_back(mxnet::kDefaultStorage);
   }
   // initialize ngraph
   DeepCopy(g);
+  graph_.attrs["context"] = std::make_shared<nnvm::any>(
+      mxnet::exec::ContextVector(graph_.indexed_graph().num_nodes(), ctx));
   MakeCopiedInputs(sym.ListInputs(nnvm::Symbol::kReadOnlyArgs));
 }
 
 // process ngraph composed of nnvm symbol graph
 void NGImperative::parse_ngraph() {
   ProcessGraph(NDArrayMap());
-  CollapseSubgraphs(&ngraph_);
+  IdentifyCollapseGraphs();
   // imperative assumes graph is just one node
   for (auto n : ngraph_.nodes_)
     if (n->type_ == NodeType::kGraph) {
@@ -87,7 +90,7 @@ void NGImperative::parse_ngraph() {
 // Registers ngraph operators with nnvm
 void InitImperativeOnce() {
   static auto &fcompute_cpu =
-      nnvm::Op::GetAttr<mxnet::FCompute>("FCompute<cpu>");
+      nnvm::Op::GetAttr<mxnet::FComputeEx>("FComputeEx<cpu>");
 
   for (auto unique_op : dmlc::Registry<nnvm::Op>::List()) {
     auto op_name = unique_op->name;
@@ -105,27 +108,29 @@ void InitImperativeOnce() {
 
     // use ngraph immperative, only if fallback available.
     if (fallback_fn) {
-      op.set_attr<mxnet::FCompute>(
-          "FCompute<cpu>",
+      op.set_attr<mxnet::FComputeEx>(
+          "FComputeEx<cpu>",
           [fallback_fn](const nnvm::NodeAttrs &attrs,
                         const mxnet::OpContext &ctx,
-                        const std::vector<mxnet::TBlob> &inputs,
+                        const std::vector<mxnet::NDArray> &inputs,
                         const std::vector<mxnet::OpReqType> &req,
-                        const std::vector<mxnet::TBlob> &outputs) -> void {
-            // thread local cache for ngraph op
-            static thread_local NGIOpCache ngicache;
-
-            auto op_key = get_ngiop_key(attrs, ctx.run_ctx.ctx, inputs);
-            auto op_ng = ngicache[op_key];
-            if (!op_ng) {
-              NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
-              op_ng = ngicache[op_key] = ngi.get_op_ngraph();
-              if (ngraph_log_verbose && op_ng)
-                LOG(INFO) << "Caching... " << attrs.op->name;
-            }
+                        const std::vector<mxnet::NDArray> &outputs) -> void {
+            std::shared_ptr<Graph> op_ng;
             int mode = static_cast<int>(GraphExeMode::kInfer);
-            if (ctx.is_train) {
-              mode = static_cast<int>(GraphExeMode::kTrain);
+            if (!sparse_check(inputs) && !sparse_check(outputs)) {
+              // thread local cache for ngraph op
+              static thread_local NGIOpCache ngicache;
+              auto op_key = get_ngiop_key(attrs, ctx.run_ctx.ctx, inputs);
+              op_ng = ngicache[op_key];
+              if (!op_ng) {
+                NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
+                op_ng = ngicache[op_key] = ngi.get_op_ngraph();
+                if (ngraph_log_verbose && op_ng)
+                  LOG(INFO) << "Caching... " << attrs.op->name;
+              }
+              if (ctx.is_train) {
+                mode = static_cast<int>(GraphExeMode::kTrain);
+              }
             }
             if (op_ng && op_ng->ngraph_forward[mode]) {
               compute_forward(ctx, op_ng, inputs, req, outputs);
@@ -179,11 +184,12 @@ bool NGIOpEqual::operator()(const NGIOpKey &t1, const NGIOpKey &t2) const {
 }
 
 NGIOpKey get_ngiop_key(const nnvm::NodeAttrs &attrs, const mxnet::Context &ctx,
-                       const std::vector<mxnet::TBlob> &inputs) {
+                       const std::vector<mxnet::NDArray> &inputs) {
   std::vector<int> in;
   for (const auto &i : inputs) {
-    in.push_back(i.type_flag_);
-    for (size_t ii = 0; ii < i.shape_.ndim(); ++ii) in.push_back(i.shape_[ii]);
+    in.push_back(i.dtype());
+    for (size_t ii = 0; ii < i.shape().ndim(); ++ii)
+      in.push_back(i.shape()[ii]);
   }
   return NGIOpKey(attrs.op->name, {static_cast<int>(ctx.dev_type),
                                    static_cast<int>(ctx.dev_id)},

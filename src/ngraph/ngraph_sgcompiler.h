@@ -20,6 +20,9 @@
 #include "ngraph_emitter.h"
 #include "ngraph_graph.h"
 
+#include <utility>
+#include <vector>
+
 namespace ngraph_bridge {
 
 class SGCompiler : public Emitter {
@@ -37,8 +40,10 @@ class SGCompiler : public Emitter {
  private:
   std::shared_ptr<ngraph::Function> MakeForwardFunction(
       std::shared_ptr<Graph> sub_graph);
-  std::shared_ptr<ngraph::Function> MakeBackwardFunction(
-      std::shared_ptr<Graph> sub_graph, std::shared_ptr<ngraph::Function> f);
+  std::pair<std::shared_ptr<ngraph::Function>,
+            std::vector<std::shared_ptr<ngraph::Node>>>
+  MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
+                       std::shared_ptr<ngraph::Function> f);
 };
 
 }  // namespace ngraph_bridge

@@ -46,7 +46,8 @@ parser.add_argument('--wd', type=float, default=0.00001,
 parser.add_argument('--batch-size', type=int, default=32,
                     help='the batch size.')
 parser.add_argument('--disp-batches', type=int, default=50,
-                    help='show progress for every n batches')
+                   help='show progress for every n batches')
+parser.add_argument('--with-nnp',  action="store_true", default=False, dest="is_nnp")
 
 def tokenize_text(fname, vocab=None, invalid_label=-1, start_label=0):
     if not os.path.isfile(fname):
@@ -104,6 +105,8 @@ if __name__ == '__main__':
 
     if args.gpus:
         contexts = [mx.gpu(int(i)) for i in args.gpus.split(',')]
+    elif args.is_nnp:
+        contexts = mx.nnp(0)
     else:
         contexts = mx.cpu(0)
 

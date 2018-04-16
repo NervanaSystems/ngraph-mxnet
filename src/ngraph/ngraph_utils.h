@@ -16,8 +16,14 @@
 
 #ifndef MXNET_NGRAPH_NGRAPH_UTILS_H_
 #define MXNET_NGRAPH_NGRAPH_UTILS_H_
+#include <mxnet/ndarray.h>
+#include <algorithm>
 #include <chrono>
 #include <iostream>
+#include <iterator>
+#include <set>
+#include <sstream>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -28,8 +34,6 @@ namespace ngraph_bridge {
 
 // enable ngraph gluon at runtime.
 const bool ngraph_gluon_enable = dmlc::GetEnv("MXNET_NGRAPH_GLUON", false);
-const bool ngraph_optimzation =
-    dmlc::GetEnv("MXNET_NGRAPH_GRAPH_OPTIMIZATION", false);
 
 // logging
 const bool ngraph_log_verbose = dmlc::GetEnv("MXNET_NGRAPH_VERBOSE", false);
@@ -148,6 +152,14 @@ inline bool get_default(const NodePtr& node, const std::string& key,
   return default_val;
 }
 
+// check if any ndarray is sparse
+inline bool sparse_check(const std::vector<mxnet::NDArray>& ndarray) {
+  for (const auto& i : ndarray) {
+    if (i.storage_type() != mxnet::kDefaultStorage) return true;
+  }
+  return false;
+}
+
 template <typename T>
 inline
     typename std::enable_if<!std::is_unsigned<T>::value, std::vector<T>>::type
@@ -179,6 +191,119 @@ get_default(const NodePtr& node, const std::string& key,
   }
   return out;
 }
+
+/// Emits a programmer-friendly representation, to assist with logging
+/// and debugging.
+std::ostream& operator<<(std::ostream& os, const ngraph::Shape& s);
+
+/// Emits a programmer-friendly representation, to assist with logging
+/// and debugging.
+std::ostream& operator<<(std::ostream& os, const ngraph::AxisSet& s);
+
+/// Emits a programmer-friendly representation, to assist with logging
+/// and debugging.
+std::ostream& operator<<(std::ostream& os, const nnvm::TShape& s);
+
+/// A convenience method to obtain the elements of s1 that are not
+/// present in s2.
+template <typename T>
+std::set<T> set_subtract(const std::set<T>& s1, const std::set<T>& s2) {
+  std::set<T> s3;
+  std::set_difference(s1.begin(), s1.end(), s2.begin(), s2.end(),
+                      std::inserter(s3, s3.end()));
+  return s3;
+}
+
+/// Return the set of axes present in the specified shape.
+/// Assume that the shape's axes are numbered consecutively starting at zero.
+ngraph::AxisSet shape_to_axis_set(const ngraph::Shape& s);
+
+/// Given the graph node \param n, return the subset of \param n's axes that
+/// would
+/// remain after removing the axes specified by \param a.
+/// Throw an exception if \param a is not a subset of \param n's axes.
+///
+/// This is useful for inverting the set of reduction axes when calling
+/// functions
+/// ngraph::builder::mean, etc.
+ngraph::AxisSet ngraph_remaining_axes(const NgraphNodePtr& n,
+                                      const ngraph::AxisSet& a);
+
+template <typename T>
+std::ostream& container_to_debug_stream(
+    std::ostream& os, const T& container, const std::string separator = ", ",
+    const std::string opening_delimiter = "[",
+    const std::string closing_delimiter = "]") {
+  os << opening_delimiter;
+
+  bool is_first = true;
+  for (const auto& element : container) {
+    if (is_first) {
+      is_first = false;
+    } else {
+      os << separator;
+    }
+
+    os << element;
+  }
+
+  return os;
+}
+
+// generates hash for any standard type val, and combines with seed.
+template <typename T>
+inline std::size_t hash_combine(const std::size_t& seed, const T& val) {
+  return seed + std::hash<T>()(val) + (seed << 1);
+}
+
+/// Use ngraph::serialize(...) to create a JSON rendition of 'f'.
+/// Compute the filename based on this function's parameters.
+/// If a file with that name already exists, overwrite it.
+void dump_graph(std::shared_ptr<ngraph::Function> f, std::string src_loc = "",
+                std::string filename_suffix = "");
+
+// We define the term "vector plus axes" to refer to tensor shapes meeting the following criteria:
+// For some shape 'S' to be a vector-plus-axes shape:
+//   - 'S' has rank >= 1.
+//   - At most one axis of 'S' is considered to be the 'vector' axis.  The vector axis may have
+//     may have span = 1.
+//   - All other axes have span = 1.
+//
+// These shapes sometimes arise in the processing of image data.  By way of example, one typical
+// format for image-related tensors is [N,C,H,W].  Some intermediate nodes in these graphs produce
+// or consume tensors of shape [1,C,1,1].  We coin the term "vector plus axes" to describe such
+// shapes.
+
+/// Return true iff 's' meets the definition of a 'vector-plus-axes' shape, false if not.
+bool has_vector_plus_axes_shape(const ngraph::Shape & s);
+
+/// Create a vector-plus-axes shape with the specified characteristics.
+ngraph::Shape get_vector_plus_axes_shape(
+    const size_t rank,
+    const size_t vector_axis,
+    const size_t vector_length);
+
+// Assume that 'n' has a vector-plus-axes shape.  Return an operator that (if necessary) reshapes
+// 'n' to continue to (still) have a vector-plus-axes shape, with rank 'output_rank' and with the
+// vector-axis specified by 'output_vector_axis'.
+//
+// If 'n' already meets those criteria, simply return 'n'.
+NgraphNodePtr ensure_vector_plus_axes_shape(
+    const NgraphNodePtr n,
+    const size_t output_rank,
+    const size_t output_vector_axis);
+
+// Assume that 'n' has vector-plus-axes shape.  Return a node that (if necessary) reshapes 'n' to
+// remove all axes other than the vector axis.  Examples:
+//   [1,C,1,1] --> [C]
+//   [1,1,1,1] --> [1]
+//   [C]       --> [C]
+//   []        --> error // not in vector-plus-axes form
+//   [1,C,0,1] --> error // not in vector-plus-axes form
+//
+// If 'n' already has the required shape, return 'n'.
+NgraphNodePtr ensure_vector_only_shape(
+    const NgraphNodePtr n);
 
 }  // namespace ngraph_bridge
 

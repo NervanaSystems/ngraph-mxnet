@@ -42,11 +42,10 @@ TEST_F(NGRAPH_IMPERATIVE, SYMBOL_GRAPH) {
 
 TEST_F(NGRAPH_IMPERATIVE, PARSE_OPGRAPH) {
   testImperative test(attrs, mxnet::Context::CPU(), inputs, nullptr, outputs);
-  EXPECT_EQ(test.ngraph_.nodes_.size(), 0);
+  EXPECT_EQ(test.ngraph_.nodes_.size(), 0ul);
   EXPECT_FALSE(test.op_ngraph_);
   test.parse_ngraph();
   EXPECT_TRUE(test.op_ngraph_);
-  EXPECT_EQ(test.ngraph_.nodes_.size(), inputs.size() + 1);
   for (auto n : test.ngraph_.nodes_) {
     if (n->type_ == NodeType::kGraph)
       EXPECT_EQ(n->in_ngraph_, true);
@@ -66,9 +65,9 @@ TEST_F(NGRAPH_IMPERATIVE, UNSUPPORTED_OP) {
   sym_attrs.op = nnvm::Op::Get("IdentityAttachKLSparseReg");
   testImperative test(sym_attrs, mxnet::Context::CPU(), outputs, nullptr,
                       outputs);
-  EXPECT_EQ(test.ngraph_.nodes_.size(), 0);
+  EXPECT_EQ(test.ngraph_.nodes_.size(), 0ul);
   test.parse_ngraph();
-  EXPECT_EQ(test.ngraph_.nodes_.size(), 2);
+  EXPECT_EQ(test.ngraph_.nodes_.size(), 2ul);
   for (auto n : test.ngraph_.nodes_) {
     EXPECT_EQ(n->in_ngraph_, false);
   }

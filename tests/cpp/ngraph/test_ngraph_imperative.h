@@ -30,9 +30,12 @@ class NGRAPH_IMPERATIVE : public ::testing::Test {
   NGRAPH_IMPERATIVE() {
     // default test arguments
     nnvm::TShape shape{2};
-    inputs.emplace_back(vec1.data(), shape, 0);
-    inputs.emplace_back(vec2.data(), shape, 0);
-    outputs.emplace_back(vec3.data(), shape, 0);
+    inputs.emplace_back(
+        mxnet::NDArray(mxnet::TBlob(vec1.data(), shape, 1, 0), 0));
+    inputs.emplace_back(
+        mxnet::NDArray(mxnet::TBlob(vec2.data(), shape, 1, 0), 0));
+    outputs.emplace_back(
+        mxnet::NDArray(mxnet::TBlob(vec3.data(), shape, 1, 0), 0));
     attrs.op = nnvm::Op::Get(op_name);
   }
   std::string op_name = "broadcast_mul";
@@ -40,8 +43,8 @@ class NGRAPH_IMPERATIVE : public ::testing::Test {
   std::vector<float> vec1{1, 2};
   std::vector<float> vec2{2, 3};
   std::vector<float> vec3{0, 0};
-  std::vector<mxnet::TBlob> inputs;
-  std::vector<mxnet::TBlob> outputs;
+  std::vector<mxnet::NDArray> inputs;
+  std::vector<mxnet::NDArray> outputs;
   std::vector<mxnet::OpReqType> req{mxnet::kWriteTo};
 };
 
@@ -52,9 +55,9 @@ class testImperative : public NGImperative {
   using NGImperative::op_ngraph_;
   using NGImperative::parse_ngraph;
   testImperative(const nnvm::NodeAttrs &attrs, const mxnet::Context &ctx,
-                 const std::vector<mxnet::TBlob> &inputs,
+                 const std::vector<mxnet::NDArray> &inputs,
                  const std::vector<mxnet::OpReqType> *req,
-                 const std::vector<mxnet::TBlob> &outputs)
+                 const std::vector<mxnet::NDArray> &outputs)
       : NGImperative(attrs, ctx, inputs, req, outputs) {}
 };
 }  // namespace ngraph_bridge

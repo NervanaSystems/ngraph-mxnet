@@ -43,19 +43,20 @@ class Emitter {
   NgraphNodePtr CreateAutoBroadcast(const NodePtr& node);
   template <class op>
   NgraphNodePtr CreateScalarOp(const NodePtr& node);
+
+ public:
   // Factory function for reducing based on a reduction op function
-  NgraphNodePtr ReduceAxes(
+  static NgraphNodePtr ReduceAxes(
       const NgraphNodePtr& node, ngraph::AxisVector axes, bool exclude,
       bool keepdims,
       const std::function<NgraphNodePtr(const NgraphNodePtr&,
                                         const ngraph::AxisSet&)>& func);
+
+ protected:
   NgraphNodePtr ReduceAxes(
       const NodePtr& node,
       const std::function<NgraphNodePtr(const NgraphNodePtr&,
-                                        const ngraph::AxisSet&)>& func);
-
-  /// initialize node operator configuration
-  void InitOpConfig(OpNodePtr op_node) const;
+                                        const ngraph::AxisSet&)>& func) const;
 
   // information on compiled objects
   std::map<NodePtr, NgraphNodePtr> op_map_;
@@ -74,29 +75,6 @@ class Emitter {
   // Factory function for autobroadcasting the inputs of a node
 
  protected:
-  // batch norm
-  class BatchNormOpConfig : public OpNode::OpConfig {
-   public:
-    enum AuxKey { kMovingMean = 0, kMovingVar };
-    BatchNormOpConfig() {
-      // set up dummy aux nodes for values we want
-      aux_nodes_.push_back(std::make_shared<AuxNode>(nullptr, "moving_mean"));
-      aux_nodes_.push_back(std::make_shared<AuxNode>(nullptr, "moving_var"));
-      // map the aux index to input index
-      aux_to_output_[kMovingMean] = 3;  // output mean index
-      aux_to_output_[kMovingVar] = 4;   // output variance index
-    }
-
-    const std::vector<NodePtr>& AuxNodes() const override { return aux_nodes_; }
-
-    size_t MapAuxToOutput(size_t i) const override {
-      return aux_to_output_.at(i);
-    };
-
-   private:
-    std::vector<NodePtr> aux_nodes_;
-    std::map<size_t, size_t> aux_to_output_;
-  };
 };
 
 }  // namespace ngraph_bridge
