@@ -172,9 +172,8 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
         outputs.push_back(ngraph_node);
 
         // cache aux node
-        sub_graph->cached_aux_values[mode].push_back(
-            backend->create_tensor(ngraph_node->get_element_type(),
-                                              ngraph_node->get_shape()));
+        sub_graph->cached_aux_values[mode].push_back(backend->create_tensor(
+            ngraph_node->get_element_type(), ngraph_node->get_shape()));
         sub_graph->cached_aux_positions[mode].push_back(i);
       }
       i += 1;
@@ -278,8 +277,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
     for (auto node : fprop_cache.fprop_output_nodes) {
       sub_graph->cached_values[static_cast<int>(exe_mode_)].push_back(
-          backend->create_tensor(node->get_element_type(),
-                                            node->get_shape()));
+          backend->create_tensor(node->get_element_type(), node->get_shape()));
     }
 
     return;
