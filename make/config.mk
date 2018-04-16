@@ -92,8 +92,14 @@ USE_LIBJPEG_TURBO_PATH = NONE
 # use openmp for parallelization
 USE_OPENMP = 1
 
-# whether use MKL-DNN library
-USE_MKLDNN = 0
+# set USE_NGRAPH = 1 to compile with nGraph.
+USE_NGRAPH = 0
+# when USE_NGRAPH = 1
+# optional: path to installed nGraph libraries
+# e.g. NGRAPH_DIR = <path>/ngraph/install (containing lib and include dirs)
+# if not specified nGraph will be cloned/built/installed during make
+NGRAPH_DIR =
+
 
 # whether use NNPACK library
 USE_NNPACK = 0
