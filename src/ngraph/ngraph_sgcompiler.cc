@@ -78,9 +78,9 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
   backend->compile(f_copy);
 
   for (auto result : f->get_results()) {
-    if (fprop_cache.node_param_map->exists(result->get_input_op(0))) {
+    if (fprop_cache.node_param_map->exists(result->get_argument(0))) {
       auto cloned_result = fmap.get(result);
-      auto bf_param = fprop_cache.node_param_map->get(result->get_input_op(0));
+      auto bf_param = fprop_cache.node_param_map->get(result->get_argument(0));
       auto cloned_bf_param = bfmap.get(bf_param);
       auto layout =
           cloned_result->get_output_tensor_view()->get_tensor_view_layout();
@@ -108,9 +108,9 @@ void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
     // if we're in CPU, combine the graphs
     ngraph::NodeVector dYdXs;
     for (size_t i = 0; i < bf->get_output_size(); ++i) {
-      dYdXs.push_back(bf->get_output_op(i)->get_input_op(0));
+      dYdXs.push_back(bf->get_output_op(i)->get_argument(0));
     }
-    ngraph::NodeVector combined_outputs{f->get_output_op(0)->get_input_op(0)};
+    ngraph::NodeVector combined_outputs{f->get_output_op(0)->get_argument(0)};
     combined_outputs.insert(combined_outputs.end(), dYdXs.begin(), dYdXs.end());
 
     std::vector<std::shared_ptr<ngraph::op::Parameter>> combined_parameters =
@@ -172,9 +172,8 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
         outputs.push_back(ngraph_node);
 
         // cache aux node
-        sub_graph->cached_aux_values[mode].push_back(
-            backend->make_primary_tensor_view(ngraph_node->get_element_type(),
-                                              ngraph_node->get_shape()));
+        sub_graph->cached_aux_values[mode].push_back(backend->create_tensor(
+            ngraph_node->get_element_type(), ngraph_node->get_shape()));
         sub_graph->cached_aux_positions[mode].push_back(i);
       }
       i += 1;
@@ -278,8 +277,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
 
     for (auto node : fprop_cache.fprop_output_nodes) {
       sub_graph->cached_values[static_cast<int>(exe_mode_)].push_back(
-          backend->make_primary_tensor_view(node->get_element_type(),
-                                            node->get_shape()));
+          backend->create_tensor(node->get_element_type(), node->get_shape()));
     }
 
     return;
