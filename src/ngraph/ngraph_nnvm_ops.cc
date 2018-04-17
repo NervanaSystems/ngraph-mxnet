@@ -143,12 +143,13 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                           : make_ngraph_placeholders(inputs, backend, true);
   
   const bool zero_grad = check_zero_grad(graph);
-  if (zero_grad){}
+  if (zero_grad) {
   for (size_t i = 0; i < graph->num_outputs_; ++i) {
     // TODO(mbrookahrt): don't bprop graph if it's zerograd?
     placeholders[i] = backend->create_tensor(getType(graph->outputs_[i]->dtype_), 
                                               TShape_to_NShape(graph->outputs_[i]->shape_));
   } 
+}
 
   auto results = make_ngraph_placeholders(outputs, backend, false);
   placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
