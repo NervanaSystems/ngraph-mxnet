@@ -46,6 +46,23 @@ nnvm::Op *get_subgraph_op(std::shared_ptr<Graph> graph) {
       "ngraph_" + graph->name_));
 }
 
+// check if last node in graph is an op that doesnt need head-gradient
+bool check_zero_grad(const std::shared_ptr<Graph> &graph) {
+  auto size = graph->nodes_.size();
+  if (size < 1) return false;
+
+  // if all of the outputs of the graph don't need gradient calculation,
+  // don't autodiff this graph. Otherwise, do.
+  for (auto node : graph->outputs_) {
+    if (ops_no_head_grad.count(node->operation_) == 0) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
 void append_cached_to_forward(TensorViewVector *results,
                               const std::shared_ptr<Graph> &graph,
                               const int mode) {
@@ -124,6 +141,14 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   auto placeholders = graph->enable_fprop_cache
                           ? make_ngraph_placeholders(adjoints, backend, true)
                           : make_ngraph_placeholders(inputs, backend, true);
+  
+  const bool zero_grad = check_zero_grad(graph);
+  if (zero_grad){}
+  for (size_t i = 0; i < graph->num_outputs_; ++i) {
+    // TODO(mbrookahrt): don't bprop graph if it's zerograd?
+    placeholders[i] = backend->create_tensor(getType(graph->outputs_[i]->dtype_), 
+                                              TShape_to_NShape(graph->outputs_[i]->shape_));
+  } 
 
   auto results = make_ngraph_placeholders(outputs, backend, false);
   placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
@@ -151,22 +176,6 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
     result_to_NDArray(graph->cached_aux_values[mode], aux_req, aux_outs);
   }
-}
-
-// check if last node in graph is an op that doesnt need head-gradient
-bool check_zero_grad(const std::shared_ptr<Graph> &graph) {
-  auto size = graph->nodes_.size();
-  if (size < 1) return false;
-
-  // if all of the outputs of the graph don't need gradient calculation,
-  // don't autodiff this graph. Otherwise, do.
-  for (auto node : graph->outputs_) {
-    if (ops_no_head_grad.count(node->operation_) == 0) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 void register_forward_op(std::shared_ptr<Graph> graph) {
