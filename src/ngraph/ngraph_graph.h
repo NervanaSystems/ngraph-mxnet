@@ -259,6 +259,7 @@ class Graph : public Node {
 
   std::vector<NodePtr> outputs_;
   std::vector<std::shared_ptr<OutputElement>> output_elements_;
+  bool zero_grad = false;
 };
 
 // Element to represent outputs of Graph objects embedded in other Graph objects

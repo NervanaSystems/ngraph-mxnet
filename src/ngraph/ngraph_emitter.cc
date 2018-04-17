@@ -925,19 +925,19 @@ void Emitter::CreateLayerOps() {
     const size_t channel_axis =
         get_default_transformed_axis(node, "axis", 1, node->shape_.ndim());
 
-    const NgraphNodePtr ng_maybe_gamma = fix_gamma
-      ? NgraphNodePtr{}
-      : ng_in_gamma;
+    const NgraphNodePtr ng_maybe_gamma =
+        fix_gamma ? NgraphNodePtr{} : ng_in_gamma;
 
-    const NgraphNodePtr ng_actual_gamma = fix_gamma
-      ? makeConstant(ng_in_moving_mean->get_element_type(),
-                             ng_in_moving_mean->get_shape(), 1)
-      : ng_in_gamma;
+    const NgraphNodePtr ng_actual_gamma =
+        fix_gamma ? makeConstant(ng_in_moving_mean->get_element_type(),
+                                 ng_in_moving_mean->get_shape(), 1)
+                  : ng_in_gamma;
 
     using ngraph::builder::make_with_numpy_broadcast;
 
-    const bool ngraph_bn_op_available = (data_shape_size == 4) && (channel_axis == 1) &&
-        (node->dtype_ == mshadow::kFloat32);
+    const bool ngraph_bn_op_available = (data_shape_size == 4) &&
+                                        (channel_axis == 1) &&
+                                        (node->dtype_ == mshadow::kFloat32);
 
     //----------------------------------------------------------------------------------------------
     // Traditional training mode...
@@ -948,44 +948,49 @@ void Emitter::CreateLayerOps() {
       NgraphNodePtr ng_batch_var;
 
       if (ngraph_bn_op_available) {
-        const NgraphNodePtr BN = std::make_shared<ngraph::op::BatchNorm>(eps, ng_actual_gamma,
-            ng_in_beta, ng_in_data);
-        ng_normalized_data = std::make_shared<ngraph::op::GetOutputElement>(BN, 0);
+        const NgraphNodePtr BN = std::make_shared<ngraph::op::BatchNorm>(
+            eps, ng_actual_gamma, ng_in_beta, ng_in_data);
+        ng_normalized_data =
+            std::make_shared<ngraph::op::GetOutputElement>(BN, 0);
         ng_batch_mean = std::make_shared<ngraph::op::GetOutputElement>(BN, 1);
         ng_batch_var = std::make_shared<ngraph::op::GetOutputElement>(BN, 2);
       } else {
         std::tie(ng_normalized_data, ng_batch_mean, ng_batch_var) =
-          create_batchnorm_training_without_ngraph_bn_op(
-              eps,
-              ng_maybe_gamma,
-              ng_in_beta,
-              ng_in_data,
-              channel_axis);
+            create_batchnorm_training_without_ngraph_bn_op(
+                eps, ng_maybe_gamma, ng_in_beta, ng_in_data, channel_axis);
       }
 
-      const NgraphNodePtr ng_one = makeConstant(ng_in_moving_mean->get_element_type(),
-          ng_in_moving_mean->get_shape(), 1);
+      const NgraphNodePtr ng_one =
+          makeConstant(ng_in_moving_mean->get_element_type(),
+                       ng_in_moving_mean->get_shape(), 1);
 
       const NgraphNodePtr ng_momentum =
-        makeConstant(ng_in_moving_var->get_element_type(),
-            ng_in_moving_var->get_shape(), momentum);
+          makeConstant(ng_in_moving_var->get_element_type(),
+                       ng_in_moving_var->get_shape(), momentum);
 
       aux_op_map_[node->inputs_[kMovingMean]] =
-          ng_in_moving_mean * ng_momentum + ng_batch_mean * (ng_one - ng_momentum);
+          ng_in_moving_mean * ng_momentum +
+          ng_batch_mean * (ng_one - ng_momentum);
 
       aux_op_map_[node->inputs_[kMovingVar]] =
-          ng_in_moving_var * ng_momentum + ng_batch_var * (ng_one - ng_momentum);
+          ng_in_moving_var * ng_momentum +
+          ng_batch_var * (ng_one - ng_momentum);
 
       return ng_normalized_data;
     }
 
     //----------------------------------------------------------------------------------------------
-    // Hybrid mode: use externally supplied mean/variance (as with inference), but also allow
+    // Hybrid mode: use externally supplied mean/variance (as with inference),
+    // but also allow
     // autodifferentiation (as with training).
     //----------------------------------------------------------------------------------------------
     if ((exe_mode_ == GraphExeMode::kTrain) && (use_global_stats)) {
-      if (ngraph_bn_op_available) {
-        const NgraphNodePtr ng_normalized_data = std::make_shared<ngraph::op::BatchNorm>(eps,
+      // FIXME: We suspect there's a bug in the gradient calculations performed by this version of
+      // nGraph's BatchNorm operator. So for now we'll avoid using it.  -cconvey 2018-04-12.
+      // if (ngraph_bn_op_available) {
+      if (false) {
+        const NgraphNodePtr ng_normalized_data = std::make_shared<ngraph::op::BatchNorm>(
+            eps,
             ng_actual_gamma,
             ng_in_beta,
             ng_in_data,
@@ -995,17 +1000,15 @@ void Emitter::CreateLayerOps() {
 
         return ng_normalized_data;
       } else {
-        // NOTE: This call is intentionally the same as another call below.  The function called
-        // here produces a subgraph suitable for training because all of its operators support
+        // NOTE: This call is intentionally the same as another call below.  The
+        // function called
+        // here produces a subgraph suitable for training because all of its
+        // operators support
         // autodiff.
-        const NgraphNodePtr ng_normalized_data = create_batchnorm_inference_without_ngraph_bn_op(
-            eps,
-            ng_maybe_gamma,
-            ng_in_beta,
-            ng_in_data,
-            ng_in_moving_mean,
-            ng_in_moving_var,
-            channel_axis);
+        const NgraphNodePtr ng_normalized_data =
+            create_batchnorm_inference_without_ngraph_bn_op(
+                eps, ng_maybe_gamma, ng_in_beta, ng_in_data, ng_in_moving_mean,
+                ng_in_moving_var, channel_axis);
 
         return ng_normalized_data;
       }
@@ -1016,7 +1019,8 @@ void Emitter::CreateLayerOps() {
     //----------------------------------------------------------------------------------------------
     if (exe_mode_ == GraphExeMode::kInfer) {
       if (ngraph_bn_op_available) {
-        const NgraphNodePtr ng_normalized_data = std::make_shared<ngraph::op::BatchNorm>(eps,
+        const NgraphNodePtr ng_normalized_data = std::make_shared<ngraph::op::BatchNorm>(
+            eps,
             ng_actual_gamma,
             ng_in_beta,
             ng_in_data,
@@ -1026,14 +1030,10 @@ void Emitter::CreateLayerOps() {
 
         return ng_normalized_data;
       } else {
-        const NgraphNodePtr ng_normalized_data = create_batchnorm_inference_without_ngraph_bn_op(
-            eps,
-            ng_maybe_gamma,
-            ng_in_beta,
-            ng_in_data,
-            ng_in_moving_mean,
-            ng_in_moving_var,
-            channel_axis);
+        const NgraphNodePtr ng_normalized_data =
+            create_batchnorm_inference_without_ngraph_bn_op(
+                eps, ng_maybe_gamma, ng_in_beta, ng_in_data, ng_in_moving_mean,
+                ng_in_moving_var, channel_axis);
 
         return ng_normalized_data;
       }
