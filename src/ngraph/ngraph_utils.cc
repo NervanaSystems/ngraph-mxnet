@@ -85,7 +85,7 @@ void dump_graph(std::shared_ptr<ngraph::Function> f, std::string src_loc,
   file.close();
 }
 
-bool has_vector_plus_axes_shape(const ngraph::Shape & s) {
+bool has_vector_plus_axes_shape(const ngraph::Shape& s) {
   if (s.size() < 1) {
     return false;
   }
@@ -96,9 +96,7 @@ bool has_vector_plus_axes_shape(const ngraph::Shape & s) {
   }
 
   // Is there at most one axis with a span > 1?
-  const auto long_axis_pred = [](const size_t & span){
-      return span > 1;
-  };
+  const auto long_axis_pred = [](const size_t& span) { return span > 1; };
 
   if (std::count_if(s.begin(), s.end(), long_axis_pred) > 1) {
     return false;
@@ -107,18 +105,17 @@ bool has_vector_plus_axes_shape(const ngraph::Shape & s) {
   return true;
 }
 
-// If the vector-axis has length greater than 1, return its index.  Otherwise return 0.
+// If the vector-axis has length greater than 1, return its index.  Otherwise
+// return 0.
 // If 's' is not in vector-plus-axes form, throw an exception.
-static size_t get_vector_axis_index(const ngraph::Shape & s) {
+static size_t get_vector_axis_index(const ngraph::Shape& s) {
   if (!has_vector_plus_axes_shape(s)) {
     std::ostringstream os;
     os << "Shape " << s << " not in vector-plus-axes form.";
     throw os.str();
   }
 
-  const auto long_axis_pred = [](const size_t & span){
-      return span > 1;
-  };
+  const auto long_axis_pred = [](const size_t& span) { return span > 1; };
 
   const auto iter = std::find_if(s.begin(), s.end(), long_axis_pred);
   if (iter == s.end()) {
@@ -128,10 +125,9 @@ static size_t get_vector_axis_index(const ngraph::Shape & s) {
   }
 }
 
-ngraph::Shape get_vector_plus_axes_shape(
-    const size_t rank,
-    const size_t vector_axis,
-    const size_t vector_length) {
+ngraph::Shape get_vector_plus_axes_shape(const size_t rank,
+                                         const size_t vector_axis,
+                                         const size_t vector_length) {
   CHECK_GT(rank, 0);
   CHECK_GT(rank, vector_axis);
   CHECK_GT(vector_length, 0);
@@ -142,10 +138,9 @@ ngraph::Shape get_vector_plus_axes_shape(
   return s;
 }
 
-NgraphNodePtr ensure_vector_only_shape(
-    const NgraphNodePtr n) {
+NgraphNodePtr ensure_vector_only_shape(const NgraphNodePtr n) {
   CHECK(n);
-  const ngraph::Shape & n_shape = n->get_shape();
+  const ngraph::Shape& n_shape = n->get_shape();
 
   const size_t n_rank = n_shape.size();
 
@@ -158,22 +153,23 @@ NgraphNodePtr ensure_vector_only_shape(
   if (n_rank == 1) {
     return n;
   } else {
-    // We already know it's in vector-plus-axes form, so just count the number of elements.
+    // We already know it's in vector-plus-axes form, so just count the number
+    // of elements.
     const size_t vector_length = ngraph::shape_size(n_shape);
 
     const ngraph::Shape output_shape{vector_length};
     const ngraph::AxisVector permute_order = pyrange(n_rank);
 
-    return std::make_shared<ngraph::op::Reshape>(n, permute_order, output_shape);
+    return std::make_shared<ngraph::op::Reshape>(n, permute_order,
+                                                 output_shape);
   }
 }
 
-NgraphNodePtr ensure_vector_plus_axes_shape(
-    const NgraphNodePtr n,
-    const size_t output_rank,
-    const size_t output_vector_axis) {
+NgraphNodePtr ensure_vector_plus_axes_shape(const NgraphNodePtr n,
+                                            const size_t output_rank,
+                                            const size_t output_vector_axis) {
   CHECK(n);
-  const ngraph::Shape & n_shape = n->get_shape();
+  const ngraph::Shape& n_shape = n->get_shape();
   const size_t n_rank = n_shape.size();
 
   CHECK(n_rank <= output_rank);
@@ -190,10 +186,9 @@ NgraphNodePtr ensure_vector_plus_axes_shape(
   } else {
     const ngraph::AxisVector permute_order = pyrange(n_rank);
     const NgraphNodePtr ng_reshaped =
-      std::make_shared<ngraph::op::Reshape>(n, permute_order, output_shape);
+        std::make_shared<ngraph::op::Reshape>(n, permute_order, output_shape);
     return ng_reshaped;
   }
 }
-
 
 }  // namespace ngraph_bridge

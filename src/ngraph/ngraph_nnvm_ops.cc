@@ -107,7 +107,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     for (size_t i = 0; i < graph->num_outputs_; ++i) {
       auto shape = TShape_to_NShape(graph->outputs_[i]->shape_);
       const auto &element_type = getType(graph->outputs_[i]->dtype_);
-      auto output_tv = backend->make_primary_tensor_view(element_type, shape);
+      auto output_tv = backend->create_tensor(element_type, shape);
       results.push_back(output_tv);
     }
     append_cached_to_forward(&results, graph, mode);
@@ -124,6 +124,15 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   auto placeholders = graph->enable_fprop_cache
                           ? make_ngraph_placeholders(adjoints, backend, true)
                           : make_ngraph_placeholders(inputs, backend, true);
+
+  if (graph->zero_grad) {
+    for (size_t i = 0; i < graph->num_outputs_; ++i) {
+      // TODO(mbrookahrt): don't bprop graph if it's zerograd?
+      placeholders[i] =
+          backend->create_tensor(getType(graph->outputs_[i]->dtype_),
+                                 TShape_to_NShape(graph->outputs_[i]->shape_));
+    }
+  }
 
   auto results = make_ngraph_placeholders(outputs, backend, false);
   placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
@@ -233,6 +242,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   // Register Gradient node generation function
   // check if zero grad
   const bool zero_grad = check_zero_grad(graph);
+  graph->zero_grad = zero_grad;
   auto back_op_name = "_backward_" + ("ngraph_" + graph->name_);
   op.set_attr<nnvm::FGradient>(
       "FGradient",
