@@ -5679,7 +5679,7 @@ def test_quadratic_function():
         quad_sym = mx.sym.contrib.quadratic(data=data, a=a, b=b, c=c)
         check_numeric_gradient(quad_sym, [data_np], atol=0.001)
 
-
+@unittest.skip("The bridge replaces the node instead of using the node in NNVM , so the assumptions in this test are no longer valid")
 def test_op_output_names_monitor():
     def check_name(op_sym, expected_names):
         output_names = []
