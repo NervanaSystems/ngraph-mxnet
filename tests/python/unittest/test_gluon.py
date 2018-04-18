@@ -551,7 +551,7 @@ def test_embedding():
     assert (layer.weight.grad()[:5] == 1).asnumpy().all()
     assert (layer.weight.grad()[5:] == 0).asnumpy().all()
 
-@unittest.skip("Test fails. Temporarily disabled till it gets fixed")
+@unittest.skip("The test fails with relative errors of <1e-4 on a limit of 1e-5. Temporarily disabled till it gets fixed")
 def test_export():
     ctx = mx.context.current_context()
     model = gluon.model_zoo.vision.resnet18_v1(

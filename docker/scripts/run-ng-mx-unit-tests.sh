@@ -132,7 +132,7 @@ eval $cmd
 cmd="OMP_NUM_THREADS=4 pytest -s -n 2 tests/python/unittest/test_optimizer.py --verbose --capture=no --junit-xml=result_test_optimizer.xml --junit-prefix=result_test_optimizer"
 eval $cmd
 
-## Temporary to disbale the test.
+## Profiler integration is ongoing but incomplete.Temporary to disabled the test.
 ##Unit tests test_profiler.py
 ##cmd="OMP_NUM_THREADS=4 pytest -s -n tests/python/unittest/test_profiler.py --verbose --capture=no --junit-xml=result_test_profiler.xml --junit-prefix=result_test_profiler"
 ##eval $cmd
