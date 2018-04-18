@@ -57,6 +57,9 @@ RUN apt-get update && apt-get install -y build-essential git \
 RUN pip install --upgrade pip
 RUN pip install numpy
 
+# We include psutil
+RUN pip install psutil
+
 # We include pytest
 RUN pip install --upgrade pytest
 #RUN pip3 install virtualenv pytest
