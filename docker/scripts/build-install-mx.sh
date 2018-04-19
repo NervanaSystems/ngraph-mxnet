@@ -33,7 +33,7 @@ if [[ -z "${NGRAPH_INSTALL_DIR:-}" ]]; then
 fi
 
 cd "${MX_DIR}"
-git submodule update --init
+git submodule update --init --recursive
 make USE_NGRAPH=1 NGRAPH_DIR=${NGRAPH_INSTALL_DIR} -j $(nproc)
 
 if [ ! -f "./lib/libmxnet.so" ] ; then
