@@ -91,6 +91,15 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
 
   sub_graph->ngraph_forward[mode] = f_copy;
   sub_graph->ngraph_backward[mode] = bf_copy;
+  // TODO(aemani): enable default layout when ngraph api adds it
+#if 0
+  if (mode == GraphExeMode::kInfer) {
+    for (auto res : sub_graph->ngraph_forward[mode]->get_results())
+      res->set_needs_default_layout(true);
+  }
+  for (auto res : sub_graph->ngraph_backward[mode]->get_results())
+    res->set_needs_default_layout(true);
+#endif
 }
 
 void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
