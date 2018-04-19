@@ -39,16 +39,17 @@
 
 export CC = gcc
 export CXX = g++
-export NVCC = nvcc
+
+# If we set NVCC here, there's logic in the top-level Makefile for computing the
+# value of NVCC that will never run.
+#export NVCC = nvcc
+export NVCC =
 
 # whether compile with options for MXNet developer
 DEV = 0
 
 # whether compile with debug
 DEBUG = 0
-
-# whether compile with profiler
-USE_PROFILER =
 
 # whether to turn on segfault signal handler to log the stack trace
 USE_SIGNAL_HANDLER =
@@ -103,21 +104,6 @@ USE_NGRAPH = 0
 # if not specified nGraph will be cloned/built/installed during make
 NGRAPH_DIR =
 
-
-# MKL ML Library for Intel CPU/Xeon Phi
-# Please refer to MKL_README.md for details
-
-# MKL ML Library folder, need to be root for /usr/local
-# Change to User Home directory for standard user
-# For USE_BLAS!=mkl only
-MKLML_ROOT=/usr/local
-
-# whether use MKL2017 library
-USE_MKL2017 = 0
-
-# whether use MKL2017 experimental feature for high performance
-# Prerequisite USE_MKL2017=1
-USE_MKL2017_EXPERIMENTAL = 0
 
 # whether use NNPACK library
 USE_NNPACK = 0
