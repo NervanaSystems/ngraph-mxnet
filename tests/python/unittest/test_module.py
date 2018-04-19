@@ -380,8 +380,8 @@ def test_module_set_params():
                  force_init=True, arg_params=arg_params_missing_extra,
                  aux_params={}, allow_missing=True, allow_extra=False)
 
-
 @with_seed(11)
+@unittest.skip("nGraph changes the number of nodes in the graph, so the assumptions in this test are no longer valid.")
 def test_monitor():
     # data iter
     data = mx.nd.array([[0.05, .10]]);
