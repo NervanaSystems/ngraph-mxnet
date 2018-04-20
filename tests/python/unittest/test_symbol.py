@@ -23,6 +23,7 @@ import numpy as np
 from common import models
 from mxnet.test_utils import discard_stderr
 import pickle as pkl
+import unittest
 
 def test_symbol_basic():
     mlist = []

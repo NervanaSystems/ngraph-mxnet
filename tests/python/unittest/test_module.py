@@ -23,6 +23,7 @@ from functools import reduce
 from mxnet.module.executor_group import DataParallelExecutorGroup
 from common import setup_module, with_seed, assertRaises
 from collections import namedtuple
+import unittest
 
 
 @with_seed()
