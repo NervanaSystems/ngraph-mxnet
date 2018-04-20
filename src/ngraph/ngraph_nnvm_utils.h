@@ -111,12 +111,13 @@ inline void result_to_NDArray(
     const std::vector<mxnet::OpReqType>& req,
     const std::vector<mxnet::NDArray>& outputs) {
   for (size_t i = 0; i < outputs.size(); ++i) {
-    if (req[i] == mxnet::kAddTo) {
-      const auto& element_type = getType(outputs[i].dtype());
-      auto buffer_size =
-          get_buffer_size(outputs[i].shape(), element_type.size());
+    if (req[i] == mxnet::kNullOp) continue;
 
-      void* mxnet_ndarray = outputs[i].storage_handle().dptr;
+    const auto& element_type = getType(outputs[i].dtype());
+    auto buffer_size = get_buffer_size(outputs[i].shape(), element_type.size());
+
+    void* mxnet_ndarray = outputs[i].storage_handle().dptr;
+    if (req[i] == mxnet::kAddTo) {
       void* ngraph_tv = malloc(buffer_size);
       results[i]->read(ngraph_tv, 0, buffer_size);
 
@@ -134,6 +135,9 @@ inline void result_to_NDArray(
         result_plus_NDArray<int64_t>(mxnet_ndarray, ngraph_tv, buffer_size);
 
       free(ngraph_tv);
+    } else {
+      // TODO(adstraw): Add support for kWriteInplace
+      results[i]->read(mxnet_ndarray, 0, buffer_size);
     }
   }
 }
