@@ -92,6 +92,7 @@ class CPUSharedStorageManager final : public StorageManager {
 
  private:
 #if MXNET_USE_NGRAPH == 1
+  // ngraph recommends 64byte alignment (cache line size) for better perf.
   static constexpr size_t alignment_ = 64;
 #else
   static constexpr size_t alignment_ = 16;
