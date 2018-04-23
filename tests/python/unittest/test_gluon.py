@@ -25,6 +25,7 @@ from nose.tools import raises
 from copy import deepcopy
 import warnings
 import json
+import unittest
 
 
 @with_seed()

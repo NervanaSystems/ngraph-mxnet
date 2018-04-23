@@ -50,7 +50,7 @@ run_MLP_MNIST() {
     PS2='prompt-more> '
     virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
     source "${venv_dir}/bin/activate"
-    cd python && pip install -e . && cd ../
+    cd python && pip install -e . && pip install psutil && cd ../
     xtime="$(date)"
     echo  ' '
     echo  "===== Running Ngraph Mxnet Daily Validation on CPU-Backend at ${xtime} ====="
@@ -77,7 +77,7 @@ run_RESNET110_CIFAR10() {
     PS2='prompt-more> '
     virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
     source "${venv_dir}/bin/activate"
-    cd python && pip install -e . && cd ../
+    cd python && pip install -e . && pip install psutil && cd ../
     xtime="$(date)"
     echo  ' '
     echo  "===== Running Ngraph Mxnet Daily Validation on CPU-Backend at ${xtime} ====="
