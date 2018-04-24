@@ -14,12 +14,12 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "ngraph_utils.h"
-
-#include <algorithm>
 #include <stdexcept>
 
+#include <algorithm>
 #include <ngraph/serializer.hpp>
+
+#include "ngraph_utils.h"
 #include "nnvm/tuple.h"
 
 using namespace std;

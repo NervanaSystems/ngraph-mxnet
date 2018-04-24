@@ -76,6 +76,24 @@ inline TensorViewVector make_ngraph_placeholders(
   return out;
 }
 
+// creates and returns vector of TensorViews for corresponding NDArrays
+// reuses NDArray memory for each TensorView if req is not kAddTo
+inline TensorViewVector get_tensor_views(
+    const std::vector<mxnet::NDArray>& ndarrays,
+    std::shared_ptr<ngraph::runtime::Backend> backend,
+    const std::vector<mxnet::OpReqType>* req = nullptr) {
+  TensorViewVector out;
+  for (size_t i = 0; i < ndarrays.size(); ++i) {
+    auto shape = TShape_to_NShape(ndarrays[i].shape());
+    const auto& element_type = getType(ndarrays[i].dtype());
+    if ((req != nullptr) && ((*req)[i] == mxnet::kAddTo))
+      out.push_back(backend->create_tensor(element_type, shape));
+    else
+      out.push_back(backend->create_tensor(
+          element_type, shape, ndarrays[i].storage_handle().dptr));
+  }
+  return out;
+}
 template <class T>
 inline void result_plus_NDArray(void* mxnet_ptr, void* ngraph_ptr,
                                 size_t buffer_size) {
