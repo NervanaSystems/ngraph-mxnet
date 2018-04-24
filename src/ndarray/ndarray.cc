@@ -118,6 +118,10 @@ NDArray::Chunk::~Chunk() {
   // We want to delete mkldnn memory after deleting the variable.
   mem.mem = this->mkl_mem_;
 #endif
+#if MXNET_USE_NGRAPH == 1
+  // invalidate tensor_view
+  this->tensor_view_ = nullptr;
+#endif
   Engine::Get()->DeleteVariable([mem, skip_free](RunContext s) {
     if (skip_free == false) {
 #if MXNET_USE_MKLDNN == 1
