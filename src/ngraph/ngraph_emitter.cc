@@ -497,7 +497,22 @@ void Emitter::CreateBinaryOps() {
     NgraphNodePtr left = op_map_[node->inputs_[0]];
     NgraphNodePtr right = op_map_[node->inputs_[1]];
     auto args = dot_transpose(node, left, right);
-    return std::make_shared<ngraph::op::Dot>(args.first, args.second, 1);
+
+    const NgraphNodePtr dot =
+      std::make_shared<ngraph::op::Dot>(args.first, args.second, 1);
+    const size_t dot_rank = dot->get_shape().size();
+
+    // A scalar value in nGraph has shape {}, but in MXnet it has shape {1}...
+    NgraphNodePtr dot_shaped;
+    if (dot_rank == 0) {
+      ngraph::AxisVector input_order{};
+      ngraph::Shape output_shape{1};
+      dot_shaped = std::make_shared<ngraph::op::Reshape>(dot, input_order, output_shape);
+    } else {
+      dot_shaped = dot;
+    }
+
+    return dot_shaped;
   };
   ngraph_op_funcs_["batch_dot"] = [this, dot_transpose](const NodePtr& node) {
     NgraphNodePtr left = op_map_[node->inputs_[0]];
