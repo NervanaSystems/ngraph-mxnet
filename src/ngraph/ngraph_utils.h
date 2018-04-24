@@ -39,7 +39,7 @@ static const bool ngraph_gluon_enable =
 // logging
 static const bool ngraph_log_verbose =
     dmlc::GetEnv("MXNET_NGRAPH_VERBOSE", false);
-static const bool rfile.ci.mxnetngraph_log_graph =
+static const bool ngraph_log_graph =
     dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_GRAPH", false);
 static const bool ngraph_log_viz =
     dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_VIZ", false);
