@@ -89,8 +89,8 @@ inline TensorViewVector get_tensor_views(
     if ((req != nullptr) && ((*req)[i] == mxnet::kAddTo))
       out.push_back(backend->create_tensor(element_type, shape));
     else
-      out.push_back(backend->create_tensor(
-          element_type, shape, ndarrays[i].storage_handle().dptr));
+      out.push_back(
+          const_cast<mxnet::NDArray&>(ndarrays[i]).create_tensor_view());
   }
   return out;
 }
