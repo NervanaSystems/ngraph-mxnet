@@ -33,14 +33,18 @@
 namespace ngraph_bridge {
 
 // enable ngraph gluon at runtime.
-const bool ngraph_gluon_enable = dmlc::GetEnv("MXNET_NGRAPH_GLUON", false);
+static const bool ngraph_gluon_enable =
+    dmlc::GetEnv("MXNET_NGRAPH_GLUON", false);
 
 // logging
-const bool ngraph_log_verbose = dmlc::GetEnv("MXNET_NGRAPH_VERBOSE", false);
-const bool ngraph_log_graph = dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_GRAPH", false);
-const bool ngraph_log_viz = dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_VIZ", false);
-const bool ngraph_log_timer = dmlc::GetEnv("MXNET_NGRAPH_TIMER", false);
-const bool ngraph_log_verbose_detail =
+static const bool ngraph_log_verbose =
+    dmlc::GetEnv("MXNET_NGRAPH_VERBOSE", false);
+static const bool ngraph_log_graph =
+    dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_GRAPH", false);
+static const bool ngraph_log_viz =
+    dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_VIZ", false);
+static const bool ngraph_log_timer = dmlc::GetEnv("MXNET_NGRAPH_TIMER", false);
+static const bool ngraph_log_verbose_detail =
     dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_DETAIL", false);
 
 // simple timer for sequential blocks of code

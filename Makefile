@@ -85,7 +85,7 @@ include $(TPARTYDIR)/mshadow/make/mshadow.mk
 include $(DMLC_CORE)/make/dmlc.mk
 
 # all tge possible warning tread
-WARNFLAGS= -Wall -Wsign-compare
+WARNFLAGS= -Wall -Wsign-compare  -Wno-comment
 CFLAGS = -DMSHADOW_FORCE_STREAM $(WARNFLAGS)
 
 ifeq ($(DEV), 1)

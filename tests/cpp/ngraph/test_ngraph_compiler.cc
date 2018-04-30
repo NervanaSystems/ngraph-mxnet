@@ -53,7 +53,6 @@ TEST_F(NGRAPH_COMPILER, COPIED_INPUTS) {
 
 TEST_F(NGRAPH_COMPILER, COPIED_FEED_DICT) {
   testCompiler test(nnvm_graph, feed_dict, inputs, *bindarg);
-  const auto& idx = test.graph_.indexed_graph();
 
   auto out_feed_dict = test.GetFeedDict();
   for (auto kv : feed_dict) {
