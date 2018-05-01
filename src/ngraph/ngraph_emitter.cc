@@ -254,8 +254,6 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["tan"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Tan>(op_map_[node->inputs_[0]]);
   };
-  // TODO(mbrookhart): Arc trig autodiff not implemented
-  /*
   ngraph_op_funcs_["arcsin"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Asin>(op_map_[node->inputs_[0]]);
   };
@@ -265,7 +263,6 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["arctan"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Atan>(op_map_[node->inputs_[0]]);
   };
-  */
   ngraph_op_funcs_["sinh"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Sinh>(op_map_[node->inputs_[0]]);
   };
