@@ -159,7 +159,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
       aux_req.push_back(mxnet::kWriteTo);
     }
 
-    //result_to_NDArray(graph->cached_aux_values[mode], aux_req, aux_outs);
+    result_to_NDArray(graph->cached_aux_values[mode], aux_req, aux_outs);
   }
 }
 
