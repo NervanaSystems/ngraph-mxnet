@@ -77,7 +77,7 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
 
   for (size_t i = 0; i < sub_graph->num_outputs_; ++i)
     f_copy->get_results()[i]->set_needs_default_layout(true);
-  
+
   backend->compile(f_copy);
 
   for (auto result : f->get_results()) {
@@ -91,13 +91,11 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
     }
   }
 
-  for (auto res : bf_copy->get_results())
-    res->set_needs_default_layout(true);
+  for (auto res : bf_copy->get_results()) res->set_needs_default_layout(true);
   backend->compile(bf_copy);
 
   sub_graph->ngraph_forward[mode] = f_copy;
   sub_graph->ngraph_backward[mode] = bf_copy;
-  
 }
 
 void OptimizeGraph(std::shared_ptr<Graph> sub_graph,

@@ -129,7 +129,7 @@ TEST(NGRAPH_NNVM, copy_NDArrays) {
   // test 2: kAddTo - vec4 += vec2
   std::vector<mxnet::OpReqType> req{mxnet::kWriteTo, mxnet::kAddTo};
   result_to_NDArray(placeholders, req, outblobs);
-  // TODO (mbrookhart): Renable this tests when we have 
+  // TODO(mbrookhart): Renable this tests when we have
   // per-NDArray memory sharing information
   // EXPECT_EQ(vec1, vec3);
   std::vector<float> vec4_plus_vec2{12, 13, 14, 15, 16, 17, 18, 19, 20, 11};
