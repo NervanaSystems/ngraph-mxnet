@@ -496,7 +496,7 @@ void Emitter::CreateBinaryOps() {
     auto args = dot_transpose(node, left, right);
 
     const NgraphNodePtr dot =
-      std::make_shared<ngraph::op::Dot>(args.first, args.second, 1);
+        std::make_shared<ngraph::op::Dot>(args.first, args.second, 1);
     const size_t dot_rank = dot->get_shape().size();
 
     // A scalar value in nGraph has shape {}, but in MXnet it has shape {1}...
@@ -504,7 +504,8 @@ void Emitter::CreateBinaryOps() {
     if (dot_rank == 0) {
       ngraph::AxisVector input_order{};
       ngraph::Shape output_shape{1};
-      dot_shaped = std::make_shared<ngraph::op::Reshape>(dot, input_order, output_shape);
+      dot_shaped =
+          std::make_shared<ngraph::op::Reshape>(dot, input_order, output_shape);
     } else {
       dot_shaped = dot;
     }
@@ -997,18 +998,16 @@ void Emitter::CreateLayerOps() {
     // autodifferentiation (as with training).
     //----------------------------------------------------------------------------------------------
     if ((exe_mode_ == GraphExeMode::kTrain) && (use_global_stats)) {
-      // FIXME: We suspect there's a bug in the gradient calculations performed by this version of
-      // nGraph's BatchNorm operator. So for now we'll avoid using it.  -cconvey 2018-04-12.
+      // FIXME: We suspect there's a bug in the gradient calculations performed
+      // by this version of
+      // nGraph's BatchNorm operator. So for now we'll avoid using it.  -cconvey
+      // 2018-04-12.
       // if (ngraph_bn_op_available) {
       if (false) {
-        const NgraphNodePtr ng_normalized_data = std::make_shared<ngraph::op::BatchNorm>(
-            eps,
-            ng_actual_gamma,
-            ng_in_beta,
-            ng_in_data,
-            ng_in_moving_mean,
-            ng_in_moving_var,
-            true);
+        const NgraphNodePtr ng_normalized_data =
+            std::make_shared<ngraph::op::BatchNorm>(
+                eps, ng_actual_gamma, ng_in_beta, ng_in_data, ng_in_moving_mean,
+                ng_in_moving_var, true);
 
         return ng_normalized_data;
       } else {
@@ -1031,14 +1030,10 @@ void Emitter::CreateLayerOps() {
     //----------------------------------------------------------------------------------------------
     if (exe_mode_ == GraphExeMode::kInfer) {
       if (ngraph_bn_op_available) {
-        const NgraphNodePtr ng_normalized_data = std::make_shared<ngraph::op::BatchNorm>(
-            eps,
-            ng_actual_gamma,
-            ng_in_beta,
-            ng_in_data,
-            ng_in_moving_mean,
-            ng_in_moving_var,
-            false);
+        const NgraphNodePtr ng_normalized_data =
+            std::make_shared<ngraph::op::BatchNorm>(
+                eps, ng_actual_gamma, ng_in_beta, ng_in_data, ng_in_moving_mean,
+                ng_in_moving_var, false);
 
         return ng_normalized_data;
       } else {
