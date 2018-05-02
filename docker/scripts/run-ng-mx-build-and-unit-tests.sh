@@ -101,7 +101,7 @@ xtime="$(date)"
 echo  ' '
 echo  "===== Running unit test  at ${xtime} ====="
 echo  ' '
-cd "$HOME/ng-mx/
+cd "$HOME/ng-mx/"
 PS1='prompt> '
 PS2='prompt-more> '
 virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
