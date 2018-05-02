@@ -186,6 +186,10 @@ class Compiler {
            const mxnet::Context& context);
   // Construct base compiler object with context only
   Compiler(const mxnet::Context& context);
+  // Constructor for use with gluon hybridize
+  Compiler(const nnvm::Graph& graph, const mxnet::Context& context,
+           const std::vector<nnvm::TShape> shapes,
+           const std::vector<int> dtypes, const std::vector<int> stypes);
   // Compile returns the compiled graph
   nnvm::Graph Compile();
   // parse the nnvm graph into an intermediate represenation
@@ -242,6 +246,8 @@ class Compiler {
   void Infer(const BindArg* bind);
   // infer nnvm::Graph shape and type for simple bind case
   void Infer(const SimpleBindArg* simplebind);
+  // infer nnvm::Graph shape and type for simple bind case
+  void InferGraphProperties();
 
   // inferred nnvm::Graph shape
   nnvm::ShapeVector shapes_;

@@ -142,6 +142,9 @@ class Imperative {
     nnvm::Graph fwd_graph_;
     nnvm::Graph grad_graph_;
     nnvm::Graph full_graph_;
+#if MXNET_USE_NGRAPH == 1
+    nnvm::Graph ngraph_fwd_graph_;
+#endif
     bool inlining_;
     std::vector<nnvm::NodeEntry> ograd_entries_;
     std::vector<bool> curr_grad_req_;

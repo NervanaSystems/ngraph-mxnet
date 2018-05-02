@@ -19,6 +19,9 @@
 #include <unordered_set>
 #include <iostream>
 #include "./imperative_utils.h"
+#if MXNET_USE_NGRAPH == 1
+#include "../ngraph/ngraph_compiler.h"
+#endif
 
 namespace mxnet {
 
@@ -196,6 +199,12 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
     storage_type_inputs.emplace_back(inputs[i]->storage_type());
   }
 
+#if MXNET_USE_NGRAPH == 1
+  auto cached_shape_inputs = shape_inputs;
+  auto cached_dtype_inputs = dtype_inputs;
+  auto cached_storage_type_inputs = storage_type_inputs;
+#endif
+
   bool match = true;
   match &= CheckAndInferShape(&g, std::move(shape_inputs), true);
   match &= CheckAndInferType(&g, std::move(dtype_inputs), true);
@@ -206,9 +215,49 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
   if (!match) {
     g.attrs.erase("forward_mem_plan");
     g.attrs.erase("full_mem_plan");
+
   } else if (g.attrs.count(recording ? "full_mem_plan" : "forward_mem_plan")) {
+#if MXNET_USE_NGRAPH == 1
+    return ngraph_fwd_graph_;
+#else
     return g;
+#endif
   }
+
+#if MXNET_USE_NGRAPH == 1
+  {
+    ngraph_bridge::BindArgBase bind(num_inputs());
+    nnvm::Symbol symbol;
+    symbol.outputs = g.outputs;
+    auto compiler = ngraph_bridge::Compiler(
+        g, inputs[0]->ctx(), cached_shape_inputs, cached_dtype_inputs,
+        cached_storage_type_inputs);
+
+    ngraph_fwd_graph_ = compiler.Compile();
+    CheckAndInferShape(&ngraph_fwd_graph_, std::move(cached_shape_inputs),
+                       true);
+    CheckAndInferType(&ngraph_fwd_graph_, std::move(cached_dtype_inputs), true);
+    exec::DevMaskVector cached_dev_mask(
+        ngraph_fwd_graph_.indexed_graph().num_nodes(),
+        inputs[0]->ctx().dev_mask());
+    CheckAndInferStorageType(&ngraph_fwd_graph_, std::move(cached_dev_mask),
+                             std::move(cached_storage_type_inputs), true);
+
+    const auto& idx = ngraph_fwd_graph_.indexed_graph();
+
+    std::vector<uint32_t> ref_count(idx.num_node_entries(), 0);
+    for (const auto& i : idx.input_nodes()) ++ref_count[idx.entry_id(i, 0)];
+    for (const auto& i : idx.outputs()) ++ref_count[idx.entry_id(i)];
+    for (size_t i = 0; i < idx.num_nodes(); ++i) {
+      for (const auto& j : idx[i].inputs) ++ref_count[idx.entry_id(j)];
+    }
+
+    ngraph_fwd_graph_.attrs["forward_ref_count"] =
+        std::make_shared<dmlc::any>(std::move(ref_count));
+
+    g = ngraph_fwd_graph_;
+  }
+#endif
 
   const auto& idx = g.indexed_graph();
 

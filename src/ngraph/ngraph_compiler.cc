@@ -113,6 +113,19 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
 Compiler::Compiler(const mxnet::Context& context)
     : ngraph_("ngraph_" + randomString(6), context, false) {}
 
+// Compiler initialization for gluon hybrid
+Compiler::Compiler(const nnvm::Graph& graph, const mxnet::Context& context,
+                   const std::vector<nnvm::TShape> shapes,
+                   const std::vector<int> dtypes, const std::vector<int> stypes)
+    : ngraph_("ngraph_" + randomString(6), context),
+      shapes_(shapes),
+      dtypes_(dtypes),
+      stypes_(stypes) {
+  DeepCopy(graph);
+  graph_.attrs["context"] = std::make_shared<nnvm::any>(
+      mxnet::exec::ContextVector(graph_.indexed_graph().num_nodes(), context));
+  ProcessGraph({});
+}
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                    const NNVMNodeVec& inputs, const BindArgBase& bindbase,
@@ -417,7 +430,7 @@ void Compiler::CheckInNgraph() {
       }
     }
   }
-  for (const auto & name : unsupported_op_names) {
+  for (const auto& name : unsupported_op_names) {
     std::cout << "NGRAPH_BRIDGE: Unsupported Op: " << name << std::endl;
   }
 }
