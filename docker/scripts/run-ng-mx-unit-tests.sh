@@ -20,7 +20,7 @@ set -u
 
 cd "$HOME/ng-mx"
 
-cd python && sudo -E pip install -e . && cd ../
+cd python && pip install -e . && cd ../
 
 ### tests/python/unittest/ 
 
