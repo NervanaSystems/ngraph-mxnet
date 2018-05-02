@@ -137,7 +137,7 @@ inline void result_to_NDArray(
       free(ngraph_tv);
     } else {
       // TODO(adstraw): Add support for kWriteInplace
-      results[i]->read(mxnet_ndarray, 0, buffer_size);
+      // results[i]->read(mxnet_ndarray, 0, buffer_size);
     }
   }
 }

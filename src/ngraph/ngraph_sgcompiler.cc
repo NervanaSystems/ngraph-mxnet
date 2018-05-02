@@ -75,6 +75,9 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
     dump_graph(bf_copy, __func__, "bprop");
   }
 
+  for (size_t i = 0; i < sub_graph->num_outputs_; ++i)
+    f_copy->get_results()[i]->set_needs_default_layout(true);
+
   backend->compile(f_copy);
 
   for (auto result : f->get_results()) {
@@ -87,19 +90,12 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
       cloned_bf_param->get_output_tensor_view()->set_tensor_view_layout(layout);
     }
   }
+
+  for (auto res : bf_copy->get_results()) res->set_needs_default_layout(true);
   backend->compile(bf_copy);
 
   sub_graph->ngraph_forward[mode] = f_copy;
   sub_graph->ngraph_backward[mode] = bf_copy;
-  // TODO(aemani): enable default layout when ngraph api adds it
-#if 0
-  if (mode == GraphExeMode::kInfer) {
-    for (auto res : sub_graph->ngraph_forward[mode]->get_results())
-      res->set_needs_default_layout(true);
-  }
-  for (auto res : sub_graph->ngraph_backward[mode]->get_results())
-    res->set_needs_default_layout(true);
-#endif
 }
 
 void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
