@@ -227,8 +227,6 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
 #if MXNET_USE_NGRAPH == 1
   {
     ngraph_bridge::BindArgBase bind(num_inputs());
-    nnvm::Symbol symbol;
-    symbol.outputs = g.outputs;
     auto compiler = ngraph_bridge::Compiler(
         g, inputs[0]->ctx(), cached_shape_inputs, cached_dtype_inputs,
         cached_storage_type_inputs);

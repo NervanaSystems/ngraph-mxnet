@@ -246,8 +246,6 @@ class Compiler {
   void Infer(const BindArg* bind);
   // infer nnvm::Graph shape and type for simple bind case
   void Infer(const SimpleBindArg* simplebind);
-  // infer nnvm::Graph shape and type for simple bind case
-  void InferGraphProperties();
 
   // inferred nnvm::Graph shape
   nnvm::ShapeVector shapes_;
