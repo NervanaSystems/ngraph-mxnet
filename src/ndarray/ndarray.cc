@@ -731,7 +731,9 @@ std::shared_ptr<ngraph::runtime::TensorView> &NDArray::get_tensor_view() {
   return ptr_->tensor_view_;
 }
 std::shared_ptr<ngraph::runtime::TensorView> &NDArray::create_tensor_view() {
-  if (ptr_->tensor_view_ == nullptr) {
+  if (ptr_->tensor_view_ == nullptr ||
+      ptr_->tensor_view_->get_shape() !=
+          ngraph_bridge::TShape_to_NShape(shape_)) {
     auto backend = ngraph_bridge::GetBackendFromContext(ctx());
     CHECK(backend != nullptr);
     ptr_->tensor_view_ = backend->create_tensor(
