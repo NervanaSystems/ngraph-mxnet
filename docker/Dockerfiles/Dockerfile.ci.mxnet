@@ -1,3 +1,4 @@
+
 # *******************************************************************************
 # * Copyright 2018 Intel Corporation
 # *
@@ -59,13 +60,15 @@ RUN pip install numpy
 
 # We include psutil
 RUN pip install psutil
+RUN pip3 install psutil
 
 # We include pytest
 RUN pip install --upgrade pytest
-#RUN pip3 install virtualenv pytest
+RUN pip3 install virtualenv pytest
 
 # We include pytest-xdist to speed up the testing
 RUN pip install pytest-xdist
+RUN pip3 install pytest-xdist
 
 # Copy in the run-as-user.sh script
 # This will allow the builds, which are done in a mounted directory, to
