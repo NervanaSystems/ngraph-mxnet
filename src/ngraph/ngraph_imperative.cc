@@ -131,6 +131,8 @@ void InitImperativeOnce() {
       nnvm::Op::GetAttr<mxnet::FComputeEx>("FComputeEx<cpu>");
   static auto &fcompute_cpu =
       nnvm::Op::GetAttr<mxnet::FCompute>("FCompute<cpu>");
+  static auto &ndfunc =
+      nnvm::Op::GetAttr<mxnet::FNDArrayFunction>("FNDArrayFunction");
 
   for (auto unique_op : dmlc::Registry<nnvm::Op>::List()) {
     auto op_name = unique_op->name;
@@ -139,7 +141,8 @@ void InitImperativeOnce() {
     if ((op_name.substr(0, 9) == "_backward") ||
         !NGImperative::check_op_supported(op_name)) {
       if (ngraph_log_verbose_detail)
-        std::cout << "ngraph_imperative: skipping op -> " << op_name << std::endl;
+        std::cout << "NGRAPH IMPERATIVE: skipping op -> " << op_name
+                  << std::endl;
       continue;
     }
 
@@ -149,9 +152,24 @@ void InitImperativeOnce() {
     // save default mxnet compute kernel for fallback
     auto fallbackx_fn = fcomputex_cpu.get(&op, nullptr);
     auto fallback_fn = fcompute_cpu.get(&op, nullptr);
+    auto fallback_nd = ndfunc.get(&op, nullptr);
 
     // use ngraph immperative, only if fallback available.
-    if (fallbackx_fn) {
+    if (fallback_nd) {
+      op.set_attr<mxnet::FNDArrayFunction>(
+          "FNDArrayFunction",
+          [fallback_nd](const nnvm::NodeAttrs &attrs,
+                        const std::vector<mxnet::NDArray> &inputs,
+                        std::vector<mxnet::NDArray> *outputs) -> void {
+            const std::vector<mxnet::OpReqType> req(outputs->size());
+            if (!compute_forward_imperative(attrs, mxnet::OpContext(), inputs,
+                                            req, *outputs)) {
+              // use default mxnet compute kernel
+              fallback_nd(attrs, inputs, outputs);
+            }
+          },
+          11);
+    } else if (fallbackx_fn) {
       op.set_attr<mxnet::FComputeEx>(
           "FComputeEx<cpu>",
           [fallbackx_fn](const nnvm::NodeAttrs &attrs,
@@ -183,6 +201,11 @@ void InitImperativeOnce() {
             }
           },
           11);
+    } else {
+      if (ngraph_log_verbose_detail) {
+        std::cout << "NGRAPH IMPERATIVE: not implemented -> " << op_name
+                  << std::endl;
+      }
     }
   }
 }
