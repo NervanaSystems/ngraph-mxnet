@@ -120,10 +120,8 @@ PS1='prompt> '
 PS2='prompt-more> '
 virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
 source "${venv_dir}/bin/activate"
-cd python && pip install -e . && pip install psutil && cd ../
-#cd "$HOME/ng-mx/docker/scripts/"
-python example/image-classification/train_mnist.py 
-#./run-ng-mx-unit-tests.sh 2>&1 | tee ../mx-tests.log
+cd "$HOME/ng-mx/docker/scripts/"
+./run-ng-mx-unit-tests.sh 2>&1 | tee ../mx-tests.log
 echo "===== Unit Tests Pipeline Exited with $? ====="
 
 xtime="$(date)"
