@@ -22,6 +22,12 @@ cd "$HOME/ng-mx"
 
 cd python && pip install -e . && cd ../
 
+echo ${PYTHON_BIN_PATH}
+
+echo `pip list`
+
+python -c 'import sys; print (sys.real_prefix)' 2>/dev/null && INVENV=1 || INVENV=0
+
 ### tests/python/unittest/ 
 
 ## Unit tests test_metric.py
