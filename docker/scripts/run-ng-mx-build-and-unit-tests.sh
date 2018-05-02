@@ -27,6 +27,7 @@ set -u  # No unset variables
 # be added.
 export PYTHON_VERSION_NUMBER=2
 export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
+export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
 
 # We don't need ccache because we are building in a (fresh) docker container
 export BUILD_MX_WITH_CCACHE=0
@@ -96,12 +97,17 @@ export PIP_INSTALL_EXTRA_ARGS="--proxy=$http_proxy --proxy=$https_proxy"
 ./build-install-mx.sh 2>&1 | tee ../mx-build.log
 echo "===== Build & Install Pipeline Exited with $? and endtime ${xtime} ===="
 
-cd "$HOME/ng-mx/docker/scripts/"
-
 xtime="$(date)"
 echo  ' '
 echo  "===== Running unit test  at ${xtime} ====="
 echo  ' '
+cd "$HOME/ng-mx/
+PS1='prompt> '
+PS2='prompt-more> '
+virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
+source "${venv_dir}/bin/activate"
+cd python && pip install -e . && pip install psutil && cd ../
+cd "$HOME/ng-mx/docker/scripts/"
 ./run-ng-mx-unit-tests.sh 2>&1 | tee ../mx-tests.log
 echo "===== Unit Tests Pipeline Exited with $? ====="
 
