@@ -97,6 +97,20 @@ export PIP_INSTALL_EXTRA_ARGS="--proxy=$http_proxy --proxy=$https_proxy"
 ./build-install-mx.sh 2>&1 | tee ../mx-build.log
 echo "===== Build & Install Pipeline Exited with $? and endtime ${xtime} ===="
 
+# ----- Sanity Checks ----------------------------------------------------------
+
+if [ ! -f "$LD_LIBRARY_PATH/libngraph.so" ] ; then
+  ( >&2 echo "FATAL ERROR: libngraph.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
+  exit 1
+fi
+
+if [ ! -f "$LD_LIBRARY_PATH/libmkldnn.so" ] ; then
+  ( >&2 echo "FATAL ERROR: libmkldnn.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
+  exit 1
+fi
+
+# --------------------------------------------------------------------------------
+
 xtime="$(date)"
 echo  ' '
 echo  "===== Running unit test  at ${xtime} ====="
@@ -108,7 +122,8 @@ virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
 source "${venv_dir}/bin/activate"
 cd python && pip install -e . && pip install psutil && cd ../
 cd "$HOME/ng-mx/docker/scripts/"
-./run-ng-mx-unit-tests.sh 2>&1 | tee ../mx-tests.log
+python example/image-classification/train_mnist.py 
+#./run-ng-mx-unit-tests.sh 2>&1 | tee ../mx-tests.log
 echo "===== Unit Tests Pipeline Exited with $? ====="
 
 xtime="$(date)"
