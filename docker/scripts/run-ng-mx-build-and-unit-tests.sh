@@ -121,6 +121,9 @@ PS2='prompt-more> '
 virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
 source "${venv_dir}/bin/activate"
 cd "$HOME/ng-mx/docker/scripts/"
+export PYTHON_VERSION_NUMBER=2
+export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
+export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
 ./run-ng-mx-unit-tests.sh 2>&1 | tee ../mx-tests.log
 echo "===== Unit Tests Pipeline Exited with $? ====="
 
