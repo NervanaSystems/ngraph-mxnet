@@ -23,6 +23,7 @@ cd "$HOME/ng-mx"
 cd python && pip install -e . && cd ../
 
 pip install pytest
+pip install pytest-xdist
 
 ### tests/python/unittest/ 
 
