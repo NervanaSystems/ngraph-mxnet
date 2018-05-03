@@ -218,14 +218,13 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
 
   } else if (g.attrs.count(recording ? "full_mem_plan" : "forward_mem_plan")) {
 #if MXNET_USE_NGRAPH == 1
-    return ngraph_fwd_graph_;
-#else
-    return g;
+    if (!recording) return ngraph_fwd_graph_;
 #endif
+    return g;
   }
 
 #if MXNET_USE_NGRAPH == 1
-  {
+  if (!recording) {
     ngraph_bridge::BindArgBase bind(num_inputs());
     auto compiler = ngraph_bridge::Compiler(
         g, inputs[0]->ctx(), cached_shape_inputs, cached_dtype_inputs,
@@ -251,8 +250,7 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
     }
 
     ngraph_fwd_graph_.attrs["forward_ref_count"] =
-        std::make_shared<dmlc::any>(std::move(ref_count));
-
+        std::make_shared<dmlc::any>(ref_count);
     g = ngraph_fwd_graph_;
   }
 #endif
