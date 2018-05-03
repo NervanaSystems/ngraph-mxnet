@@ -24,6 +24,7 @@ cd python && pip install -e . && cd ../
 
 pip install pytest
 pip install pytest-xdist
+pip install nose
 
 ### tests/python/unittest/ 
 
