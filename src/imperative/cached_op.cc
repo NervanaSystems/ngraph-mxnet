@@ -212,19 +212,22 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
   match &= CheckAndInferStorageType(&g, std::move(dev_mask),
                                     std::move(storage_type_inputs), true);
 
+#if MXNET_USE_NGRAPH == 1
+    if (!recording) {
+      match &= ngraph_fwd_graph_.attrs.count("forward_mem_plan");
+      g = ngraph_fwd_graph_;
+    };
+#endif
+
   if (!match) {
     g.attrs.erase("forward_mem_plan");
     g.attrs.erase("full_mem_plan");
-
   } else if (g.attrs.count(recording ? "full_mem_plan" : "forward_mem_plan")) {
-#if MXNET_USE_NGRAPH == 1
-    if (!recording) return ngraph_fwd_graph_;
-#endif
     return g;
   }
 
 #if MXNET_USE_NGRAPH == 1
-  if (!recording) {
+  if (!recording) {  
     ngraph_bridge::BindArgBase bind(num_inputs());
     auto compiler = ngraph_bridge::Compiler(
         g, inputs[0]->ctx(), cached_shape_inputs, cached_dtype_inputs,
@@ -251,7 +254,6 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
 
     ngraph_fwd_graph_.attrs["forward_ref_count"] =
         std::make_shared<dmlc::any>(ref_count);
-    g = ngraph_fwd_graph_;
   }
 #endif
 
