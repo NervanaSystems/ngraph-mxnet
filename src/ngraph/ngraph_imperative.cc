@@ -87,68 +87,125 @@ void NGImperative::parse_ngraph() {
     }
 }
 
+bool compute_forward_imperative(const nnvm::NodeAttrs &attrs,
+                                const mxnet::OpContext &ctx,
+                                const std::vector<mxnet::NDArray> &inputs,
+                                const std::vector<mxnet::OpReqType> &req,
+                                const std::vector<mxnet::NDArray> &outputs) {
+  std::shared_ptr<Graph> op_ng;
+  int mode = static_cast<int>(GraphExeMode::kInfer);
+  if (!sparse_check(inputs) && !sparse_check(outputs)) {
+    // thread local cache for ngraph op
+    static thread_local NGIOpCache ngicache;
+    auto op_key = get_ngiop_key(attrs, ctx.run_ctx.ctx, inputs);
+    op_ng = ngicache[op_key];
+    if (!op_ng) {
+      NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
+      op_ng = ngicache[op_key] = ngi.get_op_ngraph();
+      if (ngraph_log_verbose && op_ng)
+        LOG(INFO) << "Caching... " << attrs.op->name;
+    }
+    if (ctx.is_train) {
+      mode = static_cast<int>(GraphExeMode::kTrain);
+    }
+  }
+  if (op_ng && op_ng->ngraph_forward[mode]) {
+    compute_forward(ctx, op_ng, inputs, req, outputs);
+
+    if (ngraph_log_verbose_detail) {
+      LOG(INFO) << "ngraph imperative op: " << attrs.op->name << ", inputs "
+                << std::to_string(inputs.size()) << ", outputs "
+                << std::to_string(outputs.size());
+
+      for (const auto &m : attrs.dict)
+        LOG(INFO) << "attrs.dict[" << m.first << "] = " << m.second;
+    }
+    return true;
+  }
+  return false;
+}
+
 // Registers ngraph operators with nnvm
 void InitImperativeOnce() {
-  static auto &fcompute_cpu =
+  static auto &fcomputex_cpu =
       nnvm::Op::GetAttr<mxnet::FComputeEx>("FComputeEx<cpu>");
+  static auto &fcompute_cpu =
+      nnvm::Op::GetAttr<mxnet::FCompute>("FCompute<cpu>");
+  static auto &ndfunc =
+      nnvm::Op::GetAttr<mxnet::FNDArrayFunction>("FNDArrayFunction");
 
   for (auto unique_op : dmlc::Registry<nnvm::Op>::List()) {
     auto op_name = unique_op->name;
 
     // skip ops not supported by ngraph imperative
     if ((op_name.substr(0, 9) == "_backward") ||
-        !NGImperative::check_op_supported(op_name))
+        !NGImperative::check_op_supported(op_name)) {
+      if (ngraph_log_verbose_detail)
+        std::cout << "NGRAPH IMPERATIVE: skipping op -> " << op_name
+                  << std::endl;
       continue;
+    }
 
     nnvm::Op &op =
         ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(op_name);
 
     // save default mxnet compute kernel for fallback
+    auto fallbackx_fn = fcomputex_cpu.get(&op, nullptr);
     auto fallback_fn = fcompute_cpu.get(&op, nullptr);
+    auto fallback_nd = ndfunc.get(&op, nullptr);
 
     // use ngraph immperative, only if fallback available.
-    if (fallback_fn) {
+    if (fallback_nd) {
+      op.set_attr<mxnet::FNDArrayFunction>(
+          "FNDArrayFunction",
+          [fallback_nd](const nnvm::NodeAttrs &attrs,
+                        const std::vector<mxnet::NDArray> &inputs,
+                        std::vector<mxnet::NDArray> *outputs) -> void {
+            const std::vector<mxnet::OpReqType> req(outputs->size());
+            if (!compute_forward_imperative(attrs, mxnet::OpContext(), inputs,
+                                            req, *outputs)) {
+              // use default mxnet compute kernel
+              fallback_nd(attrs, inputs, outputs);
+            }
+          },
+          11);
+    } else if (fallbackx_fn) {
       op.set_attr<mxnet::FComputeEx>(
           "FComputeEx<cpu>",
+          [fallbackx_fn](const nnvm::NodeAttrs &attrs,
+                         const mxnet::OpContext &ctx,
+                         const std::vector<mxnet::NDArray> &inputs,
+                         const std::vector<mxnet::OpReqType> &req,
+                         const std::vector<mxnet::NDArray> &outputs) -> void {
+            if (!compute_forward_imperative(attrs, ctx, inputs, req, outputs)) {
+              // use default mxnet compute kernel
+              fallbackx_fn(attrs, ctx, inputs, req, outputs);
+            }
+          },
+          11);
+    } else if (fallback_fn) {
+      op.set_attr<mxnet::FCompute>(
+          "FCompute<cpu>",
           [fallback_fn](const nnvm::NodeAttrs &attrs,
                         const mxnet::OpContext &ctx,
-                        const std::vector<mxnet::NDArray> &inputs,
+                        const std::vector<mxnet::TBlob> &inputs,
                         const std::vector<mxnet::OpReqType> &req,
-                        const std::vector<mxnet::NDArray> &outputs) -> void {
-            std::shared_ptr<Graph> op_ng;
-            int mode = static_cast<int>(GraphExeMode::kInfer);
-            if (!sparse_check(inputs) && !sparse_check(outputs)) {
-              // thread local cache for ngraph op
-              static thread_local NGIOpCache ngicache;
-              auto op_key = get_ngiop_key(attrs, ctx.run_ctx.ctx, inputs);
-              op_ng = ngicache[op_key];
-              if (!op_ng) {
-                NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
-                op_ng = ngicache[op_key] = ngi.get_op_ngraph();
-                if (ngraph_log_verbose() && op_ng)
-                  LOG(INFO) << "Caching... " << attrs.op->name;
-              }
-              if (ctx.is_train) {
-                mode = static_cast<int>(GraphExeMode::kTrain);
-              }
-            }
-            if (op_ng && op_ng->ngraph_forward[mode]) {
-              compute_forward(ctx, op_ng, inputs, req, outputs);
-
-              if (ngraph_log_verbose_detail()) {
-                LOG(INFO) << "ngraph imperative op: " << attrs.op->name
-                          << ", inputs " << std::to_string(inputs.size())
-                          << ", outputs " << std::to_string(outputs.size());
-
-                for (const auto &m : attrs.dict)
-                  LOG(INFO) << "attrs.dict[" << m.first << "] = " << m.second;
-              }
-            } else {
+                        const std::vector<mxnet::TBlob> &outputs) -> void {
+            std::vector<mxnet::NDArray> in;
+            for (auto &i : inputs) in.emplace_back(i, ctx.run_ctx.ctx.dev_id);
+            std::vector<mxnet::NDArray> out;
+            for (auto &i : outputs) out.emplace_back(i, ctx.run_ctx.ctx.dev_id);
+            if (!compute_forward_imperative(attrs, ctx, in, req, out)) {
               // use default mxnet compute kernel
               fallback_fn(attrs, ctx, inputs, req, outputs);
             }
           },
           11);
+    } else {
+      if (ngraph_log_verbose_detail) {
+        std::cout << "NGRAPH IMPERATIVE: not implemented -> " << op_name
+                  << std::endl;
+      }
     }
   }
 }
