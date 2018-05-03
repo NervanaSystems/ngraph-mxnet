@@ -122,7 +122,7 @@ virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
 source "${venv_dir}/bin/activate"
 cd "$HOME/ng-mx/docker/scripts/"
 export PYTHON_BIN_PATH=$PYTHON_BIN_PATH:/tmp/venv_python${PYTHON_VERSION_NUMBER}/bin/python${PYTHON_VERSION_NUMBER}
-eho '${PYTHON_BIN_PATH}'
+echo "The python bin path: ${PYTHON_BIN_PATH}"
 ./run-ng-mx-unit-tests.sh 2>&1 | tee ../mx-tests.log
 echo "===== Unit Tests Pipeline Exited with $? ====="
 
