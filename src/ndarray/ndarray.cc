@@ -44,6 +44,11 @@
 #include <opencv2/opencv.hpp>
 #endif  // MXNET_USE_OPENCV
 
+#if MXNET_USE_NGRAPH == 1
+#include <ngraph/ngraph.hpp>
+#include "../ngraph/ngraph_nnvm_utils.h"
+#endif
+
 namespace dmlc {
 DMLC_REGISTRY_ENABLE(::mxnet::NDArrayFunctionReg);
 }  // namespace dmlc
@@ -102,6 +107,9 @@ struct ChunkMem {
 #if MXNET_USE_MKLDNN == 1
   std::shared_ptr<MKLDNNMemory> mem;
 #endif
+#if MXNET_USE_NGRAPH == 1
+    std::shared_ptr<ngraph::runtime::TensorView> *tensor_view_;
+#endif
 };
 
 NDArray::Chunk::~Chunk() {
@@ -113,6 +121,10 @@ NDArray::Chunk::~Chunk() {
   // We want to delete mkldnn memory after deleting the variable.
   mem.mem = this->mkl_mem_;
 #endif
+#if MXNET_USE_NGRAPH == 1
+  // invalidate tensor_view
+  mem.tensor_view_ = &this->tensor_view_;
+#endif
   Engine::Get()->DeleteVariable([mem, skip_free](RunContext s) {
     if (skip_free == false) {
 #if MXNET_USE_MKLDNN == 1
@@ -122,6 +134,9 @@ NDArray::Chunk::~Chunk() {
       }
 #endif
       if (mem.h.size > 0) Storage::Get()->Free(mem.h);
+#if MXNET_USE_NGRAPH == 1
+      *mem.tensor_view_ = nullptr;
+#endif
       for (size_t i = 0; i < mem.aux_h.size(); i++) {
         if (mem.aux_h[i].size > 0) Storage::Get()->Free(mem.aux_h[i]);
       }
@@ -708,6 +723,24 @@ mkldnn::memory *NDArray::CreateMKLDNNData(const mkldnn::memory::primitive_desc &
   ptr_->mkl_mem_.reset(new MKLDNNMemory(desc, ptr_->shandle.dptr));
   MKLDNNStream::Get()->RegisterMem(ptr_->mkl_mem_->GetMem());
   return ptr_->mkl_mem_->GetRaw();
+}
+#endif
+
+#if MXNET_USE_NGRAPH == 1
+std::shared_ptr<ngraph::runtime::TensorView> &NDArray::get_tensor_view() {
+  return ptr_->tensor_view_;
+}
+std::shared_ptr<ngraph::runtime::TensorView> &NDArray::create_tensor_view() {
+  if (ptr_->tensor_view_ == nullptr ||
+      ptr_->tensor_view_->get_shape() !=
+          ngraph_bridge::TShape_to_NShape(shape_)) {
+    auto backend = ngraph_bridge::GetBackendFromContext(ctx());
+    CHECK(backend != nullptr);
+    ptr_->tensor_view_ = backend->create_tensor(
+        ngraph_bridge::getType(dtype_), ngraph_bridge::TShape_to_NShape(shape_),
+        storage_handle().dptr);
+  }
+  return ptr_->tensor_view_;
 }
 #endif
 
