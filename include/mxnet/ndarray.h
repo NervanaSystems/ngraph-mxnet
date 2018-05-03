@@ -698,7 +698,7 @@ class NDArray {
 #endif
 
 #if MXNET_USE_NGRAPH == 1
-    // create and return tensor_view with this ndarray mem 
+    // create and return tensor_view with this ndarray mem
     std::shared_ptr<ngraph::runtime::TensorView> &create_tensor_view();
     // return tensor_view embedded in this ndarray
     std::shared_ptr<ngraph::runtime::TensorView> &get_tensor_view();
