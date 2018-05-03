@@ -31,6 +31,6 @@ python -c 'import sys; print (sys.real_prefix)' 2>/dev/null && INVENV=1 || INVEN
 ### tests/python/unittest/ 
 
 ## Unit tests test_metric.py
-cmd="OMP_NUM_THREADS=4 pytest -s -n 2 tests/python/unittest/test_metric.py --verbose --capture=no --junit-xml=result_test_metric.xml --junit-prefix=result_test_metric"
+cmd="OMP_NUM_THREADS=4 python -m pytest -s -n 2 tests/python/unittest/test_metric.py --verbose --capture=no --junit-xml=result_test_metric.xml --junit-prefix=result_test_metric"
 eval $cmd
 
