@@ -74,22 +74,26 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     mode = static_cast<int>(GraphExeMode::kTrain);
     graph->forward_train_computed = true;
   }
-  // TODO(mbrookhart): This is a total hack, we need a way to determine
-  // if the values in the shared NDArray/TV memory have been updated
-  if (mode == static_cast<int>(GraphExeMode::kInfer)) {
-    int i = 0;
-    for (auto& tv : placeholders) {
-      if (i > 0) {
-        tv->set_stale(false);
-      }
-      i += 1;
+
+  if (mode == static_cast<int>(GraphExeMode::kTrain)) {
+    for (auto &tv : placeholders) {
+      tv->set_stale(true);
     }
   }
+
   assert(graph->ngraph_forward[mode] != nullptr);
   append_cached_to_forward(&results, graph, mode);
   backend->call(graph->ngraph_forward[mode], results, placeholders);
 
   result_to_NDArray(results, req, outputs);
+
+  if (mode == static_cast<int>(GraphExeMode::kInfer)) {
+    for (size_t i = 0; i < placeholders.size(); ++i) {
+      if (graph->input_is_weight_[i]) {
+        placeholders[i]->set_stale(false);
+      }
+    }
+  }
 }
 
 // function for computing backward on ngraph
