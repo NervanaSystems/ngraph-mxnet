@@ -169,7 +169,8 @@ void InitImperativeOnce() {
             }
           },
           11);
-    } else if (fallbackx_fn) {
+    }
+    if (fallbackx_fn) {
       op.set_attr<mxnet::FComputeEx>(
           "FComputeEx<cpu>",
           [fallbackx_fn](const nnvm::NodeAttrs &attrs,
@@ -183,7 +184,8 @@ void InitImperativeOnce() {
             }
           },
           11);
-    } else if (fallback_fn) {
+    }
+    if (fallback_fn) {
       op.set_attr<mxnet::FCompute>(
           "FCompute<cpu>",
           [fallback_fn](const nnvm::NodeAttrs &attrs,
@@ -201,11 +203,11 @@ void InitImperativeOnce() {
             }
           },
           11);
-    } else {
-      if (ngraph_log_verbose_detail) {
+    }
+    if (ngraph_log_verbose_detail) {
+      if (!fallback_nd && !fallbackx_fn && !fallback_fn)
         std::cout << "NGRAPH IMPERATIVE: not implemented -> " << op_name
                   << std::endl;
-      }
     }
   }
 }
