@@ -90,7 +90,7 @@ def test_gluon_hybridize():
 
 def test_ngraph_imperative_gluon_convolution():
     """
-    This test will convolution op with ngrap involving mkldnn layout
+    This will test Gluon convolution op with ngraph imperative involving mkldnn layout
     """
 
     ctx = mx.cpu()
