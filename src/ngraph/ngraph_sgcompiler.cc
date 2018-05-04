@@ -48,6 +48,9 @@ void CompileForward(std::shared_ptr<Graph> sub_graph,
     dump_graph(f, __func__, "fprop");
   }
 
+  for (size_t i = 0; i < sub_graph->num_outputs_; ++i)
+    f->get_results()[i]->set_needs_default_layout(true);
+  
   backend->compile(f);
   sub_graph->ngraph_forward[mode] = f;
 }
