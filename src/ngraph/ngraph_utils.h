@@ -32,7 +32,6 @@
 
 namespace ngraph_bridge {
 
-
 // enable ngraph gluon at runtime.
 inline bool ngraph_gluon_enable() {
   return dmlc::GetEnv("MXNET_NGRAPH_GLUON", false);
@@ -42,7 +41,7 @@ inline bool ngraph_gluon_enable() {
 inline bool ngraph_log_verbose() {
   return dmlc::GetEnv("MXNET_NGRAPH_VERBOSE", false);
 }
-inline bool ngraph_log_graph(){
+inline bool ngraph_log_graph() {
   return dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_GRAPH", false);
 }
 inline bool ngraph_log_viz() {
