@@ -50,7 +50,7 @@ void CompileForward(std::shared_ptr<Graph> sub_graph,
 
   for (size_t i = 0; i < sub_graph->num_outputs_; ++i)
     f->get_results()[i]->set_needs_default_layout(true);
-  
+
   backend->compile(f);
   sub_graph->ngraph_forward[mode] = f;
 }
@@ -78,7 +78,9 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
     dump_graph(bf_copy, __func__, "bprop");
   }
 
-  for (size_t i = 0; i < sub_graph->num_outputs_; ++i)
+  for (size_t i = 0; i < (sub_graph->num_outputs_ +
+                          sub_graph->cached_aux_values[mode].size());
+       ++i)
     f_copy->get_results()[i]->set_needs_default_layout(true);
 
   backend->compile(f_copy);
