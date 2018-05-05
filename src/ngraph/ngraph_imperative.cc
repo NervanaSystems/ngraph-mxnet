@@ -86,27 +86,28 @@ void NGImperative::parse_ngraph() {
       break;
     }
 }
-
+// local utility function to cache and invoke ngraph bridge for imperative ops.
+// returns true if successfully executed with ngraph, false on failure.
 bool compute_forward_imperative(const nnvm::NodeAttrs &attrs,
                                 const mxnet::OpContext &ctx,
                                 const std::vector<mxnet::NDArray> &inputs,
                                 const std::vector<mxnet::OpReqType> &req,
                                 const std::vector<mxnet::NDArray> &outputs) {
   std::shared_ptr<Graph> op_ng;
-  int mode = static_cast<int>(GraphExeMode::kInfer);
+  int mode = ctx.is_train ? static_cast<int>(GraphExeMode::kTrain)
+                          : static_cast<int>(GraphExeMode::kInfer);
   if (!sparse_check(inputs) && !sparse_check(outputs)) {
     // thread local cache for ngraph op
+    // this allows us to safely operate on cache object
     static thread_local NGIOpCache ngicache;
     auto op_key = get_ngiop_key(attrs, ctx.run_ctx.ctx, inputs);
     op_ng = ngicache[op_key];
     if (!op_ng) {
       NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
       op_ng = ngicache[op_key] = ngi.get_op_ngraph();
-      if (ngraph_log_verbose && op_ng)
+      if (ngraph_log_verbose && op_ng) {
         LOG(INFO) << "Caching... " << attrs.op->name;
-    }
-    if (ctx.is_train) {
-      mode = static_cast<int>(GraphExeMode::kTrain);
+      }
     }
   }
   if (op_ng && op_ng->ngraph_forward[mode]) {
@@ -117,8 +118,9 @@ bool compute_forward_imperative(const nnvm::NodeAttrs &attrs,
                 << std::to_string(inputs.size()) << ", outputs "
                 << std::to_string(outputs.size());
 
-      for (const auto &m : attrs.dict)
+      for (const auto &m : attrs.dict) {
         LOG(INFO) << "attrs.dict[" << m.first << "] = " << m.second;
+      }
     }
     return true;
   }
@@ -205,9 +207,10 @@ void InitImperativeOnce() {
           11);
     }
     if (ngraph_log_verbose_detail) {
-      if (!fallback_nd && !fallbackx_fn && !fallback_fn)
+      if (!fallback_nd && !fallbackx_fn && !fallback_fn) {
         std::cout << "NGRAPH IMPERATIVE: not implemented -> " << op_name
                   << std::endl;
+      }
     }
   }
 }
