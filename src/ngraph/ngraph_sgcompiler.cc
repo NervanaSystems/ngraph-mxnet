@@ -47,6 +47,9 @@ void CompileForward(std::shared_ptr<Graph> sub_graph,
   if (ngraph_log_graph()) {
     dump_graph(f, __func__, "fprop");
   }
+  auto results = f->get_results();
+  for (size_t i = 0; i < sub_graph->num_outputs_; ++i)
+    results[i]->set_needs_default_layout(true);
 
   backend->compile(f);
   sub_graph->ngraph_forward[mode] = f;
@@ -75,8 +78,11 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
     dump_graph(bf_copy, __func__, "bprop");
   }
 
-  for (size_t i = 0; i < sub_graph->num_outputs_; ++i)
-    f_copy->get_results()[i]->set_needs_default_layout(true);
+  auto results = f_copy->get_results();
+  for (size_t i = 0; i < (sub_graph->num_outputs_ +
+                          sub_graph->cached_aux_values[mode].size());
+       ++i)
+    results[i]->set_needs_default_layout(true);
 
   backend->compile(f_copy);
 
