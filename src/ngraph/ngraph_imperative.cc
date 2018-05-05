@@ -125,7 +125,7 @@ void InitImperativeOnce() {
               if (!op_ng) {
                 NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
                 op_ng = ngicache[op_key] = ngi.get_op_ngraph();
-                if (ngraph_log_verbose && op_ng)
+                if (ngraph_log_verbose() && op_ng)
                   LOG(INFO) << "Caching... " << attrs.op->name;
               }
               if (ctx.is_train) {
@@ -135,7 +135,7 @@ void InitImperativeOnce() {
             if (op_ng && op_ng->ngraph_forward[mode]) {
               compute_forward(ctx, op_ng, inputs, req, outputs);
 
-              if (ngraph_log_verbose_detail) {
+              if (ngraph_log_verbose_detail()) {
                 LOG(INFO) << "ngraph imperative op: " << attrs.op->name
                           << ", inputs " << std::to_string(inputs.size())
                           << ", outputs " << std::to_string(outputs.size());
@@ -154,7 +154,7 @@ void InitImperativeOnce() {
 }
 
 void InitImperative() {
-  if (!ngraph_gluon_enable) return;
+  if (!ngraph_gluon_enable()) return;
   static std::once_flag onceFlag;
   std::call_once(onceFlag, InitImperativeOnce);
 }

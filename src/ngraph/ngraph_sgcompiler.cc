@@ -44,7 +44,7 @@ void CompileForward(std::shared_ptr<Graph> sub_graph,
   auto backend = GetBackendFromContext(sub_graph->context_);
 
   // Log the graph so Graph_* corresponds to Function_* in codgen
-  if (ngraph_log_graph) {
+  if (ngraph_log_graph()) {
     dump_graph(f, __func__, "fprop");
   }
 
@@ -73,7 +73,7 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
   auto bf_copy = ngraph::clone_function(*bf, bfmap);
 
   // Log the graphs so Graph_* corresponds to Function_* in codgen
-  if (ngraph_log_graph) {
+  if (ngraph_log_graph()) {
     dump_graph(f_copy, __func__, "fprop");
     dump_graph(bf_copy, __func__, "bprop");
   }
@@ -246,7 +246,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   auto f = MakeForwardFunction(sub_graph);
-  if (ngraph_log_graph) {
+  if (ngraph_log_graph()) {
     dump_graph(f, __func__, "pre-optimized-fprop");
   }
 
@@ -256,7 +256,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     auto bfa = MakeBackwardFunction(sub_graph, f);
     maybe_bf = bfa.first;
     adjoints = bfa.second;
-    if (ngraph_log_graph) {
+    if (ngraph_log_graph()) {
       dump_graph(maybe_bf, __func__, "pre-optimized-bprop");
     }
 
@@ -266,7 +266,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     OptimizeGraph(sub_graph, f, maybe_bf);
   }
 
-  if (ngraph_log_graph) {
+  if (ngraph_log_graph()) {
     dump_graph(f, __func__, "post-optimized-fprop");
 
     if (maybe_bf) {
@@ -277,7 +277,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   if (sub_graph->enable_fprop_cache && exe_mode_ == GraphExeMode::kTrain) {
     auto fprop_cache = ngraph::cache_fprop(f, maybe_bf, adjoints);
 
-    if (ngraph_log_graph) {
+    if (ngraph_log_graph()) {
       dump_graph(fprop_cache.fprop, __func__, "fprop_cache.fprop");
       dump_graph(fprop_cache.bprop, __func__, "fprop_cache.bprop");
     }
