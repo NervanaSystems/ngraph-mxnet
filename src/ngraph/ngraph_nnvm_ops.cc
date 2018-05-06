@@ -147,6 +147,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   }
 
   auto results = get_tensor_views(outputs, backend, &req);
+
   placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
                       graph->cached_values[mode].end());
 
@@ -170,7 +171,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
       aux_req.push_back(mxnet::kWriteTo);
     }
 
-    result_to_NDArray(graph->cached_aux_values[mode], aux_req, aux_outs);
+    result_to_NDArray(graph->cached_aux_values[mode], aux_req, aux_outs, true);
   }
 }
 
