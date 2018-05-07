@@ -59,7 +59,7 @@ void append_cached_to_forward(TensorViewVector *results,
                   graph->cached_values[mode].end());
 }
 
-void update_aux_vals(std::shared_ptr<Graph> &graph,
+void update_aux_vals(const std::shared_ptr<Graph> &graph,
                      const std::vector<mxnet::NDArray> &inputs, const int mode,
                      const int offset = 0) {
   const size_t cached_aux_count = graph->cached_aux_values[mode].size();
