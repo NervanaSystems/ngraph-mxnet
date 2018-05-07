@@ -115,8 +115,9 @@ Compiler::Compiler(const mxnet::Context& context)
 
 // Compiler initialization for gluon hybrid
 Compiler::Compiler(const nnvm::Graph& graph, const mxnet::Context& context,
-                   const std::vector<nnvm::TShape> shapes,
-                   const std::vector<int> dtypes, const std::vector<int> stypes)
+                   const std::vector<nnvm::TShape>& shapes,
+                   const std::vector<int>& dtypes,
+                   const std::vector<int>& stypes)
     : ngraph_("ngraph_" + randomString(6), context),
       shapes_(shapes),
       dtypes_(dtypes),

@@ -188,8 +188,8 @@ class Compiler {
   Compiler(const mxnet::Context& context);
   // Constructor for use with gluon hybridize
   Compiler(const nnvm::Graph& graph, const mxnet::Context& context,
-           const std::vector<nnvm::TShape> shapes,
-           const std::vector<int> dtypes, const std::vector<int> stypes);
+           const std::vector<nnvm::TShape>& shapes,
+           const std::vector<int>& dtypes, const std::vector<int>& stypes);
   // Compile returns the compiled graph
   nnvm::Graph Compile();
   // parse the nnvm graph into an intermediate represenation
