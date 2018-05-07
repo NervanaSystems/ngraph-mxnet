@@ -172,7 +172,7 @@ void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
 
 void Compiler::IdentifyCollapseGraphs() {
   // Output Graphviz dot files (pre collapse) for vizualization
-  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, std::string("pre_collapse"));
+  if (ngraph_log_viz()) WriteSubgraphDots(ngraph_, std::string("pre_collapse"));
 
   IdentifySubgraphs(&ngraph_, [this](NodePtr s) -> bool {
     bool in_feed_dict = false;
@@ -186,7 +186,7 @@ void Compiler::IdentifyCollapseGraphs() {
   });
 
   // Output Graphviz dot files (post collapse) for vizualization
-  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, "post_collapse");
+  if (ngraph_log_viz()) WriteSubgraphDots(ngraph_, "post_collapse");
 }
 
 void Compiler::CreateSubgraphNNVMNodes() {
@@ -425,7 +425,7 @@ void Compiler::CheckInNgraph() {
             }
           }
         }
-      } else if (ngraph_log_verbose) {
+      } else if (ngraph_log_verbose()) {
         unsupported_op_names.insert(node->operation_);
       }
     }

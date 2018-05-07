@@ -124,12 +124,12 @@ TEST_F(NGRAPH_GRAPH, GRAPH_COLLAPSE_SUBGRAPHS) {
 }
 
 TEST_F(NGRAPH_GRAPH, GRAPH_COLLAPSE_MULTIOUTPUT) {
-  if (ngraph_log_viz)
+  if (ngraph_log_viz())
     WriteSubgraphDots(complex_graph, "complex_graph_test_pre_collapse");
 
   IdentifySubgraphs(&complex_graph, isop);
 
-  if (ngraph_log_viz)
+  if (ngraph_log_viz())
     WriteSubgraphDots(complex_graph, "complex_graph_test_post_collapse");
 
   int subgraph_count = 0;

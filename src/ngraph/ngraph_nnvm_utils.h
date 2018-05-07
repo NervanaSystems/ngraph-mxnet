@@ -109,7 +109,7 @@ inline void result_plus_NDArray(void* mxnet_ptr, void* ngraph_ptr,
 inline void result_to_NDArray(
     const std::vector<std::shared_ptr<ngraph::runtime::TensorView>>& results,
     const std::vector<mxnet::OpReqType>& req,
-    const std::vector<mxnet::NDArray>& outputs) {
+    const std::vector<mxnet::NDArray>& outputs, bool force_read = false) {
   for (size_t i = 0; i < outputs.size(); ++i) {
     if (req[i] == mxnet::kNullOp) continue;
 
@@ -137,7 +137,7 @@ inline void result_to_NDArray(
       free(ngraph_tv);
     } else {
       // TODO(adstraw): Add support for kWriteInplace
-      // results[i]->read(mxnet_ndarray, 0, buffer_size);
+      if (force_read) results[i]->read(mxnet_ndarray, 0, buffer_size);
     }
   }
 }
