@@ -110,6 +110,8 @@ bool compute_forward_imperative(const nnvm::NodeAttrs &attrs,
       }
     }
   }
+  // op_ng can be null if sgcompiler could not create ngraph IR
+  // we fallback to mxnet kernel in this case
   if (op_ng && op_ng->ngraph_forward[mode]) {
     compute_forward(ctx, op_ng, inputs, req, outputs);
 
