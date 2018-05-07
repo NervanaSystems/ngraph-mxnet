@@ -68,7 +68,7 @@ void update_aux_vals(std::shared_ptr<Graph> &graph,
     std::vector<mxnet::NDArray> aux_outs;
 
     for (size_t i = 0; i < cached_aux_count; ++i) {
-      aux_outs.push_back(inputs[graph->cached_aux_positions[mode][i]] + offset);
+      aux_outs.push_back(inputs[graph->cached_aux_positions[mode][i] + offset]);
       aux_req.push_back(mxnet::kWriteTo);
     }
 
