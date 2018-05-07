@@ -79,6 +79,19 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   backend->call(graph->ngraph_forward[mode], results, placeholders);
 
   result_to_NDArray(results, req, outputs);
+  const size_t cached_aux_count = graph->cached_aux_values[mode].size();
+  if (cached_aux_count > 0) {
+    std::vector<mxnet::OpReqType> aux_req;
+    std::vector<mxnet::NDArray> aux_outs;
+
+    for (size_t i = 0; i < cached_aux_count; ++i) {
+      aux_outs.push_back(
+          inputs[graph->cached_aux_positions[mode][i]]);
+      aux_req.push_back(mxnet::kWriteTo);
+    }
+
+    result_to_NDArray(graph->cached_aux_values[mode], aux_req, aux_outs, true);
+  }
 }
 
 // function for computing backward on ngraph

@@ -749,6 +749,17 @@ struct PoolingParams {
   std::vector<size_t> pad;
 };
 
+// clip utility function
+NgraphNodePtr clip(const NgraphNodePtr& input, const float& min,
+                   const float& max) {
+  auto shape = input->get_shape();
+  auto dtype = input->get_element_type();
+  const NgraphNodePtr a_min = makeConstant(dtype, shape, min);
+  const NgraphNodePtr a_max = makeConstant(dtype, shape, max);
+  return std::make_shared<ngraph::op::Maximum>(
+      std::make_shared<ngraph::op::Minimum>(input, a_max), a_min);
+}
+
 // MXNet high level ops generating function
 void Emitter::CreateLayerOps() {
   // In mxnet, split takes a tensor and creates multiple tensors from
@@ -885,15 +896,8 @@ void Emitter::CreateLayerOps() {
 
   // clip op
   ngraph_op_funcs_["clip"] = [this](const NodePtr& node) {
-    auto input = op_map_[node->inputs_[0]];
-    auto shape = input->get_shape();
-    auto dtype = input->get_element_type();
-    const NgraphNodePtr a_min =
-        makeConstant(dtype, shape, get_default(node, "a_min", 0.0f));
-    const NgraphNodePtr a_max =
-        makeConstant(dtype, shape, get_default(node, "a_max", 0.0f));
-    return std::make_shared<ngraph::op::Maximum>(
-        std::make_shared<ngraph::op::Minimum>(input, a_max), a_min);
+    return clip(op_map_[node->inputs_[0]], get_default(node, "a_min", 0.0f),
+                get_default(node, "a_max", 0.0f));
   };
 
   // sgd_update op
@@ -914,14 +918,7 @@ void Emitter::CreateLayerOps() {
 
     NgraphNodePtr scale_grad;
     if (clip_gradient >= 0.0f) {
-      const NgraphNodePtr ng_clip_gradient_min =
-          makeConstant(dtype, shape, -clip_gradient);
-      const NgraphNodePtr ng_clip_gradient_max =
-          makeConstant(dtype, shape, clip_gradient);
-      scale_grad = std::make_shared<ngraph::op::Maximum>(
-          std::make_shared<ngraph::op::Minimum>(ng_rescale_grad * grad,
-                                                ng_clip_gradient_max),
-          ng_clip_gradient_min);
+      scale_grad = clip(ng_rescale_grad * grad, -clip_gradient, clip_gradient);
     } else {
       scale_grad = ng_rescale_grad * grad;
     }
@@ -949,18 +946,12 @@ void Emitter::CreateLayerOps() {
 
     NgraphNodePtr scale_grad;
     if (clip_gradient >= 0.0f) {
-      const NgraphNodePtr ng_clip_gradient_min =
-          makeConstant(dtype, shape, -clip_gradient);
-      const NgraphNodePtr ng_clip_gradient_max =
-          makeConstant(dtype, shape, clip_gradient);
-      scale_grad = std::make_shared<ngraph::op::Maximum>(
-          std::make_shared<ngraph::op::Minimum>(ng_rescale_grad * grad,
-                                                ng_clip_gradient_max),
-          ng_clip_gradient_min);
+      scale_grad = clip(ng_rescale_grad * grad, -clip_gradient, clip_gradient);
     } else {
       scale_grad = ng_rescale_grad * grad;
     }
-    auto mom_update = (ng_mom * mom) - (ng_lr * ng_wd * weight) - (ng_lr * scale_grad);
+    auto mom_update =
+        (ng_mom * mom) - (ng_lr * ng_wd * weight) - (ng_lr * scale_grad);
     aux_op_map_[node->inputs_[2]] = mom_update;
     return weight + mom_update;
   };
