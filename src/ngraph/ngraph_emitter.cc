@@ -46,6 +46,7 @@ void Emitter::InitOpFuncs() {
   CreateUnaryOps();
   CreateBinaryOps();
   CreateLayerOps();
+  CreateLossOps();
 }
 
 void Emitter::ClearOpMap() {
@@ -1187,6 +1188,58 @@ void Emitter::CreateLayerOps() {
     auto mul_op = std::make_shared<ngraph::op::Multiply>(avg_pool_op, coeff_op);
 
     return mul_op;
+  };
+  ngraph_op_funcs_["SoftmaxOutput"] = [this](const NodePtr& node) {
+    auto input = op_map_[node->inputs_[0]];
+    auto in_shape = input->get_shape();
+
+    ngraph::AxisSet axes;
+    if (get_default(node, "multi_output", false)) {
+      axes.insert(1);
+    } else if (get_default(node, "preserve_shape", false)) {
+      axes.insert(in_shape.size() - 1);
+    } else {
+      for (size_t i = 1; i < in_shape.size(); ++i){
+        axes.insert(i);
+      }
+    }
+    return std::make_shared<ngraph::op::Softmax>(input, axes);
+  };
+}
+
+void Emitter::CreateLossOps() {
+  loss_op_backward_funcs_["SoftmaxOutput"] = [this](
+      const NodePtr& node, const NgraphNodePtr& adjoint) {
+
+    float grad_scale = get_default(node, "grad_scale", 1.0f);
+    float ignore_label = get_default(node, "ignore_label", -1.0f);
+    float smooth_alpha = get_default(node, "smooth_alpha", 0.0f);
+
+    bool use_ignore = get_default(node, "use_ignore", false);
+    bool out_grad = get_default(node, "out_grad", false);
+
+    std::string norm = get_default(node, "normalization", std::string("null"));
+
+    auto label = op_map_[node->inputs_[1]];
+    auto gradient = op_map_[node] - label;
+
+    if (grad_scale != 1.0f) {
+      gradient = gradient * makeConstant(node, std::to_string(grad_scale));
+    }
+
+    if (out_grad) {
+      gradient = gradient * adjoint;
+    }
+
+    if (use_ignore) {
+      auto mask = cast_result(
+        std::make_shared<ngraph::op::NotEqual>(op_map_[node->inputs_[0]],
+                                            makeConstant(node, std::to_string(ignore_label))),
+        getType(node->dtype_));
+      gradient = gradient * mask;
+    }
+
+    return gradient;
   };
 }
 

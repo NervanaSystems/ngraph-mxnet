@@ -240,6 +240,7 @@ class Graph : public Node {
 
   bool forward_train_computed{false};
   size_t num_outputs_ = 1;
+  size_t num_adjoints_ = 0;
   // nodes in this graph
   std::vector<NodePtr> nodes_;
   // functions to execute this graph in ngraph.

@@ -29,6 +29,7 @@
 #include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
 #include "ngraph_nnvm_utils.h"
+#include "ngraph_utils.h"
 
 namespace ngraph_bridge {
 
@@ -114,7 +115,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
   // backward op
   std::vector<mxnet::NDArray> adjoints;
-  for (size_t i = 0; i < graph->num_outputs_; ++i) {
+  for (size_t i = 0; i < graph->num_adjoints_; ++i) {
     adjoints.push_back(inputs[i]);
   }
 
@@ -123,7 +124,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                           : get_tensor_views(inputs, backend);
 
   if (graph->zero_grad) {
-    for (size_t i = 0; i < graph->num_outputs_; ++i) {
+    for (size_t i = 0; i < graph->num_adjoints_; ++i) {
       // TODO(mbrookahrt): don't bprop graph if it's zerograd?
       placeholders[i] =
           backend->create_tensor(getType(graph->outputs_[i]->dtype_),
@@ -152,7 +153,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
     for (size_t i = 0; i < cached_aux_count; ++i) {
       aux_outs.push_back(
-          inputs[graph->cached_aux_positions[mode][i] + graph->num_outputs_]);
+          inputs[graph->cached_aux_positions[mode][i] + graph->num_adjoints_]);
       aux_req.push_back(mxnet::kWriteTo);
     }
 
@@ -168,7 +169,11 @@ bool check_zero_grad(const std::shared_ptr<Graph> &graph) {
   // if all of the outputs of the graph don't need gradient calculation,
   // don't autodiff this graph. Otherwise, do.
   for (auto node : graph->outputs_) {
-    if (ops_no_head_grad.count(node->operation_) == 0) {
+    if (node->operation_ == "SoftmaxOutput"){
+      if (get_default(node, "out_grad", false)) {
+        return false;
+      }
+    } else if (ops_no_head_grad.count(node->operation_) == 0) {
       return false;
     }
   }
@@ -318,8 +323,7 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
       "_backward_" + ("ngraph_" + graph->name_));
   // setup the inputs and outpus
   int num_inputs = graph->inputs_.size();
-  int num_outputs = graph->outputs_.size();
-  op.set_num_inputs(num_outputs + num_inputs);
+  op.set_num_inputs(graph->num_adjoints_ + num_inputs);
   op.set_num_outputs(num_inputs);
 
   // Mark as backward
