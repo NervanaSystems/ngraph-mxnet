@@ -260,6 +260,7 @@ class Graph : public Node {
 
   std::vector<NodePtr> outputs_;
   std::vector<std::shared_ptr<OutputElement>> output_elements_;
+  std::vector<bool> input_is_weight_;
   bool zero_grad = false;
 };
 

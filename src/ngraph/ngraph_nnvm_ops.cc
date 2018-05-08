@@ -91,11 +91,27 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     mode = static_cast<int>(GraphExeMode::kTrain);
     graph->forward_train_computed = true;
   }
+
+  if (mode == static_cast<int>(GraphExeMode::kTrain)) {
+    for (auto &tv : placeholders) {
+      tv->set_stale(true);
+    }
+  }
+
   assert(graph->ngraph_forward[mode] != nullptr);
   append_cached_to_forward(&results, graph, mode);
   backend->call(graph->ngraph_forward[mode], results, placeholders);
 
   result_to_NDArray(results, req, outputs);
+
+  if (mode == static_cast<int>(GraphExeMode::kInfer)) {
+    for (size_t i = 0; i < placeholders.size(); ++i) {
+      if (graph->input_is_weight_[i]) {
+        placeholders[i]->set_stale(false);
+      }
+    }
+  }
+
   update_aux_vals(graph, inputs, mode);
 }
 
