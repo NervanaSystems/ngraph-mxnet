@@ -59,6 +59,23 @@ void append_cached_to_forward(TensorViewVector *results,
                   graph->cached_values[mode].end());
 }
 
+void update_aux_vals(const std::shared_ptr<Graph> &graph,
+                     const std::vector<mxnet::NDArray> &inputs, const int mode,
+                     const int offset = 0) {
+  const size_t cached_aux_count = graph->cached_aux_values[mode].size();
+  if (cached_aux_count > 0) {
+    std::vector<mxnet::OpReqType> aux_req;
+    std::vector<mxnet::NDArray> aux_outs;
+
+    for (size_t i = 0; i < cached_aux_count; ++i) {
+      aux_outs.push_back(inputs[graph->cached_aux_positions[mode][i] + offset]);
+      aux_req.push_back(mxnet::kWriteTo);
+    }
+
+    result_to_NDArray(graph->cached_aux_values[mode], aux_req, aux_outs, true);
+  }
+}
+
 // function for computing forward on ngraph
 void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                      const std::vector<mxnet::NDArray> &inputs,
@@ -94,6 +111,9 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
       }
     }
   }
+
+  update_aux_vals(graph, inputs, mode);
+
 }
 
 // function for computing backward on ngraph
@@ -160,19 +180,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
   // overwrite aux data if they exist
   // aux result outputs mapped to inputs
-  const size_t cached_aux_count = graph->cached_aux_values[mode].size();
-  if (cached_aux_count > 0) {
-    std::vector<mxnet::OpReqType> aux_req;
-    std::vector<mxnet::NDArray> aux_outs;
-
-    for (size_t i = 0; i < cached_aux_count; ++i) {
-      aux_outs.push_back(
-          inputs[graph->cached_aux_positions[mode][i] + graph->num_outputs_]);
-      aux_req.push_back(mxnet::kWriteTo);
-    }
-
-    result_to_NDArray(graph->cached_aux_values[mode], aux_req, aux_outs, true);
-  }
+  update_aux_vals(graph, inputs, mode, graph->num_outputs_);
 }
 
 // check if last node in graph is an op that doesnt need head-gradient
