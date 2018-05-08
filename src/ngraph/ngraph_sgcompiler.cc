@@ -175,7 +175,7 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   auto backend = GetBackendFromContext(sub_graph->context_);
 
   // push additional aux outputs
-  if (exe_mode_ == GraphExeMode::kTrain && !aux_op_map_.empty()) {
+  if (!aux_op_map_.empty()) {
     int i = 0;
     for (auto input : sub_graph->inputs_) {
       if (aux_op_map_.count(input)) {
