@@ -113,7 +113,6 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   }
 
   update_aux_vals(graph, inputs, mode);
-
 }
 
 // function for computing backward on ngraph
