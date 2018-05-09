@@ -102,7 +102,7 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   assert(graph->ngraph_forward[mode] != nullptr);
   append_cached_to_forward(&results, graph, mode);
   backend->call(graph->ngraph_forward[mode], results, placeholders);
-
+  
   result_to_NDArray(results, req, outputs);
 
   if (mode == static_cast<int>(GraphExeMode::kInfer)) {
@@ -131,7 +131,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // generate valid data in fprop cache
   if (graph->enable_fprop_cache && !graph->forward_train_computed) {
     // forward inputs
-    std::vector<mxnet::NDArray> fwd_inputs(inputs.begin() + graph->num_outputs_,
+    std::vector<mxnet::NDArray> fwd_inputs(inputs.begin() + graph->num_adjoints_,
                                            inputs.end());
     auto placeholders = get_tensor_views(fwd_inputs, backend);
     // forward outputs
@@ -146,16 +146,17 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     // call forward
     backend->call(graph->ngraph_forward[mode], results, placeholders);
   }
-
+  std::vector<mxnet::NDArray> new_inputs;
+  new_inputs.insert(new_inputs.begin(), inputs.begin() + 1, inputs.end());
   // backward op
   std::vector<mxnet::NDArray> adjoints;
   for (size_t i = 0; i < graph->num_adjoints_; ++i) {
-    adjoints.push_back(inputs[i]);
+    adjoints.push_back(new_inputs[i]);
   }
 
   auto placeholders = graph->enable_fprop_cache
                           ? get_tensor_views(adjoints, backend)
-                          : get_tensor_views(inputs, backend);
+                          : get_tensor_views(new_inputs, backend);
 
   if (graph->zero_grad) {
     for (size_t i = 0; i < graph->num_adjoints_; ++i) {
@@ -281,6 +282,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
         if (p->op()->attr_parser != nullptr) {
           p->op()->attr_parser(&(p->attrs));
         }
+        p->inputs.push_back(nnvm::NodeEntry{p, 0, 0});
         if (!zero_grad) {
           p->inputs.insert(p->inputs.end(), ograds.begin(), ograds.end());
         }
