@@ -212,7 +212,7 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
   match &= CheckAndInferStorageType(&g, std::move(dev_mask),
                                     std::move(storage_type_inputs), true);
 
-auto check_match = [recording](nnvm::Graph& g, bool match) {
+  auto check_match = [recording](nnvm::Graph& g, bool match) {
     if (!match) {
       g.attrs.erase("forward_mem_plan");
       g.attrs.erase("full_mem_plan");
@@ -222,19 +222,20 @@ auto check_match = [recording](nnvm::Graph& g, bool match) {
     return false;
   };
 
-#if MXNET_USE_NGRAPH == 1
-  if (!recording){
-    if (check_match(ngraph_fwd_graph_, 
-        match && static_cast<bool>(ngraph_fwd_graph_.attrs.count("forward_mem_plan")))) 
-        return ngraph_fwd_graph_;
-  } else {
+  #if MXNET_USE_NGRAPH == 1
+  if (!recording) {
+    if (check_match(ngraph_fwd_graph_,
+                    match && static_cast<bool>(ngraph_fwd_graph_.attrs.count(
+                                 "forward_mem_plan"))))
+      return ngraph_fwd_graph_;
+    } else {
+      if (check_match(g, match)) return g;
+    }
+  #else
     if (check_match(g, match)) return g;
-  }
-#else
-  if (check_match(g, match)) return g;
-#endif  
+  #endif
 
-  auto create_memory_plan=[recording](nnvm::Graph& g) {
+  auto create_memory_plan = [recording](nnvm::Graph& g) {
     const auto& idx = g.indexed_graph();
 
     StorageVector storage(idx.num_node_entries(), exec::kBadStorageID);
@@ -254,7 +255,7 @@ auto check_match = [recording](nnvm::Graph& g, bool match) {
   };
 
 #if MXNET_USE_NGRAPH == 1
-  if (!recording) {  
+  if (!recording) {
     ngraph_bridge::BindArgBase bind(num_inputs());
     auto compiler = ngraph_bridge::Compiler(
         fwd_graph_, inputs[0]->ctx(), cached_shape_inputs, cached_dtype_inputs,
