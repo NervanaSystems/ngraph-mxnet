@@ -211,8 +211,8 @@ SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
 
   auto make_and_cache_parameter =
       [&param_adjoints, &output_adjoints](NgraphNodePtr Y) -> NgraphNodePtr {
-    auto C = std::make_shared<ngraph::op::Parameter>(
-          Y->get_element_type(), Y->get_shape());
+    auto C = std::make_shared<ngraph::op::Parameter>(Y->get_element_type(),
+                                                     Y->get_shape());
     param_adjoints.push_back(C);
     output_adjoints.push_back(C);
     return C;

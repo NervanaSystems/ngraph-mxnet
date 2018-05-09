@@ -1220,9 +1220,54 @@ void Emitter::CreateLossOps() {
 
     std::string norm = get_default(node, "normalization", std::string("null"));
 
+    auto softmax = op_map_[node];
     auto label = op_map_[node->inputs_[1]];
-    auto gradient = op_map_[node] - label;
+    bool ignore = false;
+    NgraphNodePtr mask;
 
+    if (label->get_shape() != softmax->get_shape()) {
+      if (use_ignore) {
+        ignore = true;
+        mask = cast_result(
+            std::make_shared<ngraph::op::NotEqual>(
+                label, makeConstant(node, std::to_string(ignore_label))),
+            getType(node->dtype_));
+      }
+      size_t axis = op_map_[node->inputs_[0]]->get_shape().size() - 1;;
+      if (get_default(node, "multi_output", false)) {
+        axis = 1;
+      }
+      label = std::make_shared<ngraph::op::OneHot>(label, softmax->get_shape(),
+                                                   axis);
+    }
+
+    if (smooth_alpha != 0.0f) {
+      int num_classes = 1;
+      auto shape = softmax->get_shape();
+      if (get_default(node, "multi_output", false)) {
+        num_classes = shape[1];
+      } else if (get_default(node, "preserve_shape", false)) {
+        num_classes = shape.back();
+      } else { 
+        for (size_t i = 1; i < shape.size(); ++i) {
+          num_classes *= shape[i];
+        }
+      }
+      auto one = makeConstant(node, "1");
+      auto smooth_const = makeConstant(node, std::to_string(smooth_alpha));
+      auto subtractions = label * smooth_const;
+      auto additions = (one - label) * smooth_const /
+                       makeConstant(node, std::to_string(num_classes - 1));
+      label = label - subtractions + additions;
+    }
+
+    auto gradient = softmax - label;
+
+    if (ignore) {
+      gradient =
+          ngraph::builder::make_with_numpy_broadcast<ngraph::op::Multiply>(
+              gradient, mask);
+    }
     if (grad_scale != 1.0f) {
       gradient = gradient * makeConstant(node, std::to_string(grad_scale));
     }
@@ -1231,12 +1276,15 @@ void Emitter::CreateLossOps() {
       gradient = gradient * adjoint;
     }
 
-    if (use_ignore) {
-      auto mask = cast_result(
-        std::make_shared<ngraph::op::NotEqual>(op_map_[node->inputs_[0]],
-                                            makeConstant(node, std::to_string(ignore_label))),
-        getType(node->dtype_));
-      gradient = gradient * mask;
+    if (norm == "batch") {
+      gradient = gradient / makeConstant(node, std::to_string(gradient->get_shape()[0])); 
+    } else if (norm == "valid") {
+      ngraph::AxisSet axes;
+      for (size_t i = 0; i < gradient->get_shape().size(); ++i) {
+        axes.insert(i);
+      }
+      gradient = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Divide>(
+              gradient, std::make_shared<ngraph::op::Sum>(mask, axes));
     }
 
     return gradient;
