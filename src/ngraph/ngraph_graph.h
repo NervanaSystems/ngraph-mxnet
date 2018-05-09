@@ -28,6 +28,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+// #include <mutex>
 #include <set>
 #include <string>
 #include <tuple>
@@ -239,6 +240,7 @@ class Graph : public Node {
   }
 
   bool forward_train_computed{false};
+  // std::mutex mtx;
   size_t num_outputs_ = 1;
   size_t num_adjoints_ = 0;
   // nodes in this graph

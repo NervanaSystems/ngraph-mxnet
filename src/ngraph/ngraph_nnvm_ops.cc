@@ -82,6 +82,7 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                      const std::vector<mxnet::NDArray> &inputs,
                      const std::vector<mxnet::OpReqType> &req,
                      const std::vector<mxnet::NDArray> &outputs) {
+  // graph->mtx.lock();
   auto backend = GetBackendFromContext(graph->context_);
   auto placeholders = get_tensor_views(inputs, backend);
   // for outputs we need to comply with req
@@ -114,6 +115,7 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   }
 
   update_aux_vals(graph, inputs, mode);
+  // graph->mtx.unlock();
 }
 
 // function for computing backward on ngraph
@@ -122,6 +124,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                       const std::vector<mxnet::OpReqType> &req,
                       const std::vector<mxnet::NDArray> &outputs) {
   // only expect backward is called in training mode
+  // graph->mtx.lock();
   assert(ctx.is_train);
   auto backend = GetBackendFromContext(graph->context_);
 
@@ -130,9 +133,11 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // check forward has been executed, if not we need to run forward to
   // generate valid data in fprop cache
   if (graph->enable_fprop_cache && !graph->forward_train_computed) {
+    std::cout << "NGRAPH_BRIDGE: WARNING: running forward in backward"
+              << std::endl;
     // forward inputs
-    std::vector<mxnet::NDArray> fwd_inputs(inputs.begin() + graph->num_adjoints_,
-                                           inputs.end());
+    std::vector<mxnet::NDArray> fwd_inputs(
+        inputs.begin() + graph->num_adjoints_ + 1, inputs.end());
     auto placeholders = get_tensor_views(fwd_inputs, backend);
     // forward outputs
     TensorViewVector results;
@@ -182,6 +187,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // overwrite aux data if they exist
   // aux result outputs mapped to inputs
   update_aux_vals(graph, inputs, mode, graph->num_adjoints_);
+  // graph->mtx.unlock();
 }
 
 // check if last node in graph is an op that doesnt need head-gradient
