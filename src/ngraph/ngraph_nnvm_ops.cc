@@ -180,7 +180,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
   // overwrite aux data if they exist
   // aux result outputs mapped to inputs
-  update_aux_vals(graph, inputs, mode, graph->num_outputs_);
+  update_aux_vals(graph, inputs, mode, graph->num_adjoints_);
 }
 
 // check if last node in graph is an op that doesnt need head-gradient
