@@ -20,7 +20,7 @@ ngraph-mxnet imperative gluon python unittests
 from __future__ import print_function
 import numpy as np
 import mxnet as mx
-from mxnet import gluon
+from mxnet import gluon, autograd
 from mxnet.test_utils import assert_almost_equal
 
 
@@ -79,7 +79,8 @@ def test_gluon_hybridize():
     net = NetHybrid()
     a = mx.nd.array([1, 2])
     b = mx.nd.array([2, 3])
-    # compute hybrid forward
+    delta = mx.nd.array([1])
+    # compute hybrid forwarard
     y = net(a, b)
     assert_almost_equal(y.asnumpy(), np.array([2.0, 6.0]), rtol=1e-3, atol=1e-6)
     # hybridize the network
@@ -87,6 +88,15 @@ def test_gluon_hybridize():
     # compute forward after hybridize
     z = net(a, b)
     assert_almost_equal(z.asnumpy(), y.asnumpy(), rtol=1e-3, atol=1e-6)
+
+    with autograd.record():
+        a.attach_grad()
+        b.attach_grad()
+        output = net(a,b)
+        output.backward(delta)
+
+    assert_almost_equal(a.grad.asnumpy(), np.array([2,0]), rtol=1e-3, atol=1e-6)
+    assert_almost_equal(b.grad.asnumpy(), np.array([1,0]), rtol=1e-3, atol=1e-6)
 
 def test_ngraph_imperative_gluon_convolution():
     """
