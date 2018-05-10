@@ -121,7 +121,12 @@ void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
     for (size_t i = 0; i < bf->get_output_size(); ++i) {
       dYdXs.push_back(bf->get_output_op(i)->get_argument(0));
     }
-    ngraph::NodeVector combined_outputs{f->get_output_op(0)->get_argument(0)};
+
+    ngraph::NodeVector combined_outputs;
+    for (auto r : f->get_results()) {
+      combined_outputs.push_back(r->get_argument(0));
+    }
+
     combined_outputs.insert(combined_outputs.end(), dYdXs.begin(), dYdXs.end());
 
     std::vector<std::shared_ptr<ngraph::op::Parameter>> combined_parameters =
