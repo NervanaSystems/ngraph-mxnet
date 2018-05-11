@@ -254,8 +254,6 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["tan"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Tan>(op_map_[node->inputs_[0]]);
   };
-  // TODO(mbrookhart): Arc trig autodiff not implemented
-  /*
   ngraph_op_funcs_["arcsin"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Asin>(op_map_[node->inputs_[0]]);
   };
@@ -265,7 +263,6 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["arctan"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Atan>(op_map_[node->inputs_[0]]);
   };
-  */
   ngraph_op_funcs_["sinh"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Sinh>(op_map_[node->inputs_[0]]);
   };
@@ -499,7 +496,7 @@ void Emitter::CreateBinaryOps() {
     auto args = dot_transpose(node, left, right);
 
     const NgraphNodePtr dot =
-      std::make_shared<ngraph::op::Dot>(args.first, args.second, 1);
+        std::make_shared<ngraph::op::Dot>(args.first, args.second, 1);
     const size_t dot_rank = dot->get_shape().size();
 
     // A scalar value in nGraph has shape {}, but in MXnet it has shape {1}...
@@ -507,7 +504,8 @@ void Emitter::CreateBinaryOps() {
     if (dot_rank == 0) {
       ngraph::AxisVector input_order{};
       ngraph::Shape output_shape{1};
-      dot_shaped = std::make_shared<ngraph::op::Reshape>(dot, input_order, output_shape);
+      dot_shaped =
+          std::make_shared<ngraph::op::Reshape>(dot, input_order, output_shape);
     } else {
       dot_shaped = dot;
     }
@@ -751,6 +749,17 @@ struct PoolingParams {
   std::vector<size_t> pad;
 };
 
+// clip utility function
+NgraphNodePtr clip(const NgraphNodePtr& input, const float& min,
+                   const float& max) {
+  auto shape = input->get_shape();
+  auto dtype = input->get_element_type();
+  const NgraphNodePtr a_min = makeConstant(dtype, shape, min);
+  const NgraphNodePtr a_max = makeConstant(dtype, shape, max);
+  return std::make_shared<ngraph::op::Maximum>(
+      std::make_shared<ngraph::op::Minimum>(input, a_max), a_min);
+}
+
 // MXNet high level ops generating function
 void Emitter::CreateLayerOps() {
   // In mxnet, split takes a tensor and creates multiple tensors from
@@ -885,6 +894,68 @@ void Emitter::CreateLayerOps() {
     return dot;
   };
 
+  // clip op
+  ngraph_op_funcs_["clip"] = [this](const NodePtr& node) {
+    return clip(op_map_[node->inputs_[0]], get_default(node, "a_min", 0.0f),
+                get_default(node, "a_max", 0.0f));
+  };
+
+  // sgd_update op
+  ngraph_op_funcs_["sgd_update"] = [this](const NodePtr& node) {
+    auto weight = op_map_[node->inputs_[0]];
+    auto grad = op_map_[node->inputs_[1]];
+    auto shape = weight->get_shape();
+    auto dtype = weight->get_element_type();
+
+    const float clip_gradient = get_default(node, "clip_gradient", -1.0f);
+    const NgraphNodePtr ng_rescale_grad =
+        makeConstant(dtype, shape, get_default(node, "rescale_grad", 1.0f));
+    const NgraphNodePtr ng_wd =
+        makeConstant(dtype, shape, get_default(node, "wd", 0.0f));
+    const NgraphNodePtr ng_lr =
+        makeConstant(dtype, shape, get_default(node, "lr", 0.0f));
+    const NgraphNodePtr one = makeConstant(dtype, shape, 1.0f);
+
+    NgraphNodePtr scale_grad;
+    if (clip_gradient >= 0.0f) {
+      scale_grad = clip(ng_rescale_grad * grad, -clip_gradient, clip_gradient);
+    } else {
+      scale_grad = ng_rescale_grad * grad;
+    }
+    return (one - ng_lr * ng_wd) * weight - (ng_lr * scale_grad);
+  };
+
+  // sgd_mom_update op
+  ngraph_op_funcs_["sgd_mom_update"] = [this](const NodePtr& node) {
+    auto weight = op_map_[node->inputs_[0]];
+    auto grad = op_map_[node->inputs_[1]];
+    auto mom = op_map_[node->inputs_[2]];
+    auto shape = weight->get_shape();
+    auto dtype = weight->get_element_type();
+
+    const float clip_gradient = get_default(node, "clip_gradient", -1.0f);
+    const NgraphNodePtr ng_rescale_grad =
+        makeConstant(dtype, shape, get_default(node, "rescale_grad", 1.0f));
+    const NgraphNodePtr ng_wd =
+        makeConstant(dtype, shape, get_default(node, "wd", 0.0f));
+    const NgraphNodePtr ng_lr =
+        makeConstant(dtype, shape, get_default(node, "lr", 0.0f));
+    const NgraphNodePtr ng_mom =
+        makeConstant(dtype, shape, get_default(node, "momentum", 0.0f));
+    const NgraphNodePtr one = makeConstant(dtype, shape, 1.0f);
+
+    NgraphNodePtr scale_grad;
+    if (clip_gradient >= 0.0f) {
+      scale_grad = clip(ng_rescale_grad * grad, -clip_gradient, clip_gradient);
+    } else {
+      scale_grad = ng_rescale_grad * grad;
+    }
+    auto mom_update =
+        (ng_mom * mom) - (ng_lr * ng_wd * weight) - (ng_lr * scale_grad);
+    aux_op_map_[node->inputs_[2]] = mom_update;
+    return weight + mom_update;
+  };
+
   // flatten converts an array of shape (x0, x1, x2, ...)
   // to an array of shape (x0, x1*x2*...)
   ngraph_op_funcs_["flatten"] = [this](const NodePtr& node) {
@@ -1000,18 +1071,16 @@ void Emitter::CreateLayerOps() {
     // autodifferentiation (as with training).
     //----------------------------------------------------------------------------------------------
     if ((exe_mode_ == GraphExeMode::kTrain) && (use_global_stats)) {
-      // FIXME: We suspect there's a bug in the gradient calculations performed by this version of
-      // nGraph's BatchNorm operator. So for now we'll avoid using it.  -cconvey 2018-04-12.
-      // if (ngraph_bn_op_available) {
+      // FIXME: We suspect there's a bug in the gradient calculations performed
+      // by this version of
+      // nGraph's BatchNorm operator. So for now we'll avoid using it.  -cconvey
+      // 2018-04-12.
+      // if (ngraph_bn_op_available)
       if (false) {
-        const NgraphNodePtr ng_normalized_data = std::make_shared<ngraph::op::BatchNorm>(
-            eps,
-            ng_actual_gamma,
-            ng_in_beta,
-            ng_in_data,
-            ng_in_moving_mean,
-            ng_in_moving_var,
-            true);
+        const NgraphNodePtr ng_normalized_data =
+            std::make_shared<ngraph::op::BatchNorm>(
+                eps, ng_actual_gamma, ng_in_beta, ng_in_data, ng_in_moving_mean,
+                ng_in_moving_var, true);
 
         return ng_normalized_data;
       } else {
@@ -1034,14 +1103,10 @@ void Emitter::CreateLayerOps() {
     //----------------------------------------------------------------------------------------------
     if (exe_mode_ == GraphExeMode::kInfer) {
       if (ngraph_bn_op_available) {
-        const NgraphNodePtr ng_normalized_data = std::make_shared<ngraph::op::BatchNorm>(
-            eps,
-            ng_actual_gamma,
-            ng_in_beta,
-            ng_in_data,
-            ng_in_moving_mean,
-            ng_in_moving_var,
-            false);
+        const NgraphNodePtr ng_normalized_data =
+            std::make_shared<ngraph::op::BatchNorm>(
+                eps, ng_actual_gamma, ng_in_beta, ng_in_data, ng_in_moving_mean,
+                ng_in_moving_var, false);
 
         return ng_normalized_data;
       } else {

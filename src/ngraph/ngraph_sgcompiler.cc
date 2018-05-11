@@ -44,9 +44,12 @@ void CompileForward(std::shared_ptr<Graph> sub_graph,
   auto backend = GetBackendFromContext(sub_graph->context_);
 
   // Log the graph so Graph_* corresponds to Function_* in codgen
-  if (ngraph_log_graph) {
+  if (ngraph_log_graph()) {
     dump_graph(f, __func__, "fprop");
   }
+  auto results = f->get_results();
+  for (size_t i = 0; i < sub_graph->num_outputs_; ++i)
+    results[i]->set_needs_default_layout(true);
 
   backend->compile(f);
   sub_graph->ngraph_forward[mode] = f;
@@ -70,10 +73,16 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
   auto bf_copy = ngraph::clone_function(*bf, bfmap);
 
   // Log the graphs so Graph_* corresponds to Function_* in codgen
-  if (ngraph_log_graph) {
+  if (ngraph_log_graph()) {
     dump_graph(f_copy, __func__, "fprop");
     dump_graph(bf_copy, __func__, "bprop");
   }
+
+  auto results = f_copy->get_results();
+  for (size_t i = 0; i < (sub_graph->num_outputs_ +
+                          sub_graph->cached_aux_values[mode].size());
+       ++i)
+    results[i]->set_needs_default_layout(true);
 
   backend->compile(f_copy);
 
@@ -87,19 +96,12 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
       cloned_bf_param->get_output_tensor_view()->set_tensor_view_layout(layout);
     }
   }
+
+  for (auto res : bf_copy->get_results()) res->set_needs_default_layout(true);
   backend->compile(bf_copy);
 
   sub_graph->ngraph_forward[mode] = f_copy;
   sub_graph->ngraph_backward[mode] = bf_copy;
-  // TODO(aemani): enable default layout when ngraph api adds it
-#if 0
-  if (mode == GraphExeMode::kInfer) {
-    for (auto res : sub_graph->ngraph_forward[mode]->get_results())
-      res->set_needs_default_layout(true);
-  }
-  for (auto res : sub_graph->ngraph_backward[mode]->get_results())
-    res->set_needs_default_layout(true);
-#endif
 }
 
 void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
@@ -119,7 +121,12 @@ void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
     for (size_t i = 0; i < bf->get_output_size(); ++i) {
       dYdXs.push_back(bf->get_output_op(i)->get_argument(0));
     }
-    ngraph::NodeVector combined_outputs{f->get_output_op(0)->get_argument(0)};
+
+    ngraph::NodeVector combined_outputs;
+    for (auto r : f->get_results()) {
+      combined_outputs.push_back(r->get_argument(0));
+    }
+
     combined_outputs.insert(combined_outputs.end(), dYdXs.begin(), dYdXs.end());
 
     std::vector<std::shared_ptr<ngraph::op::Parameter>> combined_parameters =
@@ -173,7 +180,7 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   auto backend = GetBackendFromContext(sub_graph->context_);
 
   // push additional aux outputs
-  if (exe_mode_ == GraphExeMode::kTrain && !aux_op_map_.empty()) {
+  if (!aux_op_map_.empty()) {
     int i = 0;
     for (auto input : sub_graph->inputs_) {
       if (aux_op_map_.count(input)) {
@@ -245,7 +252,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   auto f = MakeForwardFunction(sub_graph);
-  if (ngraph_log_graph) {
+  if (ngraph_log_graph()) {
     dump_graph(f, __func__, "pre-optimized-fprop");
   }
 
@@ -255,7 +262,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     auto bfa = MakeBackwardFunction(sub_graph, f);
     maybe_bf = bfa.first;
     adjoints = bfa.second;
-    if (ngraph_log_graph) {
+    if (ngraph_log_graph()) {
       dump_graph(maybe_bf, __func__, "pre-optimized-bprop");
     }
 
@@ -265,7 +272,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     OptimizeGraph(sub_graph, f, maybe_bf);
   }
 
-  if (ngraph_log_graph) {
+  if (ngraph_log_graph()) {
     dump_graph(f, __func__, "post-optimized-fprop");
 
     if (maybe_bf) {
@@ -276,7 +283,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   if (sub_graph->enable_fprop_cache && exe_mode_ == GraphExeMode::kTrain) {
     auto fprop_cache = ngraph::cache_fprop(f, maybe_bf, adjoints);
 
-    if (ngraph_log_graph) {
+    if (ngraph_log_graph()) {
       dump_graph(fprop_cache.fprop, __func__, "fprop_cache.fprop");
       dump_graph(fprop_cache.bprop, __func__, "fprop_cache.bprop");
     }

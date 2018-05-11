@@ -113,6 +113,20 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
 Compiler::Compiler(const mxnet::Context& context)
     : ngraph_("ngraph_" + randomString(6), context, false) {}
 
+// Compiler initialization for gluon hybrid
+Compiler::Compiler(const nnvm::Graph& graph, const mxnet::Context& context,
+                   const std::vector<nnvm::TShape>& shapes,
+                   const std::vector<int>& dtypes,
+                   const std::vector<int>& stypes)
+    : ngraph_("ngraph_" + randomString(6), context),
+      shapes_(shapes),
+      dtypes_(dtypes),
+      stypes_(stypes) {
+  DeepCopy(graph);
+  graph_.attrs["context"] = std::make_shared<nnvm::any>(
+      mxnet::exec::ContextVector(graph_.indexed_graph().num_nodes(), context));
+  ProcessGraph({});
+}
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                    const NNVMNodeVec& inputs, const BindArgBase& bindbase,
@@ -159,7 +173,7 @@ void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
 
 void Compiler::IdentifyCollapseGraphs() {
   // Output Graphviz dot files (pre collapse) for vizualization
-  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, std::string("pre_collapse"));
+  if (ngraph_log_viz()) WriteSubgraphDots(ngraph_, std::string("pre_collapse"));
 
   IdentifySubgraphs(&ngraph_, [this](NodePtr s) -> bool {
     bool in_feed_dict = false;
@@ -173,7 +187,7 @@ void Compiler::IdentifyCollapseGraphs() {
   });
 
   // Output Graphviz dot files (post collapse) for vizualization
-  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, "post_collapse");
+  if (ngraph_log_viz()) WriteSubgraphDots(ngraph_, "post_collapse");
 }
 
 void Compiler::CreateSubgraphNNVMNodes() {
@@ -412,12 +426,12 @@ void Compiler::CheckInNgraph() {
             }
           }
         }
-      } else if (ngraph_log_verbose) {
+      } else if (ngraph_log_verbose()) {
         unsupported_op_names.insert(node->operation_);
       }
     }
   }
-  for (const auto & name : unsupported_op_names) {
+  for (const auto& name : unsupported_op_names) {
     std::cout << "NGRAPH_BRIDGE: Unsupported Op: " << name << std::endl;
   }
 }

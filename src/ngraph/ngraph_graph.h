@@ -153,13 +153,13 @@ static std::unordered_map<std::string,
     backends;
 
 inline std::string get_backend_name(const mxnet::Context &context) {
-  if (context == mxnet::Context::NNP()) {
+  if (context.dev_type == mxnet::Context::NNP().dev_type) {
     return "NNP";
 #if MXNET_USE_CUDA
-  } else if (context == mxnet::Context::GPU()) {
+  } else if (context.dev_type == mxnet::Context::GPU().dev_type) {
     return "GPU";
 #endif
-  } else if (context == mxnet::Context::CPU()) {
+  } else if (context.dev_type == mxnet::Context::CPU().dev_type) {
     return "CPU";
   } else {
     return "INTERPRETER";
@@ -169,11 +169,12 @@ inline std::string get_backend_name(const mxnet::Context &context) {
 inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
     const mxnet::Context &context) {
   auto backend_name = get_backend_name(context);
-  if (backends.count(backend_name) == 0) {
+  auto backend_key = backend_name + ":" + std::to_string(context.dev_id);
+  if (backends.count(backend_key) == 0) {
     auto backend = ngraph::runtime::Backend::create(backend_name);
-    backends[backend_name] = backend;
+    backends[backend_key] = backend;
   }
-  return backends[backend_name];
+  return backends[backend_key];
 }
 
 class OutputElement;
@@ -259,6 +260,7 @@ class Graph : public Node {
 
   std::vector<NodePtr> outputs_;
   std::vector<std::shared_ptr<OutputElement>> output_elements_;
+  std::vector<bool> input_is_weight_;
   bool zero_grad = false;
 };
 

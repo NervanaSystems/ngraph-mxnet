@@ -360,7 +360,23 @@ void CollapseSubgraph(Graph* graph, int subgraph_num) {
           tmpGraph->inputs_.emplace_back(input);
       }
     }
-
+    for (auto input : tmpGraph->inputs_) {
+      tmpGraph->input_is_weight_.push_back(false);
+    }
+    for (auto node : tmpGraph->nodes_) {
+      if (node->operation_ == "Convolution" ||
+          node->operation_ == "BatchNorm") {
+        for (size_t i = 1; i < node->inputs_.size(); ++i) {
+          auto input = node->inputs_[i];
+          if (input->type_ == NodeType::kVariable) {
+            tmpGraph
+                ->input_is_weight_[std::find(tmpGraph->inputs_.begin(),
+                                             tmpGraph->inputs_.end(), input) -
+                                   tmpGraph->inputs_.begin()] = true;
+          }
+        }
+      }
+    }
     // create a map between base nodes and outputs for easier replacement
     std::unordered_map<NodePtr, NodePtr> output_map;
     for (auto output : tmpGraph->output_elements_) {
