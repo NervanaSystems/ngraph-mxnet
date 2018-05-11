@@ -82,7 +82,6 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                      const std::vector<mxnet::NDArray> &inputs,
                      const std::vector<mxnet::OpReqType> &req,
                      const std::vector<mxnet::NDArray> &outputs) {
-  graph->mtx.lock();
   auto backend = GetBackendFromContext(graph->context_);
   auto placeholders = get_tensor_views(inputs, backend);
   // for outputs we need to comply with req
@@ -92,7 +91,6 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   if (ctx.is_train) {
     mode = static_cast<int>(GraphExeMode::kTrain);
     graph->forward_train_computed = true;
-    graph->num_forward_calls += 1;
   }
 
   if (mode == static_cast<int>(GraphExeMode::kTrain)) {
@@ -104,7 +102,7 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   assert(graph->ngraph_forward[mode] != nullptr);
   append_cached_to_forward(&results, graph, mode);
   backend->call(graph->ngraph_forward[mode], results, placeholders);
-  
+
   result_to_NDArray(results, req, outputs);
 
   if (mode == static_cast<int>(GraphExeMode::kInfer)) {
@@ -116,7 +114,6 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   }
 
   update_aux_vals(graph, inputs, mode);
-  graph->mtx.unlock();
 }
 
 // function for computing backward on ngraph
@@ -125,9 +122,6 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                       const std::vector<mxnet::OpReqType> &req,
                       const std::vector<mxnet::NDArray> &outputs) {
   // only expect backward is called in training mode
-  graph->mtx.lock();
-
-  graph->num_backward_calls += 1;
   assert(ctx.is_train);
   auto backend = GetBackendFromContext(graph->context_);
 
@@ -136,12 +130,11 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // check forward has been executed, if not we need to run forward to
   // generate valid data in fprop cache
   if (graph->enable_fprop_cache && !graph->forward_train_computed) {
-    std::cout << "NGRAPH_BRIDGE: WARNING: running forward in backward, "
-              << graph->num_forward_calls << " forward calls and "
-              << graph->num_backward_calls << "backward calls" << std::endl;
+    std::cout << "NGRAPH_BRIDGE: WARNING: running forward in backward"
+              << std::endl;
     // forward inputs
     std::vector<mxnet::NDArray> fwd_inputs(
-        inputs.begin() + graph->num_adjoints_ + 1, inputs.end());
+        inputs.begin() + graph->num_adjoints_, inputs.end());
     auto placeholders = get_tensor_views(fwd_inputs, backend);
     // forward outputs
     TensorViewVector results;
@@ -155,17 +148,16 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     // call forward
     backend->call(graph->ngraph_forward[mode], results, placeholders);
   }
-  std::vector<mxnet::NDArray> new_inputs;
-  new_inputs.insert(new_inputs.begin(), inputs.begin() + 1, inputs.end());
+
   // backward op
   std::vector<mxnet::NDArray> adjoints;
   for (size_t i = 0; i < graph->num_adjoints_; ++i) {
-    adjoints.push_back(new_inputs[i]);
+    adjoints.push_back(inputs[i]);
   }
 
   auto placeholders = graph->enable_fprop_cache
                           ? get_tensor_views(adjoints, backend)
-                          : get_tensor_views(new_inputs, backend);
+                          : get_tensor_views(inputs, backend);
 
   if (graph->zero_grad) {
     for (size_t i = 0; i < graph->num_adjoints_; ++i) {
@@ -191,7 +183,6 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // overwrite aux data if they exist
   // aux result outputs mapped to inputs
   update_aux_vals(graph, inputs, mode, graph->num_adjoints_);
-  graph->mtx.unlock();
 }
 
 // check if last node in graph is an op that doesnt need head-gradient
@@ -292,7 +283,6 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
         if (p->op()->attr_parser != nullptr) {
           p->op()->attr_parser(&(p->attrs));
         }
-        p->inputs.push_back(nnvm::NodeEntry{p, 0, 0});
         if (!zero_grad) {
           p->inputs.insert(p->inputs.end(), ograds.begin(), ograds.end());
         }
