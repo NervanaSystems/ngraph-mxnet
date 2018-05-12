@@ -133,10 +133,10 @@ NDArray::Chunk::~Chunk() {
         CHECK_EQ(mem.mem->GetDataHandle(), mem.h.dptr);
       }
 #endif
-      if (mem.h.size > 0) Storage::Get()->Free(mem.h);
 #if MXNET_USE_NGRAPH == 1
       *mem.tensor_view_ = nullptr;
 #endif
+      if (mem.h.size > 0) Storage::Get()->Free(mem.h);
       for (size_t i = 0; i < mem.aux_h.size(); i++) {
         if (mem.aux_h[i].size > 0) Storage::Get()->Free(mem.aux_h[i]);
       }
