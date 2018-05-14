@@ -1262,19 +1262,23 @@ void Emitter::CreateLayerOps() {
 
     return mul_op;
   };
-  ngraph_op_funcs_["SequenceReverse"] = [this](const NodePtr& node) -> NgraphNodePtr {
+  ngraph_op_funcs_["SequenceReverse"] =
+      [this](const NodePtr& node) -> NgraphNodePtr {
     auto data = op_map_[node->inputs_[0]];
-    auto sequence_length = op_map_[node->inputs_[1]];
     bool use_sequence_length = get_default(node, "use_sequence_length", false);
-    int axis = get_default(node, "axis", 0);
-    NgraphNodePtr seq_rev{nullptr};
+    int seq_axis = get_default(node, "axis", 0);
+    const int batch_axis = 1;
+    NgraphNodePtr sequence_length{nullptr};
     if (use_sequence_length) {
-      seq_rev = std::make_shared<ngraph::op::ReverseSequence>(data, sequence_length, 1, axis);
+      sequence_length = op_map_[node->inputs_[1]];
+    } else {
+      const ngraph::Shape& data_shape = data->get_shape();
+      sequence_length = makeConstant(data->get_element_type(),
+                                     ngraph::Shape{data_shape.at(batch_axis)},
+                                     std::to_string(data_shape.at(seq_axis)));
     }
-    else {
-      seq_rev = std::make_shared<ngraph::op::ReverseSequence>(data, NgraphNodePtr{nullptr}, 1, axis);
-    }
-    return seq_rev;
+    return std::make_shared<ngraph::op::ReverseSequence>(data, sequence_length,
+                                                         batch_axis, seq_axis);
   };
 }
 
