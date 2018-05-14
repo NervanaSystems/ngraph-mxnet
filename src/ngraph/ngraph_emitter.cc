@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <ngraph/op/get_output_element.hpp>
+#include <ngraph/op/reverse_sequence.hpp>
 #include "ngraph_sgcompiler_utils.h"
 #include "ops/batchnorm.h"
 
@@ -1260,6 +1261,20 @@ void Emitter::CreateLayerOps() {
     auto mul_op = std::make_shared<ngraph::op::Multiply>(avg_pool_op, coeff_op);
 
     return mul_op;
+  };
+  ngraph_op_funcs_["SequenceReverse"] = [this](const NodePtr& node) -> NgraphNodePtr {
+    auto data = op_map_[node->inputs_[0]];
+    auto sequence_length = op_map_[node->inputs_[1]];
+    bool use_sequence_length = get_default(node, "use_sequence_length", false);
+    int axis = get_default(node, "axis", 0);
+    NgraphNodePtr seq_rev{nullptr};
+    if (use_sequence_length) {
+      seq_rev = std::make_shared<ngraph::op::ReverseSequence>(data, sequence_length, 1, axis);
+    }
+    else {
+      seq_rev = std::make_shared<ngraph::op::ReverseSequence>(data, NgraphNodePtr{nullptr}, 1, axis);
+    }
+    return seq_rev;
   };
 }
 
