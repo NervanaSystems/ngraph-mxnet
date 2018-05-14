@@ -258,6 +258,8 @@ std::ostream& container_to_debug_stream(
     os << element;
   }
 
+  os << closing_delimiter;
+
   return os;
 }
 

@@ -20,13 +20,25 @@
 # This script is designed to be run from the docker/Dockerfiles directory
 
 set -e  # Fail on any command with non-zero exit
-set -u  # No unset variables
 
 DOCKER_FILE='Dockerfile.ci.mxnet'
 
-# The docker image ID is currently just the git SHA of this cloned repo
+# The docker image name
+#IMAGE_NAME="ngmx_ci"
+
+# The docker image ID will passed
+#IMAGE_ID="${1}"
 IMAGE_ID="$(git rev-parse HEAD)"
+echo "IMAGE_ID= ${IMAGE_ID}"
+
+#if [ -z "${IMAGE_ID}" ] ; then
+#    echo 'Missing an image version as the only argument. Exitting ...'
+#    exit 1
+#fi
+
+set -u  # No unset variables
 
 # Context is the docker directory, to avoid including all of
 # ngraph-mxnet in the context.
+#docker build  --rm=true  --build-arg http_proxy=http://proxy-us.intel.com:911  --build-arg https_proxy=https://proxy-us.intel.com:911  -f="${DOCKER_FILE}"  -t="${IMAGE_NAME}:${IMAGE_ID}"   ..
 docker build  --rm=true  --build-arg http_proxy=http://proxy-us.intel.com:911  --build-arg https_proxy=https://proxy-us.intel.com:911  -f="${DOCKER_FILE}"  -t="mxnet:${IMAGE_ID}"   ..
