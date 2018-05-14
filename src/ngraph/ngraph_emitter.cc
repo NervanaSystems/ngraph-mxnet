@@ -1268,17 +1268,14 @@ void Emitter::CreateLayerOps() {
     bool use_sequence_length = get_default(node, "use_sequence_length", false);
     int seq_axis = get_default(node, "axis", 0);
     const int batch_axis = 1;
-    NgraphNodePtr sequence_length{nullptr};
     if (use_sequence_length) {
-      sequence_length = op_map_[node->inputs_[1]];
+      NgraphNodePtr sequence_length = op_map_[node->inputs_[1]];
+      return std::make_shared<ngraph::op::ReverseSequence>(
+          data, sequence_length, batch_axis, seq_axis);
     } else {
-      const ngraph::Shape& data_shape = data->get_shape();
-      sequence_length = makeConstant(data->get_element_type(),
-                                     ngraph::Shape{data_shape.at(batch_axis)},
-                                     std::to_string(data_shape.at(seq_axis)));
+      return std::make_shared<ngraph::op::Reverse>(data,
+                                                   ngraph::AxisSet{seq_axis});
     }
-    return std::make_shared<ngraph::op::ReverseSequence>(data, sequence_length,
-                                                         batch_axis, seq_axis);
   };
 }
 
