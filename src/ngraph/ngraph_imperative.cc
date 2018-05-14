@@ -105,7 +105,7 @@ bool compute_forward_imperative(const nnvm::NodeAttrs &attrs,
     if (!op_ng) {
       NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
       op_ng = ngicache[op_key] = ngi.get_op_ngraph();
-      if (ngraph_log_verbose && op_ng) {
+      if (ngraph_log_verbose() && op_ng) {
         LOG(INFO) << "Caching... " << attrs.op->name;
       }
     }
@@ -115,7 +115,7 @@ bool compute_forward_imperative(const nnvm::NodeAttrs &attrs,
   if (op_ng && op_ng->ngraph_forward[mode]) {
     compute_forward(ctx, op_ng, inputs, req, outputs);
 
-    if (ngraph_log_verbose_detail) {
+    if (ngraph_log_verbose_detail()) {
       LOG(INFO) << "ngraph imperative op: " << attrs.op->name << ", inputs "
                 << std::to_string(inputs.size()) << ", outputs "
                 << std::to_string(outputs.size());
@@ -144,7 +144,7 @@ void InitImperativeOnce() {
     // skip ops not supported by ngraph imperative
     if ((op_name.substr(0, 9) == "_backward") ||
         !NGImperative::check_op_supported(op_name)) {
-      if (ngraph_log_verbose_detail)
+      if (ngraph_log_verbose_detail())
         std::cout << "NGRAPH IMPERATIVE: skipping op -> " << op_name
                   << std::endl;
       continue;
@@ -208,7 +208,7 @@ void InitImperativeOnce() {
           },
           11);
     }
-    if (ngraph_log_verbose_detail) {
+    if (ngraph_log_verbose_detail()) {
       if (!fallback_nd && !fallbackx_fn && !fallback_fn) {
         std::cout << "NGRAPH IMPERATIVE: not implemented -> " << op_name
                   << std::endl;

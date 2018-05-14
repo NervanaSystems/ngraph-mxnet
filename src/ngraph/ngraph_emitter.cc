@@ -1154,12 +1154,12 @@ void Emitter::CreateLayerOps() {
       std::vector<NgraphNodePtr> convolutions(groups);
       for (size_t g = 0; g < groups; ++g) {
         // slice data on channel_in
-        size_t slice_step = data_shape[1] / groups;
-        auto data_slice =
-            slice_data_on_axis(data, g * slice_step, slice_step, 1, false);
-        auto filter_slice =
-            slice_data_on_axis(filter, g * slice_step, slice_step, 0, false);
-
+        size_t data_slice_step = data_shape[1] / groups;
+        size_t filter_slice_step = filter_shape[0] / groups;
+        auto data_slice = slice_data_on_axis(data, g * data_slice_step,
+                                             data_slice_step, 1, false);
+        auto filter_slice = slice_data_on_axis(filter, g * filter_slice_step,
+                                               filter_slice_step, 0, false);
         // convolve sliced data and filter
         // N, channel_out/groups, d'1,...,d'n
         convolutions[g] = std::make_shared<ngraph::op::Convolution>(
