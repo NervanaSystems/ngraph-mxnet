@@ -54,7 +54,8 @@ class NGImperative : public Compiler {
                                                            "SliceChannel"};
 
     static std::unordered_set<std::string> skip_imperative{
-        "expand_dims", "_copy", "_zeros", "zeros_like", "BatchNorm"};
+        "expand_dims", "_copy",     "_zeros",
+        "zeros_like",  "BatchNorm", "_mul_scalar"};
 
     if (skip_imperative.count(op_name)) return false;
 
