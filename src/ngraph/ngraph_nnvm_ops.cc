@@ -193,7 +193,7 @@ bool check_zero_grad(const std::shared_ptr<Graph> &graph) {
   // if all of the outputs of the graph don't need gradient calculation,
   // don't autodiff this graph. Otherwise, do.
   for (auto node : graph->outputs_) {
-    if (node->operation_ == "SoftmaxOutput"){
+    if (node->operation_ == "SoftmaxOutput") {
       if (get_default(node, "out_grad", false)) {
         return false;
       }

@@ -240,7 +240,6 @@ SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
         C = makeConstant(node, std::string("1"));
       }
       C = loss_op_backward_funcs_[node->operation_](node, C);
-
     }
     outputs.push_back(Y);
     adjoints.push_back(C);
@@ -258,7 +257,8 @@ SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
   back_parameters.insert(back_parameters.begin(), param_adjoints.begin(),
                          param_adjoints.end());
 
-  return {std::make_shared<ngraph::Function>(dYdXs, back_parameters), output_adjoints};
+  return {std::make_shared<ngraph::Function>(dYdXs, back_parameters),
+          output_adjoints};
 }
 
 // Compile a Subgraph into ngraph forward and backward call frames

@@ -1272,7 +1272,7 @@ void Emitter::CreateLayerOps() {
     } else if (get_default(node, "preserve_shape", false)) {
       axes.insert(in_shape.size() - 1);
     } else {
-      for (size_t i = 1; i < in_shape.size(); ++i){
+      for (size_t i = 1; i < in_shape.size(); ++i) {
         axes.insert(i);
       }
     }
@@ -1306,7 +1306,7 @@ void Emitter::CreateLossOps() {
                 label, makeConstant(node, std::to_string(ignore_label))),
             getType(node->dtype_));
       }
-      size_t axis = op_map_[node->inputs_[0]]->get_shape().size() - 1;;
+      size_t axis = op_map_[node->inputs_[0]]->get_shape().size() - 1;
       if (get_default(node, "multi_output", false)) {
         axis = 1;
       }
@@ -1321,7 +1321,7 @@ void Emitter::CreateLossOps() {
         num_classes = shape[1];
       } else if (get_default(node, "preserve_shape", false)) {
         num_classes = shape.back();
-      } else { 
+      } else {
         for (size_t i = 1; i < shape.size(); ++i) {
           num_classes *= shape[i];
         }
@@ -1350,14 +1350,15 @@ void Emitter::CreateLossOps() {
     }
 
     if (norm == "batch") {
-      gradient = gradient / makeConstant(node, std::to_string(gradient->get_shape()[0])); 
+      gradient = gradient /
+                 makeConstant(node, std::to_string(gradient->get_shape()[0]));
     } else if (norm == "valid") {
       ngraph::AxisSet axes;
       for (size_t i = 0; i < gradient->get_shape().size(); ++i) {
         axes.insert(i);
       }
       gradient = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Divide>(
-              gradient, std::make_shared<ngraph::op::Sum>(mask, axes));
+          gradient, std::make_shared<ngraph::op::Sum>(mask, axes));
     }
 
     return gradient;
