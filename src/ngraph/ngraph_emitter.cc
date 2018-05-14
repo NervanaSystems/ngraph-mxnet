@@ -889,6 +889,13 @@ void Emitter::CreateLayerOps() {
 
     if (!no_bias) {
       auto beta = op_map_[node->inputs_[2]];
+      auto shape = beta->get_shape();
+      if (flatten && shape.size() > 1) {
+        beta = std::make_shared<ngraph::op::Reshape>(
+            beta, pyrange(shape.size()),
+            ngraph::Shape{std::accumulate(shape.begin(), shape.end(), 1ul,
+                                          std::multiplies<size_t>())});
+      }
       dot = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(dot,
                                                                         beta);
     }
