@@ -1283,7 +1283,6 @@ void Emitter::CreateLayerOps() {
 void Emitter::CreateLossOps() {
   loss_op_backward_funcs_["SoftmaxOutput"] = [this](
       const NodePtr& node, const NgraphNodePtr& adjoint) {
-
     float grad_scale = get_default(node, "grad_scale", 1.0f);
     float ignore_label = get_default(node, "ignore_label", -1.0f);
     float smooth_alpha = get_default(node, "smooth_alpha", 0.0f);
