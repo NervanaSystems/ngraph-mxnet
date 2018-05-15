@@ -1360,10 +1360,7 @@ void Emitter::CreateLossOps() {
       gradient = gradient * adjoint;
     }
 
-    if {
-      norm != "null"
-    }
-    {
+    if (norm != "null") {
       throw std::runtime_error(std::string("NGRAPH_BRIDGE: SoftmaxOutput ") +
                                "normalization not yet tested " +
                                "in NGraph, please test with this script.")
