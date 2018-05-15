@@ -1288,6 +1288,11 @@ void Emitter::CreateLayerOps() {
 }
 
 void Emitter::CreateLossOps() {
+  // These functions are in place to provide a mechanism for manually specifying
+  // backpropgation methods for Loss functions. We do this because MXNet
+  // provides a number of options that only effect the output of backprop, not
+  // forward prop, and are difficult or impossible to integrate into
+  // nGraph's autodiff functionality
   loss_op_backward_funcs_["SoftmaxOutput"] = [this](
       const NodePtr& node, const NgraphNodePtr& adjoint) {
     float grad_scale = get_default(node, "grad_scale", 1.0f);
@@ -1355,6 +1360,16 @@ void Emitter::CreateLossOps() {
       gradient = gradient * adjoint;
     }
 
+    if {
+      norm != "null"
+    }
+    {
+      throw std::runtime_error(std::string("NGRAPH_BRIDGE: SoftmaxOutput ") +
+                               "normalization not yet tested " +
+                               "in NGraph, please test with this script.")
+    }
+
+    /* TODO(mbrookhart): reenable this once we find a test
     if (norm == "batch") {
       gradient = gradient /
                  makeConstant(node, std::to_string(gradient->get_shape()[0]));
@@ -1366,6 +1381,7 @@ void Emitter::CreateLossOps() {
       gradient = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Divide>(
           gradient, std::make_shared<ngraph::op::Sum>(mask, axes));
     }
+    */
 
     return gradient;
   };
