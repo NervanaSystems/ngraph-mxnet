@@ -368,7 +368,8 @@ void CollapseSubgraph(Graph* graph, int subgraph_num) {
           node->operation_ == "BatchNorm") {
         for (size_t i = 1; i < node->inputs_.size(); ++i) {
           auto input = node->inputs_[i];
-          if (input->type_ == NodeType::kVariable) {
+          if (input->type_ == NodeType::kVariable ||
+              input->type_ == NodeType::kAux) {
             tmpGraph
                 ->input_is_weight_[std::find(tmpGraph->inputs_.begin(),
                                              tmpGraph->inputs_.end(), input) -
