@@ -1380,7 +1380,7 @@ void Emitter::CreateLossOps() {
     if (norm != "null") {
       throw std::runtime_error(std::string("NGRAPH_BRIDGE: SoftmaxOutput ") +
                                "normalization not yet tested " +
-                               "in NGraph, please test with this script.")
+                               "in NGraph, please test with this script.");
     }
 
     /* TODO(mbrookhart): reenable this once we find a test
