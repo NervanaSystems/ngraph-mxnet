@@ -1298,7 +1298,7 @@ void Emitter::CreateLayerOps() {
       axes.insert(in_shape.size() - 1);
     } else {
       auto tmpaxes = pyrange(in_shape.size());
-      axes = std::set<size_t>(tmpaxes.begin(), tmpaxes.end());
+      axes = std::set<size_t>(tmpaxes.begin() + 1, tmpaxes.end());
     }
     return std::make_shared<ngraph::op::Softmax>(input, axes);
   };
