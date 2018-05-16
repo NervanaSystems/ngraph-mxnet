@@ -221,11 +221,11 @@ def runResnetScript(script=None,          # Script to run
 
     # -u puts python in unbuffered mode
     if (trainWithNPP):
-        cmd = ("{} {} --network {} --num-layers {} --num-epochs {} --num-classes {} --num-examples {} --image-shape {} --pad-size {} --lr {} --lr-step-epochs {} --with-nnp".format(python_lib.strip(), script, "resnet", trainNumLayers,
-        trainEpochs, trainNumClasses, trainNumExamples, trainImageShape.strip(), trainPadSize, trainLr, trainLrStepEpochs).strip())
+        cmd = ("{} {} --network {} --batch-size {} --num-layers {} --num-epochs {} --num-classes {} --num-examples {} --image-shape {} --pad-size {} --lr {} --lr-step-epochs {} --with-nnp".format(python_lib.strip(), script, "resnet", trainBatchSize, trainNumLayers, 
+        trainEpochs, trainNumClasses, trainNumExamples, str(trainImageShape).strip(), trainPadSize, trainLr, str(trainLrStepEpochs).strip()))
         print("The Command for Resnet is: {}".format(cmd))
     else:
-        cmd = ("{} {} --network {} --num-layers {} --num-epochs {} --num-classes {} --num-examples {} --image-shape {} --pad-size {} --lr {} --lr-step-epochs {}".format(python_lib.strip(), script, "resnet", trainNumLayers,
+        cmd = ("{} {} --network {} --batch-size {} --num-layers {} --num-epochs {} --num-classes {} --num-examples {} --image-shape {} --pad-size {} --lr {} --lr-step-epochs {}".format(python_lib.strip(), script, "resnet", trainBatchSize, trainNumLayers,
         trainEpochs, trainNumClasses, trainNumExamples, str(trainImageShape).strip(), trainPadSize, trainLr, str(trainLrStepEpochs).strip()))
         print("The Command for Resnet is: {}".format(cmd))
 
