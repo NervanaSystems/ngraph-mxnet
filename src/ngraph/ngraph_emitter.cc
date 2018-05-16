@@ -18,6 +18,7 @@
 #include "ngraph_utils.h"
 
 #include <functional>
+#include <set>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -1296,9 +1297,8 @@ void Emitter::CreateLayerOps() {
     } else if (get_default(node, "preserve_shape", false)) {
       axes.insert(in_shape.size() - 1);
     } else {
-      for (size_t i = 1; i < in_shape.size(); ++i) {
-        axes.insert(i);
-      }
+      auto tmpaxes = pyrange(in_shape.size());
+      axes = std::set<size_t>(tmpaxes.begin(), tmpaxes.end());
     }
     return std::make_shared<ngraph::op::Softmax>(input, axes);
   };
@@ -1309,17 +1309,18 @@ void Emitter::CreateLossOps() {
   // backpropgation methods for Loss functions. We do this because MXNet
   // provides a number of options that only effect the output of backprop, not
   // forward prop, and are difficult or impossible to integrate into
-  // nGraph's autodiff functionality
+  // nGraph's autodiff functionality.
   loss_op_backward_funcs_["SoftmaxOutput"] = [this](
       const NodePtr& node, const NgraphNodePtr& adjoint) {
-    float grad_scale = get_default(node, "grad_scale", 1.0f);
-    float ignore_label = get_default(node, "ignore_label", -1.0f);
-    float smooth_alpha = get_default(node, "smooth_alpha", 0.0f);
+    const float grad_scale = get_default(node, "grad_scale", 1.0f);
+    const float ignore_label = get_default(node, "ignore_label", -1.0f);
+    const float smooth_alpha = get_default(node, "smooth_alpha", 0.0f);
 
-    bool use_ignore = get_default(node, "use_ignore", false);
-    bool out_grad = get_default(node, "out_grad", false);
+    const bool use_ignore = get_default(node, "use_ignore", false);
+    const bool out_grad = get_default(node, "out_grad", false);
 
-    std::string norm = get_default(node, "normalization", std::string("null"));
+    const std::string norm =
+        get_default(node, "normalization", std::string("null"));
 
     auto softmax = op_map_[node];
     auto label = op_map_[node->inputs_[1]];

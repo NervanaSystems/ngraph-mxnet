@@ -237,7 +237,7 @@ SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
           get_default(node, "out_grad", false)) {
         C = make_and_cache_parameter(Y);
       } else {
-        C = makeConstant(node, std::string("1"));
+        C = makeConstant(node, "1");
       }
       C = loss_op_backward_funcs_[node->operation_](node, C);
     }
