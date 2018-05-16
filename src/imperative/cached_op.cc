@@ -257,7 +257,7 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
 #if MXNET_USE_NGRAPH == 1
   if (!recording) {
     ngraph_bridge::BindArgBase bind(num_inputs());
-    auto compiler = ngraph_bridge::Compiler(
+    ngraph_bridge::Compiler compiler(
         fwd_graph_, inputs[0]->ctx(), cached_shape_inputs, cached_dtype_inputs,
         cached_storage_type_inputs);
 

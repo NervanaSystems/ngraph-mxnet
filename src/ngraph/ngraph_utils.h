@@ -166,7 +166,10 @@ inline bool get_default(const NodePtr& node, const std::string& key,
 // check if any ndarray is sparse
 inline bool sparse_check(const std::vector<mxnet::NDArray>& ndarray) {
   for (const auto& i : ndarray) {
-    if (i.storage_type() != mxnet::kDefaultStorage) return true;
+    if (i.storage_type() != mxnet::kDefaultStorage &&
+        i.storage_type() != mxnet::kUndefinedStorage) {
+      return true;
+    }
   }
   return false;
 }
