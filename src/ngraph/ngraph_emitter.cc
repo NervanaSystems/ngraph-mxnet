@@ -652,6 +652,23 @@ void Emitter::CreateBinaryOps() {
     return cast_result(CreateAutoBroadcast<ngraph::op::LessEq>(node),
                        getType(node->dtype_));
   };
+  ngraph_op_funcs_["broadcast_to"] = [this](const NodePtr& node) -> NgraphNodePtr {
+    std::cout << "broadcast_to" << std::endl;
+    auto input = op_map_[node->inputs_[0]];
+    auto in_shape = input->get_shape();
+    std::cout << "in: " << ngraph::vector_to_string(in_shape) << std::endl;
+    ngraph::Shape out_shape(get_default(node, "shape", std::vector<size_t>{}));
+    std::cout << "out: " << ngraph::vector_to_string(out_shape) << std::endl;
+    ngraph::AxisSet axis{};
+    for (size_t i = 0; i < in_shape.size(); ++i) {
+      if (in_shape[i] != out_shape[i]) {
+        axis.insert(i);
+        std::cout << "i: " << i << std::endl;
+      }
+    }
+    return std::make_shared<ngraph::op::Broadcast>(input, 
+                                                   out_shape, axis);
+  };
   ngraph_op_funcs_["SequenceMask"] = [this](const NodePtr& node) {
     auto data = op_map_[node->inputs_[0]];
 
@@ -889,13 +906,6 @@ void Emitter::CreateLayerOps() {
 
     if (!no_bias) {
       auto beta = op_map_[node->inputs_[2]];
-      auto shape = beta->get_shape();
-      if (flatten && shape.size() > 1) {
-        beta = std::make_shared<ngraph::op::Reshape>(
-            beta, pyrange(shape.size()),
-            ngraph::Shape{std::accumulate(shape.begin(), shape.end(), 1ul,
-                                          std::multiplies<size_t>())});
-      }
       dot = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(dot,
                                                                         beta);
     }
