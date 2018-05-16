@@ -122,7 +122,7 @@ cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/t
 eval $cmd
 
 ## Unit tests test_module.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_module.py --verbose --capture=no --junit-xml=result_test_module.xml --junit-prefix=result_test_module"
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_module.py --verbose --capture=no --junit-xml=result_test_module.xml --junit-prefix=result_test_module"
 eval $cmd
 
 ## Unit tests test_multi_device_exec.py
