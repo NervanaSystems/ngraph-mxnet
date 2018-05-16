@@ -197,7 +197,16 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   }
 
   // create the Forward Function object representing the graph
-  return std::make_shared<ngraph::Function>(outputs, parameters);
+  auto func = std::make_shared<ngraph::Function>(outputs, parameters);
+
+  //fuse conv + bias before autodiff
+  if (sub_graph->context_ == mxnet::Context::CPU()) {
+    ngraph::pass::Manager pass_manager;
+    pass_manager.register_pass<ngraph::runtime::cpu::pass::CPUFusion>(runtime::cpu::pass::CPUFusion::DIFFERENTIABLE_FUSIONS);
+    pass_manager.run_passes(func);
+  }
+
+  return func;
 }
 
 std::pair<std::shared_ptr<ngraph::Function>,
