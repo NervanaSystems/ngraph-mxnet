@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -208,14 +209,38 @@ SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
   std::vector<std::shared_ptr<ngraph::op::Parameter>> back_parameters =
       f->get_parameters();
 
+  std::vector<std::shared_ptr<ngraph::op::Parameter>> param_adjoints;
   ngraph::NodeVector adjoints;
+  ngraph::NodeVector output_adjoints;
   ngraph::NodeVector outputs;
+
+  auto make_and_cache_parameter =
+      [&param_adjoints, &output_adjoints](NgraphNodePtr Y) -> NgraphNodePtr {
+    auto C = std::make_shared<ngraph::op::Parameter>(Y->get_element_type(),
+                                                     Y->get_shape());
+    param_adjoints.push_back(C);
+    output_adjoints.push_back(C);
+    return C;
+  };
+
   for (auto node : sub_graph->outputs_) {
-    // Get the output
-    auto Y = op_map_.at(node);
-    // Create the Adjoint
-    NgraphNodePtr C = std::make_shared<ngraph::op::Parameter>(
-        Y->get_element_type(), Y->get_shape());
+    NgraphNodePtr Y;
+    NgraphNodePtr C;
+    if (loss_op_backward_funcs_.count(node->operation_) == 0) {
+      // Get the output
+      Y = op_map_.at(node);
+      // Create the Adjoint
+      C = make_and_cache_parameter(Y);
+    } else {
+      Y = op_map_.at(node->inputs_[0]);
+      if (node->operation_ == "SoftmaxOutput" &&
+          get_default(node, "out_grad", false)) {
+        C = make_and_cache_parameter(Y);
+      } else {
+        C = makeConstant(node, "1");
+      }
+      C = loss_op_backward_funcs_[node->operation_](node, C);
+    }
     outputs.push_back(Y);
     adjoints.push_back(C);
   }
@@ -229,14 +254,11 @@ SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
       [&adjoint](const NgraphNodePtr &X) { return adjoint.backprop_node(X); });
 
   // create the backward function
-  std::vector<std::shared_ptr<ngraph::op::Parameter>> param_adjoints;
-  for (auto n : adjoints)
-    param_adjoints.push_back(
-        std::dynamic_pointer_cast<ngraph::op::Parameter>(n));
   back_parameters.insert(back_parameters.begin(), param_adjoints.begin(),
                          param_adjoints.end());
 
-  return {std::make_shared<ngraph::Function>(dYdXs, back_parameters), adjoints};
+  return {std::make_shared<ngraph::Function>(dYdXs, back_parameters),
+          output_adjoints};
 }
 
 // Compile a Subgraph into ngraph forward and backward call frames
@@ -262,6 +284,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     auto bfa = MakeBackwardFunction(sub_graph, f);
     maybe_bf = bfa.first;
     adjoints = bfa.second;
+    sub_graph->num_adjoints_ = adjoints.size();
     if (ngraph_log_graph()) {
       dump_graph(maybe_bf, __func__, "pre-optimized-bprop");
     }
