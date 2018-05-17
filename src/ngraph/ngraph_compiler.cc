@@ -126,6 +126,7 @@ Compiler::Compiler(const mxnet::Context& context)
 
 // Compiler initialization for gluon hybrid
 Compiler::Compiler(const nnvm::Graph& graph, const mxnet::Context& context,
+                   const NNVMNodeVec& inputs,
                    const std::vector<nnvm::TShape>& shapes,
                    const std::vector<int>& dtypes,
                    const std::vector<int>& stypes)
@@ -136,6 +137,7 @@ Compiler::Compiler(const nnvm::Graph& graph, const mxnet::Context& context,
   DeepCopy(graph);
   graph_.attrs["context"] = std::make_shared<nnvm::any>(
       mxnet::exec::ContextVector(graph_.indexed_graph().num_nodes(), context));
+  MakeCopiedInputs(inputs);
   ProcessGraph({});
 }
 // Compiler initialization
