@@ -20,10 +20,7 @@
 #ifndef MXNET_STORAGE_CPU_SHARED_STORAGE_MANAGER_H_
 #define MXNET_STORAGE_CPU_SHARED_STORAGE_MANAGER_H_
 
-#if MXNET_USE_CUDA
-  #include <cuda_runtime.h>
-#endif  // MXNET_USE_CUDA
-#include <mxnet/base.h>
+#if !defined(ANDROID) && !defined(__ANDROID__)
 
 #ifndef _WIN32
 #include <sys/mman.h>
@@ -46,8 +43,6 @@
 #include <limits>
 
 #include "./storage_manager.h"
-#include "../common/cuda_utils.h"
-
 
 namespace mxnet {
 namespace storage {
@@ -74,6 +69,7 @@ class CPUSharedStorageManager final : public StorageManager {
 
   void Alloc(Storage::Handle* handle) override;
   void Free(Storage::Handle handle) override {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     pool_.erase(handle.dptr);
     FreeImpl(handle);
   }
@@ -95,7 +91,12 @@ class CPUSharedStorageManager final : public StorageManager {
   }
 
  private:
+#if MXNET_USE_NGRAPH == 1
+  // ngraph recommends 64byte alignment (cache line size) for better perf.
+  static constexpr size_t alignment_ = 64;
+#else
   static constexpr size_t alignment_ = 16;
+#endif
 
   std::recursive_mutex mutex_;
   std::mt19937 rand_gen_;
@@ -234,5 +235,7 @@ inline void CPUSharedStorageManager::CheckAndRealFree() {
 #endif  // _WIN32
 }  // namespace storage
 }  // namespace mxnet
+
+#endif  // !defined(ANDROID) && !defined(__ANDROID__)
 
 #endif  // MXNET_STORAGE_CPU_SHARED_STORAGE_MANAGER_H_

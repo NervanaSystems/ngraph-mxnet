@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -44,9 +45,12 @@ void CompileForward(std::shared_ptr<Graph> sub_graph,
   auto backend = GetBackendFromContext(sub_graph->context_);
 
   // Log the graph so Graph_* corresponds to Function_* in codgen
-  if (ngraph_log_graph) {
+  if (ngraph_log_graph()) {
     dump_graph(f, __func__, "fprop");
   }
+  auto results = f->get_results();
+  for (size_t i = 0; i < sub_graph->num_outputs_; ++i)
+    results[i]->set_needs_default_layout(true);
 
   backend->compile(f);
   sub_graph->ngraph_forward[mode] = f;
@@ -70,12 +74,17 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
   auto bf_copy = ngraph::clone_function(*bf, bfmap);
 
   // Log the graphs so Graph_* corresponds to Function_* in codgen
-  if (ngraph_log_graph) {
+  if (ngraph_log_graph()) {
     dump_graph(f_copy, __func__, "fprop");
     dump_graph(bf_copy, __func__, "bprop");
   }
 
-  backend->enable_performance_data(f_copy, true);
+  auto results = f_copy->get_results();
+  for (size_t i = 0; i < (sub_graph->num_outputs_ +
+                          sub_graph->cached_aux_values[mode].size());
+       ++i)
+    results[i]->set_needs_default_layout(true);
+
   backend->compile(f_copy);
 
   for (auto result : f->get_results()) {
@@ -88,7 +97,8 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
       cloned_bf_param->get_output_tensor_view()->set_tensor_view_layout(layout);
     }
   }
-  backend->enable_performance_data(bf_copy, true);
+
+  for (auto res : bf_copy->get_results()) res->set_needs_default_layout(true);
   backend->compile(bf_copy);
 
   sub_graph->ngraph_forward[mode] = f_copy;
@@ -112,7 +122,12 @@ void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
     for (size_t i = 0; i < bf->get_output_size(); ++i) {
       dYdXs.push_back(bf->get_output_op(i)->get_argument(0));
     }
-    ngraph::NodeVector combined_outputs{f->get_output_op(0)->get_argument(0)};
+
+    ngraph::NodeVector combined_outputs;
+    for (auto r : f->get_results()) {
+      combined_outputs.push_back(r->get_argument(0));
+    }
+
     combined_outputs.insert(combined_outputs.end(), dYdXs.begin(), dYdXs.end());
 
     std::vector<std::shared_ptr<ngraph::op::Parameter>> combined_parameters =
@@ -166,7 +181,7 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   auto backend = GetBackendFromContext(sub_graph->context_);
 
   // push additional aux outputs
-  if (exe_mode_ == GraphExeMode::kTrain && !aux_op_map_.empty()) {
+  if (!aux_op_map_.empty()) {
     int i = 0;
     for (auto input : sub_graph->inputs_) {
       if (aux_op_map_.count(input)) {
@@ -194,14 +209,38 @@ SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
   std::vector<std::shared_ptr<ngraph::op::Parameter>> back_parameters =
       f->get_parameters();
 
+  std::vector<std::shared_ptr<ngraph::op::Parameter>> param_adjoints;
   ngraph::NodeVector adjoints;
+  ngraph::NodeVector output_adjoints;
   ngraph::NodeVector outputs;
+
+  auto make_and_cache_parameter =
+      [&param_adjoints, &output_adjoints](NgraphNodePtr Y) -> NgraphNodePtr {
+    auto C = std::make_shared<ngraph::op::Parameter>(Y->get_element_type(),
+                                                     Y->get_shape());
+    param_adjoints.push_back(C);
+    output_adjoints.push_back(C);
+    return C;
+  };
+
   for (auto node : sub_graph->outputs_) {
-    // Get the output
-    auto Y = op_map_.at(node);
-    // Create the Adjoint
-    NgraphNodePtr C = std::make_shared<ngraph::op::Parameter>(
-        Y->get_element_type(), Y->get_shape());
+    NgraphNodePtr Y;
+    NgraphNodePtr C;
+    if (loss_op_backward_funcs_.count(node->operation_) == 0) {
+      // Get the output
+      Y = op_map_.at(node);
+      // Create the Adjoint
+      C = make_and_cache_parameter(Y);
+    } else {
+      Y = op_map_.at(node->inputs_[0]);
+      if (node->operation_ == "SoftmaxOutput" &&
+          get_default(node, "out_grad", false)) {
+        C = make_and_cache_parameter(Y);
+      } else {
+        C = makeConstant(node, "1");
+      }
+      C = loss_op_backward_funcs_[node->operation_](node, C);
+    }
     outputs.push_back(Y);
     adjoints.push_back(C);
   }
@@ -215,14 +254,11 @@ SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
       [&adjoint](const NgraphNodePtr &X) { return adjoint.backprop_node(X); });
 
   // create the backward function
-  std::vector<std::shared_ptr<ngraph::op::Parameter>> param_adjoints;
-  for (auto n : adjoints)
-    param_adjoints.push_back(
-        std::dynamic_pointer_cast<ngraph::op::Parameter>(n));
   back_parameters.insert(back_parameters.begin(), param_adjoints.begin(),
                          param_adjoints.end());
 
-  return {std::make_shared<ngraph::Function>(dYdXs, back_parameters), adjoints};
+  return {std::make_shared<ngraph::Function>(dYdXs, back_parameters),
+          output_adjoints};
 }
 
 // Compile a Subgraph into ngraph forward and backward call frames
@@ -238,7 +274,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   auto f = MakeForwardFunction(sub_graph);
-  if (ngraph_log_graph) {
+  if (ngraph_log_graph()) {
     dump_graph(f, __func__, "pre-optimized-fprop");
   }
 
@@ -248,7 +284,8 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     auto bfa = MakeBackwardFunction(sub_graph, f);
     maybe_bf = bfa.first;
     adjoints = bfa.second;
-    if (ngraph_log_graph) {
+    sub_graph->num_adjoints_ = adjoints.size();
+    if (ngraph_log_graph()) {
       dump_graph(maybe_bf, __func__, "pre-optimized-bprop");
     }
 
@@ -258,7 +295,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     OptimizeGraph(sub_graph, f, maybe_bf);
   }
 
-  if (ngraph_log_graph) {
+  if (ngraph_log_graph()) {
     dump_graph(f, __func__, "post-optimized-fprop");
 
     if (maybe_bf) {
@@ -269,7 +306,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   if (sub_graph->enable_fprop_cache && exe_mode_ == GraphExeMode::kTrain) {
     auto fprop_cache = ngraph::cache_fprop(f, maybe_bf, adjoints);
 
-    if (ngraph_log_graph) {
+    if (ngraph_log_graph()) {
       dump_graph(fprop_cache.fprop, __func__, "fprop_cache.fprop");
       dump_graph(fprop_cache.bprop, __func__, "fprop_cache.bprop");
     }

@@ -54,17 +54,26 @@ class CPUDeviceStorage {
   /*!
    * \brief Alignment of allocation.
    */
+#if MXNET_USE_MKLDNN == 1
+  // MKLDNN requires special alignment. 64 is used by the MKLDNN library in
+  // memory allocation.
+  static constexpr size_t alignment_ = kMKLDNNAlign;
+#elif MXNET_USE_NGRAPH == 1
+  // ngraph recommends 64byte alignment (cache line size) for better perf.
+  static constexpr size_t alignment_ = 64;
+#else
   static constexpr size_t alignment_ = 16;
+#endif
 };  // class CPUDeviceStorage
 
 inline void* CPUDeviceStorage::Alloc(size_t size) {
   void* ptr;
 #if _MSC_VER
   ptr = _aligned_malloc(size, alignment_);
-  if (ptr == NULL) throw std::bad_alloc();
+  if (ptr == NULL) LOG(FATAL) << "Failed to allocate CPU Memory";
 #else
   int ret = posix_memalign(&ptr, alignment_, size);
-  if (ret != 0) throw std::bad_alloc();
+  if (ret != 0) LOG(FATAL) << "Failed to allocate CPU Memory";
 #endif
   return ptr;
 }

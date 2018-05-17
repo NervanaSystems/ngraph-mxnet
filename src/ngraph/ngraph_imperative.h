@@ -53,8 +53,9 @@ class NGImperative : public Compiler {
     static std::unordered_set<std::string> layer_and_other{"split",
                                                            "SliceChannel"};
 
-    static std::unordered_set<std::string> skip_imperative{"expand_dims",
-                                                           "_copy", "_zeros"};
+    static std::unordered_set<std::string> skip_imperative{
+        "expand_dims", "_copy",     "_zeros",
+        "zeros_like",  "BatchNorm", "_mul_scalar"};
 
     if (skip_imperative.count(op_name)) return false;
 

@@ -91,7 +91,6 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
   shapes_.resize(idx.input_nodes().size(), nnvm::TShape());
   dtypes_.resize(idx.input_nodes().size(), -1);
   stypes_.resize(idx.input_nodes().size(), mxnet::kUndefinedStorage);
-  size_t arg_top = 0, aux_top = 0;
   for (size_t i = 0; i < simplebind->kNumForwardInputs; ++i) {
     const uint32_t nid = idx.input_nodes().at(i);
     const std::string& name = idx[nid].source->attrs.name;
@@ -114,6 +113,20 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
 Compiler::Compiler(const mxnet::Context& context)
     : ngraph_("ngraph_" + randomString(6), context, false) {}
 
+// Compiler initialization for gluon hybrid
+Compiler::Compiler(const nnvm::Graph& graph, const mxnet::Context& context,
+                   const std::vector<nnvm::TShape>& shapes,
+                   const std::vector<int>& dtypes,
+                   const std::vector<int>& stypes)
+    : ngraph_("ngraph_" + randomString(6), context),
+      shapes_(shapes),
+      dtypes_(dtypes),
+      stypes_(stypes) {
+  DeepCopy(graph);
+  graph_.attrs["context"] = std::make_shared<nnvm::any>(
+      mxnet::exec::ContextVector(graph_.indexed_graph().num_nodes(), context));
+  ProcessGraph({});
+}
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                    const NNVMNodeVec& inputs, const BindArgBase& bindbase,
@@ -160,7 +173,7 @@ void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
 
 void Compiler::IdentifyCollapseGraphs() {
   // Output Graphviz dot files (pre collapse) for vizualization
-  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, std::string("pre_collapse"));
+  if (ngraph_log_viz()) WriteSubgraphDots(ngraph_, std::string("pre_collapse"));
 
   IdentifySubgraphs(&ngraph_, [this](NodePtr s) -> bool {
     bool in_feed_dict = false;
@@ -174,7 +187,7 @@ void Compiler::IdentifyCollapseGraphs() {
   });
 
   // Output Graphviz dot files (post collapse) for vizualization
-  if (ngraph_log_viz) WriteSubgraphDots(ngraph_, "post_collapse");
+  if (ngraph_log_viz()) WriteSubgraphDots(ngraph_, "post_collapse");
 }
 
 void Compiler::CreateSubgraphNNVMNodes() {
@@ -386,6 +399,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 
 // Check nodes in NGraph
 void Compiler::CheckInNgraph() {
+  std::unordered_set<std::string> unsupported_op_names;
   for (auto node : ngraph_.nodes_) {
     // The bridge code only has nGraph emitters for kOp-type nodes.
     if (node->type_ == NodeType::kOp) {
@@ -412,8 +426,13 @@ void Compiler::CheckInNgraph() {
             }
           }
         }
+      } else if (ngraph_log_verbose()) {
+        unsupported_op_names.insert(node->operation_);
       }
     }
+  }
+  for (const auto& name : unsupported_op_names) {
+    std::cout << "NGRAPH_BRIDGE: Unsupported Op: " << name << std::endl;
   }
 }
 

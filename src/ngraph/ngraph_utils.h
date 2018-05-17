@@ -33,15 +33,26 @@
 namespace ngraph_bridge {
 
 // enable ngraph gluon at runtime.
-const bool ngraph_gluon_enable = dmlc::GetEnv("MXNET_NGRAPH_GLUON", false);
+inline bool ngraph_gluon_enable() {
+  return dmlc::GetEnv("MXNET_NGRAPH_GLUON", false);
+}
 
 // logging
-const bool ngraph_log_verbose = dmlc::GetEnv("MXNET_NGRAPH_VERBOSE", false);
-const bool ngraph_log_graph = dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_GRAPH", false);
-const bool ngraph_log_viz = dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_VIZ", false);
-const bool ngraph_log_timer = dmlc::GetEnv("MXNET_NGRAPH_TIMER", false);
-const bool ngraph_log_verbose_detail =
-    dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_DETAIL", false);
+inline bool ngraph_log_verbose() {
+  return dmlc::GetEnv("MXNET_NGRAPH_VERBOSE", false);
+}
+inline bool ngraph_log_graph() {
+  return dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_GRAPH", false);
+}
+inline bool ngraph_log_viz() {
+  return dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_VIZ", false);
+}
+inline bool ngraph_log_timer() {
+  return dmlc::GetEnv("MXNET_NGRAPH_TIMER", false);
+}
+inline bool ngraph_log_verbose_detail() {
+  return dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_DETAIL", false);
+}
 
 // simple timer for sequential blocks of code
 class Timer {
@@ -155,7 +166,10 @@ inline bool get_default(const NodePtr& node, const std::string& key,
 // check if any ndarray is sparse
 inline bool sparse_check(const std::vector<mxnet::NDArray>& ndarray) {
   for (const auto& i : ndarray) {
-    if (i.storage_type() != mxnet::kDefaultStorage) return true;
+    if (i.storage_type() != mxnet::kDefaultStorage &&
+        i.storage_type() != mxnet::kUndefinedStorage) {
+      return true;
+    }
   }
   return false;
 }
@@ -246,6 +260,8 @@ std::ostream& container_to_debug_stream(
 
     os << element;
   }
+
+  os << closing_delimiter;
 
   return os;
 }

@@ -143,7 +143,6 @@ NgraphNodePtr create_batchnorm_inference_without_ngraph_bn_op(
   const size_t batch_data_rank = batch_data_shape.size();
 
   CHECK(channel_axis < batch_data_rank);
-  const size_t channel_axis_length = batch_data_shape[ channel_axis ];
 
   const NgraphNodePtr ng_normalized_batch = create_batchnorm_basic_computation_nodes(
     ng_moving_mean, ng_moving_var, ng_in_data, channel_axis, epsilon, ng_maybe_gamma, ng_beta);

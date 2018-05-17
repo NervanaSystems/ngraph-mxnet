@@ -76,6 +76,24 @@ inline TensorViewVector make_ngraph_placeholders(
   return out;
 }
 
+// creates and returns vector of TensorViews for corresponding NDArrays
+// reuses NDArray memory for each TensorView if req is not kAddTo
+inline TensorViewVector get_tensor_views(
+    const std::vector<mxnet::NDArray>& ndarrays,
+    std::shared_ptr<ngraph::runtime::Backend> backend,
+    const std::vector<mxnet::OpReqType>* req = nullptr) {
+  TensorViewVector out;
+  for (size_t i = 0; i < ndarrays.size(); ++i) {
+    auto shape = TShape_to_NShape(ndarrays[i].shape());
+    const auto& element_type = getType(ndarrays[i].dtype());
+    if ((req != nullptr) && ((*req)[i] == mxnet::kAddTo))
+      out.push_back(backend->create_tensor(element_type, shape));
+    else
+      out.push_back(
+          const_cast<mxnet::NDArray&>(ndarrays[i]).create_tensor_view());
+  }
+  return out;
+}
 template <class T>
 inline void result_plus_NDArray(void* mxnet_ptr, void* ngraph_ptr,
                                 size_t buffer_size) {
@@ -91,7 +109,7 @@ inline void result_plus_NDArray(void* mxnet_ptr, void* ngraph_ptr,
 inline void result_to_NDArray(
     const std::vector<std::shared_ptr<ngraph::runtime::TensorView>>& results,
     const std::vector<mxnet::OpReqType>& req,
-    const std::vector<mxnet::NDArray>& outputs) {
+    const std::vector<mxnet::NDArray>& outputs, bool force_read = false) {
   for (size_t i = 0; i < outputs.size(); ++i) {
     if (req[i] == mxnet::kNullOp) continue;
 
@@ -119,7 +137,7 @@ inline void result_to_NDArray(
       free(ngraph_tv);
     } else {
       // TODO(adstraw): Add support for kWriteInplace
-      results[i]->read(mxnet_ndarray, 0, buffer_size);
+      if (force_read) results[i]->read(mxnet_ndarray, 0, buffer_size);
     }
   }
 }

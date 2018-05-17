@@ -18,12 +18,14 @@
 #include "ngraph_utils.h"
 
 #include <functional>
+#include <set>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
 
 #include <ngraph/op/get_output_element.hpp>
+#include <ngraph/op/reverse_sequence.hpp>
 #include "ngraph_sgcompiler_utils.h"
 #include "ops/batchnorm.h"
 
@@ -46,6 +48,7 @@ void Emitter::InitOpFuncs() {
   CreateUnaryOps();
   CreateBinaryOps();
   CreateLayerOps();
+  CreateLossOps();
 }
 
 void Emitter::ClearOpMap() {
@@ -254,8 +257,6 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["tan"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Tan>(op_map_[node->inputs_[0]]);
   };
-  // TODO(mbrookhart): Arc trig autodiff not implemented
-  /*
   ngraph_op_funcs_["arcsin"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Asin>(op_map_[node->inputs_[0]]);
   };
@@ -265,7 +266,6 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["arctan"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Atan>(op_map_[node->inputs_[0]]);
   };
-  */
   ngraph_op_funcs_["sinh"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Sinh>(op_map_[node->inputs_[0]]);
   };
@@ -497,7 +497,23 @@ void Emitter::CreateBinaryOps() {
     NgraphNodePtr left = op_map_[node->inputs_[0]];
     NgraphNodePtr right = op_map_[node->inputs_[1]];
     auto args = dot_transpose(node, left, right);
-    return std::make_shared<ngraph::op::Dot>(args.first, args.second, 1);
+
+    const NgraphNodePtr dot =
+        std::make_shared<ngraph::op::Dot>(args.first, args.second, 1);
+    const size_t dot_rank = dot->get_shape().size();
+
+    // A scalar value in nGraph has shape {}, but in MXnet it has shape {1}...
+    NgraphNodePtr dot_shaped;
+    if (dot_rank == 0) {
+      ngraph::AxisVector input_order{};
+      ngraph::Shape output_shape{1};
+      dot_shaped =
+          std::make_shared<ngraph::op::Reshape>(dot, input_order, output_shape);
+    } else {
+      dot_shaped = dot;
+    }
+
+    return dot_shaped;
   };
   ngraph_op_funcs_["batch_dot"] = [this, dot_transpose](const NodePtr& node) {
     NgraphNodePtr left = op_map_[node->inputs_[0]];
@@ -736,6 +752,17 @@ struct PoolingParams {
   std::vector<size_t> pad;
 };
 
+// clip utility function
+NgraphNodePtr clip(const NgraphNodePtr& input, const float& min,
+                   const float& max) {
+  auto shape = input->get_shape();
+  auto dtype = input->get_element_type();
+  const NgraphNodePtr a_min = makeConstant(dtype, shape, min);
+  const NgraphNodePtr a_max = makeConstant(dtype, shape, max);
+  return std::make_shared<ngraph::op::Maximum>(
+      std::make_shared<ngraph::op::Minimum>(input, a_max), a_min);
+}
+
 // MXNet high level ops generating function
 void Emitter::CreateLayerOps() {
   // In mxnet, split takes a tensor and creates multiple tensors from
@@ -864,10 +891,79 @@ void Emitter::CreateLayerOps() {
 
     if (!no_bias) {
       auto beta = op_map_[node->inputs_[2]];
+      auto shape = beta->get_shape();
+      if (flatten && shape.size() > 1) {
+        beta = std::make_shared<ngraph::op::Reshape>(
+            beta, pyrange(shape.size()),
+            ngraph::Shape{std::accumulate(shape.begin(), shape.end(), 1ul,
+                                          std::multiplies<size_t>())});
+      }
       dot = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(dot,
                                                                         beta);
     }
     return dot;
+  };
+
+  // clip op
+  ngraph_op_funcs_["clip"] = [this](const NodePtr& node) {
+    return clip(op_map_[node->inputs_[0]], get_default(node, "a_min", 0.0f),
+                get_default(node, "a_max", 0.0f));
+  };
+
+  // sgd_update op
+  ngraph_op_funcs_["sgd_update"] = [this](const NodePtr& node) {
+    auto weight = op_map_[node->inputs_[0]];
+    auto grad = op_map_[node->inputs_[1]];
+    auto shape = weight->get_shape();
+    auto dtype = weight->get_element_type();
+
+    const float clip_gradient = get_default(node, "clip_gradient", -1.0f);
+    const NgraphNodePtr ng_rescale_grad =
+        makeConstant(dtype, shape, get_default(node, "rescale_grad", 1.0f));
+    const NgraphNodePtr ng_wd =
+        makeConstant(dtype, shape, get_default(node, "wd", 0.0f));
+    const NgraphNodePtr ng_lr =
+        makeConstant(dtype, shape, get_default(node, "lr", 0.0f));
+    const NgraphNodePtr one = makeConstant(dtype, shape, 1.0f);
+
+    NgraphNodePtr scale_grad;
+    if (clip_gradient >= 0.0f) {
+      scale_grad = clip(ng_rescale_grad * grad, -clip_gradient, clip_gradient);
+    } else {
+      scale_grad = ng_rescale_grad * grad;
+    }
+    return (one - ng_lr * ng_wd) * weight - (ng_lr * scale_grad);
+  };
+
+  // sgd_mom_update op
+  ngraph_op_funcs_["sgd_mom_update"] = [this](const NodePtr& node) {
+    auto weight = op_map_[node->inputs_[0]];
+    auto grad = op_map_[node->inputs_[1]];
+    auto mom = op_map_[node->inputs_[2]];
+    auto shape = weight->get_shape();
+    auto dtype = weight->get_element_type();
+
+    const float clip_gradient = get_default(node, "clip_gradient", -1.0f);
+    const NgraphNodePtr ng_rescale_grad =
+        makeConstant(dtype, shape, get_default(node, "rescale_grad", 1.0f));
+    const NgraphNodePtr ng_wd =
+        makeConstant(dtype, shape, get_default(node, "wd", 0.0f));
+    const NgraphNodePtr ng_lr =
+        makeConstant(dtype, shape, get_default(node, "lr", 0.0f));
+    const NgraphNodePtr ng_mom =
+        makeConstant(dtype, shape, get_default(node, "momentum", 0.0f));
+    const NgraphNodePtr one = makeConstant(dtype, shape, 1.0f);
+
+    NgraphNodePtr scale_grad;
+    if (clip_gradient >= 0.0f) {
+      scale_grad = clip(ng_rescale_grad * grad, -clip_gradient, clip_gradient);
+    } else {
+      scale_grad = ng_rescale_grad * grad;
+    }
+    auto mom_update =
+        (ng_mom * mom) - (ng_lr * ng_wd * weight) - (ng_lr * scale_grad);
+    aux_op_map_[node->inputs_[2]] = mom_update;
+    return weight + mom_update;
   };
 
   // flatten converts an array of shape (x0, x1, x2, ...)
@@ -985,7 +1081,12 @@ void Emitter::CreateLayerOps() {
     // autodifferentiation (as with training).
     //----------------------------------------------------------------------------------------------
     if ((exe_mode_ == GraphExeMode::kTrain) && (use_global_stats)) {
-      if (ngraph_bn_op_available) {
+      // FIXME: We suspect there's a bug in the gradient calculations performed
+      // by this version of
+      // nGraph's BatchNorm operator. So for now we'll avoid using it.  -cconvey
+      // 2018-04-12.
+      // if (ngraph_bn_op_available)
+      if (false) {
         const NgraphNodePtr ng_normalized_data =
             std::make_shared<ngraph::op::BatchNorm>(
                 eps, ng_actual_gamma, ng_in_beta, ng_in_data, ng_in_moving_mean,
@@ -1062,12 +1163,12 @@ void Emitter::CreateLayerOps() {
       std::vector<NgraphNodePtr> convolutions(groups);
       for (size_t g = 0; g < groups; ++g) {
         // slice data on channel_in
-        size_t slice_step = data_shape[1] / groups;
-        auto data_slice =
-            slice_data_on_axis(data, g * slice_step, slice_step, 1, false);
-        auto filter_slice =
-            slice_data_on_axis(filter, g * slice_step, slice_step, 0, false);
-
+        size_t data_slice_step = data_shape[1] / groups;
+        size_t filter_slice_step = filter_shape[0] / groups;
+        auto data_slice = slice_data_on_axis(data, g * data_slice_step,
+                                             data_slice_step, 1, false);
+        auto filter_slice = slice_data_on_axis(filter, g * filter_slice_step,
+                                               filter_slice_step, 0, false);
         // convolve sliced data and filter
         // N, channel_out/groups, d'1,...,d'n
         convolutions[g] = std::make_shared<ngraph::op::Convolution>(
@@ -1169,6 +1270,135 @@ void Emitter::CreateLayerOps() {
     auto mul_op = std::make_shared<ngraph::op::Multiply>(avg_pool_op, coeff_op);
 
     return mul_op;
+  };
+  ngraph_op_funcs_["SequenceReverse"] =
+      [this](const NodePtr& node) -> NgraphNodePtr {
+    auto data = op_map_[node->inputs_[0]];
+    const bool use_sequence_length =
+        get_default(node, "use_sequence_length", false);
+    const int seq_axis = get_default(node, "axis", 0);
+    if (use_sequence_length) {
+      const int batch_axis = 1;
+      NgraphNodePtr sequence_length = op_map_[node->inputs_[1]];
+      return std::make_shared<ngraph::op::ReverseSequence>(
+          data, sequence_length, batch_axis, seq_axis);
+    } else {
+      return std::make_shared<ngraph::op::Reverse>(
+          data, ngraph::AxisSet{static_cast<size_t>(seq_axis)});
+    }
+  };
+  ngraph_op_funcs_["SoftmaxOutput"] = [this](const NodePtr& node) {
+    auto input = op_map_[node->inputs_[0]];
+    auto in_shape = input->get_shape();
+
+    ngraph::AxisSet axes;
+    if (get_default(node, "multi_output", false)) {
+      axes.insert(1);
+    } else if (get_default(node, "preserve_shape", false)) {
+      axes.insert(in_shape.size() - 1);
+    } else {
+      auto tmpaxes = pyrange(in_shape.size());
+      axes = std::set<size_t>(tmpaxes.begin() + 1, tmpaxes.end());
+    }
+    return std::make_shared<ngraph::op::Softmax>(input, axes);
+  };
+}
+
+void Emitter::CreateLossOps() {
+  // These functions are in place to provide a mechanism for manually specifying
+  // backpropgation methods for Loss functions. We do this because MXNet
+  // provides a number of options that only effect the output of backprop, not
+  // forward prop, and are difficult or impossible to integrate into
+  // nGraph's autodiff functionality.
+  loss_op_backward_funcs_["SoftmaxOutput"] = [this](
+      const NodePtr& node, const NgraphNodePtr& adjoint) {
+    const float grad_scale = get_default(node, "grad_scale", 1.0f);
+    const float ignore_label = get_default(node, "ignore_label", -1.0f);
+    const float smooth_alpha = get_default(node, "smooth_alpha", 0.0f);
+
+    const bool use_ignore = get_default(node, "use_ignore", false);
+    const bool out_grad = get_default(node, "out_grad", false);
+
+    const std::string norm =
+        get_default(node, "normalization", std::string("null"));
+
+    auto softmax = op_map_[node];
+    auto label = op_map_[node->inputs_[1]];
+    bool ignore = false;
+    NgraphNodePtr mask;
+
+    if (label->get_shape() != softmax->get_shape()) {
+      if (use_ignore) {
+        ignore = true;
+        mask = cast_result(
+            std::make_shared<ngraph::op::NotEqual>(
+                label, makeConstant(node, std::to_string(ignore_label))),
+            getType(node->dtype_));
+      }
+      size_t axis = op_map_[node->inputs_[0]]->get_shape().size() - 1;
+      if (get_default(node, "multi_output", false)) {
+        axis = 1;
+      }
+      label = std::make_shared<ngraph::op::OneHot>(label, softmax->get_shape(),
+                                                   axis);
+    }
+
+    if (smooth_alpha != 0.0f) {
+      int num_classes = 1;
+      auto shape = softmax->get_shape();
+      if (get_default(node, "multi_output", false)) {
+        num_classes = shape[1];
+      } else if (get_default(node, "preserve_shape", false)) {
+        num_classes = shape.back();
+      } else {
+        for (size_t i = 1; i < shape.size(); ++i) {
+          num_classes *= shape[i];
+        }
+      }
+      auto one = makeConstant(node, "1");
+      auto smooth_const = makeConstant(node, std::to_string(smooth_alpha));
+      auto subtractions = label * smooth_const;
+      auto additions = (one - label) * smooth_const /
+                       makeConstant(node, std::to_string(num_classes - 1));
+      label = label - subtractions + additions;
+    }
+
+    auto gradient = softmax - label;
+
+    if (ignore) {
+      gradient =
+          ngraph::builder::make_with_numpy_broadcast<ngraph::op::Multiply>(
+              gradient, mask);
+    }
+    if (grad_scale != 1.0f) {
+      gradient = gradient * makeConstant(node, std::to_string(grad_scale));
+    }
+
+    if (out_grad) {
+      gradient = gradient * adjoint;
+    }
+
+    if (norm != "null") {
+      throw std::runtime_error(std::string("NGRAPH_BRIDGE: SoftmaxOutput ") +
+                               "normalization not yet tested " +
+                               "in NGraph, please test with this script.");
+    }
+
+    /* TODO(mbrookhart): reenable this once we find a test
+    if (norm == "batch") {
+      gradient = gradient /
+                 makeConstant(node, std::to_string(gradient->get_shape()[0]));
+    } else if (norm == "valid") {
+      ngraph::AxisSet axes;
+      for (size_t i = 0; i < gradient->get_shape().size(); ++i) {
+        axes.insert(i);
+      }
+      gradient = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Divide>(
+          gradient, std::make_shared<ngraph::op::Sum>(mask, axes));
+    }
+    */
+
+    return gradient;
   };
 }
 

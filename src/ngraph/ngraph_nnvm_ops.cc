@@ -29,6 +29,7 @@
 #include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
 #include "ngraph_nnvm_utils.h"
+#include "ngraph_utils.h"
 
 
 namespace ngraph_bridge {
@@ -60,29 +61,60 @@ void append_cached_to_forward(TensorViewVector *results,
                   graph->cached_values[mode].end());
 }
 
+void update_aux_vals(const std::shared_ptr<Graph> &graph,
+                     const std::vector<mxnet::NDArray> &inputs, const int mode,
+                     const int offset = 0) {
+  const size_t cached_aux_count = graph->cached_aux_values[mode].size();
+  if (cached_aux_count > 0) {
+    std::vector<mxnet::OpReqType> aux_req;
+    std::vector<mxnet::NDArray> aux_outs;
+
+    for (size_t i = 0; i < cached_aux_count; ++i) {
+      aux_outs.push_back(inputs[graph->cached_aux_positions[mode][i] + offset]);
+      aux_req.push_back(mxnet::kWriteTo);
+    }
+
+    result_to_NDArray(graph->cached_aux_values[mode], aux_req, aux_outs, true);
+  }
+}
+
 // function for computing forward on ngraph
 void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                      const std::vector<mxnet::NDArray> &inputs,
                      const std::vector<mxnet::OpReqType> &req,
                      const std::vector<mxnet::NDArray> &outputs) {
   auto backend = GetBackendFromContext(graph->context_);
-  auto placeholders = make_ngraph_placeholders(inputs, backend, true);
-  auto results = make_ngraph_placeholders(outputs, backend, false);
+  auto placeholders = get_tensor_views(inputs, backend);
+  // for outputs we need to comply with req
+  auto results = get_tensor_views(outputs, backend, &req);
 
   int mode = static_cast<int>(GraphExeMode::kInfer);
   if (ctx.is_train) {
     mode = static_cast<int>(GraphExeMode::kTrain);
     graph->forward_train_computed = true;
   }
+
+  if (mode == static_cast<int>(GraphExeMode::kTrain)) {
+    for (auto &tv : placeholders) {
+      tv->set_stale(true);
+    }
+  }
+
   assert(graph->ngraph_forward[mode] != nullptr);
   append_cached_to_forward(&results, graph, mode);
   backend->call(graph->ngraph_forward[mode], results, placeholders);
 
-  std::vector<mxnet::NDArray> outs;
-  CHECK(graph->num_outputs_ == outputs.size());
-  outs.insert(outs.end(), outputs.begin(), outputs.end());
+  result_to_NDArray(results, req, outputs);
 
-  result_to_NDArray(results, req, outs);
+  if (mode == static_cast<int>(GraphExeMode::kInfer)) {
+    for (size_t i = 0; i < placeholders.size(); ++i) {
+      if (graph->input_is_weight_[i]) {
+        placeholders[i]->set_stale(false);
+      }
+    }
+  }
+
+  update_aux_vals(graph, inputs, mode);
 }
 
 // function for computing backward on ngraph
@@ -99,10 +131,12 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // check forward has been executed, if not we need to run forward to
   // generate valid data in fprop cache
   if (graph->enable_fprop_cache && !graph->forward_train_computed) {
+    std::cout << "NGRAPH_BRIDGE: WARNING: running forward in backward"
+              << std::endl;
     // forward inputs
-    std::vector<mxnet::NDArray> fwd_inputs(inputs.begin() + graph->num_outputs_,
-                                           inputs.end());
-    auto placeholders = make_ngraph_placeholders(fwd_inputs, backend, true);
+    std::vector<mxnet::NDArray> fwd_inputs(
+        inputs.begin() + graph->num_adjoints_, inputs.end());
+    auto placeholders = get_tensor_views(fwd_inputs, backend);
     // forward outputs
     TensorViewVector results;
     for (size_t i = 0; i < graph->num_outputs_; ++i) {
@@ -117,16 +151,24 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   }
 
   // backward op
-  std::vector<mxnet::NDArray> adjoints;
-  for (size_t i = 0; i < graph->num_outputs_; ++i) {
-    adjoints.push_back(inputs[i]);
-  }
+  std::vector<mxnet::NDArray> adjoints(inputs.begin(),
+                                       inputs.begin() + graph->num_adjoints_);
 
   auto placeholders = graph->enable_fprop_cache
-                          ? make_ngraph_placeholders(adjoints, backend, true)
-                          : make_ngraph_placeholders(inputs, backend, true);
+                          ? get_tensor_views(adjoints, backend)
+                          : get_tensor_views(inputs, backend);
 
-  auto results = make_ngraph_placeholders(outputs, backend, false);
+  if (graph->zero_grad) {
+    for (size_t i = 0; i < graph->num_adjoints_; ++i) {
+      // TODO(mbrookahrt): don't bprop graph if it's zerograd?
+      placeholders[i] =
+          backend->create_tensor(getType(graph->outputs_[i]->dtype_),
+                                 TShape_to_NShape(graph->outputs_[i]->shape_));
+    }
+  }
+
+  auto results = get_tensor_views(outputs, backend, &req);
+
   placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
                       graph->cached_values[mode].end());
 
@@ -139,19 +181,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
   // overwrite aux data if they exist
   // aux result outputs mapped to inputs
-  const size_t cached_aux_count = graph->cached_aux_values[mode].size();
-  if (cached_aux_count > 0) {
-    std::vector<mxnet::OpReqType> aux_req;
-    std::vector<mxnet::NDArray> aux_outs;
-
-    for (size_t i = 0; i < cached_aux_count; ++i) {
-      aux_outs.push_back(
-          inputs[graph->cached_aux_positions[mode][i] + graph->num_outputs_]);
-      aux_req.push_back(mxnet::kWriteTo);
-    }
-
-    result_to_NDArray(graph->cached_aux_values[mode], aux_req, aux_outs);
-  }
+  update_aux_vals(graph, inputs, mode, graph->num_adjoints_);
 }
 
 // check if last node in graph is an op that doesnt need head-gradient
@@ -162,7 +192,11 @@ bool check_zero_grad(const std::shared_ptr<Graph> &graph) {
   // if all of the outputs of the graph don't need gradient calculation,
   // don't autodiff this graph. Otherwise, do.
   for (auto node : graph->outputs_) {
-    if (ops_no_head_grad.count(node->operation_) == 0) {
+    if (node->operation_ == "SoftmaxOutput") {
+      if (get_default(node, "out_grad", false)) {
+        return false;
+      }
+    } else if (ops_no_head_grad.count(node->operation_) == 0) {
       return false;
     }
   }
@@ -234,6 +268,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   // Register Gradient node generation function
   // check if zero grad
   const bool zero_grad = check_zero_grad(graph);
+  graph->zero_grad = zero_grad;
   auto back_op_name = "_backward_" + ("ngraph_" + graph->name_);
   op.set_attr<nnvm::FGradient>(
       "FGradient",
@@ -311,8 +346,7 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
       "_backward_" + ("ngraph_" + graph->name_));
   // setup the inputs and outpus
   int num_inputs = graph->inputs_.size();
-  int num_outputs = graph->outputs_.size();
-  op.set_num_inputs(num_outputs + num_inputs);
+  op.set_num_inputs(graph->num_adjoints_ + num_inputs);
   op.set_num_outputs(num_inputs);
 
   // Mark as backward
