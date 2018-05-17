@@ -31,7 +31,6 @@
 #include "ngraph_nnvm_utils.h"
 #include "ngraph_utils.h"
 
-
 namespace ngraph_bridge {
 
 #if MXNET_USE_CUDA
