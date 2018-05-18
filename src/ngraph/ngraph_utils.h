@@ -344,7 +344,7 @@ class NGraphStats
   void operator=(NGraphStats const&) = delete;
   void add(const std::shared_ptr<ngraph_bridge::Graph>& g) {
     std::cout << "NGraphStats Add" << std::endl;
-    graphs_.insert(g);
+    graphs_.push_back(g);
   }
   void print() {
     std::cout << "NGraphStats Print" << std::endl;
@@ -413,7 +413,7 @@ class NGraphStats
     }
   }
  private:
-  std::set<std::shared_ptr<ngraph_bridge::Graph>> graphs_;
+  std::vector<std::shared_ptr<ngraph_bridge::Graph>> graphs_;
   std::vector<ngraph::runtime::PerformanceCounter> perf_;
 };
 
