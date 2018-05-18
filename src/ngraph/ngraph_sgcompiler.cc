@@ -73,6 +73,9 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
   auto f_copy = ngraph::clone_function(*f, fmap);
   auto bf_copy = ngraph::clone_function(*bf, bfmap);
 
+  backend->enable_performance_data(f_copy, true);
+  backend->enable_performance_data(bf_copy, true);
+
   // Log the graphs so Graph_* corresponds to Function_* in codgen
   if (ngraph_log_graph()) {
     dump_graph(f_copy, __func__, "fprop");
@@ -103,6 +106,7 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
 
   sub_graph->ngraph_forward[mode] = f_copy;
   sub_graph->ngraph_backward[mode] = bf_copy;
+  NGraphStats::get_instance().add(sub_graph);
 }
 
 void OptimizeGraph(std::shared_ptr<Graph> sub_graph,

@@ -46,6 +46,7 @@
 #include "./c_api_common.h"
 #include "../operator/custom/custom-inl.h"
 #include "../operator/tensor/matrix_op-inl.h"
+#include "../ngraph/ngraph_utils.h"
 
 using namespace mxnet;
 
@@ -1303,5 +1304,11 @@ int MXNDArrayCreateFromSharedMem(int shared_pid, int shared_id, const mx_uint *s
                                  mx_uint ndim, int dtype, NDArrayHandle *out) {
   API_BEGIN();
   *out = new NDArray(shared_pid, shared_id, TShape(shape, shape + ndim), dtype);
+  API_END();
+}
+int MXNGraphStats() {
+  API_BEGIN();
+  std::cout << "hello" << std::endl;
+  ngraph_bridge::NGraphStats::get_instance().print();
   API_END();
 }

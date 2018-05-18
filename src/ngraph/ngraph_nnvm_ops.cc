@@ -114,6 +114,8 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   }
 
   update_aux_vals(graph, inputs, mode);
+
+  // std::cout << "forward: " << graph << std::endl;
 }
 
 // function for computing backward on ngraph
@@ -181,6 +183,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // overwrite aux data if they exist
   // aux result outputs mapped to inputs
   update_aux_vals(graph, inputs, mode, graph->num_adjoints_);
+  // std::cout << "backward: " << graph << std::endl;
 }
 
 // check if last node in graph is an op that doesnt need head-gradient

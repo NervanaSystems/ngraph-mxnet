@@ -19,6 +19,7 @@
 #include <mxnet/ndarray.h>
 #include <algorithm>
 #include <chrono>
+#include <iomanip>
 #include <iostream>
 #include <iterator>
 #include <set>
@@ -326,6 +327,89 @@ NgraphNodePtr ensure_vector_plus_axes_shape(const NgraphNodePtr n,
 //
 // If 'n' already has the required shape, return 'n'.
 NgraphNodePtr ensure_vector_only_shape(const NgraphNodePtr n);
+
+
+
+class NGraphStats
+{
+
+ public: 
+  static NGraphStats& get_instance()
+  {
+      static NGraphStats instance; 
+      return instance;
+  }
+
+  NGraphStats(NGraphStats const&) = delete;
+  void operator=(NGraphStats const&) = delete;
+  void add(const std::shared_ptr<ngraph_bridge::Graph>& g) {
+    std::cout << "NGraphStats Add" << std::endl;
+    graphs_.insert(g);
+  }
+  void print() {
+    std::cout << "NGraphStats Print" << std::endl;
+    for (auto& g : graphs_) {
+      if (g != nullptr) {
+        std::cout << "########### Graph " << g << " ###########" << std::endl;
+        auto backend = GetBackendFromContext(g->context_);
+        for (int i = 0; i < kGraphExeModeCount; ++i) {
+          std::cout << "--------- Execution Mode " << i << " ---------" << std::endl;
+          {
+              std::vector<ngraph::runtime::PerformanceCounter> perf_data = backend->get_performance_data(g->ngraph_forward[i]);
+              if (perf_data.size() >0)
+                  perf_.insert(perf_.end(), perf_data.begin(), perf_data.end());
+          }
+          {
+              std::vector<ngraph::runtime::PerformanceCounter> perf_data = backend->get_performance_data(g->ngraph_backward[i]);
+              if (perf_data.size() >0)
+                  perf_.insert(perf_.end(), perf_data.begin(), perf_data.end());
+          }
+          print_perf_data(perf_);
+        }
+      }
+    }
+  }
+ private:
+  NGraphStats() {}
+  inline std::multimap<size_t, std::string>
+      aggregate_timing(const std::vector<ngraph::runtime::PerformanceCounter>& perf_data)
+  {
+    std::unordered_map<std::string, size_t> timing;
+    for (const ngraph::runtime::PerformanceCounter& p : perf_data)
+    {
+      std::string op = p.name().substr(0, p.name().find('_'));
+      timing[op] += p.total_microseconds();
+    }
+
+    std::multimap<size_t, std::string> rc;
+    for (const std::pair<std::string, size_t>& t : timing)
+    {
+      rc.insert({t.second, t.first});
+    }
+    return rc;
+  }
+
+  inline void print_perf_data(std::vector<ngraph::runtime::PerformanceCounter> perf_data) {
+    if (perf_data.size() >0) {
+      std::sort(perf_data.begin(),
+          perf_data.end(),
+          [](const ngraph::runtime::PerformanceCounter& p1, const ngraph::runtime::PerformanceCounter& p2) {
+              return p1.total_microseconds() > p2.total_microseconds();
+          });
+      std::multimap<size_t, std::string> timing = aggregate_timing(perf_data);
+      for (auto it = timing.rbegin(); it != timing.rend(); it++)
+      {
+        std::cout.imbue(std::locale(""));
+        std::cout << std::setw(35) << std::left << it->second << " " << std::setw(15) << std::right << it->first << "us\n";
+        std::cout.imbue(std::locale::classic());
+      }
+    }
+  }
+ private:
+  std::set<std::shared_ptr<ngraph_bridge::Graph>> graphs_;
+  std::vector<ngraph::runtime::PerformanceCounter> perf_;
+};
+
 
 }  // namespace ngraph_bridge
 

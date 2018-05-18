@@ -424,3 +424,8 @@ class Marker(object):
             Default is `process`.
         """
         check_call(_LIB.MXProfileSetMarker(self.domain.handle, c_str(self.name), c_str(scope)))
+
+
+def NGraphStats():
+    print("NGraph Stats") 
+    check_call(_LIB.MXNGraphStats())
