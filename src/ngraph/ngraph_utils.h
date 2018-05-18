@@ -362,7 +362,7 @@ class NGraphStats
               std::cout << "- Forward" << std::endl;
               if (perf_data.size() >0) {
                   print_perf_data(perf_data);
-                  perf_.insert(perf_.end(), perf_data.begin(), perf_data.end());
+                  forward_perf_.insert(forward_perf_.end(), perf_data.begin(), perf_data.end());
               }
           }
           {
@@ -371,7 +371,7 @@ class NGraphStats
               std::cout << "- Backward" << std::endl;
               if (perf_data.size() >0) {
                   print_perf_data(perf_data);
-                  perf_.insert(perf_.end(), perf_data.begin(), perf_data.end());
+                  backward_perf_.insert(backward_perf_.end(), perf_data.begin(), perf_data.end());
               }
           }
         }
@@ -379,7 +379,18 @@ class NGraphStats
     }
     std::cout << std::string(total_margin_, '#') << "\n";
     std::cout << "# Overall" << std::endl;
-    print_perf_data(perf_);
+    std::cout << std::string(total_margin_, '-') << "\n";
+    std::cout << "- Forward" << std::endl;
+    print_perf_data(forward_perf_);
+    std::cout << std::string(total_margin_, '-') << "\n";
+    std::cout << "- Backward" << std::endl;
+    print_perf_data(backward_perf_);
+    std::cout << std::string(total_margin_, '-') << "\n";
+    std::cout << "- Combined" << std::endl;
+    std::vector<ngraph::runtime::PerformanceCounter> combined_perf;
+    combined_perf.insert(combined_perf.end(), forward_perf_.begin(), forward_perf_.end());
+    combined_perf.insert(combined_perf.end(), backward_perf_.begin(), backward_perf_.end());
+    print_perf_data(combined_perf);
     std::cout << std::string(total_margin_, '#') << "\n";
   }
  private:
@@ -425,7 +436,8 @@ class NGraphStats
   }
  private:
   std::vector<std::shared_ptr<ngraph_bridge::Graph>> graphs_;
-  std::vector<ngraph::runtime::PerformanceCounter> perf_;
+  std::vector<ngraph::runtime::PerformanceCounter> forward_perf_;
+  std::vector<ngraph::runtime::PerformanceCounter> backward_perf_;
   const int left_margin_{35};
   const int right_margin_{15};
   const int extra_margin_{2};
