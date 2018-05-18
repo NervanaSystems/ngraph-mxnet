@@ -350,13 +350,16 @@ class NGraphStats
     std::cout << "NGraphStats Print" << std::endl;
     for (auto& g : graphs_) {
       if (g != nullptr) {
-        std::cout << "################ Graph " << g << " ################" << std::endl;
+        std::cout << std::string(total_margin_, '#') << "\n";
+        std::cout << "# Graph " << g << std::endl;
         auto backend = GetBackendFromContext(g->context_);
         for (int i = 0; i < kGraphExeModeCount; ++i) {
-          std::cout << "---------- Execution Mode " << i << " ----------" << std::endl;
+          std::cout << std::string(total_margin_, '=') << "\n";
+          std::cout << "- Execution Mode " << i << std::endl;
           {
               std::vector<ngraph::runtime::PerformanceCounter> perf_data = backend->get_performance_data(g->ngraph_forward[i]);
-              std::cout << "----- Forward -----" << std::endl;
+              std::cout << std::string(total_margin_, '-') << "\n";
+              std::cout << "- Forward" << std::endl;
               if (perf_data.size() >0) {
                   print_perf_data(perf_data);
                   perf_.insert(perf_.end(), perf_data.begin(), perf_data.end());
@@ -364,7 +367,8 @@ class NGraphStats
           }
           {
               std::vector<ngraph::runtime::PerformanceCounter> perf_data = backend->get_performance_data(g->ngraph_backward[i]);
-              std::cout << "----- Backward -----" << std::endl;
+              std::cout << std::string(total_margin_, '-') << "\n";
+              std::cout << "- Backward" << std::endl;
               if (perf_data.size() >0) {
                   print_perf_data(perf_data);
                   perf_.insert(perf_.end(), perf_data.begin(), perf_data.end());
@@ -373,8 +377,10 @@ class NGraphStats
         }
       }
     }
-    std::cout << "################ Overall ################" << std::endl;
+    std::cout << std::string(total_margin_, '#') << "\n";
+    std::cout << "# Overall" << std::endl;
     print_perf_data(perf_);
+    std::cout << std::string(total_margin_, '#') << "\n";
   }
  private:
   NGraphStats() {}
@@ -404,17 +410,26 @@ class NGraphStats
               return p1.total_microseconds() > p2.total_microseconds();
           });
       std::multimap<size_t, std::string> timing = aggregate_timing(perf_data);
+
+      size_t sum = 0;
+      std::cout.imbue(std::locale(""));
       for (auto it = timing.rbegin(); it != timing.rend(); it++)
       {
-        std::cout.imbue(std::locale(""));
-        std::cout << std::setw(35) << std::left << it->second << " " << std::setw(15) << std::right << it->first << "us\n";
-        std::cout.imbue(std::locale::classic());
+        std::cout << std::setw(left_margin_) << std::left << it->second << std::setw(right_margin_) << std::right << it->first << "us\n";
+        sum += it->first;
       }
+      std::cout << std::setw(left_margin_) << std::left << " " << std::setw(right_margin_) << std::right << std::string(right_margin_+extra_margin_, '-') << "\n";
+      std::cout << std::setw(left_margin_) << std::left << "Total:" << std::setw(right_margin_) << std::right << sum << "us\n";
+      std::cout.imbue(std::locale::classic());
     }
   }
  private:
   std::vector<std::shared_ptr<ngraph_bridge::Graph>> graphs_;
   std::vector<ngraph::runtime::PerformanceCounter> perf_;
+  const int left_margin_{35};
+  const int right_margin_{15};
+  const int extra_margin_{2};
+  const int total_margin_{left_margin_+right_margin_+extra_margin_};
 };
 
 
