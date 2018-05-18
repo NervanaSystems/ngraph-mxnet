@@ -350,24 +350,31 @@ class NGraphStats
     std::cout << "NGraphStats Print" << std::endl;
     for (auto& g : graphs_) {
       if (g != nullptr) {
-        std::cout << "########### Graph " << g << " ###########" << std::endl;
+        std::cout << "################ Graph " << g << " ################" << std::endl;
         auto backend = GetBackendFromContext(g->context_);
         for (int i = 0; i < kGraphExeModeCount; ++i) {
-          std::cout << "--------- Execution Mode " << i << " ---------" << std::endl;
+          std::cout << "---------- Execution Mode " << i << " ----------" << std::endl;
           {
               std::vector<ngraph::runtime::PerformanceCounter> perf_data = backend->get_performance_data(g->ngraph_forward[i]);
-              if (perf_data.size() >0)
+              std::cout << "----- Forward -----" << std::endl;
+              if (perf_data.size() >0) {
+                  print_perf_data(perf_data);
                   perf_.insert(perf_.end(), perf_data.begin(), perf_data.end());
+              }
           }
           {
               std::vector<ngraph::runtime::PerformanceCounter> perf_data = backend->get_performance_data(g->ngraph_backward[i]);
-              if (perf_data.size() >0)
+              std::cout << "----- Backward -----" << std::endl;
+              if (perf_data.size() >0) {
+                  print_perf_data(perf_data);
                   perf_.insert(perf_.end(), perf_data.begin(), perf_data.end());
+              }
           }
-          print_perf_data(perf_);
         }
       }
     }
+    std::cout << "################ Overall ################" << std::endl;
+    print_perf_data(perf_);
   }
  private:
   NGraphStats() {}

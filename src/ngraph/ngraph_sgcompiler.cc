@@ -62,6 +62,7 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
                             GraphExeMode exe_mode,
                             const ngraph::FpropCache &fprop_cache) {
   const int mode = static_cast<int>(exe_mode);
+  std::cout << sub_graph << " mode " << mode << std::endl;
 
   auto backend = GetBackendFromContext(sub_graph->context_);
 
