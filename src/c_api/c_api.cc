@@ -1308,7 +1308,6 @@ int MXNDArrayCreateFromSharedMem(int shared_pid, int shared_id, const mx_uint *s
 }
 int MXNGraphStats() {
   API_BEGIN();
-  std::cout << "hello" << std::endl;
   ngraph_bridge::NGraphStats::get_instance().print();
   API_END();
 }

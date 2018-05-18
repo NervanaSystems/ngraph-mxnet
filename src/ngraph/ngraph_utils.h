@@ -343,11 +343,9 @@ class NGraphStats
   NGraphStats(NGraphStats const&) = delete;
   void operator=(NGraphStats const&) = delete;
   void add(const std::shared_ptr<ngraph_bridge::Graph>& g) {
-    std::cout << "NGraphStats Add" << std::endl;
     graphs_.push_back(g);
   }
   void print() {
-    std::cout << "NGraphStats Print" << std::endl;
     for (auto& g : graphs_) {
       if (g != nullptr) {
         std::cout << std::string(total_margin_, '#') << "\n";

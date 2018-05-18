@@ -62,7 +62,6 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
                             GraphExeMode exe_mode,
                             const ngraph::FpropCache &fprop_cache) {
   const int mode = static_cast<int>(exe_mode);
-  std::cout << sub_graph << " mode " << mode << std::endl;
 
   auto backend = GetBackendFromContext(sub_graph->context_);
 
@@ -76,6 +75,7 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
 
   backend->enable_performance_data(f_copy, true);
   backend->enable_performance_data(bf_copy, true);
+  NGraphStats::get_instance().add(sub_graph);
 
   // Log the graphs so Graph_* corresponds to Function_* in codgen
   if (ngraph_log_graph()) {
@@ -107,7 +107,6 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
 
   sub_graph->ngraph_forward[mode] = f_copy;
   sub_graph->ngraph_backward[mode] = bf_copy;
-  NGraphStats::get_instance().add(sub_graph);
 }
 
 void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
