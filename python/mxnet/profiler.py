@@ -427,5 +427,4 @@ class Marker(object):
 
 
 def NGraphStats():
-    print("NGraph Stats") 
     check_call(_LIB.MXNGraphStats())
