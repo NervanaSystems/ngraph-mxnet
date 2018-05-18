@@ -140,6 +140,47 @@ void Emitter::CreateUnaryOps() {
     auto act_type = node->orig_node_->attrs.dict["act_type"];
     return ngraph_op_funcs_[act_type](node);
   };
+  ngraph_op_funcs_["LeakyReLU"] = [this](const NodePtr& node) {
+    const std::string act_type =
+        get_default(node, "act_type", std::string("leaky"));
+    const float slope = get_default(node, std::string("slope"), 0.25f);
+    NgraphNodePtr ng_result;
+
+    if (act_type == "leaky") {
+      // f(x) = slope * x for x < 0
+      // f(x) = x for x >= 0
+
+      // The documentation for MXnet's LeakyReLU op doesn't state that slop must
+      // be positive.
+      // But that is the convention, and assuming it allows a simple,
+      // efficicient implementation.
+      // If we need to relax this assumption, our implementation must change.
+      if (slope < 0) {
+        std::ostringstream os;
+        os << "NGRAPH_BRIDGE: LeakyReLU: 'slope' is assumed to be "
+              "non-negative, but its value"
+           << " is " << slope;
+        throw std::runtime_error(os.str());
+      }
+
+      NgraphNodePtr ng_slope = makeConstant(node, std::to_string(slope));
+      NgraphNodePtr ng_input0 = op_map_[node->inputs_[0]];
+      ng_result = std::make_shared<ngraph::op::Maximum>(ng_input0 * ng_slope,
+                                                        ng_input0);
+    } else {
+      // ngraph_bridge::Compiler::CheckInNgraph() has a check that should
+      // prevent this code from
+      // ever executing, but we'll want this check in place even after we remove
+      // the test in
+      // CheckInNgraph().  --cconvey
+      std::ostringstream os;
+      os << "NGRAPH_BRIDGE: LeakyReLU: No support yet for act_type '"
+         << act_type << "'";
+      throw std::runtime_error(os.str());
+    }
+
+    return ng_result;
+  };
   ngraph_op_funcs_["relu"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Relu>(op_map_[node->inputs_[0]]);
   };
