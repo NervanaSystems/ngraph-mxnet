@@ -653,21 +653,31 @@ void Emitter::CreateBinaryOps() {
                        getType(node->dtype_));
   };
   ngraph_op_funcs_["broadcast_to"] = [this](const NodePtr& node) -> NgraphNodePtr {
-    std::cout << "broadcast_to" << std::endl;
     auto input = op_map_[node->inputs_[0]];
-    auto in_shape = input->get_shape();
-    std::cout << "in: " << ngraph::vector_to_string(in_shape) << std::endl;
-    ngraph::Shape out_shape(get_default(node, "shape", std::vector<size_t>{}));
-    std::cout << "out: " << ngraph::vector_to_string(out_shape) << std::endl;
+    auto input_shape = input->get_shape();
+    ngraph::Shape output_shape(get_default(node, "shape", std::vector<size_t>{}));
     ngraph::AxisSet axis{};
-    for (size_t i = 0; i < in_shape.size(); ++i) {
-      if (in_shape[i] != out_shape[i]) {
+    ngraph::Shape proxy_shape;
+    // ngraph::op::broadcast does not allow in place broadcast (must add 
+    // new axis), so we reshape the input and eliminate axis with dim 1, 
+    // then add these axis back with proper output dim through 
+    // ngraph::op::broadcast.
+    for (size_t i = 0; i < input_shape.size(); ++i) {
+      if (input_shape[i] != output_shape[i]) {
+        // only axis with dim 1 can be broadcasted, this should already been
+        // checked by mxnet front end, but assert in case it's this is being 
+        // called by other ops.
+        assert(input_shape[i] == 1);
         axis.insert(i);
-        std::cout << "i: " << i << std::endl;
+      }
+      else {
+        proxy_shape.push_back(input_shape[i]); 
       }
     }
-    return std::make_shared<ngraph::op::Broadcast>(input, 
-                                                   out_shape, axis);
+    NgraphNodePtr input_reshape = std::make_shared<ngraph::op::Reshape>(input, 
+          pyrange(input_shape.size()), proxy_shape);
+    return std::make_shared<ngraph::op::Broadcast>(input_reshape, 
+                                                   output_shape, axis);
   };
   ngraph_op_funcs_["SequenceMask"] = [this](const NodePtr& node) {
     auto data = op_map_[node->inputs_[0]];
