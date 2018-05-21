@@ -412,6 +412,14 @@ void Compiler::CheckInNgraph() {
             // MXNet outperforms nGraph in this case.
             node->in_ngraph_ = false;
           }
+        } else if (node->operation_ == "LeakyReLU") {
+          // We haven't yet implemented all activation functions for
+          // LeaklyReLU...
+          const std::string act_type =
+              get_default(node, "act_type", std::string("leaky"));
+          if (act_type != "leaky") {
+            node->in_ngraph_ = false;
+          }
         }
 
         // nGraph doesn't yet support float16.
