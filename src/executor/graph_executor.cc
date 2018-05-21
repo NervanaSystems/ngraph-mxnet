@@ -570,7 +570,6 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   auto multi_context = multi_context_check(default_ctx, in_arg_ctxes,
                                            arg_grad_ctxes, aux_state_ctxes);
   const auto grad_sparse = ngraph_bridge::sparse_check(arg_grad_store);
-  std::cout << "ngraph compiler" << std::endl;
 
   ngraph_bridge::BindArg bind(num_forward_inputs_, in_args, aux_states);
   ngraph_bridge::Compiler compiler(

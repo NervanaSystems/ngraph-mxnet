@@ -695,32 +695,33 @@ void Emitter::CreateBinaryOps() {
     return cast_result(CreateAutoBroadcast<ngraph::op::LessEq>(node),
                        getType(node->dtype_));
   };
-  ngraph_op_funcs_["broadcast_to"] = [this](const NodePtr& node) -> NgraphNodePtr {
+  ngraph_op_funcs_["broadcast_to"] =
+      [this](const NodePtr& node) -> NgraphNodePtr {
     auto input = op_map_[node->inputs_[0]];
-    auto input_shape = input->get_shape();
-    ngraph::Shape output_shape(get_default(node, "shape", std::vector<size_t>{}));
-    ngraph::AxisSet axis{};
+    const auto& input_shape = input->get_shape();
+    ngraph::Shape output_shape(
+        get_default(node, "shape", std::vector<size_t>{}));
+    ngraph::AxisSet broadcast_axis;
     ngraph::Shape proxy_shape;
-    // ngraph::op::broadcast does not allow in place broadcast (must add 
-    // new axis), so we reshape the input and eliminate axis with dim 1, 
-    // then add these axis back with proper output dim through 
+    // ngraph::op::broadcast does not allow in place broadcast (must add
+    // new axis), so we reshape the input and eliminate axis with dim 1,
+    // then add these axis back with proper output dim through
     // ngraph::op::broadcast.
     for (size_t i = 0; i < input_shape.size(); ++i) {
       if (input_shape[i] != output_shape[i]) {
         // only axis with dim 1 can be broadcasted, this should already been
-        // checked by mxnet front end, but assert in case it's this is being 
+        // checked by mxnet front end, but check in case it's this is being
         // called by other ops.
         assert(input_shape[i] == 1);
-        axis.insert(i);
-      }
-      else {
-        proxy_shape.push_back(input_shape[i]); 
+        broadcast_axis.insert(i);
+      } else {
+        proxy_shape.push_back(input_shape[i]);
       }
     }
-    NgraphNodePtr input_reshape = std::make_shared<ngraph::op::Reshape>(input, 
-          pyrange(input_shape.size()), proxy_shape);
-    return std::make_shared<ngraph::op::Broadcast>(input_reshape, 
-                                                   output_shape, axis);
+    NgraphNodePtr input_reshape = std::make_shared<ngraph::op::Reshape>(
+        input, pyrange(input_shape.size()), proxy_shape);
+    return std::make_shared<ngraph::op::Broadcast>(input_reshape, output_shape,
+                                                   broadcast_axis);
   };
   ngraph_op_funcs_["SequenceMask"] = [this](const NodePtr& node) {
     auto data = op_map_[node->inputs_[0]];
@@ -959,6 +960,13 @@ void Emitter::CreateLayerOps() {
 
     if (!no_bias) {
       auto beta = op_map_[node->inputs_[2]];
+      auto shape = beta->get_shape();
+      if (flatten && shape.size() > 1) {
+        beta = std::make_shared<ngraph::op::Reshape>(
+            beta, pyrange(shape.size()),
+            ngraph::Shape{std::accumulate(shape.begin(), shape.end(), 1ul,
+                                          std::multiplies<size_t>())});
+      }
       dot = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(dot,
                                                                         beta);
     }
