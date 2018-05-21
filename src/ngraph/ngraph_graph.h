@@ -95,6 +95,9 @@ class Node {
 
   std::string operation_ = "";
   int subgraph_ = 0;
+
+  /// For debugging and logging.
+  virtual void printOpDetails(std::ostream &os);
 };
 
 // Class to store Variables
