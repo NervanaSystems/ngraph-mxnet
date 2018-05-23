@@ -699,7 +699,8 @@ void Emitter::CreateBinaryOps() {
       [this](const NodePtr& node) -> NgraphNodePtr {
     auto input = op_map_[node->inputs_[0]];
     const auto& input_shape = input->get_shape();
-    ngraph::Shape output_shape{get_shape_attribute(node, "shape")};
+    ngraph::Shape output_shape{
+        get_default(node, "shape", std::vector<size_t>{})};
     ngraph::AxisSet broadcast_axes;
     ngraph::Shape proxy_shape;
     assert(ngraph::shape_size(input_shape) == ngraph::shape_size(output_shape));
