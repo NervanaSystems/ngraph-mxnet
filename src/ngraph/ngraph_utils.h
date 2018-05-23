@@ -131,7 +131,7 @@ inline ngraph::AxisVector pyrange(size_t start, size_t stop) {
 inline ngraph::AxisVector pyrange(size_t stop) { return pyrange(0, stop); }
 
 inline std::string get_default(const NodePtr& node, const std::string& key,
-                               const std::string default_val) {
+                               const std::string& default_val) {
   return node->orig_node_->attrs.dict.count(key)
              ? node->orig_node_->attrs.dict[key]
              : default_val;
@@ -161,6 +161,57 @@ inline bool get_default(const NodePtr& node, const std::string& key,
       return false;
   }
   return default_val;
+}
+
+class MXNetNodeAttribute {
+ public:
+  MXNetNodeAttribute(const std::string& str) : attr_(str) {}
+  explicit operator int() const { return std::stoi(attr_); }
+  explicit operator float() const { return std::stof(attr_); }
+  explicit operator bool() const {
+    if (attr_ == "True" || attr_ == "1")
+      return true;
+    else
+      return false;
+  }
+  explicit operator std::string() const { return attr_; }
+  explicit operator std::vector<int>() const {
+    return GetIntVectorFromString<int>(attr_);
+  }
+  explicit operator ngraph::Shape() const {
+    return ngraph::Shape(check_unsigned_vector_convert<size_t>());
+  }
+
+ private:
+  template <typename T>
+  typename std::enable_if<std::is_unsigned<T>::value, std::vector<T>>::type
+  check_unsigned_vector_convert() const {
+    std::vector<T> out;
+    auto tmp = GetIntVectorFromString<int>(attr_);
+    for (auto val : tmp) {
+      if (val >= 0) {
+        out.push_back(val);
+      } else {
+        throw std::runtime_error(
+            std::string("NGRAPH_BRIDGE: expected unsigned integers but got ") +
+            std::to_string(val));
+      }
+    }
+    return out;
+  }
+
+ private:
+  const std::string attr_;
+};
+
+inline MXNetNodeAttribute get_attribute(const NodePtr& node,
+                                        const std::string& key) {
+  if (node->orig_node_->attrs.dict.count(key)) {
+    return MXNetNodeAttribute(node->orig_node_->attrs.dict[key]);
+  } else {
+    throw std::runtime_error(
+        std::string("NGRAPH_BRIDGE: expected attribute not found: " + key));
+  }
 }
 
 // check if any ndarray is sparse
