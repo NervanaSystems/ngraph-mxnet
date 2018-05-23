@@ -121,6 +121,29 @@ inline std::vector<T> GetIntVectorFromString(std::string input) {
   }
   return vect;
 }
+inline bool mxnet_string_to_bool(const std::string& str) {
+  if (str == "True" || str == "1")
+    return true;
+  else
+    return false;
+}
+
+template <typename T>
+typename std::enable_if<std::is_unsigned<T>::value, std::vector<T>>::type
+check_convert_vector_unsigned(const std::string& str) {
+  std::vector<T> out;
+  auto tmp = GetIntVectorFromString<int>(str);
+  for (auto val : tmp) {
+    if (val >= 0) {
+      out.push_back(val);
+    } else {
+      throw std::runtime_error(
+          std::string("NGRAPH_BRIDGE: expected unsigned integers but got ") +
+          std::to_string(val));
+    }
+  }
+  return out;
+}
 
 inline ngraph::AxisVector pyrange(size_t start, size_t stop) {
   ngraph::AxisVector out(stop - start);
@@ -155,63 +178,42 @@ inline bool get_default(const NodePtr& node, const std::string& key,
                         const bool default_val) {
   if (node->orig_node_->attrs.dict.count(key)) {
     const std::string& val = node->orig_node_->attrs.dict[key];
-    if (val == "True" || val == "1")
-      return true;
-    else
-      return false;
+    return mxnet_string_to_bool(val);
   }
   return default_val;
 }
 
-class MXNetNodeAttribute {
- public:
-  MXNetNodeAttribute(const std::string& str) : attr_(str) {}
-  explicit operator int() const { return std::stoi(attr_); }
-  explicit operator float() const { return std::stof(attr_); }
-  explicit operator bool() const {
-    if (attr_ == "True" || attr_ == "1")
-      return true;
-    else
-      return false;
-  }
-  explicit operator std::string() const { return attr_; }
-  explicit operator std::vector<int>() const {
-    return GetIntVectorFromString<int>(attr_);
-  }
-  explicit operator ngraph::Shape() const {
-    return ngraph::Shape(check_unsigned_vector_convert<size_t>());
-  }
-
- private:
-  template <typename T>
-  typename std::enable_if<std::is_unsigned<T>::value, std::vector<T>>::type
-  check_unsigned_vector_convert() const {
-    std::vector<T> out;
-    auto tmp = GetIntVectorFromString<int>(attr_);
-    for (auto val : tmp) {
-      if (val >= 0) {
-        out.push_back(val);
-      } else {
-        throw std::runtime_error(
-            std::string("NGRAPH_BRIDGE: expected unsigned integers but got ") +
-            std::to_string(val));
-      }
-    }
-    return out;
-  }
-
- private:
-  const std::string attr_;
-};
-
-inline MXNetNodeAttribute get_attribute(const NodePtr& node,
-                                        const std::string& key) {
+inline std::string get_required_attribute(const NodePtr& node,
+                                          const std::string& key) {
   if (node->orig_node_->attrs.dict.count(key)) {
-    return MXNetNodeAttribute(node->orig_node_->attrs.dict[key]);
+    return node->orig_node_->attrs.dict[key];
   } else {
     throw std::runtime_error(
         std::string("NGRAPH_BRIDGE: expected attribute not found: " + key));
   }
+}
+
+inline int get_int_attribute(const NodePtr& node, const std::string& key) {
+  return std::stoi(get_required_attribute(node, key));
+}
+inline float get_float_attribute(const NodePtr& node, const std::string& key) {
+  return std::stof(get_required_attribute(node, key));
+}
+inline bool get_bool_attribute(const NodePtr& node, const std::string& key) {
+  return mxnet_string_to_bool(get_required_attribute(node, key));
+}
+inline std::string get_string_attribute(const NodePtr& node,
+                                        const std::string& key) {
+  return get_required_attribute(node, key);
+}
+inline std::vector<int> get_vector_int_attribute(const NodePtr& node,
+                                                 const std::string& key) {
+  return GetIntVectorFromString<int>(get_required_attribute(node, key));
+}
+inline ngraph::Shape get_shape_attribute(const NodePtr& node,
+                                         const std::string& key) {
+  return ngraph::Shape(
+      check_convert_vector_unsigned<size_t>(get_required_attribute(node, key)));
 }
 
 // check if any ndarray is sparse
@@ -241,16 +243,7 @@ get_default(const NodePtr& node, const std::string& key,
             const std::vector<T>& default_val) {
   std::vector<T> out;
   if (node->orig_node_->attrs.dict.count(key)) {
-    auto tmp = GetIntVectorFromString<int>(node->orig_node_->attrs.dict[key]);
-    for (auto val : tmp) {
-      if (val >= 0) {
-        out.push_back(val);
-      } else {
-        throw std::runtime_error(
-            std::string("NGRAPH_BRIDGE: expected unsigned integers but got ") +
-            std::to_string(val));
-      }
-    }
+    out = check_convert_vector_unsigned<T>(node->orig_node_->attrs.dict[key]);
   } else {
     out = default_val;
   }
