@@ -400,7 +400,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 // Check nodes in NGraph
 void Compiler::CheckInNgraph() {
   std::unordered_set<std::string> unsupported_op_names;
-  for (auto node : ngraph_.nodes_) {
+  for (const std::shared_ptr<ngraph_bridge::Node>& node : ngraph_.nodes_) {
     // The bridge code only has nGraph emitters for kOp-type nodes.
     if (node->type_ == NodeType::kOp) {
       if (compiler_.ngraph_op_funcs_.count(node->operation_)) {
@@ -410,6 +410,14 @@ void Compiler::CheckInNgraph() {
           auto shape = TShape_to_NShape(node->inputs_[0]->shape_);
           if (shape[1] % 8 != 0) {
             // MXNet outperforms nGraph in this case.
+            node->in_ngraph_ = false;
+          }
+        } else if (node->operation_ == "LeakyReLU") {
+          // We haven't yet implemented all activation functions for
+          // LeaklyReLU...
+          const std::string act_type =
+              get_default(node, "act_type", std::string("leaky"));
+          if (act_type != "leaky") {
             node->in_ngraph_ = false;
           }
         }
@@ -426,8 +434,17 @@ void Compiler::CheckInNgraph() {
             }
           }
         }
-      } else if (ngraph_log_verbose()) {
-        unsupported_op_names.insert(node->operation_);
+      } else {
+        if (ngraph_log_verbose()) {
+          unsupported_op_names.insert(node->operation_);
+        }
+
+        if (ngraph_log_verbose_detail()) {
+          std::cout << "NGRAPH_BRIDGE: Unsupported Op instance (verbose):"
+                    << std::endl;
+          node->printOpDetails(std::cout);
+          std::cout << std::endl;
+        }
       }
     }
   }

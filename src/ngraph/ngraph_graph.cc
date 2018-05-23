@@ -435,4 +435,18 @@ void CollapseSubgraph(Graph* graph, int subgraph_num) {
   }
 }
 
+void Node::printOpDetails(std::ostream& os) {
+  using namespace std;
+  // The set of fields printed can be altered according to the developer's
+  // debugging needs.
+  const string indent{"  "};
+
+  os << "name_ = '" << name_ << "'" << endl;
+
+  os << "orig_node_->attrs.dict:" << endl;
+  for (const auto& kv : orig_node_->attrs.dict) {
+    os << indent << kv.first << " = '" << kv.second << "'" << endl;
+  }
+}
+
 }  // namespace ngraph_bridge

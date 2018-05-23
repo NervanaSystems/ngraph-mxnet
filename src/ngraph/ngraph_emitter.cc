@@ -18,6 +18,7 @@
 #include "ngraph_utils.h"
 
 #include <functional>
+#include <set>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -47,6 +48,7 @@ void Emitter::InitOpFuncs() {
   CreateUnaryOps();
   CreateBinaryOps();
   CreateLayerOps();
+  CreateLossOps();
 }
 
 void Emitter::ClearOpMap() {
@@ -137,6 +139,47 @@ void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["Activation"] = [this](const NodePtr node) {
     auto act_type = node->orig_node_->attrs.dict["act_type"];
     return ngraph_op_funcs_[act_type](node);
+  };
+  ngraph_op_funcs_["LeakyReLU"] = [this](const NodePtr& node) {
+    const std::string act_type =
+        get_default(node, "act_type", std::string("leaky"));
+    const float slope = get_default(node, std::string("slope"), 0.25f);
+    NgraphNodePtr ng_result;
+
+    if (act_type == "leaky") {
+      // f(x) = slope * x for x < 0
+      // f(x) = x for x >= 0
+
+      // The documentation for MXnet's LeakyReLU op doesn't state that slop must
+      // be positive.
+      // But that is the convention, and assuming it allows a simple,
+      // efficicient implementation.
+      // If we need to relax this assumption, our implementation must change.
+      if (slope < 0) {
+        std::ostringstream os;
+        os << "NGRAPH_BRIDGE: LeakyReLU: 'slope' is assumed to be "
+              "non-negative, but its value"
+           << " is " << slope;
+        throw std::runtime_error(os.str());
+      }
+
+      NgraphNodePtr ng_slope = makeConstant(node, std::to_string(slope));
+      NgraphNodePtr ng_input0 = op_map_[node->inputs_[0]];
+      ng_result = std::make_shared<ngraph::op::Maximum>(ng_input0 * ng_slope,
+                                                        ng_input0);
+    } else {
+      // ngraph_bridge::Compiler::CheckInNgraph() has a check that should
+      // prevent this code from
+      // ever executing, but we'll want this check in place even after we remove
+      // the test in
+      // CheckInNgraph().  --cconvey
+      std::ostringstream os;
+      os << "NGRAPH_BRIDGE: LeakyReLU: No support yet for act_type '"
+         << act_type << "'";
+      throw std::runtime_error(os.str());
+    }
+
+    return ng_result;
   };
   ngraph_op_funcs_["relu"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Relu>(op_map_[node->inputs_[0]]);
@@ -1284,6 +1327,119 @@ void Emitter::CreateLayerOps() {
       return std::make_shared<ngraph::op::Reverse>(
           data, ngraph::AxisSet{static_cast<size_t>(seq_axis)});
     }
+  };
+  ngraph_op_funcs_["SoftmaxOutput"] = [this](const NodePtr& node) {
+    auto input = op_map_[node->inputs_[0]];
+    auto in_shape = input->get_shape();
+
+    ngraph::AxisSet axes;
+    if (get_default(node, "multi_output", false)) {
+      axes.insert(1);
+    } else if (get_default(node, "preserve_shape", false)) {
+      axes.insert(in_shape.size() - 1);
+    } else {
+      auto tmpaxes = pyrange(in_shape.size());
+      axes = std::set<size_t>(tmpaxes.begin() + 1, tmpaxes.end());
+    }
+    return std::make_shared<ngraph::op::Softmax>(input, axes);
+  };
+}
+
+void Emitter::CreateLossOps() {
+  // These functions are in place to provide a mechanism for manually specifying
+  // backpropgation methods for Loss functions. We do this because MXNet
+  // provides a number of options that only effect the output of backprop, not
+  // forward prop, and are difficult or impossible to integrate into
+  // nGraph's autodiff functionality.
+  loss_op_backward_funcs_["SoftmaxOutput"] = [this](
+      const NodePtr& node, const NgraphNodePtr& adjoint) {
+    const float grad_scale = get_default(node, "grad_scale", 1.0f);
+    const float ignore_label = get_default(node, "ignore_label", -1.0f);
+    const float smooth_alpha = get_default(node, "smooth_alpha", 0.0f);
+
+    const bool use_ignore = get_default(node, "use_ignore", false);
+    const bool out_grad = get_default(node, "out_grad", false);
+
+    const std::string norm =
+        get_default(node, "normalization", std::string("null"));
+
+    auto softmax = op_map_[node];
+    auto label = op_map_[node->inputs_[1]];
+    bool ignore = false;
+    NgraphNodePtr mask;
+
+    if (label->get_shape() != softmax->get_shape()) {
+      if (use_ignore) {
+        ignore = true;
+        mask = cast_result(
+            std::make_shared<ngraph::op::NotEqual>(
+                label, makeConstant(node, std::to_string(ignore_label))),
+            getType(node->dtype_));
+      }
+      size_t axis = op_map_[node->inputs_[0]]->get_shape().size() - 1;
+      if (get_default(node, "multi_output", false)) {
+        axis = 1;
+      }
+      label = std::make_shared<ngraph::op::OneHot>(label, softmax->get_shape(),
+                                                   axis);
+    }
+
+    if (smooth_alpha != 0.0f) {
+      int num_classes = 1;
+      auto shape = softmax->get_shape();
+      if (get_default(node, "multi_output", false)) {
+        num_classes = shape[1];
+      } else if (get_default(node, "preserve_shape", false)) {
+        num_classes = shape.back();
+      } else {
+        for (size_t i = 1; i < shape.size(); ++i) {
+          num_classes *= shape[i];
+        }
+      }
+      auto one = makeConstant(node, "1");
+      auto smooth_const = makeConstant(node, std::to_string(smooth_alpha));
+      auto subtractions = label * smooth_const;
+      auto additions = (one - label) * smooth_const /
+                       makeConstant(node, std::to_string(num_classes - 1));
+      label = label - subtractions + additions;
+    }
+
+    auto gradient = softmax - label;
+
+    if (ignore) {
+      gradient =
+          ngraph::builder::make_with_numpy_broadcast<ngraph::op::Multiply>(
+              gradient, mask);
+    }
+    if (grad_scale != 1.0f) {
+      gradient = gradient * makeConstant(node, std::to_string(grad_scale));
+    }
+
+    if (out_grad) {
+      gradient = gradient * adjoint;
+    }
+
+    if (norm != "null") {
+      throw std::runtime_error(std::string("NGRAPH_BRIDGE: SoftmaxOutput ") +
+                               "normalization not yet tested " +
+                               "in NGraph, please test with this script.");
+    }
+
+    /* TODO(mbrookhart): reenable this once we find a test
+    if (norm == "batch") {
+      gradient = gradient /
+                 makeConstant(node, std::to_string(gradient->get_shape()[0]));
+    } else if (norm == "valid") {
+      ngraph::AxisSet axes;
+      for (size_t i = 0; i < gradient->get_shape().size(); ++i) {
+        axes.insert(i);
+      }
+      gradient = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Divide>(
+          gradient, std::make_shared<ngraph::op::Sum>(mask, axes));
+    }
+    */
+
+    return gradient;
   };
 }
 
