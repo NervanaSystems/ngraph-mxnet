@@ -400,7 +400,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 // Check nodes in NGraph
 void Compiler::CheckInNgraph() {
   std::unordered_set<std::string> unsupported_op_names;
-  for (auto node : ngraph_.nodes_) {
+  for (const std::shared_ptr<ngraph_bridge::Node>& node : ngraph_.nodes_) {
     // The bridge code only has nGraph emitters for kOp-type nodes.
     if (node->type_ == NodeType::kOp) {
       if (compiler_.ngraph_op_funcs_.count(node->operation_)) {
@@ -434,8 +434,17 @@ void Compiler::CheckInNgraph() {
             }
           }
         }
-      } else if (ngraph_log_verbose()) {
-        unsupported_op_names.insert(node->operation_);
+      } else {
+        if (ngraph_log_verbose()) {
+          unsupported_op_names.insert(node->operation_);
+        }
+
+        if (ngraph_log_verbose_detail()) {
+          std::cout << "NGRAPH_BRIDGE: Unsupported Op instance (verbose):"
+                    << std::endl;
+          node->printOpDetails(std::cout);
+          std::cout << std::endl;
+        }
       }
     }
   }
