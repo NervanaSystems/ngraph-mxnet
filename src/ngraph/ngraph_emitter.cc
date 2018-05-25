@@ -721,6 +721,8 @@ void Emitter::CreateBinaryOps() {
 
     // 0.5 * (sigma * x) ^ 2
     auto result_input_sq = half * input * input * sigma_sq;
+
+    // cant use abs as we need -input depending on input < -inv_sigma_sq
     // x - 0.5 / (sigma ^ 2)
     auto result_input_gt = input - half_inv_sigma_sq;
     // -x - 0.5 / (sigma ^ 2)
