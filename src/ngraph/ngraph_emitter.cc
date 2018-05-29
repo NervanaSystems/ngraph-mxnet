@@ -1455,9 +1455,12 @@ void Emitter::CreateLossOps() {
 
     NgraphNodePtr grad;
     if (norm == "valid") {
+      throw std::runtime_error(std::string("NGRAPH_BRIDGE: MakeLoss ") +
+                               "normalization not yet tested " +
+                               "in NGraph, please test with this script.");
     } else if (norm == "batch") {
-      grad =
-          grad_scale / makeConstant(node, std::to_string(input->get_shape()[0]));
+      grad = grad_scale /
+             makeConstant(node, std::to_string(input->get_shape()[0]));
     } else {
       grad = grad_scale;
     }
