@@ -1343,6 +1343,10 @@ void Emitter::CreateLayerOps() {
     }
     return std::make_shared<ngraph::op::Softmax>(input, axes);
   };
+  ngraph_op_funcs_["MakeLoss"] = [this](const NodePtr& node) {
+    // MakeLoss forward returns copy/identity
+    return op_map_[node->inputs_[0]];
+  };
 }
 
 void Emitter::CreateLossOps() {
@@ -1440,6 +1444,28 @@ void Emitter::CreateLossOps() {
     */
 
     return gradient;
+  };
+  loss_op_backward_funcs_["MakeLoss"] = [this](const NodePtr& node,
+                                               const NgraphNodePtr& adjoint) {
+    auto input = op_map_[node->inputs_[0]];
+    const std::string norm =
+        get_default(node, "normalization", std::string("null"));
+    auto grad_scale =
+        makeConstant(node, get_default(node, "grad_scale", std::string("1.0")));
+
+    NgraphNodePtr grad;
+    if (norm == "valid") {
+      throw std::runtime_error(std::string("NGRAPH_BRIDGE: MakeLoss ") +
+                               "normalization not yet tested " +
+                               "in NGraph, please test with this script.");
+    } else if (norm == "batch") {
+      grad = grad_scale /
+             makeConstant(node, std::to_string(input->get_shape()[0]));
+    } else {
+      grad = grad_scale;
+    }
+
+    return grad;
   };
 }
 
