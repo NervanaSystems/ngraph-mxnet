@@ -188,8 +188,9 @@ void Compiler::IdentifyCollapseGraphs() {
     std::cout << "NGRAPH_BRIDGE: processing " << ngraph_.name_ << std::endl;
   }
   // Output Graphviz dot files (pre collapse) for vizualization
-  if (ngraph_log_viz())
+  if (ngraph_log_viz()) {
     WriteSubgraphDots(ngraph_, ngraph_.name_ + "_pre_collapse");
+  }
 
   IdentifySubgraphs(&ngraph_, [this](NodePtr s) -> bool {
     bool in_feed_dict = false;
@@ -203,8 +204,9 @@ void Compiler::IdentifyCollapseGraphs() {
   });
 
   // Output Graphviz dot files (post collapse) for vizualization
-  if (ngraph_log_viz())
+  if (ngraph_log_viz()) {
     WriteSubgraphDots(ngraph_, ngraph_.name_ + "_post_collapse");
+  }
 }
 
 void Compiler::CreateSubgraphNNVMNodes() {
