@@ -116,8 +116,7 @@ static std::atomic<int> graph_counter(0);
 
 std::string get_ngraph_name() {
   std::stringstream name;
-  name << "ngraph_" << std::this_thread::get_id() << "_" << graph_counter;
-  graph_counter += 1;
+  name << "ngraph_" << std::this_thread::get_id() << "_" << graph_counter++;
   return name.str();
 }
 
