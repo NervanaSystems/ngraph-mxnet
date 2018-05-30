@@ -168,7 +168,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
   auto results = get_tensor_views(outputs, backend, &req);
 
-  placeholders.insert(placeholders.end(), graph->cached_va / lues[mode].begin(),
+  placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
                       graph->cached_values[mode].end());
 
   CHECK(graph->ngraph_backward[mode]);
