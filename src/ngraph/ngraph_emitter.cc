@@ -204,6 +204,26 @@ void Emitter::CreateUnaryOps() {
   // ngraph_op_funcs_["log_softmax"] = [this](const NodePtr& node){
   //   return ;
   // };
+  ngraph_op_funcs_["SoftmaxActivation"] = [this](const NodePtr& node) {
+    ngraph::AxisSet axes;
+
+    auto in_shape = op_map_[node->inputs_[0]]->get_shape();
+    auto mode = get_default(node, "mode", std::string("instance"));
+
+    if (mode == std::string("channel")) {
+      CHECK_GE(in_shape.size(), 3)
+        << "SoftmaxActivation input needs to have a least 3 dimensions"
+        << " when mode=channel";
+      auto tmpaxes = pyrange(2, in_shape.size());
+      axes = std::set<size_t>(tmpaxes.begin(), tmpaxes.end());
+    } else {
+      auto tmpaxes = pyrange(1, in_shape.size());
+      axes = std::set<size_t>(tmpaxes.begin(), tmpaxes.end());
+    }
+
+    return std::make_shared<ngraph::op::Softmax>(op_map_[node->inputs_[0]],
+                                                 ngraph::AxisSet{axes});
+  };
   ngraph_op_funcs_["_copy"] = [this](const NodePtr& node) {
     return op_map_[node->inputs_[0]];
   };
@@ -1338,8 +1358,8 @@ void Emitter::CreateLayerOps() {
     } else if (get_default(node, "preserve_shape", false)) {
       axes.insert(in_shape.size() - 1);
     } else {
-      auto tmpaxes = pyrange(in_shape.size());
-      axes = std::set<size_t>(tmpaxes.begin() + 1, tmpaxes.end());
+      auto tmpaxes = pyrange(1, in_shape.size());
+      axes = std::set<size_t>(tmpaxes.begin(), tmpaxes.end());
     }
     return std::make_shared<ngraph::op::Softmax>(input, axes);
   };
