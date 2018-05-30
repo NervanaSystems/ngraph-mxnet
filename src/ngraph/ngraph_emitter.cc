@@ -724,6 +724,47 @@ void Emitter::CreateBinaryOps() {
     return std::make_shared<ngraph::op::Broadcast>(input_reshape, output_shape,
                                                    broadcast_axes);
   };
+  ngraph_op_funcs_["smooth_l1"] = [this](const NodePtr& node) {
+    /* Smooth L1 Loss is a loss specific for R-CNN franchise training
+     * Smooth L1 Loss function:
+     * f(x) = 0.5 * (sigma * x) ^ 2,     |x| < 1 / sigma^2
+     *      = |x| - 0.5 / (sigma ^ 2), otherwise
+     * When sigma = 1, it is equivalent to the Huber loss, evaluated at
+     * delta = 1.
+     * smooth_l1_loss = w_out * f(w_in * x)
+     * with w_in, w_out provided by input_data.
+     */
+    auto input = op_map_[node->inputs_[0]];
+    auto sigma =
+        makeConstant(node, get_default(node, "scalar", std::string("0")));
+    auto sigma_sq = sigma * sigma;
+    auto inv_sigma_sq = std::make_shared<ngraph::op::Divide>(
+        makeConstant(node, "1.0"), sigma_sq);
+
+    // check if input is greater than inv_sigma_sq
+    auto is_input_gt_inv_sigma_sq =
+        std::make_shared<ngraph::op::Greater>(input, inv_sigma_sq);
+
+    auto half = makeConstant(node, "0.5");
+    auto half_inv_sigma_sq = half * inv_sigma_sq;
+
+    // 0.5 * (sigma * x) ^ 2
+    auto result_input_sq = half * input * input * sigma_sq;
+
+    // cant use abs as we need -input depending on input < -inv_sigma_sq
+    // x - 0.5 / (sigma ^ 2)
+    auto result_input_gt = input - half_inv_sigma_sq;
+    // -x - 0.5 / (sigma ^ 2)
+    auto result_input_lt = -input - half_inv_sigma_sq;
+
+    // select result according to formula
+    auto is_input_lt = std::make_shared<ngraph::op::Less>(input, -inv_sigma_sq);
+    auto result_input = std::make_shared<ngraph::op::Select>(
+        is_input_lt, result_input_lt, result_input_sq);
+
+    return std::make_shared<ngraph::op::Select>(is_input_gt_inv_sigma_sq,
+                                                result_input_gt, result_input);
+  };
   ngraph_op_funcs_["SequenceMask"] = [this](const NodePtr& node) {
     auto data = op_map_[node->inputs_[0]];
 
@@ -1372,6 +1413,10 @@ void Emitter::CreateLayerOps() {
     }
     return std::make_shared<ngraph::op::Softmax>(input, axes);
   };
+  ngraph_op_funcs_["MakeLoss"] = [this](const NodePtr& node) {
+    // MakeLoss forward returns copy/identity
+    return op_map_[node->inputs_[0]];
+  };
 }
 
 void Emitter::CreateLossOps() {
@@ -1469,6 +1514,28 @@ void Emitter::CreateLossOps() {
     */
 
     return gradient;
+  };
+  loss_op_backward_funcs_["MakeLoss"] = [this](const NodePtr& node,
+                                               const NgraphNodePtr& adjoint) {
+    auto input = op_map_[node->inputs_[0]];
+    const std::string norm =
+        get_default(node, "normalization", std::string("null"));
+    auto grad_scale =
+        makeConstant(node, get_default(node, "grad_scale", std::string("1.0")));
+
+    NgraphNodePtr grad;
+    if (norm == "valid") {
+      throw std::runtime_error(std::string("NGRAPH_BRIDGE: MakeLoss ") +
+                               "normalization not yet tested " +
+                               "in NGraph, please test with this script.");
+    } else if (norm == "batch") {
+      grad = grad_scale /
+             makeConstant(node, std::to_string(input->get_shape()[0]));
+    } else {
+      grad = grad_scale;
+    }
+
+    return grad;
   };
 }
 
