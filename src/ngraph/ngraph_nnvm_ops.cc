@@ -43,8 +43,8 @@ namespace ngraph_bridge {
 
 // get the OP from nnvm, return a pointer to it.
 nnvm::Op *get_subgraph_op(std::shared_ptr<Graph> graph) {
-  return &(::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
-      "ngraph_" + graph->name_));
+  return &(
+      ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(graph->name_));
 }
 
 void append_cached_to_forward(TensorViewVector *results,
@@ -168,7 +168,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
   auto results = get_tensor_views(outputs, backend, &req);
 
-  placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
+  placeholders.insert(placeholders.end(), graph->cached_va / lues[mode].begin(),
                       graph->cached_values[mode].end());
 
   CHECK(graph->ngraph_backward[mode]);
@@ -205,8 +205,8 @@ bool check_zero_grad(const std::shared_ptr<Graph> &graph) {
 
 void register_forward_op(std::shared_ptr<Graph> graph) {
   // register the op with nnvm
-  auto &op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
-      "ngraph_" + graph->name_);
+  auto &op =
+      ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(graph->name_);
   // setup the inputs and outpus
   int num_inputs = graph->inputs_.size();
   int num_outputs = graph->outputs_.size();
@@ -268,7 +268,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   // check if zero grad
   const bool zero_grad = check_zero_grad(graph);
   graph->zero_grad = zero_grad;
-  auto back_op_name = "_backward_" + ("ngraph_" + graph->name_);
+  auto back_op_name = "_backward_" + graph->name_;
   op.set_attr<nnvm::FGradient>(
       "FGradient",
       [back_op_name, zero_grad](const nnvm::NodePtr &n,
@@ -342,7 +342,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
 void register_backward_op(std::shared_ptr<Graph> graph) {
   // register the op with nnvm
   auto &op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
-      "_backward_" + ("ngraph_" + graph->name_));
+      "_backward_" + graph->name_);
   // setup the inputs and outpus
   int num_inputs = graph->inputs_.size();
   op.set_num_inputs(graph->num_adjoints_ + num_inputs);
