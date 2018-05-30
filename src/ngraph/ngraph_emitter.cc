@@ -211,14 +211,9 @@ void Emitter::CreateUnaryOps() {
     auto mode = get_default(node, "mode", std::string("instance"));
 
     if (mode == std::string("channel")) {
-      CHECK_GE(in_shape.size(), 3)
-        << "SoftmaxActivation input needs to have a least 3 dimensions"
-        << " when mode=channel";
-      auto tmpaxes = pyrange(2, in_shape.size());
-      axes = std::set<size_t>(tmpaxes.begin(), tmpaxes.end());
+      axes = ngraph::AxisSet{1};
     } else {
-      auto tmpaxes = pyrange(1, in_shape.size());
-      axes = std::set<size_t>(tmpaxes.begin(), tmpaxes.end());
+      axes = ngraph::AxisSet{in_shape.size() - 1};
     }
 
     return std::make_shared<ngraph::op::Softmax>(op_map_[node->inputs_[0]],
