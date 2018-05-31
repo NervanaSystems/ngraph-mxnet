@@ -143,6 +143,7 @@ static std::unordered_map<std::string, std::string> nameswitch({
     {"Cast", "cast"},
     {"sum_axis", "sum"},
     {"SliceChannel", "split"},
+    {"BlockGrad", "stop_gradient"},
 });
 
 // MxNet OPs that do not have gradient should work when head-gradient is not
@@ -166,7 +167,8 @@ static std::unordered_set<std::string> ops_no_head_grad{
     "_greater_equal_scalar",
     "_lesser_scalar",
     "_lesser_equal_scalar",
-    "MakeLoss"};
+    "MakeLoss",
+    "stop_gradient"};
 
 // Utility function for replacing operation names
 // based on the dict above
