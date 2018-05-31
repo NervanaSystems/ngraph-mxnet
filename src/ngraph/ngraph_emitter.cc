@@ -695,6 +695,35 @@ void Emitter::CreateBinaryOps() {
     return cast_result(CreateAutoBroadcast<ngraph::op::LessEq>(node),
                        getType(node->dtype_));
   };
+  ngraph_op_funcs_["broadcast_to"] =
+      [this](const NodePtr& node) -> NgraphNodePtr {
+    auto input = op_map_[node->inputs_[0]];
+    const auto& input_shape = input->get_shape();
+    ngraph::Shape output_shape{
+        get_default(node, "shape", std::vector<size_t>{})};
+    ngraph::AxisSet broadcast_axes;
+    ngraph::Shape proxy_shape;
+    assert(ngraph::shape_size(input_shape) == ngraph::shape_size(output_shape));
+    // ngraph::op::broadcast does not allow in-place broadcast (must add a
+    // new axis), so we reshape the input and eliminate axes with length 1,
+    // then add these axes back with proper output length through
+    // ngraph::op::broadcast.
+    for (size_t i = 0; i < input_shape.size(); ++i) {
+      if (input_shape[i] != output_shape[i]) {
+        // only axis with dim 1 can be broadcasted, this should already been
+        // checked by mxnet front end, but check in case it's being called
+        // by other ops.
+        assert(input_shape[i] == 1);
+        broadcast_axes.insert(i);
+      } else {
+        proxy_shape.push_back(input_shape[i]);
+      }
+    }
+    NgraphNodePtr input_reshape = std::make_shared<ngraph::op::Reshape>(
+        input, pyrange(input_shape.size()), proxy_shape);
+    return std::make_shared<ngraph::op::Broadcast>(input_reshape, output_shape,
+                                                   broadcast_axes);
+  };
   ngraph_op_funcs_["smooth_l1"] = [this](const NodePtr& node) {
     /* Smooth L1 Loss is a loss specific for R-CNN franchise training
      * Smooth L1 Loss function:
