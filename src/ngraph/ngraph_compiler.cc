@@ -19,6 +19,9 @@
 #include <nnvm/node.h>
 #include <nnvm/pass.h>
 #include <algorithm>
+#include <atomic>
+#include <sstream>
+#include <thread>
 #include "../executor/exec_pass.h"
 #include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
@@ -109,16 +112,24 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
   }
 }
 
+static std::atomic<int> graph_counter(0);
+
+std::string get_ngraph_name() {
+  std::stringstream name;
+  name << "ngraph_" << std::this_thread::get_id() << "_" << graph_counter++;
+  return name.str();
+}
+
 // Compiler initialization with fprop cache disabled
 Compiler::Compiler(const mxnet::Context& context)
-    : ngraph_("ngraph_" + randomString(6), context, false) {}
+    : ngraph_(get_ngraph_name(), context, false) {}
 
 // Compiler initialization for gluon hybrid
 Compiler::Compiler(const nnvm::Graph& graph, const mxnet::Context& context,
                    const std::vector<nnvm::TShape>& shapes,
                    const std::vector<int>& dtypes,
                    const std::vector<int>& stypes)
-    : ngraph_("ngraph_" + randomString(6), context),
+    : ngraph_(get_ngraph_name(), context),
       shapes_(shapes),
       dtypes_(dtypes),
       stypes_(stypes) {
@@ -131,7 +142,7 @@ Compiler::Compiler(const nnvm::Graph& graph, const mxnet::Context& context,
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                    const NNVMNodeVec& inputs, const BindArgBase& bindbase,
                    const mxnet::Context& context)
-    : ngraph_("ngraph_" + randomString(6), context) {
+    : ngraph_(get_ngraph_name(), context) {
   DeepCopy(graph);
   graph_.attrs["context"] = std::make_shared<nnvm::any>(
       mxnet::exec::ContextVector(graph_.indexed_graph().num_nodes(), context));
@@ -172,8 +183,13 @@ void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
 }
 
 void Compiler::IdentifyCollapseGraphs() {
+  if (ngraph_log_verbose()) {
+    std::cout << "NGRAPH_BRIDGE: processing " << ngraph_.name_ << std::endl;
+  }
   // Output Graphviz dot files (pre collapse) for vizualization
-  if (ngraph_log_viz()) WriteSubgraphDots(ngraph_, std::string("pre_collapse"));
+  if (ngraph_log_viz()) {
+    WriteSubgraphDots(ngraph_, ngraph_.name_ + "_pre_collapse");
+  }
 
   IdentifySubgraphs(&ngraph_, [this](NodePtr s) -> bool {
     bool in_feed_dict = false;
@@ -187,7 +203,9 @@ void Compiler::IdentifyCollapseGraphs() {
   });
 
   // Output Graphviz dot files (post collapse) for vizualization
-  if (ngraph_log_viz()) WriteSubgraphDots(ngraph_, "post_collapse");
+  if (ngraph_log_viz()) {
+    WriteSubgraphDots(ngraph_, ngraph_.name_ + "_post_collapse");
+  }
 }
 
 void Compiler::CreateSubgraphNNVMNodes() {
