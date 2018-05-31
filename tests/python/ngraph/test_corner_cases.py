@@ -171,8 +171,13 @@ def test_softmax_activation():
         [0.12840787, 0.21151797, 0.17961076, 0.23257242, 0.24789092]]],
       dtype=np.float32)
     assert np.allclose(forward, true_forward)
-    # Don't run backwards because mxnet is wrong for this shape and option
-
+    # Note(mbrookhart): We don't test backward for this case, 
+    # because MXNet's op returns the wrong values. 
+    # In particular, mxnet does bprop assuming that the shapes 
+    # are always compatible with mode="channel", which works for 2D softmax, 
+    # but not for 3D softmax. 
+    # We wont fix the op because it's deprecated, and all of the models 
+    # that use SoftmaxActivation use the mode="channel" version 
 
     x = mx.symbol.Variable("x")
     z = mx.sym.SoftmaxActivation(x, mode="channel")

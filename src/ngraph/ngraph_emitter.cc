@@ -205,19 +205,19 @@ void Emitter::CreateUnaryOps() {
   //   return ;
   // };
   ngraph_op_funcs_["SoftmaxActivation"] = [this](const NodePtr& node) {
-    ngraph::AxisSet axes;
+    auto input = op_map_[node->inputs_[0]];
+    auto in_shape = input->get_shape();
 
-    auto in_shape = op_map_[node->inputs_[0]]->get_shape();
     auto mode = get_default(node, "mode", std::string("instance"));
 
-    if (mode == std::string("channel")) {
+    ngraph::AxisSet axes;
+    if (mode == "channel") {
       axes = ngraph::AxisSet{1};
     } else {
       axes = ngraph::AxisSet{in_shape.size() - 1};
     }
 
-    return std::make_shared<ngraph::op::Softmax>(op_map_[node->inputs_[0]],
-                                                 ngraph::AxisSet{axes});
+    return std::make_shared<ngraph::op::Softmax>(input, axes);
   };
   ngraph_op_funcs_["_copy"] = [this](const NodePtr& node) {
     return op_map_[node->inputs_[0]];
