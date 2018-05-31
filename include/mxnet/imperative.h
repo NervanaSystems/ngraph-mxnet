@@ -116,7 +116,7 @@ class Imperative {
     const std::unordered_set<uint32_t>& mutable_input_nodes() {
       return fwd_graph_.indexed_graph().mutable_input_nodes();
     }
-    nnvm::Graph &GetFullGraph(nnvm::Graph& g);
+    nnvm::Graph &GetFullGraph(nnvm::Graph& g, const std::vector<nnvm::NodePtr> &ginputs); 
     nnvm::Graph GetForwardGraph(const bool recording,
                                 const std::vector<NDArray*>& inputs);
     nnvm::Graph GetBackwardGraph(const OpStatePtr& state,
@@ -140,6 +140,7 @@ class Imperative {
     };
     std::mutex mutex_;
     CachedOpParam param_;
+    nnvm::Graph fwd_graph_orig_;
     nnvm::Graph fwd_graph_;
     nnvm::Graph grad_graph_;
     nnvm::Graph full_graph_;

@@ -70,20 +70,22 @@ Imperative::CachedOp::CachedOp(
 
     inlining_ = (idx.num_nodes() - idx.input_nodes().size()) <= param_.inline_limit;
   }
+  fwd_graph_orig_.outputs = fwd_graph_.outputs;
   inputs_ = sym.ListInputs(Symbol::kReadOnlyArgs);
 }
 
-nnvm::Graph &Imperative::CachedOp::GetFullGraph(nnvm::Graph& g) {
+nnvm::Graph &Imperative::CachedOp::GetFullGraph(nnvm::Graph& g, const std::vector<nnvm::NodePtr> &ginputs) {
   using namespace nnvm;
   using namespace imperative;
   static const std::vector<const Op*> zero_ops{Op::Get("zeros_like"), Op::Get("_zeros")};
   std::vector<nnvm::NodeEntry> inputs;
-  inputs.reserve(inputs_.size());
-  for (const auto& i : inputs_) inputs.emplace_back(NodeEntry{i, 0, 0});
+  inputs.reserve(ginputs.size());
+  for (const auto& i : ginputs) inputs.emplace_back(NodeEntry{i, 0, 0});
   CHECK_GT(inputs.size(), 0)
       << "There are no inputs in computation graph that require gradients.";
   // construct backward graph
   {
+    ograd_entries_.clear();
     ograd_entries_.reserve(g.outputs.size());
     for (size_t i = 0; i < g.outputs.size(); ++i) {
       ograd_entries_.emplace_back(NodeEntry{Node::Create(), 0, 0});
@@ -100,11 +102,11 @@ nnvm::Graph &Imperative::CachedOp::GetFullGraph(nnvm::Graph& g) {
     size_t num_forward_nodes = g.indexed_graph().num_nodes();
     size_t num_forward_entries = g.indexed_graph().num_node_entries();
 
+    full_graph_ = nnvm::Graph{};
     full_graph_.outputs = g.outputs;
     curr_grad_req_ = std::vector<bool>(grad_graph_.outputs.size(), true);
     for (const auto& i : grad_graph_.outputs) full_graph_.outputs.emplace_back(i);
     const auto& idx = full_graph_.indexed_graph();
-
     std::vector<uint32_t> ref_count(idx.num_node_entries(), 0);
     for (size_t i = num_forward_nodes; i < idx.num_nodes(); ++i) {
       for (const auto& j : idx[i].inputs) {
@@ -119,6 +121,7 @@ nnvm::Graph &Imperative::CachedOp::GetFullGraph(nnvm::Graph& g) {
 
     size_t num_forward_inputs = num_inputs();
     size_t num_forward_outputs = num_outputs();
+    bwd_ograd_dep_.clear();
     for (uint32_t i = 0; i < ograd_entries_.size(); ++i) {
       if (!idx.exist(ograd_entries_[i].node.get())) continue;
       auto eid = idx.entry_id(ograd_entries_[i]);
@@ -126,7 +129,9 @@ nnvm::Graph &Imperative::CachedOp::GetFullGraph(nnvm::Graph& g) {
         bwd_ograd_dep_.push_back(i);
       }
     }
+    save_inputs_.clear();
     save_inputs_.resize(num_forward_inputs, false);
+    bwd_in_dep_.clear();
     for (uint32_t i = 0; i < num_forward_inputs; ++i) {
       auto eid = idx.entry_id(idx.input_nodes()[i], 0);
       if (ref_count[eid] > 0) {
@@ -134,7 +139,9 @@ nnvm::Graph &Imperative::CachedOp::GetFullGraph(nnvm::Graph& g) {
         bwd_in_dep_.push_back(i);
       }
     }
+    save_outputs_.clear();
     save_outputs_.resize(idx.outputs().size(), false);
+    bwd_out_dep_.clear();
     for (uint32_t i = 0; i < num_forward_outputs; ++i) {
       auto eid = idx.entry_id(idx.outputs()[i]);
       if (ref_count[eid] > 0) {
@@ -216,42 +223,19 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
   match &= CheckAndInferStorageType(&g, std::move(dev_mask),
                                     std::move(storage_type_inputs), true);
 
-  auto check_match = [recording](nnvm::Graph& g, bool match) {
-    if (!match) {
-      g.attrs.erase("forward_mem_plan");
-      g.attrs.erase("full_mem_plan");
-    } else if (g.attrs.count(recording ? "full_mem_plan" : "forward_mem_plan")) {
-      return true;
-    }
-    return false;
-  };
+  if (!match) {
+    g.attrs.erase("forward_mem_plan");
+    g.attrs.erase("full_mem_plan");
+  } else if (g.attrs.count(recording ? "full_mem_plan" : "forward_mem_plan")) {
+    return g;
+  }
 
-  if (check_match(g, match)) return g;
 
-  auto create_memory_plan = [recording](nnvm::Graph& g) {
-    const auto& idx = g.indexed_graph();
-
-    StorageVector storage(idx.num_node_entries(), exec::kBadStorageID);
-    for (const auto i : idx.input_nodes()) storage[idx.entry_id(i, 0)] = exec::kExternalStorageID;
-    const auto& stypes = g.GetAttr<StorageTypeVector>("storage_type");
-    CHECK_EQ(stypes.size(), storage.size());
-    for (size_t i = 0; i < stypes.size(); i++) {
-      if (stypes[i] != kDefaultStorage)
-        storage[i] = exec::kDynamicStorageID;
-    }
-
-    auto mem_plan = PlanMemory(
-        &g, std::move(storage), g.GetAttr<std::vector<uint32_t> >(
-            recording ? "full_ref_count" : "forward_ref_count"));
-    g.attrs[recording ? "full_mem_plan" : "forward_mem_plan"] =
-        std::make_shared<dmlc::any>(std::move(mem_plan));
-  };
 
 #if MXNET_USE_NGRAPH == 1
-  {
     ngraph_bridge::BindArgBase bind(num_inputs());
-    auto compiler = ngraph_bridge::Compiler(
-        g, inputs[0]->ctx(), inputs_, cached_shape_inputs, cached_dtype_inputs,
+    ngraph_bridge::Compiler compiler(
+        fwd_graph_orig_, inputs[0]->ctx(), inputs_, cached_shape_inputs, cached_dtype_inputs,
         cached_storage_type_inputs);
 
     g = compiler.Compile();
@@ -265,22 +249,36 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
                              std::move(cached_storage_type_inputs), true);
 
     const auto& idx = g.indexed_graph();
-
     std::vector<uint32_t> ref_count(idx.num_node_entries(), 0);
     for (const auto& i : idx.input_nodes()) ++ref_count[idx.entry_id(i, 0)];
     for (const auto& i : idx.outputs()) ++ref_count[idx.entry_id(i)];
     for (size_t i = 0; i < idx.num_nodes(); ++i) {
       for (const auto& j : idx[i].inputs) ++ref_count[idx.entry_id(j)];
     }
-
     g.attrs["forward_ref_count"] =
         std::make_shared<dmlc::any>(ref_count);
-    inputs_ = compiler.GetInputs();
+
+    full_graph_ = GetFullGraph(g, compiler.GetInputs());
+  StorageVector storage(idx.num_node_entries(), exec::kBadStorageID);
+  for (const auto i : idx.input_nodes()) storage[idx.entry_id(i, 0)] = exec::kExternalStorageID;
+  const auto& stypes = g.GetAttr<StorageTypeVector>("storage_type");
+  CHECK_EQ(stypes.size(), storage.size());
+  for (size_t i = 0; i < stypes.size(); i++) {
+    if (stypes[i] != kDefaultStorage)
+      storage[i] = exec::kDynamicStorageID;
   }
 #endif
-
-  full_graph_ = GetFullGraph(g);
-  create_memory_plan(g);
+  auto storage_copy = storage;
+  auto mem_plan = PlanMemory(
+      &g, std::move(storage), g.GetAttr<std::vector<uint32_t> >(
+          "full_ref_count"));
+  g.attrs["full_mem_plan"] =
+      std::make_shared<dmlc::any>(std::move(mem_plan));
+  mem_plan = PlanMemory(
+      &g, std::move(storage_copy), g.GetAttr<std::vector<uint32_t> >(
+         "forward_ref_count"));
+  g.attrs["forward_mem_plan"] =
+      std::make_shared<dmlc::any>(std::move(mem_plan));
 
   return g;
 }
