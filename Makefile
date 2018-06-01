@@ -110,8 +110,11 @@ endif
 
 LDFLAGS =
 ifeq ($(USE_NGRAPH),1)
-        CFLAGS += -I$(ROOTDIR)/src/ngraph -I$(NGRAPH_DIR)/include -DMXNET_USE_NGRAPH=1
-        LDFLAGS += -L$(NGRAPH_DIR)/lib -liomp5 -lmkldnn -lngraph -lmklml_intel -Wl,--as-needed
+    CFLAGS += -I$(ROOTDIR)/src/ngraph -I$(NGRAPH_DIR)/include -DMXNET_USE_NGRAPH=1
+    ifeq ($(USE_NGRAPH_DISTRIBUTED),1)
+        CFLAGS += -DMXNET_USE_NGRAPH_DISTRIBUTED=1
+    endif
+    LDFLAGS += -L$(NGRAPH_DIR)/lib -liomp5 -lmkldnn -lngraph -lmklml_intel -Wl,--as-needed
 endif
 
 LDFLAGS += -pthread $(MSHADOW_LDFLAGS) $(DMLC_LDFLAGS)
@@ -156,6 +159,13 @@ ifeq ($(USE_OPENCV), 1)
 	BIN += bin/im2rec
 else
 	CFLAGS+= -DMXNET_USE_OPENCV=0
+endif
+
+ifeq ($(USE_NGRAPH_DISTRIBUTED), 1)
+    MPI_COMPILE_FLAGS = $(shell mpicxx --showme:compile)
+    MPI_LINK_FLAGS = $(shell mpicxx --showme:link)
+    CFLAGS += -I$(MPI_COMPILE_FLAGS)
+    LDFLAGS += -L$(MPI_LINK_FLAGS)
 endif
 
 ifeq ($(USE_OPENMP), 1)

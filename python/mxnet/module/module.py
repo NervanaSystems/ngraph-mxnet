@@ -502,6 +502,9 @@ class Module(BaseModule):
         batch_size = self._exec_group.batch_size
         if kvstore and 'dist' in kvstore.type and '_sync' in kvstore.type:
             batch_size *= kvstore.num_workers
+        if kvstore and 'ngraph' in kvstore.type:
+            batch_size *= kvstore.num_workers
+            optimizer_params['learning_rate'] *= kvstore.num_workers
         rescale_grad = 1.0/batch_size
 
         if isinstance(optimizer, str):
