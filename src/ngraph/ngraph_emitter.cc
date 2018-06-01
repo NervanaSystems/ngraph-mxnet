@@ -397,7 +397,7 @@ void Emitter::CreateUnaryOps() {
                                                  getType(node->dtype_));
   };
   ngraph_op_funcs_["stop_gradient"] = [this](const NodePtr& node) {
-    return op_map_[node->inputs_[0]];
+    return std::make_shared<ngraph::op::StopGradient>(op_map_[node->inputs_[0]]);
   };
 
   //----------------------------- Reduce Ops ----------------------------//
@@ -1564,10 +1564,6 @@ void Emitter::CreateLossOps() {
     }
 
     return grad;
-  };
-  loss_op_backward_funcs_["stop_gradient"] = [this](
-      const NodePtr& node, const NgraphNodePtr& adjoint) {
-    return makeConstant(node->inputs_[0], "0");
   };
 }
 
