@@ -41,4 +41,4 @@ set -u  # No unset variables
 # Context is the docker directory, to avoid including all of
 # ngraph-mxnet in the context.
 #docker build  --rm=true  --build-arg http_proxy=http://proxy-us.intel.com:911  --build-arg https_proxy=https://proxy-us.intel.com:911  -f="${DOCKER_FILE}"  -t="${IMAGE_NAME}:${IMAGE_ID}"   ..
-docker build  --rm=true  --build-arg http_proxy=http://proxy-fm.intel.com:911  --build-arg https_proxy=http://proxy-fm.intel.com:912  -f="${DOCKER_FILE}"  -t="mxnet:${IMAGE_ID}"   ..
+docker build --no-cache --rm=true  --build-arg http_proxy=http://proxy-fm.intel.com:911  --build-arg https_proxy=http://proxy-fm.intel.com:912  -f="${DOCKER_FILE}"  -t="mxnet:${IMAGE_ID}"   ..
