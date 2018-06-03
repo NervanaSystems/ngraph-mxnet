@@ -140,13 +140,12 @@ class Imperative {
     };
     std::mutex mutex_;
     CachedOpParam param_;
-    nnvm::Graph fwd_graph_orig_;
     nnvm::Graph fwd_graph_;
     nnvm::Graph grad_graph_;
     nnvm::Graph full_graph_;
-    std::vector<nnvm::NodePtr> inputs_;
 #if MXNET_USE_NGRAPH == 1
     nnvm::Graph ngraph_fwd_graph_;
+    std::vector<nnvm::NodePtr> symbol_inputs_;
 #endif
     bool inlining_;
     std::vector<nnvm::NodeEntry> ograd_entries_;

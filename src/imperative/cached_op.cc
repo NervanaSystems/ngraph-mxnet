@@ -70,40 +70,46 @@ Imperative::CachedOp::CachedOp(
 
     inlining_ = (idx.num_nodes() - idx.input_nodes().size()) <= param_.inline_limit;
   }
-  fwd_graph_orig_.outputs = fwd_graph_.outputs;
-  inputs_ = sym.ListInputs(Symbol::kReadOnlyArgs);
+
+#if MXNET_USE_NGRAPH == 1
+  ngraph_fwd_graph_.outputs = fwd_graph_.outputs;
+  symbol_inputs_ = sym.ListInputs(Symbol::kReadOnlyArgs);
+#else
+  full_graph_ = GetFullGraph(fwd_graph_, sym.ListInputs(Symbol::kReadOnlyArgs));
+#endif
 }
 
-nnvm::Graph &Imperative::CachedOp::GetFullGraph(nnvm::Graph& g, const std::vector<nnvm::NodePtr> &ginputs) {
+nnvm::Graph &Imperative::CachedOp::GetFullGraph(nnvm::Graph& fwd_graph,
+    const std::vector<nnvm::NodePtr> &symbol_inputs) {
   using namespace nnvm;
   using namespace imperative;
   static const std::vector<const Op*> zero_ops{Op::Get("zeros_like"), Op::Get("_zeros")};
   std::vector<nnvm::NodeEntry> inputs;
-  inputs.reserve(ginputs.size());
-  for (const auto& i : ginputs) inputs.emplace_back(NodeEntry{i, 0, 0});
+  inputs.reserve(symbol_inputs.size());
+  for (const auto& i : symbol_inputs) inputs.emplace_back(NodeEntry{i, 0, 0});
   CHECK_GT(inputs.size(), 0)
       << "There are no inputs in computation graph that require gradients.";
   // construct backward graph
   {
     ograd_entries_.clear();
-    ograd_entries_.reserve(g.outputs.size());
-    for (size_t i = 0; i < g.outputs.size(); ++i) {
+    ograd_entries_.reserve(fwd_graph.outputs.size());
+    for (size_t i = 0; i < fwd_graph.outputs.size(); ++i) {
       ograd_entries_.emplace_back(NodeEntry{Node::Create(), 0, 0});
     }
 
     grad_graph_ = pass::Gradient(
-        g, g.outputs, inputs, ograd_entries_,
+        fwd_graph, fwd_graph.outputs, inputs, ograd_entries_,
         exec::AggregateGradient, nullptr, nullptr,
         zero_ops, "_copy");
   }
 
   // construct full graph
   {
-    size_t num_forward_nodes = g.indexed_graph().num_nodes();
-    size_t num_forward_entries = g.indexed_graph().num_node_entries();
+    size_t num_forward_nodes = fwd_graph.indexed_graph().num_nodes();
+    size_t num_forward_entries = fwd_graph.indexed_graph().num_node_entries();
 
     full_graph_ = nnvm::Graph{};
-    full_graph_.outputs = g.outputs;
+    full_graph_.outputs = fwd_graph.outputs;
     curr_grad_req_ = std::vector<bool>(grad_graph_.outputs.size(), true);
     for (const auto& i : grad_graph_.outputs) full_graph_.outputs.emplace_back(i);
     const auto& idx = full_graph_.indexed_graph();
@@ -114,9 +120,9 @@ nnvm::Graph &Imperative::CachedOp::GetFullGraph(nnvm::Graph& g, const std::vecto
       }
     }
 
-    auto full_ref_count = g.GetAttr<std::vector<uint32_t> >("forward_ref_count");
+    auto full_ref_count = fwd_graph.GetAttr<std::vector<uint32_t> >("forward_ref_count");
     for (size_t i = 0; i < num_forward_entries; ++i) full_ref_count[i] += ref_count[i];
-    g.attrs["full_ref_count"] =
+    fwd_graph.attrs["full_ref_count"] =
         std::make_shared<dmlc::any>(std::move(full_ref_count));
 
     size_t num_forward_inputs = num_inputs();
@@ -210,12 +216,6 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
     storage_type_inputs.emplace_back(inputs[i]->storage_type());
   }
 
-#if MXNET_USE_NGRAPH == 1
-  auto cached_shape_inputs = shape_inputs;
-  auto cached_dtype_inputs = dtype_inputs;
-  auto cached_storage_type_inputs = storage_type_inputs;
-#endif
-
   bool match = true;
   match &= CheckAndInferShape(&g, std::move(shape_inputs), true);
   match &= CheckAndInferType(&g, std::move(dtype_inputs), true);
@@ -230,35 +230,15 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
     return g;
   }
 
-
-
 #if MXNET_USE_NGRAPH == 1
-    ngraph_bridge::BindArgBase bind(num_inputs());
     ngraph_bridge::Compiler compiler(
-        fwd_graph_orig_, inputs[0]->ctx(), inputs_, cached_shape_inputs, cached_dtype_inputs,
-        cached_storage_type_inputs);
-
-    g = compiler.Compile();
-    CheckAndInferShape(&g, std::move(cached_shape_inputs),
-                       true);
-    CheckAndInferType(&g, std::move(cached_dtype_inputs), true);
-    exec::DevMaskVector cached_dev_mask(
-        g.indexed_graph().num_nodes(),
-        inputs[0]->ctx().dev_mask());
-    CheckAndInferStorageType(&g, std::move(cached_dev_mask),
-                             std::move(cached_storage_type_inputs), true);
-
-    const auto& idx = g.indexed_graph();
-    std::vector<uint32_t> ref_count(idx.num_node_entries(), 0);
-    for (const auto& i : idx.input_nodes()) ++ref_count[idx.entry_id(i, 0)];
-    for (const auto& i : idx.outputs()) ++ref_count[idx.entry_id(i)];
-    for (size_t i = 0; i < idx.num_nodes(); ++i) {
-      for (const auto& j : idx[i].inputs) ++ref_count[idx.entry_id(j)];
-    }
-    g.attrs["forward_ref_count"] =
-        std::make_shared<dmlc::any>(ref_count);
-
+        ngraph_fwd_graph_, symbol_inputs_, inputs);
+    g = compiler.GetCachedOpGraph(inputs);
     full_graph_ = GetFullGraph(g, compiler.GetInputs());
+#endif
+
+  const auto& idx = g.indexed_graph();
+
   StorageVector storage(idx.num_node_entries(), exec::kBadStorageID);
   for (const auto i : idx.input_nodes()) storage[idx.entry_id(i, 0)] = exec::kExternalStorageID;
   const auto& stypes = g.GetAttr<StorageTypeVector>("storage_type");
@@ -267,7 +247,8 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
     if (stypes[i] != kDefaultStorage)
       storage[i] = exec::kDynamicStorageID;
   }
-#endif
+#if MXNET_USE_NGRAPH == 1
+  // create both mem plans for ngraph to avoid recompile
   auto storage_copy = storage;
   auto mem_plan = PlanMemory(
       &g, std::move(storage), g.GetAttr<std::vector<uint32_t> >(
@@ -279,6 +260,13 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
          "forward_ref_count"));
   g.attrs["forward_mem_plan"] =
       std::make_shared<dmlc::any>(std::move(mem_plan));
+#else
+  auto mem_plan = PlanMemory(
+      &g, std::move(storage), g.GetAttr<std::vector<uint32_t> >(
+          recording ? "full_ref_count" : "forward_ref_count"));
+  g.attrs[recording ? "full_mem_plan" : "forward_mem_plan"] =
+      std::make_shared<dmlc::any>(std::move(mem_plan));
+#endif
 
   return g;
 }
