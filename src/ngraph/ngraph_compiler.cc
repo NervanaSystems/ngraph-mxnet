@@ -478,11 +478,13 @@ void Compiler::CheckInNgraph() {
 
         // nGraph doesn't yet support float16.
         if (node->dtype_ == mshadow::kFloat16 ||
+            node->dtype_ == mshadow::kFloat64 ||
             node->stype_ != mxnet::kDefaultStorage) {
           node->in_ngraph_ = false;
         } else {
           for (auto input : node->inputs_) {
             if (input->dtype_ == mshadow::kFloat16 ||
+                input->dtype_ == mshadow::kFloat64 ||
                 input->stype_ != mxnet::kDefaultStorage) {
               node->in_ngraph_ = false;
             }
