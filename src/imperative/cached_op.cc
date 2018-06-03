@@ -75,11 +75,11 @@ Imperative::CachedOp::CachedOp(
   ngraph_fwd_graph_.outputs = fwd_graph_.outputs;
   symbol_inputs_ = sym.ListInputs(Symbol::kReadOnlyArgs);
 #else
-  full_graph_ = GetFullGraph(fwd_graph_, sym.ListInputs(Symbol::kReadOnlyArgs));
+  UpdateFullGraph(fwd_graph_, sym.ListInputs(Symbol::kReadOnlyArgs));
 #endif
 }
 
-nnvm::Graph &Imperative::CachedOp::GetFullGraph(nnvm::Graph& fwd_graph,
+void Imperative::CachedOp::UpdateFullGraph(nnvm::Graph& fwd_graph,
     const std::vector<nnvm::NodePtr> &symbol_inputs) {
   using namespace nnvm;
   using namespace imperative;
@@ -156,7 +156,6 @@ nnvm::Graph &Imperative::CachedOp::GetFullGraph(nnvm::Graph& fwd_graph,
       }
     }
   }
-  return full_graph_;
 }
 
 std::vector<nnvm::NodeEntry> Imperative::CachedOp::Gradient(
@@ -234,7 +233,7 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
     ngraph_bridge::Compiler compiler(
         ngraph_fwd_graph_, symbol_inputs_, inputs);
     g = compiler.GetCachedOpGraph(inputs);
-    full_graph_ = GetFullGraph(g, compiler.GetInputs());
+    UpdateFullGraph(g, compiler.GetInputs());
 #endif
 
   const auto& idx = g.indexed_graph();
