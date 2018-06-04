@@ -204,6 +204,21 @@ void Emitter::CreateUnaryOps() {
   // ngraph_op_funcs_["log_softmax"] = [this](const NodePtr& node){
   //   return ;
   // };
+  ngraph_op_funcs_["SoftmaxActivation"] = [this](const NodePtr& node) {
+    auto input = op_map_[node->inputs_[0]];
+    auto in_shape = input->get_shape();
+
+    auto mode = get_default(node, "mode", std::string("instance"));
+
+    ngraph::AxisSet axes;
+    if (mode == "channel") {
+      axes = ngraph::AxisSet{1};
+    } else {
+      axes = ngraph::AxisSet{in_shape.size() - 1};
+    }
+
+    return std::make_shared<ngraph::op::Softmax>(input, axes);
+  };
   ngraph_op_funcs_["_copy"] = [this](const NodePtr& node) {
     return op_map_[node->inputs_[0]];
   };
@@ -1408,8 +1423,8 @@ void Emitter::CreateLayerOps() {
     } else if (get_default(node, "preserve_shape", false)) {
       axes.insert(in_shape.size() - 1);
     } else {
-      auto tmpaxes = pyrange(in_shape.size());
-      axes = std::set<size_t>(tmpaxes.begin() + 1, tmpaxes.end());
+      auto tmpaxes = pyrange(1, in_shape.size());
+      axes = std::set<size_t>(tmpaxes.begin(), tmpaxes.end());
     }
     return std::make_shared<ngraph::op::Softmax>(input, axes);
   };
