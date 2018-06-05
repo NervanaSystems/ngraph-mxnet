@@ -114,7 +114,7 @@ ifeq ($(USE_NGRAPH),1)
     ifeq ($(USE_NGRAPH_DISTRIBUTED),1)
         CFLAGS += -DMXNET_USE_NGRAPH_DISTRIBUTED=1
     endif
-    LDFLAGS += -L$(NGRAPH_DIR)/lib -liomp5 -lmkldnn -lngraph -lmklml_intel -Wl,--as-needed
+    LDFLAGS += -L$(NGRAPH_DIR)/lib -liomp5 -lcpu_backend -lngraph -lmklml_intel -Wl,--as-needed
 endif
 
 LDFLAGS += -pthread $(MSHADOW_LDFLAGS) $(DMLC_LDFLAGS)
