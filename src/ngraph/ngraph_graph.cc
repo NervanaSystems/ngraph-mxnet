@@ -83,7 +83,7 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
 
   // save nodes that match some function condition
   visitor.operation = [&outNodes, &func](NodePtr node) {
-    if (node->subgraph_ > 0) {
+    if (node->subgraph_ >= 0) {
       return;
     }
     if (func(node)) outNodes.push_back(node);
@@ -94,7 +94,7 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
     // continue if...
     // 1) current node matches function condition
     // 2) input not visited
-    if (func(node) && !visited.count(input) && input->subgraph_ < 1) {
+    if (func(node) && !visited.count(input) && input->subgraph_ < 0) {
       visited.insert(input);
       return false;
     }
@@ -275,7 +275,7 @@ std::vector<NodePtr> FindSubgraph(const Graph& graph, NodePtr node,
 bool IdentifyOneSubgraph(Graph* graph, const std::function<bool(NodePtr)>& func,
                          int current_subgraph_num, NodePtr n) {
   bool found_subgraph = false;
-  if (n->subgraph_ == 0) {
+  if (n->subgraph_ == -1) {
     // select nodes in the a subgraph starting here and going up the graph
     auto subgraph_nodes = FindSubgraph(*graph, n, func);
 
@@ -293,7 +293,7 @@ bool IdentifyOneSubgraph(Graph* graph, const std::function<bool(NodePtr)>& func,
 
 // function to identify and label connected ngraph ops as subgraphs
 void IdentifySubgraphs(Graph* graph, const std::function<bool(NodePtr)>& func) {
-  int sg = 1;
+  int sg = 0;
 
   // collapse graphs from the outputs
   for (auto output : graph->outputs_) {
@@ -403,7 +403,7 @@ void CollapseSubgraph(Graph* graph, int subgraph_num) {
     graph->nodes_.erase(
         std::remove_if(graph->nodes_.begin(), graph->nodes_.end(),
                        [](NodePtr n) -> bool {
-                         return ((n->subgraph_ > 0) &&
+                         return ((n->subgraph_ >= 0) &&
                                  (n->type_ == NodeType::kOp));
                        }),
         graph->nodes_.end());

@@ -94,7 +94,7 @@ class Node {
   bool in_ngraph_ = false;
 
   std::string operation_ = "";
-  int subgraph_ = 0;
+  int subgraph_ = -1;
 
   /// For debugging and logging.
   virtual void printOpDetails(std::ostream &os);
