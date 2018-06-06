@@ -506,7 +506,7 @@ int MXProfileSetMarker(ProfileHandle domain,
   API_END();
 }
 
-int MXDumpNGraphProfile (const char* file_name) {
+int MXDumpNGraphProfile(const char* file_name) {
   API_BEGIN();
     if (strlen(file_name) > 0) {
       std::ofstream file_out;
