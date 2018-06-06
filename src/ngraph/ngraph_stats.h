@@ -24,7 +24,6 @@
 #include "ngraph_graph.h"
 
 namespace ngraph_bridge {
-class Graph;
 
 /// A singleton class to track and output nGraph performance statistics.
 class NGraphStats {
@@ -46,7 +45,8 @@ class NGraphStats {
   NGraphStats() {}
   std::multimap<size_t, std::string> aggregate_timing(
       const std::vector<ngraph::runtime::PerformanceCounter>& perf_data);
-  void print_perf_data(std::ostream& out,
+  void print_perf_data(
+      std::ostream& out,
       std::vector<ngraph::runtime::PerformanceCounter> perf_data);
 
  private:

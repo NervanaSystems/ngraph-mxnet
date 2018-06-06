@@ -18,7 +18,7 @@
 import numpy as np
 import mxnet as mx
 import argparse
-import os,gc
+import os
 
 parser = argparse.ArgumentParser(description="Train RNN on Penn Tree Bank",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -77,9 +77,9 @@ if __name__ == '__main__':
     val_sent, _ = tokenize_text("./data/ptb.test.txt", vocab=vocab, start_label=start_label,
                                 invalid_label=invalid_label)
 
-    data_train  = mx.rnn.BucketSentenceIter(train_sent[0:1024], args.batch_size, buckets=buckets,
+    data_train  = mx.rnn.BucketSentenceIter(train_sent, args.batch_size, buckets=buckets,
                                             invalid_label=invalid_label)
-    data_val    = mx.rnn.BucketSentenceIter(val_sent[0:1024], args.batch_size, buckets=buckets,
+    data_val    = mx.rnn.BucketSentenceIter(val_sent, args.batch_size, buckets=buckets,
                                             invalid_label=invalid_label)
 
     stack = mx.rnn.SequentialRNNCell()
@@ -127,6 +127,3 @@ if __name__ == '__main__':
         initializer         = mx.init.Xavier(factor_type="in", magnitude=2.34),
         num_epoch           = args.num_epochs,
         batch_end_callback  = mx.callback.Speedometer(args.batch_size, args.disp_batches, auto_reset=False))
-
-    del model
-    gc.collect()

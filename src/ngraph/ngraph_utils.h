@@ -19,7 +19,6 @@
 #include <mxnet/ndarray.h>
 #include <algorithm>
 #include <chrono>
-#include <iomanip>
 #include <iostream>
 #include <iterator>
 #include <set>
@@ -327,6 +326,7 @@ NgraphNodePtr ensure_vector_plus_axes_shape(const NgraphNodePtr n,
 //
 // If 'n' already has the required shape, return 'n'.
 NgraphNodePtr ensure_vector_only_shape(const NgraphNodePtr n);
+
 }  // namespace ngraph_bridge
 
 #endif  // MXNET_NGRAPH_NGRAPH_UTILS_H_

@@ -1,5 +1,6 @@
 #include "ngraph_stats.h"
 
+#include <iomanip>
 #include "ngraph_utils.h"
 
 namespace ngraph_bridge {
@@ -28,8 +29,7 @@ void NGraphStats::dump(std::ostream& out) {
         // output inference/training execution mode
         for (int i = 0; i < kGraphExeModeCount; ++i) {
           out << std::string(total_margin_, '=') << "\n";
-          out << "# Execution Mode: " << exe_mode_to_string(i)
-                    << std::endl;
+          out << "# Mode: " << exe_mode_to_string(i) << std::endl;
           {
             std::vector<ngraph::runtime::PerformanceCounter> perf_data =
                 backend->get_performance_data(g->ngraph_forward[i]);
@@ -76,8 +76,7 @@ void NGraphStats::dump(std::ostream& out) {
   }
 }
 
-struct TimeCount
-{
+struct TimeCount {
   size_t time;
   size_t count;
 };
@@ -93,12 +92,14 @@ std::multimap<size_t, std::string> NGraphStats::aggregate_timing(
 
   std::multimap<size_t, std::string> rc;
   for (const auto& t : timing) {
-    rc.insert({t.second.time, t.first + " (" + std::to_string(t.second.count) + ")"});
+    rc.insert(
+        {t.second.time, t.first + " (" + std::to_string(t.second.count) + ")"});
   }
   return rc;
 }
 
-void NGraphStats::print_perf_data(std::ostream& out,
+void NGraphStats::print_perf_data(
+    std::ostream& out,
     std::vector<ngraph::runtime::PerformanceCounter> perf_data) {
   if (perf_data.size() > 0) {
     std::sort(perf_data.begin(), perf_data.end(),
@@ -112,16 +113,14 @@ void NGraphStats::print_perf_data(std::ostream& out,
     out.imbue(std::locale(""));
     for (auto it = timing.rbegin(); it != timing.rend(); it++) {
       out << std::setw(left_margin_) << std::left << it->second
-                << std::setw(right_margin_) << std::right << it->first
-                << "us\n";
+          << std::setw(right_margin_) << std::right << it->first << "us\n";
       sum += it->first;
     }
     out << std::setw(left_margin_) << std::left << " "
-              << std::setw(right_margin_) << std::right
-              << std::string(right_margin_ + extra_margin_, '-') << "\n";
+        << std::setw(right_margin_) << std::right
+        << std::string(right_margin_ + extra_margin_, '-') << "\n";
     out << std::setw(left_margin_) << std::left
-              << "Total:" << std::setw(right_margin_) << std::right << sum
-              << "us\n";
+        << "Total:" << std::setw(right_margin_) << std::right << sum << "us\n";
     // reset locale
     out.imbue(std::locale::classic());
   }

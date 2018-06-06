@@ -2268,7 +2268,7 @@ MXNET_DLL int MXNDArrayCreateFromSharedMem(int shared_pid, int shared_id, const 
 /*!
  * \brief Dump out nGraph specific profiler performance stats
  */
-MXNET_DLL int MXDumpNGraphProfile();
+MXNET_DLL int MXDumpNGraphProfile(const char* file_name);
 
 #ifdef __cplusplus
 }
