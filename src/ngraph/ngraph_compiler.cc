@@ -19,6 +19,9 @@
 #include <nnvm/node.h>
 #include <nnvm/pass.h>
 #include <algorithm>
+#include <atomic>
+#include <sstream>
+#include <thread>
 #include "../executor/exec_pass.h"
 #include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
@@ -109,16 +112,24 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
   }
 }
 
+static std::atomic<int> graph_counter(0);
+
+std::string get_ngraph_name() {
+  std::stringstream name;
+  name << "ngraph_" << std::this_thread::get_id() << "_" << graph_counter++;
+  return name.str();
+}
+
 // Compiler initialization with fprop cache disabled
 Compiler::Compiler(const mxnet::Context& context)
-    : ngraph_("ngraph_" + randomString(6), context, false) {}
+    : ngraph_(get_ngraph_name(), context, false) {}
 
 // Compiler initialization for gluon hybrid
 Compiler::Compiler(const nnvm::Graph& graph, const mxnet::Context& context,
                    const std::vector<nnvm::TShape>& shapes,
                    const std::vector<int>& dtypes,
                    const std::vector<int>& stypes)
-    : ngraph_("ngraph_" + randomString(6), context),
+    : ngraph_(get_ngraph_name(), context),
       shapes_(shapes),
       dtypes_(dtypes),
       stypes_(stypes) {
@@ -131,7 +142,7 @@ Compiler::Compiler(const nnvm::Graph& graph, const mxnet::Context& context,
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                    const NNVMNodeVec& inputs, const BindArgBase& bindbase,
                    const mxnet::Context& context)
-    : ngraph_("ngraph_" + randomString(6), context) {
+    : ngraph_(get_ngraph_name(), context) {
   DeepCopy(graph);
   graph_.attrs["context"] = std::make_shared<nnvm::any>(
       mxnet::exec::ContextVector(graph_.indexed_graph().num_nodes(), context));
@@ -172,8 +183,13 @@ void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
 }
 
 void Compiler::IdentifyCollapseGraphs() {
+  if (ngraph_log_verbose()) {
+    std::cout << "NGRAPH_BRIDGE: processing " << ngraph_.name_ << std::endl;
+  }
   // Output Graphviz dot files (pre collapse) for vizualization
-  if (ngraph_log_viz()) WriteSubgraphDots(ngraph_, std::string("pre_collapse"));
+  if (ngraph_log_viz()) {
+    WriteSubgraphDots(ngraph_, ngraph_.name_ + "_pre_collapse");
+  }
 
   IdentifySubgraphs(&ngraph_, [this](NodePtr s) -> bool {
     bool in_feed_dict = false;
@@ -187,7 +203,9 @@ void Compiler::IdentifyCollapseGraphs() {
   });
 
   // Output Graphviz dot files (post collapse) for vizualization
-  if (ngraph_log_viz()) WriteSubgraphDots(ngraph_, "post_collapse");
+  if (ngraph_log_viz()) {
+    WriteSubgraphDots(ngraph_, ngraph_.name_ + "_post_collapse");
+  }
 }
 
 void Compiler::CreateSubgraphNNVMNodes() {
@@ -400,7 +418,7 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 // Check nodes in NGraph
 void Compiler::CheckInNgraph() {
   std::unordered_set<std::string> unsupported_op_names;
-  for (auto node : ngraph_.nodes_) {
+  for (const std::shared_ptr<ngraph_bridge::Node>& node : ngraph_.nodes_) {
     // The bridge code only has nGraph emitters for kOp-type nodes.
     if (node->type_ == NodeType::kOp) {
       if (compiler_.ngraph_op_funcs_.count(node->operation_)) {
@@ -410,6 +428,14 @@ void Compiler::CheckInNgraph() {
           auto shape = TShape_to_NShape(node->inputs_[0]->shape_);
           if (shape[1] % 8 != 0) {
             // MXNet outperforms nGraph in this case.
+            node->in_ngraph_ = false;
+          }
+        } else if (node->operation_ == "LeakyReLU") {
+          // We haven't yet implemented all activation functions for
+          // LeaklyReLU...
+          const std::string act_type =
+              get_default(node, "act_type", std::string("leaky"));
+          if (act_type != "leaky") {
             node->in_ngraph_ = false;
           }
         }
@@ -426,8 +452,17 @@ void Compiler::CheckInNgraph() {
             }
           }
         }
-      } else if (ngraph_log_verbose()) {
-        unsupported_op_names.insert(node->operation_);
+      } else {
+        if (ngraph_log_verbose()) {
+          unsupported_op_names.insert(node->operation_);
+        }
+
+        if (ngraph_log_verbose_detail()) {
+          std::cout << "NGRAPH_BRIDGE: Unsupported Op instance (verbose):"
+                    << std::endl;
+          node->printOpDetails(std::cout);
+          std::cout << std::endl;
+        }
       }
     }
   }

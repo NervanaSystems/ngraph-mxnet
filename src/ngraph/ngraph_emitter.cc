@@ -140,6 +140,47 @@ void Emitter::CreateUnaryOps() {
     auto act_type = node->orig_node_->attrs.dict["act_type"];
     return ngraph_op_funcs_[act_type](node);
   };
+  ngraph_op_funcs_["LeakyReLU"] = [this](const NodePtr& node) {
+    const std::string act_type =
+        get_default(node, "act_type", std::string("leaky"));
+    const float slope = get_default(node, std::string("slope"), 0.25f);
+    NgraphNodePtr ng_result;
+
+    if (act_type == "leaky") {
+      // f(x) = slope * x for x < 0
+      // f(x) = x for x >= 0
+
+      // The documentation for MXnet's LeakyReLU op doesn't state that slop must
+      // be positive.
+      // But that is the convention, and assuming it allows a simple,
+      // efficicient implementation.
+      // If we need to relax this assumption, our implementation must change.
+      if (slope < 0) {
+        std::ostringstream os;
+        os << "NGRAPH_BRIDGE: LeakyReLU: 'slope' is assumed to be "
+              "non-negative, but its value"
+           << " is " << slope;
+        throw std::runtime_error(os.str());
+      }
+
+      NgraphNodePtr ng_slope = makeConstant(node, std::to_string(slope));
+      NgraphNodePtr ng_input0 = op_map_[node->inputs_[0]];
+      ng_result = std::make_shared<ngraph::op::Maximum>(ng_input0 * ng_slope,
+                                                        ng_input0);
+    } else {
+      // ngraph_bridge::Compiler::CheckInNgraph() has a check that should
+      // prevent this code from
+      // ever executing, but we'll want this check in place even after we remove
+      // the test in
+      // CheckInNgraph().  --cconvey
+      std::ostringstream os;
+      os << "NGRAPH_BRIDGE: LeakyReLU: No support yet for act_type '"
+         << act_type << "'";
+      throw std::runtime_error(os.str());
+    }
+
+    return ng_result;
+  };
   ngraph_op_funcs_["relu"] = [this](const NodePtr& node) {
     return std::make_shared<ngraph::op::Relu>(op_map_[node->inputs_[0]]);
   };
@@ -163,6 +204,21 @@ void Emitter::CreateUnaryOps() {
   // ngraph_op_funcs_["log_softmax"] = [this](const NodePtr& node){
   //   return ;
   // };
+  ngraph_op_funcs_["SoftmaxActivation"] = [this](const NodePtr& node) {
+    auto input = op_map_[node->inputs_[0]];
+    auto in_shape = input->get_shape();
+
+    auto mode = get_default(node, "mode", std::string("instance"));
+
+    ngraph::AxisSet axes;
+    if (mode == "channel") {
+      axes = ngraph::AxisSet{1};
+    } else {
+      axes = ngraph::AxisSet{in_shape.size() - 1};
+    }
+
+    return std::make_shared<ngraph::op::Softmax>(input, axes);
+  };
   ngraph_op_funcs_["_copy"] = [this](const NodePtr& node) {
     return op_map_[node->inputs_[0]];
   };
@@ -653,6 +709,76 @@ void Emitter::CreateBinaryOps() {
   ngraph_op_funcs_["broadcast_lesser_equal"] = [this](const NodePtr& node) {
     return cast_result(CreateAutoBroadcast<ngraph::op::LessEq>(node),
                        getType(node->dtype_));
+  };
+  ngraph_op_funcs_["broadcast_to"] =
+      [this](const NodePtr& node) -> NgraphNodePtr {
+    auto input = op_map_[node->inputs_[0]];
+    const auto& input_shape = input->get_shape();
+    ngraph::Shape output_shape{
+        get_default(node, "shape", std::vector<size_t>{})};
+    ngraph::AxisSet broadcast_axes;
+    ngraph::Shape proxy_shape;
+    assert(ngraph::shape_size(input_shape) == ngraph::shape_size(output_shape));
+    // ngraph::op::broadcast does not allow in-place broadcast (must add a
+    // new axis), so we reshape the input and eliminate axes with length 1,
+    // then add these axes back with proper output length through
+    // ngraph::op::broadcast.
+    for (size_t i = 0; i < input_shape.size(); ++i) {
+      if (input_shape[i] != output_shape[i]) {
+        // only axis with dim 1 can be broadcasted, this should already been
+        // checked by mxnet front end, but check in case it's being called
+        // by other ops.
+        assert(input_shape[i] == 1);
+        broadcast_axes.insert(i);
+      } else {
+        proxy_shape.push_back(input_shape[i]);
+      }
+    }
+    NgraphNodePtr input_reshape = std::make_shared<ngraph::op::Reshape>(
+        input, pyrange(input_shape.size()), proxy_shape);
+    return std::make_shared<ngraph::op::Broadcast>(input_reshape, output_shape,
+                                                   broadcast_axes);
+  };
+  ngraph_op_funcs_["smooth_l1"] = [this](const NodePtr& node) {
+    /* Smooth L1 Loss is a loss specific for R-CNN franchise training
+     * Smooth L1 Loss function:
+     * f(x) = 0.5 * (sigma * x) ^ 2,     |x| < 1 / sigma^2
+     *      = |x| - 0.5 / (sigma ^ 2), otherwise
+     * When sigma = 1, it is equivalent to the Huber loss, evaluated at
+     * delta = 1.
+     * smooth_l1_loss = w_out * f(w_in * x)
+     * with w_in, w_out provided by input_data.
+     */
+    auto input = op_map_[node->inputs_[0]];
+    auto sigma =
+        makeConstant(node, get_default(node, "scalar", std::string("0")));
+    auto sigma_sq = sigma * sigma;
+    auto inv_sigma_sq = std::make_shared<ngraph::op::Divide>(
+        makeConstant(node, "1.0"), sigma_sq);
+
+    // check if input is greater than inv_sigma_sq
+    auto is_input_gt_inv_sigma_sq =
+        std::make_shared<ngraph::op::Greater>(input, inv_sigma_sq);
+
+    auto half = makeConstant(node, "0.5");
+    auto half_inv_sigma_sq = half * inv_sigma_sq;
+
+    // 0.5 * (sigma * x) ^ 2
+    auto result_input_sq = half * input * input * sigma_sq;
+
+    // cant use abs as we need -input depending on input < -inv_sigma_sq
+    // x - 0.5 / (sigma ^ 2)
+    auto result_input_gt = input - half_inv_sigma_sq;
+    // -x - 0.5 / (sigma ^ 2)
+    auto result_input_lt = -input - half_inv_sigma_sq;
+
+    // select result according to formula
+    auto is_input_lt = std::make_shared<ngraph::op::Less>(input, -inv_sigma_sq);
+    auto result_input = std::make_shared<ngraph::op::Select>(
+        is_input_lt, result_input_lt, result_input_sq);
+
+    return std::make_shared<ngraph::op::Select>(is_input_gt_inv_sigma_sq,
+                                                result_input_gt, result_input);
   };
   ngraph_op_funcs_["SequenceMask"] = [this](const NodePtr& node) {
     auto data = op_map_[node->inputs_[0]];
@@ -1297,10 +1423,14 @@ void Emitter::CreateLayerOps() {
     } else if (get_default(node, "preserve_shape", false)) {
       axes.insert(in_shape.size() - 1);
     } else {
-      auto tmpaxes = pyrange(in_shape.size());
-      axes = std::set<size_t>(tmpaxes.begin() + 1, tmpaxes.end());
+      auto tmpaxes = pyrange(1, in_shape.size());
+      axes = std::set<size_t>(tmpaxes.begin(), tmpaxes.end());
     }
     return std::make_shared<ngraph::op::Softmax>(input, axes);
+  };
+  ngraph_op_funcs_["MakeLoss"] = [this](const NodePtr& node) {
+    // MakeLoss forward returns copy/identity
+    return op_map_[node->inputs_[0]];
   };
 }
 
@@ -1399,6 +1529,28 @@ void Emitter::CreateLossOps() {
     */
 
     return gradient;
+  };
+  loss_op_backward_funcs_["MakeLoss"] = [this](const NodePtr& node,
+                                               const NgraphNodePtr& adjoint) {
+    auto input = op_map_[node->inputs_[0]];
+    const std::string norm =
+        get_default(node, "normalization", std::string("null"));
+    auto grad_scale =
+        makeConstant(node, get_default(node, "grad_scale", std::string("1.0")));
+
+    NgraphNodePtr grad;
+    if (norm == "valid") {
+      throw std::runtime_error(std::string("NGRAPH_BRIDGE: MakeLoss ") +
+                               "normalization not yet tested " +
+                               "in NGraph, please test with this script.");
+    } else if (norm == "batch") {
+      grad = grad_scale /
+             makeConstant(node, std::to_string(input->get_shape()[0]));
+    } else {
+      grad = grad_scale;
+    }
+
+    return grad;
   };
 }
 

@@ -325,7 +325,7 @@ void IdentifySubgraphs(Graph* graph, const std::function<bool(NodePtr)>& func) {
 void CollapseSubgraph(Graph* graph, int subgraph_num) {
   // loop variable for undefined number of subgraphs
   auto tmpGraph = std::make_shared<Graph>(
-      "subgraph_" + randomString(12) + std::to_string(subgraph_num),
+      graph->name_ + "_subgraph_" + std::to_string(subgraph_num),
       graph->context_);
 
   // loop over all nodes and add nodes in the current subgraph to
@@ -432,6 +432,20 @@ void CollapseSubgraph(Graph* graph, int subgraph_num) {
 
     // add the subraph to to Graph nodes
     graph->nodes_.push_back(tmpGraph);
+  }
+}
+
+void Node::printOpDetails(std::ostream& os) {
+  using namespace std;
+  // The set of fields printed can be altered according to the developer's
+  // debugging needs.
+  const string indent{"  "};
+
+  os << "name_ = '" << name_ << "'" << endl;
+
+  os << "orig_node_->attrs.dict:" << endl;
+  for (const auto& kv : orig_node_->attrs.dict) {
+    os << indent << kv.first << " = '" << kv.second << "'" << endl;
   }
 }
 

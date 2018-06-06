@@ -132,7 +132,7 @@ inline ngraph::AxisVector pyrange(size_t start, size_t stop) {
 inline ngraph::AxisVector pyrange(size_t stop) { return pyrange(0, stop); }
 
 inline std::string get_default(const NodePtr& node, const std::string& key,
-                               const std::string default_val) {
+                               const std::string& default_val) {
   return node->orig_node_->attrs.dict.count(key)
              ? node->orig_node_->attrs.dict[key]
              : default_val;
