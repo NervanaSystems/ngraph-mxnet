@@ -123,6 +123,8 @@ def dump_profile():
                   'Please use profiler.dump() instead')
     dump(True)
 
+def dump_ngraph():
+    check_call(_LIB.MXDumpNGraphProfile())
 
 def dumps(reset=False):
     """Return a printable string of aggregate profile stats.
@@ -424,7 +426,3 @@ class Marker(object):
             Default is `process`.
         """
         check_call(_LIB.MXProfileSetMarker(self.domain.handle, c_str(self.name), c_str(scope)))
-
-
-def NGraphStats():
-    check_call(_LIB.MXNGraphStats())

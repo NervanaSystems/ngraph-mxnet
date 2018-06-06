@@ -39,19 +39,19 @@ class NGraphStats {
   void operator=(NGraphStats const&) = delete;
 
   void add(const std::shared_ptr<Graph>& g) { graphs_.push_back(g); }
-  void print();
+  void dump(std::ostream& stream);
 
  private:
   // disallow creating instance outside the class
   NGraphStats() {}
   std::multimap<size_t, std::string> aggregate_timing(
       const std::vector<ngraph::runtime::PerformanceCounter>& perf_data);
-  void print_perf_data(
+  void print_perf_data(std::ostream& out,
       std::vector<ngraph::runtime::PerformanceCounter> perf_data);
 
  private:
   std::vector<std::shared_ptr<ngraph_bridge::Graph>> graphs_;
-  const int left_margin_{35};
+  const int left_margin_{40};
   const int right_margin_{15};
   const int extra_margin_{2};
   const int total_margin_{left_margin_ + right_margin_ + extra_margin_};

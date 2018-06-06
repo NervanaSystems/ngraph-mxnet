@@ -100,5 +100,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     iters = get_iters()
     exec_mnist(get_model(args.gpu), iters[0], iters[1])
-    mx.profiler.NGraphStats()
+    mx.profiler.dump_ngraph()
 

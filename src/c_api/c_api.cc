@@ -1306,8 +1306,9 @@ int MXNDArrayCreateFromSharedMem(int shared_pid, int shared_id, const mx_uint *s
   *out = new NDArray(shared_pid, shared_id, TShape(shape, shape + ndim), dtype);
   API_END();
 }
-int MXNGraphStats() {
+
+int MXDumpNGraphProfile() {
   API_BEGIN();
-  ngraph_bridge::NGraphStats::get_instance().print();
+  ngraph_bridge::NGraphStats::get_instance().dump(std::cout);
   API_END();
 }
