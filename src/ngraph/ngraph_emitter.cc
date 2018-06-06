@@ -1460,10 +1460,12 @@ void Emitter::CreateLossOps() {
     if (label->get_shape() != softmax->get_shape()) {
       if (use_ignore) {
         ignore = true;
-        mask = cast_result(
-            std::make_shared<ngraph::op::NotEqual>(
-                label, makeConstant(node, std::to_string(ignore_label))),
-            getType(node->dtype_));
+        mask =
+            cast_result(std::make_shared<ngraph::op::NotEqual>(
+                            label, makeConstant(label->get_element_type(),
+                                                label->get_shape(),
+                                                std::to_string(ignore_label))),
+                        getType(node->dtype_));
       }
       size_t axis = op_map_[node->inputs_[0]]->get_shape().size() - 1;
       if (get_default(node, "multi_output", false)) {
