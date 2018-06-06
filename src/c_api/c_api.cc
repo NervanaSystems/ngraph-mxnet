@@ -46,7 +46,7 @@
 #include "./c_api_common.h"
 #include "../operator/custom/custom-inl.h"
 #include "../operator/tensor/matrix_op-inl.h"
-#include "../ngraph/ngraph_utils.h"
+#include "../ngraph/ngraph_stats.h"
 
 using namespace mxnet;
 

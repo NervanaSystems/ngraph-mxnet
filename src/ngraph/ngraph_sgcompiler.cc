@@ -33,6 +33,7 @@
 #include <ngraph/serializer.hpp>
 
 #include "ngraph_sgcompiler_utils.h"
+#include "ngraph_stats.h"
 #include "ngraph_utils.h"
 
 namespace ngraph_bridge {
