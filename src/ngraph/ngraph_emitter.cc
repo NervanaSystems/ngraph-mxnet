@@ -396,6 +396,9 @@ void Emitter::CreateUnaryOps() {
     return std::make_shared<ngraph::op::Convert>(op_map_[node->inputs_[0]],
                                                  getType(node->dtype_));
   };
+  ngraph_op_funcs_["stop_gradient"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::StopGradient>(op_map_[node->inputs_[0]]);
+  };
 
   //----------------------------- Reduce Ops ----------------------------//
   ngraph_op_funcs_["norm"] = [this](const NodePtr& node) {
