@@ -246,6 +246,7 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
     if (stypes[i] != kDefaultStorage)
       storage[i] = exec::kDynamicStorageID;
   }
+
 #if MXNET_USE_NGRAPH == 1
   // create both mem plans for ngraph to avoid recompile
   auto storage_copy = storage;
