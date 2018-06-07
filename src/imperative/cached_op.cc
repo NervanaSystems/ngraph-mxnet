@@ -75,12 +75,12 @@ Imperative::CachedOp::CachedOp(
   ngraph_fwd_graph_.outputs = fwd_graph_.outputs;
   symbol_inputs_ = sym.ListInputs(Symbol::kReadOnlyArgs);
 #else
-  UpdateFullGraph(fwd_graph_, sym.ListInputs(Symbol::kReadOnlyArgs));
+  UpdateFullGraph(&fwd_graph_, sym.ListInputs(Symbol::kReadOnlyArgs));
 #endif
 }
 
-void Imperative::CachedOp::UpdateFullGraph(nnvm::Graph& fwd_graph,
-    const std::vector<nnvm::NodePtr> &symbol_inputs) {
+void Imperative::CachedOp::UpdateFullGraph(nnvm::Graph* fwd_graph,
+    const std::vector<nnvm::NodePtr>& symbol_inputs) {
   using namespace nnvm;
   using namespace imperative;
   static const std::vector<const Op*> zero_ops{Op::Get("zeros_like"), Op::Get("_zeros")};
@@ -92,24 +92,24 @@ void Imperative::CachedOp::UpdateFullGraph(nnvm::Graph& fwd_graph,
   // construct backward graph
   {
     ograd_entries_.clear();
-    ograd_entries_.reserve(fwd_graph.outputs.size());
-    for (size_t i = 0; i < fwd_graph.outputs.size(); ++i) {
+    ograd_entries_.reserve(fwd_graph->outputs.size());
+    for (size_t i = 0; i < fwd_graph->outputs.size(); ++i) {
       ograd_entries_.emplace_back(NodeEntry{Node::Create(), 0, 0});
     }
 
     grad_graph_ = pass::Gradient(
-        fwd_graph, fwd_graph.outputs, inputs, ograd_entries_,
+        *fwd_graph, fwd_graph->outputs, inputs, ograd_entries_,
         exec::AggregateGradient, nullptr, nullptr,
         zero_ops, "_copy");
   }
 
   // construct full graph
   {
-    size_t num_forward_nodes = fwd_graph.indexed_graph().num_nodes();
-    size_t num_forward_entries = fwd_graph.indexed_graph().num_node_entries();
+    size_t num_forward_nodes = fwd_graph->indexed_graph().num_nodes();
+    size_t num_forward_entries = fwd_graph->indexed_graph().num_node_entries();
 
     full_graph_ = nnvm::Graph{};
-    full_graph_.outputs = fwd_graph.outputs;
+    full_graph_.outputs = fwd_graph->outputs;
     curr_grad_req_ = std::vector<bool>(grad_graph_.outputs.size(), true);
     for (const auto& i : grad_graph_.outputs) full_graph_.outputs.emplace_back(i);
     const auto& idx = full_graph_.indexed_graph();
@@ -120,9 +120,9 @@ void Imperative::CachedOp::UpdateFullGraph(nnvm::Graph& fwd_graph,
       }
     }
 
-    auto full_ref_count = fwd_graph.GetAttr<std::vector<uint32_t> >("forward_ref_count");
+    auto full_ref_count = fwd_graph->GetAttr<std::vector<uint32_t> >("forward_ref_count");
     for (size_t i = 0; i < num_forward_entries; ++i) full_ref_count[i] += ref_count[i];
-    fwd_graph.attrs["full_ref_count"] =
+    fwd_graph->attrs["full_ref_count"] =
         std::make_shared<dmlc::any>(std::move(full_ref_count));
 
     size_t num_forward_inputs = num_inputs();
@@ -233,7 +233,7 @@ nnvm::Graph Imperative::CachedOp::GetForwardGraph(
     ngraph_bridge::Compiler compiler(
         ngraph_fwd_graph_, symbol_inputs_, inputs);
     g = compiler.GetCachedOpGraph(inputs);
-    UpdateFullGraph(g, compiler.GetInputs());
+    UpdateFullGraph(&g, compiler.GetInputs());
 #endif
 
   const auto& idx = g.indexed_graph();
