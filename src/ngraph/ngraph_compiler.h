@@ -188,14 +188,15 @@ class Compiler {
   // Construct base compiler object with context only
   Compiler(const mxnet::Context& context);
   // Constructor for use with gluon hybridize
-  Compiler(const nnvm::Graph& graph, const mxnet::Context& context,
-           const std::vector<nnvm::TShape>& shapes,
-           const std::vector<int>& dtypes, const std::vector<int>& stypes);
+  Compiler(const nnvm::Graph& graph, const NNVMNodeVec& symbol_inputs,
+           const std::vector<mxnet::NDArray*>& inputs);
   // Compile returns the compiled graph
   nnvm::Graph Compile();
   // parse the nnvm graph into an intermediate represenation
   // TODO(mbrookhart): Make this protected, it's here for debugging
   void ParseNnvmGraph();
+  // create and return cached_op graph
+  nnvm::Graph GetCachedOpGraph(const std::vector<mxnet::NDArray*>& inputs);
 
   StateMap CopySavedStates(const StateMap& saved_states);
   // Return maps of the shapes and dtypes for further analysis in graph_executor

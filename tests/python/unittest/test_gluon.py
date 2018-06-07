@@ -788,6 +788,7 @@ def test_fill_shape_load():
 
 
 @with_seed()
+@unittest.skip("inline_limit is not used in any Gluon frontend, and is not applicable for ngraph as ngraph fuses nodes")
 def test_inline():
     net = mx.gluon.nn.HybridSequential()
     with net.name_scope():
