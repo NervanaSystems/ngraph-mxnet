@@ -34,6 +34,9 @@ std::atomic<int> mxnet::kvstore::KVStoreDist::customer_id_{0};
 #if MXNET_USE_NCCL
 #include "./kvstore_nccl.h"
 #endif  // MXNET_USE_NCCL
+#if MXNET_USE_NGRAPH_DISTRIBUTED
+#include "./kvstore_ngraph.h"
+#endif  // MXNET_USE_NGRAPH_DISTRIBUTED
 
 namespace mxnet {
 
@@ -66,6 +69,13 @@ KVStore* KVStore::Create(const char *type_name) {
       kv = new kvstore::KVStoreNCCL();
 #else
       LOG(FATAL) << "compile with USE_NCCL=1 to use " << tname;
+      return nullptr;
+#endif
+    } else if (has("ngraph")) {
+#if MXNET_USE_NGRAPH_DISTRIBUTED
+      kv = new kvstore::KVStoreNGRAPH(use_device_comm);
+#else
+      LOG(FATAL) << "compile with USE_NGRAPH_DISTRIBUTED=1 to use " << tname;
       return nullptr;
 #endif
     } else {
