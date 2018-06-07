@@ -1498,14 +1498,15 @@ void Emitter::CreateLossOps() {
     auto gradient = softmax - label;
 
     if (ignore) {
+      // We need to reshape the mast so we can broadcast it with
+      // the gradient
       ngraph::Shape new_shape(gradient->get_shape().size(), 1);
-
       for (size_t i = 0; i < mask->get_shape().size(); ++i) {
         new_shape[i] = mask->get_shape()[i];
       }
-
       mask = std::make_shared<ngraph::op::Reshape>(
           mask, pyrange(mask->get_shape().size()), new_shape);
+      // Mask out the gradient
       gradient =
           ngraph::builder::make_with_numpy_broadcast<ngraph::op::Multiply>(
               gradient, mask);
