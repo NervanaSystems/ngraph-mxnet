@@ -37,7 +37,7 @@ void NGraphStats::dump(std::ostream& out) {
     const int pass_count = 3;
     const std::string pass_name[pass_count] = {"Forward", "Backward",
                                                "Combined"};
-    std::vector<ngraph::runtime::PerformanceCounter> perf_counter[pass_count];
+    std::vector<ngraph::runtime::PerformanceCounter> pass_perf[pass_count];
 
     // iterate all the graphs and print their performance stats
     for (auto& g : graphs_) {
@@ -46,16 +46,16 @@ void NGraphStats::dump(std::ostream& out) {
         out << "# Graph " << g->name_ << std::endl;
         auto backend = GetBackendFromContext(g->context_);
 
-        auto print_perf_for_pass = [&](std::shared_ptr<ngraph::Function> func,
-                                       const int pass) {
+        auto print_perf_for_pass = [&](
+            const std::shared_ptr<ngraph::Function>& func, const int pass) {
           std::vector<ngraph::runtime::PerformanceCounter> perf_data =
               backend->get_performance_data(func);
           if (perf_data.size() > 0) {
             out << std::string(total_margin_, '-') << "\n";
             out << "# " + pass_name[pass] << std::endl;
             print_perf_data(out, perf_data);
-            perf_counter[pass].insert(perf_counter[pass].end(),
-                                      perf_data.begin(), perf_data.end());
+            pass_perf[pass].insert(pass_perf[pass].end(), perf_data.begin(),
+                                   perf_data.end());
           }
         };
 
@@ -72,12 +72,12 @@ void NGraphStats::dump(std::ostream& out) {
     auto print_pass_summary = [&](const int i) {
       out << std::string(total_margin_, '-') << "\n";
       out << "# " + pass_name[i] << std::endl;
-      print_perf_data(out, perf_counter[i]);
+      print_perf_data(out, pass_perf[i]);
       // accumulate stats for the last perf counter (total summary)
       if (i != pass_count - 1) {
-        perf_counter[pass_count - 1].insert(perf_counter[pass_count - 1].end(),
-                                            perf_counter[i].begin(),
-                                            perf_counter[i].end());
+        pass_perf[pass_count - 1].insert(pass_perf[pass_count - 1].end(),
+                                         pass_perf[i].begin(),
+                                         pass_perf[i].end());
       }
     };
     out << std::string(total_margin_, '#') << "\n";
