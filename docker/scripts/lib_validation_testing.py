@@ -14,11 +14,11 @@ from random import randint
 # Note: download_cifar10() will automatic download data from http://data.mxnet.io/data/cifar10
 # Return: Nothing. 
 # =========================================
-def checkScript(mnistScript):
+def checkScript(pythonScript):
 
-    if not os.path.isfile(mnistScript):
+    if not os.path.isfile(pythonScript):
         raise Exception('WARNING: Script path is not a file: %s'
-                        % str(mnistScript))
+                        % str(pythonScript))
 
 #End: def checkScript()
 
@@ -240,6 +240,29 @@ def runResnetScript(script=None,          # Script to run
     return runLog
 
 # End: def runResnetScript()
+
+
+def runBenchmarkScoreScript(script=None,          # Script to run
+                   python=None,          # Which python to use
+                   logID='',
+                   ompNumThreads=None,
+                   kmpAff=None):            # Log line prefix
+
+    print
+    print 'Benchmark script being run with:'
+    print '    script:         %s' % str(script)
+    print '    python:         %s' % str(python)
+    print '    logID:          %s' % str(logID)
+
+    print 'Setting up run in nGraph environment'
+    print("the Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
+    cmd = "export OMP_NUM_THREADS={}; export KMP_AFFINITY={};{} {}".format(ompNumThreads, kmpAff, python_lib.strip(),script )
+    print("The command for benchmark_score script is: {}".format(cmd))
+    runLog = runCommand(command=cmd, logID=logID)
+
+    return runLog
+
+# End: def runBenchmarkScoreScript()
 
 
 def runCommand(command=None,  # Script to run
