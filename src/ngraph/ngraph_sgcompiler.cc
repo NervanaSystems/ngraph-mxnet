@@ -33,7 +33,6 @@
 #include <ngraph/serializer.hpp>
 
 #include "ngraph_sgcompiler_utils.h"
-#include "ngraph_stats.h"
 #include "ngraph_utils.h"
 
 namespace ngraph_bridge {
@@ -55,7 +54,6 @@ void CompileForward(std::shared_ptr<Graph> sub_graph,
 
   if (ngraph_log_timer()) {
     backend->enable_performance_data(f, true);
-    NGraphStats::get_instance().add(sub_graph);
   }
 
   backend->compile(f);
@@ -82,7 +80,6 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
   if (ngraph_log_timer()) {
     backend->enable_performance_data(f_copy, true);
     backend->enable_performance_data(bf_copy, true);
-    NGraphStats::get_instance().add(sub_graph);
   }
 
   // Log the graphs so Graph_* corresponds to Function_* in codgen

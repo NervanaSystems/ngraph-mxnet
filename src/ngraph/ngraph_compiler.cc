@@ -26,6 +26,7 @@
 #include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
 #include "ngraph_sgcompiler_utils.h"
+#include "ngraph_stats.h"
 #include "ngraph_utils.h"
 #include "nnvm/tuple.h"
 
@@ -225,6 +226,11 @@ void Compiler::CreateSubgraphNNVMNodes() {
 
       // register compiled subgraph with nnvm
       register_subgraph(sg);
+	  
+	  // add subgraph to stats tracker
+      if (ngraph_log_timer()) {
+        NGraphStats::get_instance().add(sg);
+      }
 
       // create nnvm node
       auto node = CreateNNVMNode(sg);

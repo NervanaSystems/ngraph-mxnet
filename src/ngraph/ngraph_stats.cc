@@ -49,9 +49,9 @@ void NGraphStats::dump(std::ostream& out) {
           {
             std::vector<ngraph::runtime::PerformanceCounter> perf_data =
                 backend->get_performance_data(g->ngraph_forward[i]);
-            out << std::string(total_margin_, '-') << "\n";
-            out << "# Forward" << std::endl;
             if (perf_data.size() > 0) {
+              out << std::string(total_margin_, '-') << "\n";
+              out << "# Forward" << std::endl;
               print_perf_data(out, perf_data);
               forward_perf_.insert(forward_perf_.end(), perf_data.begin(),
                                    perf_data.end());
@@ -60,9 +60,9 @@ void NGraphStats::dump(std::ostream& out) {
           {
             std::vector<ngraph::runtime::PerformanceCounter> perf_data =
                 backend->get_performance_data(g->ngraph_backward[i]);
-            out << std::string(total_margin_, '-') << "\n";
-            out << "# Backward" << std::endl;
             if (perf_data.size() > 0) {
+              out << std::string(total_margin_, '-') << "\n";
+              out << "# Backward" << std::endl;
               print_perf_data(out, perf_data);
               backward_perf_.insert(backward_perf_.end(), perf_data.begin(),
                                     perf_data.end());
