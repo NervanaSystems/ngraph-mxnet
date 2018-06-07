@@ -232,6 +232,11 @@ void Compiler::CreateSubgraphNNVMNodes() {
         NGraphStats::get_instance().add(sg);
       }
 
+      // add subgraph to stats tracker
+      if (ngraph_log_timer()) {
+        NGraphStats::get_instance().add(sg);
+      }
+
       // create nnvm node
       auto node = CreateNNVMNode(sg);
       compiled_nodes_.insert({sg, node});
