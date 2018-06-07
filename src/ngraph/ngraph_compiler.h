@@ -143,6 +143,7 @@ static std::unordered_map<std::string, std::string> nameswitch({
     {"Cast", "cast"},
     {"sum_axis", "sum"},
     {"SliceChannel", "split"},
+    {"BlockGrad", "stop_gradient"},
 });
 
 // MxNet OPs that do not have gradient should work when head-gradient is not
@@ -166,7 +167,8 @@ static std::unordered_set<std::string> ops_no_head_grad{
     "_greater_equal_scalar",
     "_lesser_scalar",
     "_lesser_equal_scalar",
-    "MakeLoss"};
+    "MakeLoss",
+    "stop_gradient"};
 
 // Utility function for replacing operation names
 // based on the dict above
@@ -188,14 +190,15 @@ class Compiler {
   // Construct base compiler object with context only
   Compiler(const mxnet::Context& context);
   // Constructor for use with gluon hybridize
-  Compiler(const nnvm::Graph& graph, const mxnet::Context& context,
-           const std::vector<nnvm::TShape>& shapes,
-           const std::vector<int>& dtypes, const std::vector<int>& stypes);
+  Compiler(const nnvm::Graph& graph, const NNVMNodeVec& symbol_inputs,
+           const std::vector<mxnet::NDArray*>& inputs);
   // Compile returns the compiled graph
   nnvm::Graph Compile();
   // parse the nnvm graph into an intermediate represenation
   // TODO(mbrookhart): Make this protected, it's here for debugging
   void ParseNnvmGraph();
+  // create and return cached_op graph
+  nnvm::Graph GetCachedOpGraph(const std::vector<mxnet::NDArray*>& inputs);
 
   StateMap CopySavedStates(const StateMap& saved_states);
   // Return maps of the shapes and dtypes for further analysis in graph_executor

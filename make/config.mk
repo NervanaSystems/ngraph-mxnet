@@ -98,6 +98,8 @@ USE_OPENMP = 1
 
 # set USE_NGRAPH = 1 to compile with nGraph.
 USE_NGRAPH = 0
+# set USE_NGRAPH_DISTRIBUTED = 1 to add nGraph distributed support.
+USE_NGRAPH_DISTRIBUTED = 0
 # when USE_NGRAPH = 1
 # optional: path to installed nGraph libraries
 # e.g. NGRAPH_DIR = <path>/ngraph/install (containing lib and include dirs)
