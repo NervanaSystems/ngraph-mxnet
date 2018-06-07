@@ -53,6 +53,11 @@ void CompileForward(std::shared_ptr<Graph> sub_graph,
   for (size_t i = 0; i < sub_graph->num_outputs_; ++i)
     results[i]->set_needs_default_layout(true);
 
+  if (ngraph_log_timer()) {
+    backend->enable_performance_data(f, true);
+    NGraphStats::get_instance().add(sub_graph);
+  }
+
   backend->compile(f);
   sub_graph->ngraph_forward[mode] = f;
 }
