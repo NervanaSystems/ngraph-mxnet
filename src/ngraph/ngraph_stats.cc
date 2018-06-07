@@ -118,8 +118,7 @@ std::multimap<size_t, OpCount> aggregate_timing(
 
 void NGraphStats::print_perf_data(
     std::ostream& out,
-    // passing by value because we need to sort it
-    std::vector<ngraph::runtime::PerformanceCounter> perf_data) {
+    const std::vector<ngraph::runtime::PerformanceCounter>& perf_data) {
   if (perf_data.size() > 0) {
     std::multimap<size_t, OpCount> timing = aggregate_timing(perf_data);
 

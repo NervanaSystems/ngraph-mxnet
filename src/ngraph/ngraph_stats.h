@@ -45,7 +45,7 @@ class NGraphStats {
   NGraphStats() {}
   void print_perf_data(
       std::ostream& out,
-      std::vector<ngraph::runtime::PerformanceCounter> perf_data);
+      const std::vector<ngraph::runtime::PerformanceCounter>& perf_data);
 
  private:
   std::vector<std::shared_ptr<ngraph_bridge::Graph>> graphs_;
