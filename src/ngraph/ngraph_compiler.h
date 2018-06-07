@@ -171,7 +171,6 @@ static std::unordered_set<std::string> ops_no_head_grad{
     "MakeLoss",
     "stop_gradient",
 };
->>>>>>> sort the list for ops_no_head_grad
 
 // Utility function for replacing operation names
 // based on the dict above
