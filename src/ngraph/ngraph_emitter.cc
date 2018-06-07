@@ -1473,6 +1473,8 @@ void Emitter::CreateLossOps() {
       }
       label = std::make_shared<ngraph::op::OneHot>(label, softmax->get_shape(),
                                                    axis);
+      std::cout << mask->get_shape() << std::endl;
+      std::cout << label->get_shape() << std::endl;
     }
 
     if (smooth_alpha != 0.0f) {
@@ -1498,10 +1500,19 @@ void Emitter::CreateLossOps() {
     auto gradient = softmax - label;
 
     if (ignore) {
+      ngraph::Shape new_shape(gradient->get_shape().size(), 1);
+
+      for (size_t i = 0; i < mask->get_shape().size(); ++i) {
+        new_shape[i] = mask->get_shape()[i];
+      }
+
+      mask = std::make_shared<ngraph::op::Reshape>(
+          mask, pyrange(mask->get_shape().size()), new_shape);
       gradient =
           ngraph::builder::make_with_numpy_broadcast<ngraph::op::Multiply>(
               gradient, mask);
     }
+
     if (grad_scale != 1.0f) {
       gradient = gradient * makeConstant(node, std::to_string(grad_scale));
     }
