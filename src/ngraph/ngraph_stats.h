@@ -43,8 +43,6 @@ class NGraphStats {
  private:
   // disallow creating instance outside the class
   NGraphStats() {}
-  std::multimap<size_t, std::string> aggregate_timing(
-      const std::vector<ngraph::runtime::PerformanceCounter>& perf_data);
   void print_perf_data(
       std::ostream& out,
       std::vector<ngraph::runtime::PerformanceCounter> perf_data);

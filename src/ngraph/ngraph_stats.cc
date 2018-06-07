@@ -94,21 +94,26 @@ struct TimeCount {
   size_t count;
 };
 
-std::multimap<size_t, std::string> NGraphStats::aggregate_timing(
+struct OpCount {
+  std::string op;
+  size_t count;
+};
+
+std::multimap<size_t, OpCount> aggregate_timing(
     const std::vector<ngraph::runtime::PerformanceCounter>& perf_data) {
-  std::unordered_map<std::string, TimeCount> timing;
+  std::unordered_map<std::string, TimeCount> op_timing;
   for (const ngraph::runtime::PerformanceCounter& p : perf_data) {
     std::string op = p.name().substr(0, p.name().find('_'));
-    timing[op].time += p.total_microseconds();
-    timing[op].count += 1;
+    op_timing[op].time += p.total_microseconds();
+    op_timing[op].count += 1;
   }
 
-  std::multimap<size_t, std::string> rc;
-  for (const auto& t : timing) {
-    rc.insert(
-        {t.second.time, t.first + " (" + std::to_string(t.second.count) + ")"});
+  // multimap will sort by time
+  std::multimap<size_t, OpCount> time_op;
+  for (const auto& t : op_timing) {
+    time_op.insert({t.second.time, {t.first, t.second.count}});
   }
-  return rc;
+  return time_op;
 }
 
 void NGraphStats::print_perf_data(
@@ -116,25 +121,24 @@ void NGraphStats::print_perf_data(
     // passing by value because we need to sort it
     std::vector<ngraph::runtime::PerformanceCounter> perf_data) {
   if (perf_data.size() > 0) {
-    std::sort(perf_data.begin(), perf_data.end(),
-              [](const ngraph::runtime::PerformanceCounter& p1,
-                 const ngraph::runtime::PerformanceCounter& p2) {
-                return p1.total_microseconds() > p2.total_microseconds();
-              });
-    std::multimap<size_t, std::string> timing = aggregate_timing(perf_data);
+    std::multimap<size_t, OpCount> timing = aggregate_timing(perf_data);
 
     size_t sum = 0;
+    size_t op_count = 0;
     out.imbue(std::locale(""));
     for (auto it = timing.rbegin(); it != timing.rend(); it++) {
-      out << std::setw(left_margin_) << std::left << it->second
+      out << std::setw(left_margin_) << std::left
+          << it->second.op + " (" + std::to_string(it->second.count) + ")"
           << std::setw(right_margin_) << std::right << it->first << "us\n";
       sum += it->first;
+      op_count += it->second.count;
     }
     out << std::setw(left_margin_) << std::left << " "
         << std::setw(right_margin_) << std::right
         << std::string(right_margin_ + extra_margin_, '-') << "\n";
     out << std::setw(left_margin_) << std::left
-        << "Total:" << std::setw(right_margin_) << std::right << sum << "us\n";
+        << "Total (" + std::to_string(op_count) + "):"
+        << std::setw(right_margin_) << std::right << sum << "us\n";
     // reset locale
     out.imbue(std::locale::classic());
   }
