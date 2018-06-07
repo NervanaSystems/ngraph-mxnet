@@ -1432,6 +1432,31 @@ void Emitter::CreateLayerOps() {
     // MakeLoss forward returns copy/identity
     return op_map_[node->inputs_[0]];
   };
+  ngraph_op_funcs_["L2Normalization"] = [this](const NodePtr& node) {
+    auto input = op_map_[node->inputs_[0]];
+    const auto& in_shape = input->get_shape();
+    const float eps = get_default(node, "eps", 1e-10f);
+    const std::string mode = get_default(node, "mode", std::string("instance"));
+
+    if (in_shape.size() == 1) {
+
+    }
+    else {
+        if (mode == "instance") {
+
+        }
+        else if (mode == "channel") {
+
+        }
+        else if (mode == "spatial") {
+
+        }
+        else {
+          throw std::runtime_error("NGRAPH_BRIDGE: L2Normalization unknown mode type '" + mode + "'");
+        }
+    }
+    return op_map_[node->inputs_[0]];
+  };
 }
 
 void Emitter::CreateLossOps() {
