@@ -33,7 +33,7 @@ IMAGE_ID="$(git rev-parse HEAD)"
 docker run --rm \
        --env RUN_UID="$(id -u)" \
        --env RUN_CMD='/home/dockuser/ng-mx/docker/scripts/run-mx-ngraph-build-and-test.sh' \
-       --env http_proxy=http://proxy-us.intel.com:911 \
-       --env https_proxy=https://proxy-us.intel.com:911 \
+       --env http_proxy=http://proxy-fm.intel.com:911 \
+       --env https_proxy=http://proxy-fm.intel.com:912 \
        -v "${ngraph_mx_dir}:/home/dockuser/ng-mx" \
        "mxnet:${IMAGE_ID}" /home/run-as-user.sh
