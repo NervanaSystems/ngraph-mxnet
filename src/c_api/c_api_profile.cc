@@ -32,8 +32,8 @@
 #include <fstream>
 #include <stack>
 #include "./c_api_common.h"
-#include "../profiler/profiler.h"
 #include "../ngraph/ngraph_stats.h"
+#include "../profiler/profiler.h"
 
 namespace mxnet {
 
