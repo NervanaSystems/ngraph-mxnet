@@ -150,17 +150,23 @@ static std::unordered_map<std::string, std::string> nameswitch({
 // passed. Below OPs in ngrap-bridge fit this criteria.
 static std::unordered_set<std::string> ops_no_head_grad{
     "_equal",
-    "_not_equal",
+    "_equal_scalar",
     "_greater",
+    "_greater_scalar",
     "_greater_equal",
+    "_greater_equal_scalar",
     "_lesser",
+    "_lesser_scalar",
     "_lesser_equal",
+    "_lesser_equal_scalar",
+    "_not_equal",
+    "_not_equal_scalar",
     "broadcast_equal",
-    "broadcast_not_equal",
     "broadcast_greater",
     "broadcast_greater_equal",
     "broadcast_lesser",
     "broadcast_lesser_equal",
+<<<<<<< HEAD
     "_equal_scalar",
     "_not_equal_scalar",
     "_greater_scalar",
@@ -175,9 +181,26 @@ static std::unordered_set<std::string> ops_no_head_grad{
     "MakeLoss"};
 =======
     "MakeLoss",
+||||||| merged common ancestors
+    "_equal_scalar",
+    "_not_equal_scalar",
+    "_greater_scalar",
+    "_greater_equal_scalar",
+    "_lesser_scalar",
+    "MakeLoss",
+=======
+    "broadcast_not_equal",
+>>>>>>> sort the list for ops_no_head_grad
     "LinearRegressionOutput",
+<<<<<<< HEAD
     "_lesser_equal_scalar"};
 >>>>>>> add LinearRegressionOutput op to ngraph emitter
+||||||| merged common ancestors
+    "_lesser_equal_scalar"};
+=======
+    "MakeLoss",
+};
+>>>>>>> sort the list for ops_no_head_grad
 
 // Utility function for replacing operation names
 // based on the dict above
