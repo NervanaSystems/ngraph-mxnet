@@ -33,61 +33,58 @@ std::string exe_mode_to_string(int mode) {
 }
 void NGraphStats::dump(std::ostream& out) {
   if (ngraph_log_timer()) {
-    // iterate all the graphs and print their performance stats
+    // accumulator for forward/backward/Combined summary at the end
+    const int pass_count = 3;
+    const std::string pass_name[pass_count] = {"Forward", "Backward",
+                                               "Combined"};
+    std::vector<ngraph::runtime::PerformanceCounter> perf_counter[pass_count];
 
-    std::vector<ngraph::runtime::PerformanceCounter> forward_perf_;
-    std::vector<ngraph::runtime::PerformanceCounter> backward_perf_;
+    // iterate all the graphs and print their performance stats
     for (auto& g : graphs_) {
       if (g != nullptr) {
         out << std::string(total_margin_, '#') << "\n";
         out << "# Graph " << g->name_ << std::endl;
         auto backend = GetBackendFromContext(g->context_);
+
+        auto print_perf_for_pass = [&](std::shared_ptr<ngraph::Function> func,
+                                       const int pass) {
+          std::vector<ngraph::runtime::PerformanceCounter> perf_data =
+              backend->get_performance_data(func);
+          if (perf_data.size() > 0) {
+            out << std::string(total_margin_, '-') << "\n";
+            out << "# " + pass_name[pass] << std::endl;
+            print_perf_data(out, perf_data);
+            perf_counter[pass].insert(perf_counter[pass].end(),
+                                      perf_data.begin(), perf_data.end());
+          }
+        };
+
         // output inference/training execution mode
         for (int i = 0; i < kGraphExeModeCount; ++i) {
           out << std::string(total_margin_, '=') << "\n";
           out << "# Mode: " << exe_mode_to_string(i) << std::endl;
-          {
-            std::vector<ngraph::runtime::PerformanceCounter> perf_data =
-                backend->get_performance_data(g->ngraph_forward[i]);
-            if (perf_data.size() > 0) {
-              out << std::string(total_margin_, '-') << "\n";
-              out << "# Forward" << std::endl;
-              print_perf_data(out, perf_data);
-              forward_perf_.insert(forward_perf_.end(), perf_data.begin(),
-                                   perf_data.end());
-            }
-          }
-          {
-            std::vector<ngraph::runtime::PerformanceCounter> perf_data =
-                backend->get_performance_data(g->ngraph_backward[i]);
-            if (perf_data.size() > 0) {
-              out << std::string(total_margin_, '-') << "\n";
-              out << "# Backward" << std::endl;
-              print_perf_data(out, perf_data);
-              backward_perf_.insert(backward_perf_.end(), perf_data.begin(),
-                                    perf_data.end());
-            }
-          }
+          print_perf_for_pass(g->ngraph_forward[i], 0);
+          print_perf_for_pass(g->ngraph_backward[i], 1);
         }
       }
     }
 
+    auto print_pass_summary = [&](const int i) {
+      out << std::string(total_margin_, '-') << "\n";
+      out << "# " + pass_name[i] << std::endl;
+      print_perf_data(out, perf_counter[i]);
+      // accumulate stats for the last perf counter (total summary)
+      if (i != pass_count - 1) {
+        perf_counter[pass_count - 1].insert(perf_counter[pass_count - 1].end(),
+                                            perf_counter[i].begin(),
+                                            perf_counter[i].end());
+      }
+    };
     out << std::string(total_margin_, '#') << "\n";
     out << "# Overall" << std::endl;
-    out << std::string(total_margin_, '-') << "\n";
-    out << "# Forward" << std::endl;
-    print_perf_data(out, forward_perf_);
-    out << std::string(total_margin_, '-') << "\n";
-    out << "# Backward" << std::endl;
-    print_perf_data(out, backward_perf_);
-    out << std::string(total_margin_, '-') << "\n";
-    out << "# Combined" << std::endl;
-    std::vector<ngraph::runtime::PerformanceCounter> combined_perf;
-    combined_perf.insert(combined_perf.end(), forward_perf_.begin(),
-                         forward_perf_.end());
-    combined_perf.insert(combined_perf.end(), backward_perf_.begin(),
-                         backward_perf_.end());
-    print_perf_data(out, combined_perf);
+    for (int i = 0; i < pass_count; ++i) {
+      print_pass_summary(i);
+    }
     out << std::string(total_margin_, '#') << "\n";
   }
 }
@@ -116,6 +113,7 @@ std::multimap<size_t, std::string> NGraphStats::aggregate_timing(
 
 void NGraphStats::print_perf_data(
     std::ostream& out,
+    // passing by value because we need to sort it
     std::vector<ngraph::runtime::PerformanceCounter> perf_data) {
   if (perf_data.size() > 0) {
     std::sort(perf_data.begin(), perf_data.end(),

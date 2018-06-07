@@ -226,8 +226,8 @@ void Compiler::CreateSubgraphNNVMNodes() {
 
       // register compiled subgraph with nnvm
       register_subgraph(sg);
-	  
-	  // add subgraph to stats tracker
+
+      // add subgraph to stats tracker
       if (ngraph_log_timer()) {
         NGraphStats::get_instance().add(sg);
       }
