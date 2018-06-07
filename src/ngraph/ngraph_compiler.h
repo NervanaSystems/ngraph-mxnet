@@ -166,39 +166,10 @@ static std::unordered_set<std::string> ops_no_head_grad{
     "broadcast_greater_equal",
     "broadcast_lesser",
     "broadcast_lesser_equal",
-<<<<<<< HEAD
-    "_equal_scalar",
-    "_not_equal_scalar",
-    "_greater_scalar",
-    "_greater_equal_scalar",
-    "_lesser_scalar",
-<<<<<<< HEAD
-    "_lesser_equal_scalar",
-    "MakeLoss",
-    "stop_gradient"};
-||||||| merged common ancestors
-    "_lesser_equal_scalar",
-    "MakeLoss"};
-=======
-    "MakeLoss",
-||||||| merged common ancestors
-    "_equal_scalar",
-    "_not_equal_scalar",
-    "_greater_scalar",
-    "_greater_equal_scalar",
-    "_lesser_scalar",
-    "MakeLoss",
-=======
     "broadcast_not_equal",
->>>>>>> sort the list for ops_no_head_grad
     "LinearRegressionOutput",
-<<<<<<< HEAD
-    "_lesser_equal_scalar"};
->>>>>>> add LinearRegressionOutput op to ngraph emitter
-||||||| merged common ancestors
-    "_lesser_equal_scalar"};
-=======
     "MakeLoss",
+    "stop_gradient",
 };
 >>>>>>> sort the list for ops_no_head_grad
 
