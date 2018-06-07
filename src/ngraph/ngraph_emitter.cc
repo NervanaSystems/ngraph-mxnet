@@ -1473,8 +1473,6 @@ void Emitter::CreateLossOps() {
       }
       label = std::make_shared<ngraph::op::OneHot>(label, softmax->get_shape(),
                                                    axis);
-      std::cout << mask->get_shape() << std::endl;
-      std::cout << label->get_shape() << std::endl;
     }
 
     if (smooth_alpha != 0.0f) {
@@ -1521,25 +1519,19 @@ void Emitter::CreateLossOps() {
       gradient = gradient * adjoint;
     }
 
-    if (norm != "null") {
-      throw std::runtime_error(std::string("NGRAPH_BRIDGE: SoftmaxOutput ") +
-                               "normalization not yet tested " +
-                               "in NGraph, please test with this script.");
-    }
-
-    /* TODO(mbrookhart): reenable this once we find a test
     if (norm == "batch") {
-      gradient = gradient /
-                 makeConstant(node, std::to_string(gradient->get_shape()[0]));
+      gradient =
+          gradient / makeConstant(gradient->get_element_type(),
+                                  gradient->get_shape(),
+                                  std::to_string(gradient->get_shape()[0]));
     } else if (norm == "valid") {
       ngraph::AxisSet axes;
-      for (size_t i = 0; i < gradient->get_shape().size(); ++i) {
+      for (size_t i = 0; i < mask->get_shape().size(); ++i) {
         axes.insert(i);
       }
       gradient = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Divide>(
           gradient, std::make_shared<ngraph::op::Sum>(mask, axes));
     }
-    */
 
     return gradient;
   };
