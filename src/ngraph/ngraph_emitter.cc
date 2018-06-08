@@ -1445,6 +1445,9 @@ void Emitter::CreateLayerOps() {
     // MakeLoss forward returns copy/identity
     return op_map_[node->inputs_[0]];
   };
+  ngraph_op_funcs_["LinearRegressionOutput"] = [this](const NodePtr& node) {
+    return op_map_[node->inputs_[0]];
+  };
 }
 
 void Emitter::CreateLossOps() {
@@ -1570,6 +1573,16 @@ void Emitter::CreateLossOps() {
     }
 
     return grad;
+  };
+  loss_op_backward_funcs_["LinearRegressionOutput"] = [this](
+      const NodePtr& node, const NgraphNodePtr& adjoint) {
+    auto label = op_map_[node->inputs_[0]];
+    auto data = op_map_[node->inputs_[1]];
+    auto grad_scale =
+        makeConstant(node, get_default(node, "grad_scale", std::string("1.0")));
+    auto num_output = makeConstant(
+        node, std::to_string(node->shape_.Size() / node->shape_[0]));
+    return (label - data) * grad_scale / num_output;
   };
 }
 
