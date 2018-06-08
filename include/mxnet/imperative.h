@@ -116,6 +116,8 @@ class Imperative {
     const std::unordered_set<uint32_t>& mutable_input_nodes() {
       return fwd_graph_.indexed_graph().mutable_input_nodes();
     }
+    void UpdateFullGraph(nnvm::Graph* fwd_graph,
+        const std::vector<nnvm::NodePtr>& symbol_inputs);
     nnvm::Graph GetForwardGraph(const bool recording,
                                 const std::vector<NDArray*>& inputs);
     nnvm::Graph GetBackwardGraph(const OpStatePtr& state,
@@ -144,6 +146,7 @@ class Imperative {
     nnvm::Graph full_graph_;
 #if MXNET_USE_NGRAPH == 1
     nnvm::Graph ngraph_fwd_graph_;
+    std::vector<nnvm::NodePtr> symbol_inputs_;
 #endif
     bool inlining_;
     std::vector<nnvm::NodeEntry> ograd_entries_;

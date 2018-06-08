@@ -396,6 +396,9 @@ void Emitter::CreateUnaryOps() {
     return std::make_shared<ngraph::op::Convert>(op_map_[node->inputs_[0]],
                                                  getType(node->dtype_));
   };
+  ngraph_op_funcs_["stop_gradient"] = [this](const NodePtr& node) {
+    return std::make_shared<ngraph::op::StopGradient>(op_map_[node->inputs_[0]]);
+  };
 
   //----------------------------- Reduce Ops ----------------------------//
   ngraph_op_funcs_["norm"] = [this](const NodePtr& node) {
@@ -1053,11 +1056,16 @@ void Emitter::CreateLayerOps() {
     const NgraphNodePtr one = makeConstant(dtype, shape, 1.0f);
 
     NgraphNodePtr scale_grad;
+
+    #if MXNET_USE_NGRAPH_DISTRIBUTED
+    grad = std::make_shared<ngraph::op::AllReduce>(grad);
+    #endif
     if (clip_gradient >= 0.0f) {
       scale_grad = clip(ng_rescale_grad * grad, -clip_gradient, clip_gradient);
     } else {
       scale_grad = ng_rescale_grad * grad;
     }
+
     return (one - ng_lr * ng_wd) * weight - (ng_lr * scale_grad);
   };
 
@@ -1081,11 +1089,16 @@ void Emitter::CreateLayerOps() {
     const NgraphNodePtr one = makeConstant(dtype, shape, 1.0f);
 
     NgraphNodePtr scale_grad;
+
+    #if MXNET_USE_NGRAPH_DISTRIBUTED
+    grad = std::make_shared<ngraph::op::AllReduce>(grad);
+    #endif
     if (clip_gradient >= 0.0f) {
       scale_grad = clip(ng_rescale_grad * grad, -clip_gradient, clip_gradient);
     } else {
       scale_grad = ng_rescale_grad * grad;
     }
+
     auto mom_update =
         (ng_mom * mom) - (ng_lr * ng_wd * weight) - (ng_lr * scale_grad);
     aux_op_map_[node->inputs_[2]] = mom_update;
@@ -1432,6 +1445,10 @@ void Emitter::CreateLayerOps() {
     // MakeLoss forward returns copy/identity
     return op_map_[node->inputs_[0]];
   };
+  ngraph_op_funcs_["LinearRegressionOutput"] = [this](const NodePtr& node) {
+    return op_map_[node->inputs_[0]];
+  };
+  
   ngraph_op_funcs_["L2Normalization"] = [this](const NodePtr& node) {
     auto input = op_map_[node->inputs_[0]];
     const auto& in_shape = input->get_shape();
@@ -1576,6 +1593,16 @@ void Emitter::CreateLossOps() {
     }
 
     return grad;
+  };
+  loss_op_backward_funcs_["LinearRegressionOutput"] = [this](
+      const NodePtr& node, const NgraphNodePtr& adjoint) {
+    auto label = op_map_[node->inputs_[0]];
+    auto data = op_map_[node->inputs_[1]];
+    auto grad_scale =
+        makeConstant(node, get_default(node, "grad_scale", std::string("1.0")));
+    auto num_output = makeConstant(
+        node, std::to_string(node->shape_.Size() / node->shape_[0]));
+    return (label - data) * grad_scale / num_output;
   };
 }
 
