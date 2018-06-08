@@ -23,6 +23,7 @@
 #include <sstream>
 #include <thread>
 #include "../executor/exec_pass.h"
+#include "../imperative/imperative_utils.h"
 #include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
 #include "ngraph_sgcompiler_utils.h"
@@ -125,18 +126,20 @@ std::string get_ngraph_name() {
 Compiler::Compiler(const mxnet::Context& context)
     : ngraph_(get_ngraph_name(), context, false) {}
 
-// Compiler initialization for gluon hybrid
-Compiler::Compiler(const nnvm::Graph& graph, const mxnet::Context& context,
-                   const std::vector<nnvm::TShape>& shapes,
-                   const std::vector<int>& dtypes,
-                   const std::vector<int>& stypes)
-    : ngraph_(get_ngraph_name(), context),
-      shapes_(shapes),
-      dtypes_(dtypes),
-      stypes_(stypes) {
+Compiler::Compiler(const nnvm::Graph& graph, const NNVMNodeVec& symbol_inputs,
+                   const std::vector<mxnet::NDArray*>& inputs)
+    : ngraph_(get_ngraph_name(), inputs[0]->ctx()) {
+  for (uint32_t i = 0; i < inputs.size(); ++i) {
+    shapes_.emplace_back(inputs[i]->shape());
+    dtypes_.emplace_back(inputs[i]->dtype());
+    stypes_.emplace_back(inputs[i]->storage_type());
+  }
+
   DeepCopy(graph);
-  graph_.attrs["context"] = std::make_shared<nnvm::any>(
-      mxnet::exec::ContextVector(graph_.indexed_graph().num_nodes(), context));
+  graph_.attrs["context"] =
+      std::make_shared<nnvm::any>(mxnet::exec::ContextVector(
+          graph_.indexed_graph().num_nodes(), inputs[0]->ctx()));
+  MakeCopiedInputs(symbol_inputs);
   ProcessGraph({});
 }
 // Compiler initialization
@@ -376,6 +379,39 @@ nnvm::Graph Compiler::Compile() {
   return std::move(out_graph);
 }
 
+nnvm::Graph Compiler::GetCachedOpGraph(
+    const std::vector<mxnet::NDArray*>& inputs) {
+  nnvm::ShapeVector shape_inputs;
+  nnvm::DTypeVector dtype_inputs;
+  std::vector<int> storage_type_inputs;
+  shape_inputs.reserve(inputs.size());
+  dtype_inputs.reserve(inputs.size());
+  storage_type_inputs.reserve(inputs.size());
+  for (uint32_t i = 0; i < inputs.size(); ++i) {
+    shape_inputs.emplace_back(inputs[i]->shape());
+    dtype_inputs.emplace_back(inputs[i]->dtype());
+    storage_type_inputs.emplace_back(inputs[i]->storage_type());
+  }
+  // create a new output graph
+  auto g = Compile();
+  mxnet::imperative::CheckAndInferShape(&g, std::move(shape_inputs), true);
+  mxnet::imperative::CheckAndInferType(&g, std::move(dtype_inputs), true);
+  exec::DevMaskVector cached_dev_mask(g.indexed_graph().num_nodes(),
+                                      inputs[0]->ctx().dev_mask());
+  mxnet::imperative::CheckAndInferStorageType(
+      &g, std::move(cached_dev_mask), std::move(storage_type_inputs), true);
+
+  const auto& idx = g.indexed_graph();
+  std::vector<uint32_t> ref_count(idx.num_node_entries(), 0);
+  for (const auto& i : idx.input_nodes()) ++ref_count[idx.entry_id(i, 0)];
+  for (const auto& i : idx.outputs()) ++ref_count[idx.entry_id(i)];
+  for (size_t i = 0; i < idx.num_nodes(); ++i) {
+    for (const auto& j : idx[i].inputs) ++ref_count[idx.entry_id(j)];
+  }
+  g.attrs["forward_ref_count"] = std::make_shared<dmlc::any>(ref_count);
+  return std::move(g);
+}
+
 // create copied saved states
 StateMap Compiler::CopySavedStates(const StateMap& saved_states) {
   StateMap new_saved_states;
@@ -448,11 +484,13 @@ void Compiler::CheckInNgraph() {
 
         // nGraph doesn't yet support float16.
         if (node->dtype_ == mshadow::kFloat16 ||
+            node->dtype_ == mshadow::kFloat64 ||
             node->stype_ != mxnet::kDefaultStorage) {
           node->in_ngraph_ = false;
         } else {
           for (auto input : node->inputs_) {
             if (input->dtype_ == mshadow::kFloat16 ||
+                input->dtype_ == mshadow::kFloat64 ||
                 input->stype_ != mxnet::kDefaultStorage) {
               node->in_ngraph_ = false;
             }
