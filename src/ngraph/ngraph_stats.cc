@@ -69,7 +69,9 @@ void NGraphStats::dump(std::ostream& out) {
       }
     }
 
-    auto print_pass_summary = [&](const int i) {
+    out << std::string(total_margin_, '#') << "\n";
+    out << "# Overall" << std::endl;
+    for (int i = 0; i < pass_count; ++i) {
       out << std::string(total_margin_, '-') << "\n";
       out << "# " + pass_name[i] << std::endl;
       print_perf_data(out, pass_perf[i]);
@@ -79,11 +81,6 @@ void NGraphStats::dump(std::ostream& out) {
                                          pass_perf[i].begin(),
                                          pass_perf[i].end());
       }
-    };
-    out << std::string(total_margin_, '#') << "\n";
-    out << "# Overall" << std::endl;
-    for (int i = 0; i < pass_count; ++i) {
-      print_pass_summary(i);
     }
     out << std::string(total_margin_, '#') << "\n";
   }

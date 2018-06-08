@@ -113,7 +113,7 @@ void Compiler::Infer(const SimpleBindArg* simplebind) {
   }
 }
 
-static std::atomic<int> graph_counter(0);
+static std::atomic<int> graph_counter(1);
 
 std::string get_ngraph_name() {
   std::stringstream name;
