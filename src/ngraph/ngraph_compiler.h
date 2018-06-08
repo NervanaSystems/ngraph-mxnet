@@ -150,25 +150,27 @@ static std::unordered_map<std::string, std::string> nameswitch({
 // passed. Below OPs in ngrap-bridge fit this criteria.
 static std::unordered_set<std::string> ops_no_head_grad{
     "_equal",
-    "_not_equal",
+    "_equal_scalar",
     "_greater",
+    "_greater_scalar",
     "_greater_equal",
+    "_greater_equal_scalar",
     "_lesser",
+    "_lesser_scalar",
     "_lesser_equal",
+    "_lesser_equal_scalar",
+    "_not_equal",
+    "_not_equal_scalar",
     "broadcast_equal",
-    "broadcast_not_equal",
     "broadcast_greater",
     "broadcast_greater_equal",
     "broadcast_lesser",
     "broadcast_lesser_equal",
-    "_equal_scalar",
-    "_not_equal_scalar",
-    "_greater_scalar",
-    "_greater_equal_scalar",
-    "_lesser_scalar",
-    "_lesser_equal_scalar",
+    "broadcast_not_equal",
+    "LinearRegressionOutput",
     "MakeLoss",
-    "stop_gradient"};
+    "stop_gradient",
+};
 
 // Utility function for replacing operation names
 // based on the dict above
