@@ -17,6 +17,7 @@
 #include "ngraph_stats.h"
 
 #include <iomanip>
+#include <string>
 #include "ngraph_utils.h"
 
 namespace ngraph_bridge {
@@ -140,4 +141,4 @@ void NGraphStats::print_perf_data(
   }
 }
 
-}  // ngraph_bridge
+// namespace ngraph_bridge

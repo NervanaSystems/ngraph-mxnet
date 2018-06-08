@@ -14,8 +14,8 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifndef MXNET_NGRAPH_NGRAPH_STATS_H
-#define MXNET_NGRAPH_NGRAPH_STATS_H
+#ifndef MXNET_NGRAPH_NGRAPH_STATS_H_
+#define MXNET_NGRAPH_NGRAPH_STATS_H_
 
 #include <map>
 #include <memory>
@@ -55,6 +55,5 @@ class NGraphStats {
   const int total_margin_{left_margin_ + right_margin_ + extra_margin_};
 };
 
-}  // ngraph_bridge
-
-#endif  // NGRAPH_STATS_H
+}  // namespace ngraph_bridge
+#endif  // MXNET_NGRAPH_NGRAPH_STATS_H_
