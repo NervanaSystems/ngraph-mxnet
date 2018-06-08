@@ -1024,8 +1024,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                          const std::vector<Context>& in_arg_ctxes,
                          const std::vector<Context>& arg_grad_ctxes,
                          const std::vector<Context>& aux_state_ctxes,
-                         const std::unordered_map<std::string, TShape>& arg_shape_mapRef,
-                         const std::unordered_map<std::string, int>& arg_dtype_mapRef,
+                         const std::unordered_map<std::string, TShape>& arg_shape_map,
+                         const std::unordered_map<std::string, int>& arg_dtype_map,
                          const std::unordered_map<std::string, int>& arg_stype_map,
                          const std::vector<OpReqType>& grad_req_types,
                          const std::unordered_set<std::string>& shared_arg_names,
@@ -1039,8 +1039,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                             aux_state_ctxes, grad_req_types);
 
   // make copies so that ngraph compilation can modify shape / dtype
-  std::unordered_map<std::string, TShape> arg_shape_map = arg_shape_mapRef;
-  std::unordered_map<std::string, int> arg_dtype_map = arg_dtype_mapRef;
+  std::unordered_map<std::string, TShape> arg_shape_map = arg_shape_map;
+  std::unordered_map<std::string, int> arg_dtype_map = arg_dtype_map;
   std::unordered_map<std::string, int> arg_stype_mapn = arg_stype_map;
 
 #if MXNET_USE_NGRAPH == 1
