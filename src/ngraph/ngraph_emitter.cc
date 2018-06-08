@@ -1448,19 +1448,23 @@ void Emitter::CreateLayerOps() {
   ngraph_op_funcs_["LinearRegressionOutput"] = [this](const NodePtr& node) {
     return op_map_[node->inputs_[0]];
   };
-  
   ngraph_op_funcs_["L2Normalization"] = [this](const NodePtr& node) {
+    std::cout << "creating l2norm" << std::endl;
     auto input = op_map_[node->inputs_[0]];
     const auto& in_shape = input->get_shape();
     const float eps = get_default(node, "eps", 1e-10f);
     const std::string mode = get_default(node, "mode", std::string("instance"));
 
+    NgraphNodePtr norm;
     if (in_shape.size() == 1) {
 
     }
     else {
         if (mode == "instance") {
-
+            auto sum = std::make_shared<ngraph::op::Sum>(input, ngraph::AxisSet{0,1});
+            auto sqrt = std::make_shared<ngraph::op::Sqrt>(sum);
+            norm = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Divide>(
+                        input, sqrt);
         }
         else if (mode == "channel") {
 
@@ -1472,7 +1476,7 @@ void Emitter::CreateLayerOps() {
           throw std::runtime_error("NGRAPH_BRIDGE: L2Normalization unknown mode type '" + mode + "'");
         }
     }
-    return op_map_[node->inputs_[0]];
+    return norm;
   };
 }
 
