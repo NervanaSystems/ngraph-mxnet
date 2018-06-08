@@ -271,6 +271,60 @@ def test_softmax_activation():
     assert np.allclose(forward, true_forward)
     assert np.allclose(grad, true_backward, rtol=1e-3, atol=1e-7)
 
+def test_batch_normalized_softmax_grad():
+    xpu = mx.cpu()
+    x = mx.sym.Variable('x')
+    label = mx.sym.Variable('label')
+    x_nd = mx.nd.array([[1, 6, 4, 2],[1, 6, 4, 2]], ctx=xpu)
+    grad_x = mx.nd.zeros((2,4), ctx=xpu)
+    label_nd = mx.nd.array([1,1], ctx=xpu)
+
+    sym = mx.sym.SoftmaxOutput(data=x, label=label, ignore_label=0, 
+                               use_ignore=False, normalization="batch")
+    ex = sym.bind(ctx=xpu, args={'x': x_nd, 'label': label_nd}, 
+                  args_grad={'x': grad_x})
+
+    ex.forward(is_train=True)
+    softmax_out = ex.outputs[0].asnumpy()
+    expected_softmax_out = [[0.005806628, 0.861780069, 0.116629249, 0.015784052], 
+                            [0.005806628, 0.861780069, 0.116629249, 0.015784052]]
+    assert np.isclose(softmax_out, expected_softmax_out).all()
+
+    ex.backward(is_train=True)
+    grad_out = ex.grad_arrays[0].asnumpy()
+    k = int(label_nd[0].asscalar())
+    expected_grad_out = np.zeros((2,4))
+    expected_grad_out[:, k] = - 1
+    assert np.isclose(grad_out , (expected_softmax_out + expected_grad_out) / 2).all()
+
+def test_valid_normalized_softmax_grad():
+    xpu = mx.cpu()
+    x = mx.sym.Variable('x')
+    label = mx.sym.Variable('label')
+    x_nd = mx.nd.array([[1, 6, 4, 2],[1, 6, 4, 2]], ctx=xpu)
+    grad_x = mx.nd.zeros((2,4), ctx=xpu)
+    label_nd = mx.nd.array([1,1], ctx=xpu)
+
+    sym = mx.sym.SoftmaxOutput(data=x, label=label, ignore_label=0, 
+                               use_ignore=True, normalization="valid")
+    ex = sym.bind(ctx=xpu, args={'x': x_nd, 'label': label_nd}, 
+                  args_grad={'x': grad_x})
+
+    ex.forward(is_train=True)
+    softmax_out = ex.outputs[0].asnumpy()
+    expected_softmax_out = [[0.005806628, 0.861780069, 0.116629249, 0.015784052], 
+                            [0.005806628, 0.861780069, 0.116629249, 0.015784052]]
+    assert np.isclose(softmax_out, expected_softmax_out).all()
+
+    ex.backward(is_train=True)
+    grad_out = ex.grad_arrays[0].asnumpy()
+    k = int(label_nd[0].asscalar())
+    expected_grad_out = np.zeros((2,4))
+    expected_grad_out[:, k] = - 1
+    
+    assert np.isclose(grad_out, (expected_softmax_out + expected_grad_out) 
+                                 / sum(label_nd.asnumpy() != 0)).all()
+
 if __name__ == '__main__':
     import nose
     nose.runmodule()
