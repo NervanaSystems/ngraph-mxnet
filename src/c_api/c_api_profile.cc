@@ -506,16 +506,21 @@ int MXProfileSetMarker(ProfileHandle domain,
   API_END();
 }
 
+/*!
+ * \brief Writes nGraph performance stats to a file if filename is defined
+ * (not null and string length > 0), otherwise, writes to the standart output.
+ */
 int MXDumpNGraphProfile(const char* file_name) {
   API_BEGIN();
-    if (strlen(file_name) > 0) {
+    if (file_name != nullptr && strlen(file_name) > 0) {
       std::ofstream file_out;
       file_out.open(file_name);
       if (file_out.is_open()) {
         ngraph_bridge::NGraphStats::get_instance().dump(file_out);
         file_out.close();
       } else {
-        throw dmlc::Error("Unable to open file to write nGraph profile data.");
+        throw dmlc::Error("Unable to open file '" + std::string(file_name) +
+                          "' to write nGraph profile data.");
       }
     } else {
       ngraph_bridge::NGraphStats::get_instance().dump(std::cout);

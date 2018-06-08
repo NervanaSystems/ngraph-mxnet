@@ -42,8 +42,8 @@ void NGraphStats::dump(std::ostream& out) {
 
     // iterate all the graphs and print their performance stats
     for (auto& g : graphs_) {
-      if (g != nullptr) {
-        out << std::string(total_margin_, '#') << "\n";
+      if (g) {
+        out << std::string(total_column_, '#') << "\n";
         out << "# Graph " << g->name_ << std::endl;
         auto backend = GetBackendFromContext(g->context_);
 
@@ -52,7 +52,7 @@ void NGraphStats::dump(std::ostream& out) {
           std::vector<ngraph::runtime::PerformanceCounter> perf_data =
               backend->get_performance_data(func);
           if (perf_data.size() > 0) {
-            out << std::string(total_margin_, '-') << "\n";
+            out << std::string(total_column_, '-') << "\n";
             out << "# " + pass_name[pass] << std::endl;
             print_perf_data(out, perf_data);
             pass_perf[pass].insert(pass_perf[pass].end(), perf_data.begin(),
@@ -62,18 +62,20 @@ void NGraphStats::dump(std::ostream& out) {
 
         // output inference/training execution mode
         for (int i = 0; i < kGraphExeModeCount; ++i) {
-          out << std::string(total_margin_, '=') << "\n";
+          out << std::string(total_column_, '=') << "\n";
           out << "# Mode: " << exe_mode_to_string(i) << std::endl;
-          print_perf_for_pass(g->ngraph_forward[i], 0);
-          print_perf_for_pass(g->ngraph_backward[i], 1);
+          print_perf_for_pass(g->ngraph_forward[i],
+                              static_cast<int>(GraphExeMode::kInfer));
+          print_perf_for_pass(g->ngraph_backward[i],
+                              static_cast<int>(GraphExeMode::kTrain));
         }
       }
     }
 
-    out << std::string(total_margin_, '#') << "\n";
+    out << std::string(total_column_, '#') << "\n";
     out << "# Overall" << std::endl;
     for (int i = 0; i < pass_count; ++i) {
-      out << std::string(total_margin_, '-') << "\n";
+      out << std::string(total_column_, '-') << "\n";
       out << "# " + pass_name[i] << std::endl;
       print_perf_data(out, pass_perf[i]);
       // accumulate stats for the last perf counter (total summary)
@@ -83,7 +85,7 @@ void NGraphStats::dump(std::ostream& out) {
                                          pass_perf[i].end());
       }
     }
-    out << std::string(total_margin_, '#') << "\n";
+    out << std::string(total_column_, '#') << "\n";
   }
 }
 
@@ -117,27 +119,28 @@ std::multimap<size_t, OpCount> aggregate_timing(
 void NGraphStats::print_perf_data(
     std::ostream& out,
     const std::vector<ngraph::runtime::PerformanceCounter>& perf_data) {
-  if (perf_data.size() > 0) {
+  if (!perf_data.empty()) {
     std::multimap<size_t, OpCount> timing = aggregate_timing(perf_data);
 
     size_t sum = 0;
     size_t op_count = 0;
+    std::locale orig_locale = out.getloc();
     out.imbue(std::locale(""));
     for (auto it = timing.rbegin(); it != timing.rend(); it++) {
-      out << std::setw(left_margin_) << std::left
+      out << std::setw(left_column_) << std::left
           << it->second.op + " (" + std::to_string(it->second.count) + ")"
-          << std::setw(right_margin_) << std::right << it->first << "us\n";
+          << std::setw(right_column_) << std::right << it->first << "us\n";
       sum += it->first;
       op_count += it->second.count;
     }
-    out << std::setw(left_margin_) << std::left << " "
-        << std::setw(right_margin_) << std::right
-        << std::string(right_margin_ + extra_margin_, '-') << "\n";
-    out << std::setw(left_margin_) << std::left
+    out << std::setw(left_column_) << std::left << " "
+        << std::setw(right_column_) << std::right
+        << std::string(right_column_ + extra_column_, '-') << "\n";
+    out << std::setw(left_column_) << std::left
         << "Total (" + std::to_string(op_count) + "):"
-        << std::setw(right_margin_) << std::right << sum << "us\n";
+        << std::setw(right_column_) << std::right << sum << "us\n";
     // reset locale
-    out.imbue(std::locale::classic());
+    out.imbue(orig_locale);
   }
 }
 

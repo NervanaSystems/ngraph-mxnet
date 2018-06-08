@@ -49,10 +49,10 @@ class NGraphStats {
 
  private:
   std::vector<std::shared_ptr<ngraph_bridge::Graph>> graphs_;
-  const int left_margin_{40};
-  const int right_margin_{15};
-  const int extra_margin_{2};
-  const int total_margin_{left_margin_ + right_margin_ + extra_margin_};
+  const int left_column_{40};
+  const int right_column_{15};
+  const int extra_column_{2};
+  const int total_column_{left_column_ + right_column_ + extra_column_};
 };
 
 }  // namespace ngraph_bridge
