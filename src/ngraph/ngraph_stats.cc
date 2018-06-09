@@ -38,6 +38,7 @@ void NGraphStats::dump(std::ostream& out) {
     const int pass_count = 3;
     const std::string pass_name[pass_count] = {"Forward", "Backward",
                                                "Combined"};
+    enum class PassType { kForward = 0, kBackward, kCombined };
     std::vector<ngraph::runtime::PerformanceCounter> pass_perf[pass_count];
 
     // iterate all the graphs and print their performance stats
@@ -48,7 +49,9 @@ void NGraphStats::dump(std::ostream& out) {
         auto backend = GetBackendFromContext(g->context_);
 
         auto print_perf_for_pass = [&](
-            const std::shared_ptr<ngraph::Function>& func, const int pass) {
+            const std::shared_ptr<ngraph::Function>& func,
+            const PassType pass_type) {
+          const int pass = static_cast<int>(pass_type);
           std::vector<ngraph::runtime::PerformanceCounter> perf_data =
               backend->get_performance_data(func);
           if (perf_data.size() > 0) {
@@ -64,10 +67,8 @@ void NGraphStats::dump(std::ostream& out) {
         for (int i = 0; i < kGraphExeModeCount; ++i) {
           out << std::string(total_column_, '=') << "\n";
           out << "# Mode: " << exe_mode_to_string(i) << std::endl;
-          print_perf_for_pass(g->ngraph_forward[i],
-                              static_cast<int>(GraphExeMode::kInfer));
-          print_perf_for_pass(g->ngraph_backward[i],
-                              static_cast<int>(GraphExeMode::kTrain));
+          print_perf_for_pass(g->ngraph_forward[i], PassType::kForward);
+          print_perf_for_pass(g->ngraph_backward[i], PassType::kBackward);
         }
       }
     }

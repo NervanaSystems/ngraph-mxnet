@@ -517,7 +517,6 @@ int MXDumpNGraphProfile(const char* file_name) {
       file_out.open(file_name);
       if (file_out.is_open()) {
         ngraph_bridge::NGraphStats::get_instance().dump(file_out);
-        file_out.close();
       } else {
         throw dmlc::Error("Unable to open file '" + std::string(file_name) +
                           "' to write nGraph profile data.");
