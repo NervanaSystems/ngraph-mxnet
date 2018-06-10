@@ -1445,6 +1445,9 @@ void Emitter::CreateLayerOps() {
     // MakeLoss forward returns copy/identity
     return op_map_[node->inputs_[0]];
   };
+  ngraph_op_funcs_["LinearRegressionOutput"] = [this](const NodePtr& node) {
+    return op_map_[node->inputs_[0]];
+  };
 }
 
 void Emitter::CreateLossOps() {
@@ -1473,10 +1476,12 @@ void Emitter::CreateLossOps() {
     if (label->get_shape() != softmax->get_shape()) {
       if (use_ignore) {
         ignore = true;
-        mask = cast_result(
-            std::make_shared<ngraph::op::NotEqual>(
-                label, makeConstant(node, std::to_string(ignore_label))),
-            getType(node->dtype_));
+        mask =
+            cast_result(std::make_shared<ngraph::op::NotEqual>(
+                            label, makeConstant(label->get_element_type(),
+                                                label->get_shape(),
+                                                std::to_string(ignore_label))),
+                        getType(node->dtype_));
       }
       size_t axis = op_map_[node->inputs_[0]]->get_shape().size() - 1;
       if (get_default(node, "multi_output", false)) {
@@ -1509,10 +1514,20 @@ void Emitter::CreateLossOps() {
     auto gradient = softmax - label;
 
     if (ignore) {
+      // We need to reshape the mast so we can broadcast it with
+      // the gradient
+      ngraph::Shape new_shape(gradient->get_shape().size(), 1);
+      for (size_t i = 0; i < mask->get_shape().size(); ++i) {
+        new_shape[i] = mask->get_shape()[i];
+      }
+      mask = std::make_shared<ngraph::op::Reshape>(
+          mask, pyrange(mask->get_shape().size()), new_shape);
+      // Mask out the gradient
       gradient =
           ngraph::builder::make_with_numpy_broadcast<ngraph::op::Multiply>(
               gradient, mask);
     }
+
     if (grad_scale != 1.0f) {
       gradient = gradient * makeConstant(node, std::to_string(grad_scale));
     }
@@ -1521,25 +1536,19 @@ void Emitter::CreateLossOps() {
       gradient = gradient * adjoint;
     }
 
-    if (norm != "null") {
-      throw std::runtime_error(std::string("NGRAPH_BRIDGE: SoftmaxOutput ") +
-                               "normalization not yet tested " +
-                               "in NGraph, please test with this script.");
-    }
-
-    /* TODO(mbrookhart): reenable this once we find a test
     if (norm == "batch") {
-      gradient = gradient /
-                 makeConstant(node, std::to_string(gradient->get_shape()[0]));
+      gradient =
+          gradient / makeConstant(gradient->get_element_type(),
+                                  gradient->get_shape(),
+                                  std::to_string(gradient->get_shape()[0]));
     } else if (norm == "valid") {
       ngraph::AxisSet axes;
-      for (size_t i = 0; i < gradient->get_shape().size(); ++i) {
+      for (size_t i = 0; i < mask->get_shape().size(); ++i) {
         axes.insert(i);
       }
       gradient = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Divide>(
           gradient, std::make_shared<ngraph::op::Sum>(mask, axes));
     }
-    */
 
     return gradient;
   };
@@ -1564,6 +1573,16 @@ void Emitter::CreateLossOps() {
     }
 
     return grad;
+  };
+  loss_op_backward_funcs_["LinearRegressionOutput"] = [this](
+      const NodePtr& node, const NgraphNodePtr& adjoint) {
+    auto label = op_map_[node->inputs_[0]];
+    auto data = op_map_[node->inputs_[1]];
+    auto grad_scale =
+        makeConstant(node, get_default(node, "grad_scale", std::string("1.0")));
+    auto num_output = makeConstant(
+        node, std::to_string(node->shape_.Size() / node->shape_[0]));
+    return (label - data) * grad_scale / num_output;
   };
 }
 
