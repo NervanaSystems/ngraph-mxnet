@@ -275,6 +275,9 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
                                 const std::vector<nnvm::NodeEntry> &ograds) {
         auto p = nnvm::Node::Create();
         p->attrs.op = nnvm::Op::Get(back_op_name);
+        if (zero_grad && p->num_outputs() == 1) {
+          return mxnet::op::MakeZeroGradNodes(n, ograds);
+        }
         p->attrs.name = n->attrs.name + "_backward";
         p->attrs.dict = n->attrs.dict;
         p->control_deps.emplace_back(n);
