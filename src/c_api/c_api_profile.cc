@@ -29,8 +29,10 @@
 #include <dmlc/base.h>
 #include <dmlc/logging.h>
 #include <dmlc/thread_group.h>
+#include <fstream>
 #include <stack>
 #include "./c_api_common.h"
+#include "../ngraph/ngraph_stats.h"
 #include "../profiler/profiler.h"
 
 namespace mxnet {
@@ -501,5 +503,26 @@ int MXProfileSetMarker(ProfileHandle domain,
                                          static_cast<profiler::ProfileMarker::MarkerScope>(
                                            param.scope));
     marker.mark();
+  API_END();
+}
+
+/*!
+ * \brief Writes nGraph performance stats to a file if filename is defined
+ * (not null and string length > 0), otherwise, writes to the standart output.
+ */
+int MXDumpNGraphProfile(const char* file_name) {
+  API_BEGIN();
+    if (file_name != nullptr && strlen(file_name) > 0) {
+      std::ofstream file_out;
+      file_out.open(file_name);
+      if (file_out.is_open()) {
+        ngraph_bridge::NGraphStats::get_instance().dump(file_out);
+      } else {
+        throw dmlc::Error("Unable to open file '" + std::string(file_name) +
+                          "' to write nGraph profile data.");
+      }
+    } else {
+      ngraph_bridge::NGraphStats::get_instance().dump(std::cout);
+    }
   API_END();
 }
