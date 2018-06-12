@@ -32,7 +32,9 @@
 #include <fstream>
 #include <stack>
 #include "./c_api_common.h"
+#if MXNET_USE_NGRAPH == 1
 #include "../ngraph/ngraph_stats.h"
+#endif
 #include "../profiler/profiler.h"
 
 namespace mxnet {
@@ -512,6 +514,7 @@ int MXProfileSetMarker(ProfileHandle domain,
  */
 int MXDumpNGraphProfile(const char* file_name) {
   API_BEGIN();
+#if MXNET_USE_NGRAPH == 1
     if (file_name != nullptr && strlen(file_name) > 0) {
       std::ofstream file_out;
       file_out.open(file_name);
@@ -524,5 +527,8 @@ int MXDumpNGraphProfile(const char* file_name) {
     } else {
       ngraph_bridge::NGraphStats::get_instance().dump(std::cout);
     }
+#else
+    throw dmlc::Error("MXDumpNGraphProfile requires MXNet built with nGraph.");
+#endif
   API_END();
 }
