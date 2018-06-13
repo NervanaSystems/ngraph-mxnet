@@ -196,7 +196,9 @@ class Graph : public Node {
         const bool enable_fprop_cache = true)
       : Node(NodeType::kGraph, nullptr, name),
         context_(context),
-        enable_fprop_cache(enable_fprop_cache) {}
+        enable_fprop_cache(enable_fprop_cache) {
+    fprop_cache = std::make_shared<ngraph::FpropCache>();
+  }
 
   std::string createNodeLabel() override {
     std::ostringstream stream;

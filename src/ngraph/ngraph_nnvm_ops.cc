@@ -79,7 +79,7 @@ void update_aux_vals(const std::shared_ptr<Graph> &graph,
 }
 
 void compile_if_needed(std::shared_ptr<Graph> graph, int mode) {
-  if (mode == static_cast<int>(GraphExeMode::kTrain)) {
+  if (mode == int(GraphExeMode::kTrain)) {
     if (graph->ngraph_forward[mode] == nullptr) {
       CompileForwardBackward(graph, graph->fprop_cache->fprop,
                              graph->fprop_cache->bprop, GraphExeMode::kTrain,
@@ -98,14 +98,14 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // for outputs we need to comply with req
   auto results = get_tensor_views(outputs, backend, &req);
 
-  int mode = static_cast<int>(GraphExeMode::kInfer);
+  int mode = int(GraphExeMode::kInfer);
   if (ctx.is_train) {
-    mode = static_cast<int>(GraphExeMode::kTrain);
+    mode = int(GraphExeMode::kTrain);
     graph->forward_train_computed = true;
   }
   compile_if_needed(graph, mode);
 
-  if (mode == static_cast<int>(GraphExeMode::kTrain)) {
+  if (mode == int(GraphExeMode::kTrain)) {
     for (auto &tv : placeholders) {
       tv->set_stale(true);
     }
@@ -117,7 +117,7 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
   result_to_NDArray(results, req, outputs);
 
-  if (mode == static_cast<int>(GraphExeMode::kInfer)) {
+  if (mode == int(GraphExeMode::kInfer)) {
     for (size_t i = 0; i < placeholders.size(); ++i) {
       if (graph->input_is_weight_[i]) {
         placeholders[i]->set_stale(false);
