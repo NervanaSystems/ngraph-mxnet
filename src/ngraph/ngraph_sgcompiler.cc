@@ -323,14 +323,15 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   if (sub_graph->enable_fprop_cache && exe_mode_ == GraphExeMode::kTrain) {
-    sub_graph->fprop_cache = ngraph::cache_fprop(f, maybe_bf, adjoints);
+    sub_graph->fprop_cache = std::make_shared<ngraph::FpropCache>(
+        ngraph::cache_fprop(f, maybe_bf, adjoints));
 
     if (ngraph_log_graph()) {
-      dump_graph(sub_graph->fprop_cache.fprop, __func__, "fprop_cache.fprop");
-      dump_graph(sub_graph->fprop_cache.bprop, __func__, "fprop_cache.bprop");
+      dump_graph(sub_graph->fprop_cache->fprop, __func__, "fprop_cache.fprop");
+      dump_graph(sub_graph->fprop_cache->bprop, __func__, "fprop_cache.bprop");
     }
 
-    for (auto node : sub_graph->fprop_cache.fprop_output_nodes) {
+    for (auto node : sub_graph->fprop_cache->fprop_output_nodes) {
       sub_graph->cached_values[static_cast<int>(exe_mode_)].push_back(
           backend->create_tensor(node->get_element_type(), node->get_shape()));
     }
@@ -339,9 +340,10 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   if (exe_mode_ == GraphExeMode::kTrain) {
-    sub_graph->fprop_cache.fprop = f;
-    sub_graph->fprop_cache.bprop = maybe_bf;
-    sub_graph->fprop_cache.node_param_map = std::make_shared<ngraph::NodeMap>();
+    sub_graph->fprop_cache->fprop = f;
+    sub_graph->fprop_cache->bprop = maybe_bf;
+    sub_graph->fprop_cache->node_param_map =
+        std::make_shared<ngraph::NodeMap>();
     return;
   }
 

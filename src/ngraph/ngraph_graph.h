@@ -219,7 +219,7 @@ class Graph : public Node {
       ngraph_forward[i] = nullptr;
       ngraph_backward[i] = nullptr;
     }
-    fprop_cache = ngraph::FpropCache();
+    fprop_cache = nullptr;
     inputs_.clear();
     outputs_.clear();
     output_elements_.clear();
@@ -252,7 +252,7 @@ class Graph : public Node {
   // define it for consisteny.
   std::shared_ptr<ngraph::Function> ngraph_forward[kGraphExeModeCount];
   std::shared_ptr<ngraph::Function> ngraph_backward[kGraphExeModeCount];
-  ngraph::FpropCache fprop_cache;
+  std::shared_ptr<ngraph::FpropCache> fprop_cache;
 
   const mxnet::Context context_;
   std::vector<std::shared_ptr<ngraph::runtime::TensorView>>
