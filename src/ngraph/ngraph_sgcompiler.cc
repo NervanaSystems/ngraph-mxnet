@@ -52,6 +52,10 @@ void CompileForward(std::shared_ptr<Graph> sub_graph,
   for (size_t i = 0; i < sub_graph->num_outputs_; ++i)
     results[i]->set_needs_default_layout(true);
 
+  if (ngraph_log_timer()) {
+    backend->enable_performance_data(f, true);
+  }
+
   backend->compile(f);
   sub_graph->ngraph_forward[mode] = f;
 }
@@ -72,6 +76,11 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
 
   auto f_copy = ngraph::clone_function(*f, fmap);
   auto bf_copy = ngraph::clone_function(*bf, bfmap);
+
+  if (ngraph_log_timer()) {
+    backend->enable_performance_data(f_copy, true);
+    backend->enable_performance_data(bf_copy, true);
+  }
 
   // Log the graphs so Graph_* corresponds to Function_* in codgen
   if (ngraph_log_graph()) {

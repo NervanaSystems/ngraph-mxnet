@@ -123,6 +123,15 @@ def dump_profile():
                   'Please use profiler.dump() instead')
     dump(True)
 
+def dump_ngraph(filename=""):
+    """Dump nGraph currently profiled performance data.
+	
+	Parameters
+    ----------
+    filename : string, optional
+        The name of output file. If not specified, stats are 
+		writen to standard output."""
+    check_call(_LIB.MXDumpNGraphProfile(c_str(filename)))
 
 def dumps(reset=False):
     """Return a printable string of aggregate profile stats.
