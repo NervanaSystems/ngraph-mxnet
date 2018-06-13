@@ -62,17 +62,34 @@ void Emitter::ClearOpMap() {
  * based index), where
  * negative values means indexing from the right.
  */
+inline size_t transform_axis(int axis, int shape_size) {
+  assert(abs(axis) <= shape_size);
+  // convert negative axis index to postive (counting from right per mxnet
+  // convention)
+  return axis < 0 ? shape_size + axis : axis;
+}
+
 inline size_t get_default_transformed_axis(const NodePtr& node,
                                            const std::string& key,
                                            const int default_val,
                                            const int shape_size) {
-  int axis = get_default(node, key, default_val);
-  assert(abs(axis) <= shape_size);
-  // convert negative axis index to postive (counting from right per mxnet
-  // convention)
-  size_t transformed_axis = axis < 0 ? shape_size + axis : axis;
+  return transform_axis(get_default(node, key, default_val), shape_size);
+}
 
-  return transformed_axis;
+inline std::vector<size_t> get_default_transformed_axis(
+    const NodePtr& node, const std::string& key,
+    const ngraph::AxisVector& default_val, const int shape_size) {
+  std::vector<int> values;
+  for (auto val : default_val) {
+    values.push_back(val);
+  }
+  values = get_default(node, key, values);
+
+  std::vector<size_t> axes;
+  for (size_t i = 0; i < values.size(); ++i) {
+    axes.push_back(transform_axis(values[i], shape_size));
+  }
+  return axes;
 }
 
 /**
@@ -101,9 +118,8 @@ NgraphNodePtr Emitter::ReduceAxes(
   } else {
     for (auto i : axes) reduction_axes.insert(i);
   }
-
   auto output = func(node, reduction_axes);
-  if (axes.size() == 0) {
+  if (output->get_shape().size() == 0) {
     output = std::make_shared<ngraph::op::Reshape>(output, ngraph::AxisVector{},
                                                    ngraph::Shape{1});
   }
@@ -128,10 +144,11 @@ NgraphNodePtr Emitter::ReduceAxes(
     const std::function<NgraphNodePtr(const NgraphNodePtr&,
                                       const ngraph::AxisSet&)>& func) const {
   auto input = op_map_.at(node->inputs_[0]);
-  return ReduceAxes(
-      input, get_default(node, "axis", pyrange(input->get_shape().size())),
-      get_default(node, "exclude", false), get_default(node, "keepdims", false),
-      func);
+  auto axes = pyrange(input->get_shape().size());
+  return ReduceAxes(input, get_default_transformed_axis(
+                               node, "axis", axes, axes.size()),
+                    get_default(node, "exclude", false),
+                    get_default(node, "keepdims", false), func);
 }
 
 // unary op function generator
@@ -728,6 +745,9 @@ void Emitter::CreateBinaryOps() {
     // then add these axes back with proper output length through
     // ngraph::op::broadcast.
     for (size_t i = 0; i < input_shape.size(); ++i) {
+      if (output_shape[i] == 0) {
+        output_shape[i] = input_shape[i];
+      }
       if (input_shape[i] != output_shape[i]) {
         // only axis with dim 1 can be broadcasted, this should already been
         // checked by mxnet front end, but check in case it's being called
