@@ -62,17 +62,30 @@ void Emitter::ClearOpMap() {
  * based index), where
  * negative values means indexing from the right.
  */
+inline size_t transform_axis(int axis, int shape_size) {
+  assert(abs(axis) <= shape_size);
+  // convert negative axis index to postive (counting from right per mxnet
+  // convention)
+  return axis < 0 ? shape_size + axis : axis;
+}
+
 inline size_t get_default_transformed_axis(const NodePtr& node,
                                            const std::string& key,
                                            const int default_val,
                                            const int shape_size) {
-  int axis = get_default(node, key, default_val);
-  assert(abs(axis) <= shape_size);
-  // convert negative axis index to postive (counting from right per mxnet
-  // convention)
-  size_t transformed_axis = axis < 0 ? shape_size + axis : axis;
+  return transform_axis(get_default(node, key, default_val), shape_size);
+}
 
-  return transformed_axis;
+inline std::vector<size_t> get_default_transformed_axis(
+    const NodePtr& node, const std::string& key,
+    const ngraph::AxisVector& default_val, const ngraph::Shape shape) {
+  std::vector<size_t> axes;
+  assert(default_val.size() == shape.size());
+  for (size_t i = 0; i < default_val.size(); ++i) {
+    axes.push_back(transform_axis(
+        get_default(node, key, static_cast<int>(default_val[i])), shape[i]));
+  }
+  return axes;
 }
 
 /**
@@ -128,10 +141,11 @@ NgraphNodePtr Emitter::ReduceAxes(
     const std::function<NgraphNodePtr(const NgraphNodePtr&,
                                       const ngraph::AxisSet&)>& func) const {
   auto input = op_map_.at(node->inputs_[0]);
-  return ReduceAxes(
-      input, get_default(node, "axis", pyrange(input->get_shape().size())),
-      get_default(node, "exclude", false), get_default(node, "keepdims", false),
-      func);
+  return ReduceAxes(input, get_default_transformed_axis(
+                               node, "axis", pyrange(input->get_shape().size()),
+                               input->get_shape()),
+                    get_default(node, "exclude", false),
+                    get_default(node, "keepdims", false), func);
 }
 
 // unary op function generator
