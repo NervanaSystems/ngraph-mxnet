@@ -196,7 +196,9 @@ class Graph : public Node {
         const bool enable_fprop_cache = true)
       : Node(NodeType::kGraph, nullptr, name),
         context_(context),
-        enable_fprop_cache(enable_fprop_cache) {}
+        enable_fprop_cache(enable_fprop_cache) {
+    fprop_cache = std::make_shared<ngraph::FpropCache>();
+  }
 
   std::string createNodeLabel() override {
     std::ostringstream stream;
@@ -219,6 +221,7 @@ class Graph : public Node {
       ngraph_forward[i] = nullptr;
       ngraph_backward[i] = nullptr;
     }
+    fprop_cache = nullptr;
     inputs_.clear();
     outputs_.clear();
     output_elements_.clear();
@@ -251,6 +254,7 @@ class Graph : public Node {
   // define it for consisteny.
   std::shared_ptr<ngraph::Function> ngraph_forward[kGraphExeModeCount];
   std::shared_ptr<ngraph::Function> ngraph_backward[kGraphExeModeCount];
+  std::shared_ptr<ngraph::FpropCache> fprop_cache;
 
   const mxnet::Context context_;
   std::vector<std::shared_ptr<ngraph::runtime::TensorView>>
