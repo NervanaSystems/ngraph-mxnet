@@ -209,6 +209,10 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   // create the Forward Function object representing the graph
   auto func = std::make_shared<ngraph::Function>(outputs, parameters);
 
+  if (ngraph_log_graph()) {
+    dump_graph(func, __func__, "pre-optimized-fprop");
+  }
+
   // fuse conv + bias before autodiff
   if (sub_graph->context_ == mxnet::Context::CPU()) {
     ngraph::pass::Manager pass_manager;
@@ -293,9 +297,6 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   auto f = MakeForwardFunction(sub_graph);
-  if (ngraph_log_graph()) {
-    dump_graph(f, __func__, "pre-optimized-fprop");
-  }
 
   std::shared_ptr<ngraph::Function> maybe_bf;
   std::vector<std::shared_ptr<ngraph::Node>> adjoints;
