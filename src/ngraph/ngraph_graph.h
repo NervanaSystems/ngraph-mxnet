@@ -251,6 +251,7 @@ class Graph : public Node {
   // define it for consisteny.
   std::shared_ptr<ngraph::Function> ngraph_forward[kGraphExeModeCount];
   std::shared_ptr<ngraph::Function> ngraph_backward[kGraphExeModeCount];
+  ngraph::FpropCache fprop_cache;
 
   const mxnet::Context context_;
   std::vector<std::shared_ptr<ngraph::runtime::TensorView>>

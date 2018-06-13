@@ -397,7 +397,8 @@ void Emitter::CreateUnaryOps() {
                                                  getType(node->dtype_));
   };
   ngraph_op_funcs_["stop_gradient"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::StopGradient>(op_map_[node->inputs_[0]]);
+    return std::make_shared<ngraph::op::StopGradient>(
+        op_map_[node->inputs_[0]]);
   };
 
   //----------------------------- Reduce Ops ----------------------------//
@@ -1057,9 +1058,9 @@ void Emitter::CreateLayerOps() {
 
     NgraphNodePtr scale_grad;
 
-    #if MXNET_USE_NGRAPH_DISTRIBUTED
+#if MXNET_USE_NGRAPH_DISTRIBUTED
     grad = std::make_shared<ngraph::op::AllReduce>(grad);
-    #endif
+#endif
     if (clip_gradient >= 0.0f) {
       scale_grad = clip(ng_rescale_grad * grad, -clip_gradient, clip_gradient);
     } else {
@@ -1090,9 +1091,9 @@ void Emitter::CreateLayerOps() {
 
     NgraphNodePtr scale_grad;
 
-    #if MXNET_USE_NGRAPH_DISTRIBUTED
+#if MXNET_USE_NGRAPH_DISTRIBUTED
     grad = std::make_shared<ngraph::op::AllReduce>(grad);
-    #endif
+#endif
     if (clip_gradient >= 0.0f) {
       scale_grad = clip(ng_rescale_grad * grad, -clip_gradient, clip_gradient);
     } else {
