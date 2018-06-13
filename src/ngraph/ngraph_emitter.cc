@@ -78,7 +78,7 @@ inline size_t get_default_transformed_axis(const NodePtr& node,
 
 inline std::vector<size_t> get_default_transformed_axis(
     const NodePtr& node, const std::string& key,
-    const ngraph::AxisVector& default_val, const ngraph::Shape shape) {
+    const ngraph::AxisVector& default_val, const int shape_size) {
   std::vector<int> values;
   for (auto val : default_val) {
     values.push_back(val);
@@ -86,9 +86,8 @@ inline std::vector<size_t> get_default_transformed_axis(
   values = get_default(node, key, values);
 
   std::vector<size_t> axes;
-  assert(default_val.size() == shape.size());
-  for (size_t i = 0; i < default_val.size(); ++i) {
-    axes.push_back(transform_axis(values[i], shape[i]));
+  for (size_t i = 0; i < values.size(); ++i) {
+    axes.push_back(transform_axis(values[i], shape_size));
   }
   return axes;
 }
@@ -119,7 +118,7 @@ NgraphNodePtr Emitter::ReduceAxes(
   } else {
     for (auto i : axes) reduction_axes.insert(i);
   }
-
+  std::cout << reduction_axes << std::endl;
   auto output = func(node, reduction_axes);
   if (axes.size() == 0) {
     output = std::make_shared<ngraph::op::Reshape>(output, ngraph::AxisVector{},
@@ -146,9 +145,9 @@ NgraphNodePtr Emitter::ReduceAxes(
     const std::function<NgraphNodePtr(const NgraphNodePtr&,
                                       const ngraph::AxisSet&)>& func) const {
   auto input = op_map_.at(node->inputs_[0]);
+  auto axes = pyrange(input->get_shape().size());
   return ReduceAxes(input, get_default_transformed_axis(
-                               node, "axis", pyrange(input->get_shape().size()),
-                               input->get_shape()),
+                               node, "axis", axes, axes.size()),
                     get_default(node, "exclude", false),
                     get_default(node, "keepdims", false), func);
 }
