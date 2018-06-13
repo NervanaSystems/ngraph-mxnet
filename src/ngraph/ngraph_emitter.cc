@@ -118,7 +118,6 @@ NgraphNodePtr Emitter::ReduceAxes(
   } else {
     for (auto i : axes) reduction_axes.insert(i);
   }
-  std::cout << reduction_axes << std::endl;
   auto output = func(node, reduction_axes);
   if (axes.size() == 0) {
     output = std::make_shared<ngraph::op::Reshape>(output, ngraph::AxisVector{},
@@ -746,6 +745,9 @@ void Emitter::CreateBinaryOps() {
     // then add these axes back with proper output length through
     // ngraph::op::broadcast.
     for (size_t i = 0; i < input_shape.size(); ++i) {
+      if (output_shape[i] == 0) {
+        output_shape[i] = input_shape[i];
+      }
       if (input_shape[i] != output_shape[i]) {
         // only axis with dim 1 can be broadcasted, this should already been
         // checked by mxnet front end, but check in case it's being called
