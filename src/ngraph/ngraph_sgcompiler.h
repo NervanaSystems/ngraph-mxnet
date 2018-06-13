@@ -46,5 +46,10 @@ class SGCompiler : public Emitter {
                        std::shared_ptr<ngraph::Function> f);
 };
 
+void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
+                            std::shared_ptr<ngraph::Function> f,
+                            std::shared_ptr<ngraph::Function> bf,
+                            GraphExeMode exe_mode,
+                            const ngraph::FpropCache &fprop_cache);
 }  // namespace ngraph_bridge
 #endif  // MXNET_NGRAPH_NGRAPH_SGCOMPILER_H_
