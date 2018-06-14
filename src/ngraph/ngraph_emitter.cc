@@ -1512,7 +1512,7 @@ void Emitter::CreateLossOps() {
                                                    axis);
       // We need to reshape the mast so we can broadcast it with
       // the gradient
-      ngraph::Shape new_shape(gradient->get_shape().size(), 1);
+      ngraph::Shape new_shape(softmax->get_shape().size(), 1);
       new_shape[axis] = softmax->get_shape()[axis];
       mask = std::make_shared<ngraph::op::Reshape>(
           mask, pyrange(mask->get_shape().size()), new_shape);
@@ -1576,7 +1576,7 @@ void Emitter::CreateLossOps() {
     auto input = op_map_[node->inputs_[0]];
     const std::string norm =
         get_default(node, "normalization", std::string("null"));
-    const float valid_thresh =
+    const std::string valid_thresh =
         get_default(node, "valid_thresh", std::string("0"));
 
     auto grad_scale =
