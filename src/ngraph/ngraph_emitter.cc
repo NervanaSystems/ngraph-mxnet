@@ -1510,12 +1510,14 @@ void Emitter::CreateLossOps() {
       }
       label = std::make_shared<ngraph::op::OneHot>(label, softmax->get_shape(),
                                                    axis);
-      // We need to reshape the mast so we can broadcast it with
-      // the gradient
-      ngraph::Shape new_shape(softmax->get_shape().size(), 1);
-      new_shape[axis] = softmax->get_shape()[axis];
-      mask = std::make_shared<ngraph::op::Reshape>(
-          mask, pyrange(mask->get_shape().size()), new_shape);
+      if (ignore) {
+        // We need to reshape the mast so we can broadcast it with
+        // the gradient
+        ngraph::Shape new_shape = softmax->get_shape();
+        new_shape[axis] = 1;
+        mask = std::make_shared<ngraph::op::Reshape>(
+            mask, pyrange(mask->get_shape().size()), new_shape);
+      }
     }
 
     if (smooth_alpha != 0.0f) {
