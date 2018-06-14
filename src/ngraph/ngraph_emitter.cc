@@ -1586,15 +1586,27 @@ void Emitter::CreateLossOps() {
 
     NgraphNodePtr grad;
     if (norm == "valid") {
-    //     auto is_input_lt = std::make_shared<ngraph::op::Less>(input, -inv_sigma_sq);
-    //   auto result_input = std::make_shared<ngraph::op::Select>(
-    //     is_input_lt, result_input_lt, result_input_sq);
+      auto thresh =
+          makeConstant(ngraph::element::f32, input->get_shape(), valid_thresh);
+      auto is_gt = std::make_shared<ngraph::op::Greater>(input, thresh);
 
-    // return std::make_shared<ngraph::op::Select>(is_input_gt_inv_sigma_sq,
-    //                                             result_input_gt, result_input)
-      throw std::runtime_error(std::string("NGRAPH_BRIDGE: MakeLoss ") +
-                               "normalization not yet tested " +
-                               "in NGraph, please test with this script.");
+      auto mask = cast_result(is_gt, input->get_element_type());
+
+      ngraph::AxisSet axes;
+      for (auto val : pyrange(mask->get_shape().size())){
+        axes.insert(val);
+      }
+      NgraphNodePtr sum = std::make_shared<ngraph::op::Sum>(mask, axes);
+      NgraphNodePtr one = makeConstant(sum->get_element_type(),
+                                       sum->get_shape(), std::string("1"));
+      NgraphNodePtr result_norm = std::make_shared<ngraph::op::Maximum>(sum, one);
+
+      ngraph::Shape new_shape(grad_scale->get_shape().size(), 1); 
+      result_norm = std::make_shared<ngraph::op::Reshape>(
+          result_norm, pyrange(result_norm->get_shape().size()), new_shape);
+
+      grad = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Divide>(
+          grad_scale, result_norm);
     } else if (norm == "batch") {
       grad = grad_scale /
              makeConstant(node, std::to_string(input->get_shape()[0]));
