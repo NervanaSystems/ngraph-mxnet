@@ -1510,6 +1510,12 @@ void Emitter::CreateLossOps() {
       }
       label = std::make_shared<ngraph::op::OneHot>(label, softmax->get_shape(),
                                                    axis);
+      // We need to reshape the mast so we can broadcast it with
+      // the gradient
+      ngraph::Shape new_shape(gradient->get_shape().size(), 1);
+      new_shape[axis] = softmax->get_shape()[axis];
+      mask = std::make_shared<ngraph::op::Reshape>(
+          mask, pyrange(mask->get_shape().size()), new_shape);
     }
 
     if (smooth_alpha != 0.0f) {
@@ -1535,14 +1541,6 @@ void Emitter::CreateLossOps() {
     auto gradient = softmax - label;
 
     if (ignore) {
-      // We need to reshape the mast so we can broadcast it with
-      // the gradient
-      ngraph::Shape new_shape(gradient->get_shape().size(), 1);
-      for (size_t i = 0; i < mask->get_shape().size(); ++i) {
-        new_shape[i] = mask->get_shape()[i];
-      }
-      mask = std::make_shared<ngraph::op::Reshape>(
-          mask, pyrange(mask->get_shape().size()), new_shape);
       // Mask out the gradient
       gradient =
           ngraph::builder::make_with_numpy_broadcast<ngraph::op::Multiply>(
@@ -1578,11 +1576,20 @@ void Emitter::CreateLossOps() {
     auto input = op_map_[node->inputs_[0]];
     const std::string norm =
         get_default(node, "normalization", std::string("null"));
+    const float valid_thresh =
+        get_default(node, "valid_thresh", std::string("0"));
+
     auto grad_scale =
         makeConstant(node, get_default(node, "grad_scale", std::string("1.0")));
 
     NgraphNodePtr grad;
     if (norm == "valid") {
+    //     auto is_input_lt = std::make_shared<ngraph::op::Less>(input, -inv_sigma_sq);
+    //   auto result_input = std::make_shared<ngraph::op::Select>(
+    //     is_input_lt, result_input_lt, result_input_sq);
+
+    // return std::make_shared<ngraph::op::Select>(is_input_gt_inv_sigma_sq,
+    //                                             result_input_gt, result_input)
       throw std::runtime_error(std::string("NGRAPH_BRIDGE: MakeLoss ") +
                                "normalization not yet tested " +
                                "in NGraph, please test with this script.");
