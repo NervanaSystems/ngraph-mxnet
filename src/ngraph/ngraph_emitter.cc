@@ -145,10 +145,10 @@ NgraphNodePtr Emitter::ReduceAxes(
                                       const ngraph::AxisSet&)>& func) const {
   auto input = op_map_.at(node->inputs_[0]);
   auto axes = pyrange(input->get_shape().size());
-  return ReduceAxes(input, get_default_transformed_axis(
-                               node, "axis", axes, axes.size()),
-                    get_default(node, "exclude", false),
-                    get_default(node, "keepdims", false), func);
+  return ReduceAxes(
+      input, get_default_transformed_axis(node, "axis", axes, axes.size()),
+      get_default(node, "exclude", false), get_default(node, "keepdims", false),
+      func);
 }
 
 // unary op function generator
@@ -1593,15 +1593,16 @@ void Emitter::CreateLossOps() {
       auto mask = cast_result(is_gt, input->get_element_type());
 
       ngraph::AxisSet axes;
-      for (auto val : pyrange(mask->get_shape().size())){
+      for (auto val : pyrange(mask->get_shape().size())) {
         axes.insert(val);
       }
       NgraphNodePtr sum = std::make_shared<ngraph::op::Sum>(mask, axes);
       NgraphNodePtr one = makeConstant(sum->get_element_type(),
                                        sum->get_shape(), std::string("1"));
-      NgraphNodePtr result_norm = std::make_shared<ngraph::op::Maximum>(sum, one);
+      NgraphNodePtr result_norm =
+          std::make_shared<ngraph::op::Maximum>(sum, one);
 
-      ngraph::Shape new_shape(grad_scale->get_shape().size(), 1); 
+      ngraph::Shape new_shape(grad_scale->get_shape().size(), 1);
       result_norm = std::make_shared<ngraph::op::Reshape>(
           result_norm, pyrange(result_norm->get_shape().size()), new_shape);
 
