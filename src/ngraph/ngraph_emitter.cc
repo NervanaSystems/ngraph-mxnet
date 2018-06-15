@@ -1510,6 +1510,14 @@ void Emitter::CreateLossOps() {
       }
       label = std::make_shared<ngraph::op::OneHot>(label, softmax->get_shape(),
                                                    axis);
+      if (ignore) {
+        // We need to reshape the mast so we can broadcast it with
+        // the gradient
+        ngraph::Shape new_shape = softmax->get_shape();
+        new_shape[axis] = 1;
+        mask = std::make_shared<ngraph::op::Reshape>(
+            mask, pyrange(mask->get_shape().size()), new_shape);
+      }
     }
 
     if (smooth_alpha != 0.0f) {
@@ -1535,14 +1543,6 @@ void Emitter::CreateLossOps() {
     auto gradient = softmax - label;
 
     if (ignore) {
-      // We need to reshape the mast so we can broadcast it with
-      // the gradient
-      ngraph::Shape new_shape(gradient->get_shape().size(), 1);
-      for (size_t i = 0; i < mask->get_shape().size(); ++i) {
-        new_shape[i] = mask->get_shape()[i];
-      }
-      mask = std::make_shared<ngraph::op::Reshape>(
-          mask, pyrange(mask->get_shape().size()), new_shape);
       // Mask out the gradient
       gradient =
           ngraph::builder::make_with_numpy_broadcast<ngraph::op::Multiply>(
@@ -1578,14 +1578,35 @@ void Emitter::CreateLossOps() {
     auto input = op_map_[node->inputs_[0]];
     const std::string norm =
         get_default(node, "normalization", std::string("null"));
+    const std::string valid_thresh =
+        get_default(node, "valid_thresh", std::string("0"));
+
     auto grad_scale =
         makeConstant(node, get_default(node, "grad_scale", std::string("1.0")));
 
     NgraphNodePtr grad;
     if (norm == "valid") {
-      throw std::runtime_error(std::string("NGRAPH_BRIDGE: MakeLoss ") +
-                               "normalization not yet tested " +
-                               "in NGraph, please test with this script.");
+      auto thresh =
+          makeConstant(ngraph::element::f32, input->get_shape(), valid_thresh);
+      auto is_gt = std::make_shared<ngraph::op::Greater>(input, thresh);
+
+      auto mask = cast_result(is_gt, input->get_element_type());
+
+      ngraph::AxisSet axes;
+      for (auto val : pyrange(mask->get_shape().size())){
+        axes.insert(val);
+      }
+      NgraphNodePtr sum = std::make_shared<ngraph::op::Sum>(mask, axes);
+      NgraphNodePtr one = makeConstant(sum->get_element_type(),
+                                       sum->get_shape(), std::string("1"));
+      NgraphNodePtr result_norm = std::make_shared<ngraph::op::Maximum>(sum, one);
+
+      ngraph::Shape new_shape(grad_scale->get_shape().size(), 1); 
+      result_norm = std::make_shared<ngraph::op::Reshape>(
+          result_norm, pyrange(result_norm->get_shape().size()), new_shape);
+
+      grad = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Divide>(
+          grad_scale, result_norm);
     } else if (norm == "batch") {
       grad = grad_scale /
              makeConstant(node, std::to_string(input->get_shape()[0]));
