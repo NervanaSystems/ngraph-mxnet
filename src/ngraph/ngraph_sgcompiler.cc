@@ -116,7 +116,8 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
 
 void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
                    std::shared_ptr<ngraph::Function> f,
-                   std::shared_ptr<ngraph::Function> bf) {
+                   std::shared_ptr<ngraph::Function> bf,
+                   GraphExeMode exe_mode) {
   // start by removing excess reshapes
   ngraph::pass::Manager pass_manager;
   pass_manager.register_pass<ngraph::pass::ReshapeElimination>();
@@ -125,7 +126,8 @@ void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
   pass_manager.run_passes(f);
   pass_manager.run_passes(bf);
 
-  if (sub_graph->context_ == mxnet::Context::CPU()) {
+  if (sub_graph->context_ == mxnet::Context::CPU() &&
+      exe_mode == GraphExeMode::kTrain) {
     // if we're in CPU, combine the graphs
     ngraph::NodeVector dYdXs;
     for (size_t i = 0; i < bf->get_output_size(); ++i) {
@@ -214,7 +216,8 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   }
 
   // fuse conv + bias before autodiff
-  if (sub_graph->context_ == mxnet::Context::CPU()) {
+  if (sub_graph->context_ == mxnet::Context::CPU() &&
+      exe_mode_ == GraphExeMode::kTrain) {
     ngraph::pass::Manager pass_manager;
     pass_manager.register_pass<ngraph::runtime::cpu::pass::CPUFusion>(
         ngraph::runtime::cpu::pass::CPUFusion::DIFFERENTIABLE_FUSIONS);
@@ -312,7 +315,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     // OptimizeGraph's real benefit comes from optimizing the fprop cache, so we
     // only call it when
     // we're in training mode...
-    OptimizeGraph(sub_graph, f, maybe_bf);
+    OptimizeGraph(sub_graph, f, maybe_bf, exe_mode_);
   }
 
   if (ngraph_log_graph()) {
