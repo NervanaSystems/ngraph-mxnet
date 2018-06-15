@@ -119,7 +119,6 @@ endif
 
 LDFLAGS += -pthread $(MSHADOW_LDFLAGS) $(DMLC_LDFLAGS)
 
-
 ifeq ($(DEBUG), 1)
 	NVCCFLAGS += -std=c++11 -Xcompiler -D_FORCE_INLINES -g -G -O0 -ccbin $(CXX) $(MSHADOW_NVCCFLAGS)
 else
@@ -301,6 +300,11 @@ endif
 
 ifeq ($(USE_THREADED_ENGINE), 1)
 	CFLAGS += -DMXNET_USE_THREADED_ENGINE
+endif
+
+ifeq ($(USE_ASAN), 1)
+  CFLAGS += -fsanitize=address -fno-omit-frame-pointer
+  LDFLAGS += -lasan
 endif
 
 ifneq ($(ADD_CFLAGS), NONE)
