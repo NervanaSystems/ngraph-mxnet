@@ -270,6 +270,7 @@ class Graph : public Node {
   std::vector<std::shared_ptr<OutputElement>> output_elements_;
   std::vector<bool> input_is_weight_;
   bool zero_grad = false;
+  bool is_loss = false;
 };
 
 // Element to represent outputs of Graph objects embedded in other Graph objects
