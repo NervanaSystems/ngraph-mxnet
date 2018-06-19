@@ -254,6 +254,7 @@ SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
       // Create the Adjoint
       C = make_and_cache_parameter(Y);
     } else {
+      // mark this graph as being a loss output
       sub_graph->is_loss = true;
       Y = op_map_.at(node->inputs_[0]);
       if (node->operation_ == "SoftmaxOutput" &&
