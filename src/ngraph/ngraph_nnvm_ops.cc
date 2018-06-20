@@ -29,6 +29,7 @@
 #include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
 #include "ngraph_nnvm_utils.h"
+#include "ngraph_sgcompiler.h"
 #include "ngraph_utils.h"
 
 namespace ngraph_bridge {
@@ -77,6 +78,16 @@ void update_aux_vals(const std::shared_ptr<Graph> &graph,
   }
 }
 
+void compile_if_needed(std::shared_ptr<Graph> graph, int mode) {
+  if (mode == static_cast<int>(GraphExeMode::kTrain)) {
+    if (graph->ngraph_forward[mode] == nullptr) {
+      CompileForwardBackward(graph, graph->fprop_cache->fprop,
+                             graph->fprop_cache->bprop, GraphExeMode::kTrain,
+                             *(graph->fprop_cache));
+    }
+  }
+}
+
 // function for computing forward on ngraph
 void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                      const std::vector<mxnet::NDArray> &inputs,
@@ -92,6 +103,7 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     mode = static_cast<int>(GraphExeMode::kTrain);
     graph->forward_train_computed = true;
   }
+  compile_if_needed(graph, mode);
 
   if (mode == static_cast<int>(GraphExeMode::kTrain)) {
     for (auto &tv : placeholders) {
@@ -126,6 +138,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   auto backend = GetBackendFromContext(graph->context_);
 
   const int mode = static_cast<int>(GraphExeMode::kTrain);
+  compile_if_needed(graph, mode);
 
   // check forward has been executed, if not we need to run forward to
   // generate valid data in fprop cache
@@ -275,6 +288,9 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
                                 const std::vector<nnvm::NodeEntry> &ograds) {
         auto p = nnvm::Node::Create();
         p->attrs.op = nnvm::Op::Get(back_op_name);
+        if (zero_grad && p->num_outputs() == 1) {
+          return mxnet::op::MakeZeroGradNodes(n, ograds);
+        }
         p->attrs.name = n->attrs.name + "_backward";
         p->attrs.dict = n->attrs.dict;
         p->control_deps.emplace_back(n);

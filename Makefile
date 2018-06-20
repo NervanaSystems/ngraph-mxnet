@@ -119,7 +119,6 @@ endif
 
 LDFLAGS += -pthread $(MSHADOW_LDFLAGS) $(DMLC_LDFLAGS)
 
-
 ifeq ($(DEBUG), 1)
 	NVCCFLAGS += -std=c++11 -Xcompiler -D_FORCE_INLINES -g -G -O0 -ccbin $(CXX) $(MSHADOW_NVCCFLAGS)
 else
@@ -220,6 +219,30 @@ ifeq ($(USE_CUDNN), 1)
 	LDFLAGS += -lcudnn
 endif
 
+# whether to use F16C instruction set extension for fast fp16 compute on CPU
+# if cross compiling you may want to explicitly turn it off if target system does not support it
+ifndef USE_F16C
+    ifneq ($(OS),Windows_NT)
+        detected_OS := $(shell uname -s)
+        ifeq ($(detected_OS),Darwin)
+            F16C_SUPP = $(shell sysctl -a | grep machdep.cpu.features | grep F16C)
+        endif
+        ifeq ($(detected_OS),Linux)
+            F16C_SUPP = $(shell cat /proc/cpuinfo | grep flags | grep f16c)
+        endif
+	ifneq ($(strip $(F16C_SUPP)),)
+                USE_F16C=1
+        else
+                USE_F16C=0
+        endif
+    endif
+    # if OS is Windows, check if your processor and compiler support F16C architecture.
+    # One way to check if processor supports it is to download the tool
+    # https://docs.microsoft.com/en-us/sysinternals/downloads/coreinfo.
+    # If coreinfo -c shows F16C and compiler supports it,
+    # then you can set USE_F16C=1 explicitly to leverage that capability"
+endif
+
 # gperftools malloc library (tcmalloc)
 ifeq ($(USE_GPERFTOOLS), 1)
 #	FIND_LIBNAME=tcmalloc_and_profiler
@@ -279,6 +302,11 @@ ifeq ($(USE_THREADED_ENGINE), 1)
 	CFLAGS += -DMXNET_USE_THREADED_ENGINE
 endif
 
+ifeq ($(USE_ASAN), 1)
+  CFLAGS += -fsanitize=address -fno-omit-frame-pointer
+  LDFLAGS += -lasan
+endif
+
 ifneq ($(ADD_CFLAGS), NONE)
 	CFLAGS += $(ADD_CFLAGS)
 endif
@@ -287,23 +315,25 @@ ifneq ($(ADD_LDFLAGS), NONE)
 	LDFLAGS += $(ADD_LDFLAGS)
 endif
 
-ifeq ($(USE_CUDA), 1)
-ifeq ($(NVCC),)
-ifneq ($(USE_CUDA_PATH),)
-  NVCC := $(USE_CUDA_PATH)/bin/nvcc
-else
-  NVCC := $(shell which nvcc)
-endif
+ifeq ($(NVCC), NONE)
+	# If NVCC has not been manually defined, use the CUDA_PATH bin dir.
+	ifneq ($(USE_CUDA_PATH), NONE)
+		NVCC=$(USE_CUDA_PATH)/bin/nvcc
+	endif
 endif
 
-# Verify that NVCC points to an actual executable, to avoid confusing error messages
-# later...
-NVCC_PATH := $(shell which $(NVCC))
-ifeq ($(NVCC_PATH),)
-  $(error NVCC refers to a non-existant file: '$(NVCC)')
-else
-  $(info NVCC refers to program "$(NVCC_PATH)")
-endif
+# Guard against displaying nvcc info messages to users not using CUDA.
+ifeq ($(USE_CUDA), 1)
+	# If NVCC is not at the location specified, use CUDA_PATH instead.
+	ifeq ("$(wildcard $(NVCC))","")
+		ifneq ($(USE_CUDA_PATH), NONE)
+			NVCC=$(USE_CUDA_PATH)/bin/nvcc
+$(info INFO: nvcc was not found on your path)
+$(info INFO: Using $(NVCC) as nvcc path)
+		else
+$(warning WARNING: could not find nvcc compiler, the specified path was: $(NVCC))
+		endif
+	endif
 endif
 
 # Sets 'CUDA_ARCH', which determines the GPU architectures supported
@@ -317,7 +347,6 @@ endif
 # If these kernels are then run on a newer-architecture GPU, the binary will
 # be JIT-compiled by the updated driver from the included PTX.
 ifeq ($(USE_CUDA), 1)
-
 ifeq ($(CUDA_ARCH),)
 	KNOWN_CUDA_ARCHS := 30 35 50 52 60 61 70
 	# Run nvcc on a zero-length file to check architecture-level support.

@@ -62,17 +62,34 @@ void Emitter::ClearOpMap() {
  * based index), where
  * negative values means indexing from the right.
  */
+inline size_t transform_axis(int axis, int shape_size) {
+  assert(abs(axis) <= shape_size);
+  // convert negative axis index to postive (counting from right per mxnet
+  // convention)
+  return axis < 0 ? shape_size + axis : axis;
+}
+
 inline size_t get_default_transformed_axis(const NodePtr& node,
                                            const std::string& key,
                                            const int default_val,
                                            const int shape_size) {
-  int axis = get_default(node, key, default_val);
-  assert(abs(axis) <= shape_size);
-  // convert negative axis index to postive (counting from right per mxnet
-  // convention)
-  size_t transformed_axis = axis < 0 ? shape_size + axis : axis;
+  return transform_axis(get_default(node, key, default_val), shape_size);
+}
 
-  return transformed_axis;
+inline std::vector<size_t> get_default_transformed_axis(
+    const NodePtr& node, const std::string& key,
+    const ngraph::AxisVector& default_val, const int shape_size) {
+  std::vector<int> values;
+  for (auto val : default_val) {
+    values.push_back(val);
+  }
+  values = get_default(node, key, values);
+
+  std::vector<size_t> axes;
+  for (size_t i = 0; i < values.size(); ++i) {
+    axes.push_back(transform_axis(values[i], shape_size));
+  }
+  return axes;
 }
 
 /**
@@ -101,9 +118,8 @@ NgraphNodePtr Emitter::ReduceAxes(
   } else {
     for (auto i : axes) reduction_axes.insert(i);
   }
-
   auto output = func(node, reduction_axes);
-  if (axes.size() == 0) {
+  if (output->get_shape().size() == 0) {
     output = std::make_shared<ngraph::op::Reshape>(output, ngraph::AxisVector{},
                                                    ngraph::Shape{1});
   }
@@ -128,8 +144,9 @@ NgraphNodePtr Emitter::ReduceAxes(
     const std::function<NgraphNodePtr(const NgraphNodePtr&,
                                       const ngraph::AxisSet&)>& func) const {
   auto input = op_map_.at(node->inputs_[0]);
+  auto axes = pyrange(input->get_shape().size());
   return ReduceAxes(
-      input, get_default(node, "axis", pyrange(input->get_shape().size())),
+      input, get_default_transformed_axis(node, "axis", axes, axes.size()),
       get_default(node, "exclude", false), get_default(node, "keepdims", false),
       func);
 }
@@ -397,7 +414,8 @@ void Emitter::CreateUnaryOps() {
                                                  getType(node->dtype_));
   };
   ngraph_op_funcs_["stop_gradient"] = [this](const NodePtr& node) {
-    return std::make_shared<ngraph::op::StopGradient>(op_map_[node->inputs_[0]]);
+    return std::make_shared<ngraph::op::StopGradient>(
+        op_map_[node->inputs_[0]]);
   };
 
   //----------------------------- Reduce Ops ----------------------------//
@@ -727,6 +745,9 @@ void Emitter::CreateBinaryOps() {
     // then add these axes back with proper output length through
     // ngraph::op::broadcast.
     for (size_t i = 0; i < input_shape.size(); ++i) {
+      if (output_shape[i] == 0) {
+        output_shape[i] = input_shape[i];
+      }
       if (input_shape[i] != output_shape[i]) {
         // only axis with dim 1 can be broadcasted, this should already been
         // checked by mxnet front end, but check in case it's being called
@@ -1057,9 +1078,9 @@ void Emitter::CreateLayerOps() {
 
     NgraphNodePtr scale_grad;
 
-    #if MXNET_USE_NGRAPH_DISTRIBUTED
+#if MXNET_USE_NGRAPH_DISTRIBUTED
     grad = std::make_shared<ngraph::op::AllReduce>(grad);
-    #endif
+#endif
     if (clip_gradient >= 0.0f) {
       scale_grad = clip(ng_rescale_grad * grad, -clip_gradient, clip_gradient);
     } else {
@@ -1090,9 +1111,9 @@ void Emitter::CreateLayerOps() {
 
     NgraphNodePtr scale_grad;
 
-    #if MXNET_USE_NGRAPH_DISTRIBUTED
+#if MXNET_USE_NGRAPH_DISTRIBUTED
     grad = std::make_shared<ngraph::op::AllReduce>(grad);
-    #endif
+#endif
     if (clip_gradient >= 0.0f) {
       scale_grad = clip(ng_rescale_grad * grad, -clip_gradient, clip_gradient);
     } else {
@@ -1489,6 +1510,14 @@ void Emitter::CreateLossOps() {
       }
       label = std::make_shared<ngraph::op::OneHot>(label, softmax->get_shape(),
                                                    axis);
+      if (ignore) {
+        // We need to reshape the mast so we can broadcast it with
+        // the gradient
+        ngraph::Shape new_shape = softmax->get_shape();
+        new_shape[axis] = 1;
+        mask = std::make_shared<ngraph::op::Reshape>(
+            mask, pyrange(mask->get_shape().size()), new_shape);
+      }
     }
 
     if (smooth_alpha != 0.0f) {
@@ -1514,14 +1543,6 @@ void Emitter::CreateLossOps() {
     auto gradient = softmax - label;
 
     if (ignore) {
-      // We need to reshape the mast so we can broadcast it with
-      // the gradient
-      ngraph::Shape new_shape(gradient->get_shape().size(), 1);
-      for (size_t i = 0; i < mask->get_shape().size(); ++i) {
-        new_shape[i] = mask->get_shape()[i];
-      }
-      mask = std::make_shared<ngraph::op::Reshape>(
-          mask, pyrange(mask->get_shape().size()), new_shape);
       // Mask out the gradient
       gradient =
           ngraph::builder::make_with_numpy_broadcast<ngraph::op::Multiply>(
@@ -1557,14 +1578,36 @@ void Emitter::CreateLossOps() {
     auto input = op_map_[node->inputs_[0]];
     const std::string norm =
         get_default(node, "normalization", std::string("null"));
+    const std::string valid_thresh =
+        get_default(node, "valid_thresh", std::string("0"));
+
     auto grad_scale =
         makeConstant(node, get_default(node, "grad_scale", std::string("1.0")));
 
     NgraphNodePtr grad;
     if (norm == "valid") {
-      throw std::runtime_error(std::string("NGRAPH_BRIDGE: MakeLoss ") +
-                               "normalization not yet tested " +
-                               "in NGraph, please test with this script.");
+      auto thresh =
+          makeConstant(ngraph::element::f32, input->get_shape(), valid_thresh);
+      auto is_gt = std::make_shared<ngraph::op::Greater>(input, thresh);
+
+      auto mask = cast_result(is_gt, input->get_element_type());
+
+      ngraph::AxisSet axes;
+      for (auto val : pyrange(mask->get_shape().size())) {
+        axes.insert(val);
+      }
+      NgraphNodePtr sum = std::make_shared<ngraph::op::Sum>(mask, axes);
+      NgraphNodePtr one = makeConstant(sum->get_element_type(),
+                                       sum->get_shape(), std::string("1"));
+      NgraphNodePtr result_norm =
+          std::make_shared<ngraph::op::Maximum>(sum, one);
+
+      ngraph::Shape new_shape(grad_scale->get_shape().size(), 1);
+      result_norm = std::make_shared<ngraph::op::Reshape>(
+          result_norm, pyrange(result_norm->get_shape().size()), new_shape);
+
+      grad = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Divide>(
+          grad_scale, result_norm);
     } else if (norm == "batch") {
       grad = grad_scale /
              makeConstant(node, std::to_string(input->get_shape()[0]));

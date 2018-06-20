@@ -52,6 +52,10 @@ void CompileForward(std::shared_ptr<Graph> sub_graph,
   for (size_t i = 0; i < sub_graph->num_outputs_; ++i)
     results[i]->set_needs_default_layout(true);
 
+  if (ngraph_log_timer()) {
+    backend->enable_performance_data(f, true);
+  }
+
   backend->compile(f);
   sub_graph->ngraph_forward[mode] = f;
 }
@@ -72,6 +76,11 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
 
   auto f_copy = ngraph::clone_function(*f, fmap);
   auto bf_copy = ngraph::clone_function(*bf, bfmap);
+
+  if (ngraph_log_timer()) {
+    backend->enable_performance_data(f_copy, true);
+    backend->enable_performance_data(bf_copy, true);
+  }
 
   // Log the graphs so Graph_* corresponds to Function_* in codgen
   if (ngraph_log_graph()) {
@@ -107,7 +116,8 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
 
 void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
                    std::shared_ptr<ngraph::Function> f,
-                   std::shared_ptr<ngraph::Function> bf) {
+                   std::shared_ptr<ngraph::Function> bf,
+                   GraphExeMode exe_mode) {
   // start by removing excess reshapes
   ngraph::pass::Manager pass_manager;
   pass_manager.register_pass<ngraph::pass::ReshapeElimination>();
@@ -117,7 +127,8 @@ void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
   pass_manager.run_passes(bf);
 
   /*
-  if (sub_graph->context_ == mxnet::Context::CPU()) {
+  if (sub_graph->context_ == mxnet::Context::CPU() &&
+      exe_mode == GraphExeMode::kTrain) {
     // if we're in CPU, combine the graphs
     ngraph::NodeVector dYdXs;
     for (size_t i = 0; i < bf->get_output_size(); ++i) {
@@ -204,7 +215,8 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
 
   // fuse conv + bias before autodiff
   /*
-  if (sub_graph->context_ == mxnet::Context::CPU()) {
+  if (sub_graph->context_ == mxnet::Context::CPU() &&
+      exe_mode_ == GraphExeMode::kTrain) {
     ngraph::pass::Manager pass_manager;
     pass_manager.register_pass<ngraph::runtime::cpu::pass::CPUFusion>(
         ngraph::runtime::cpu::pass::CPUFusion::DIFFERENTIABLE_FUSIONS);
@@ -305,7 +317,7 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
     // OptimizeGraph's real benefit comes from optimizing the fprop cache, so we
     // only call it when
     // we're in training mode...
-    OptimizeGraph(sub_graph, f, maybe_bf);
+    OptimizeGraph(sub_graph, f, maybe_bf, exe_mode_);
   }
 
   if (ngraph_log_graph()) {
@@ -317,17 +329,15 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   if (sub_graph->enable_fprop_cache && exe_mode_ == GraphExeMode::kTrain) {
-    auto fprop_cache = ngraph::cache_fprop(f, maybe_bf, adjoints);
+    sub_graph->fprop_cache = std::make_shared<ngraph::FpropCache>(
+        ngraph::cache_fprop(f, maybe_bf, adjoints));
 
     if (ngraph_log_graph()) {
-      dump_graph(fprop_cache.fprop, __func__, "fprop_cache.fprop");
-      dump_graph(fprop_cache.bprop, __func__, "fprop_cache.bprop");
+      dump_graph(sub_graph->fprop_cache->fprop, __func__, "fprop_cache.fprop");
+      dump_graph(sub_graph->fprop_cache->bprop, __func__, "fprop_cache.bprop");
     }
 
-    CompileForwardBackward(sub_graph, fprop_cache.fprop, fprop_cache.bprop,
-                           exe_mode_, fprop_cache);
-
-    for (auto node : fprop_cache.fprop_output_nodes) {
+    for (auto node : sub_graph->fprop_cache->fprop_output_nodes) {
       sub_graph->cached_values[static_cast<int>(exe_mode_)].push_back(
           backend->create_tensor(node->get_element_type(), node->get_shape()));
     }
@@ -336,9 +346,10 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   if (exe_mode_ == GraphExeMode::kTrain) {
-    ngraph::FpropCache fprop_cache;
-    fprop_cache.node_param_map = std::make_shared<ngraph::NodeMap>();
-    CompileForwardBackward(sub_graph, f, maybe_bf, exe_mode_, fprop_cache);
+    sub_graph->fprop_cache->fprop = f;
+    sub_graph->fprop_cache->bprop = maybe_bf;
+    sub_graph->fprop_cache->node_param_map =
+        std::make_shared<ngraph::NodeMap>();
     return;
   }
 
