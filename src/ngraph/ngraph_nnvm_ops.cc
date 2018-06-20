@@ -281,14 +281,15 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   // check if zero grad
   const bool zero_grad = check_zero_grad(graph);
   graph->zero_grad = zero_grad;
+  bool is_loss = graph->is_loss;
   auto back_op_name = "_backward_" + graph->name_;
   op.set_attr<nnvm::FGradient>(
       "FGradient",
-      [back_op_name, zero_grad](const nnvm::NodePtr &n,
-                                const std::vector<nnvm::NodeEntry> &ograds) {
+      [back_op_name, zero_grad, is_loss](
+          const nnvm::NodePtr &n, const std::vector<nnvm::NodeEntry> &ograds) {
         auto p = nnvm::Node::Create();
         p->attrs.op = nnvm::Op::Get(back_op_name);
-        if (zero_grad && p->num_outputs() == 1) {
+        if (!is_loss && zero_grad && p->num_outputs() == 1) {
           return mxnet::op::MakeZeroGradNodes(n, ograds);
         }
         p->attrs.name = n->attrs.name + "_backward";
