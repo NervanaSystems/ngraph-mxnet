@@ -126,7 +126,7 @@ void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
   pass_manager.run_passes(f);
   pass_manager.run_passes(bf);
 
-  /*
+#ifndef MXNET_USE_NGRAPH_IE
   if (sub_graph->context_ == mxnet::Context::CPU() &&
       exe_mode == GraphExeMode::kTrain) {
     // if we're in CPU, combine the graphs
@@ -158,7 +158,7 @@ void OptimizeGraph(std::shared_ptr<Graph> sub_graph,
     pass_manager.register_pass<ngraph::runtime::cpu::pass::CPUFusion>();
     pass_manager.run_passes(combinedf);
   }
-  */
+#endif
 }
 
 // Main compilation function
@@ -214,7 +214,7 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   auto func = std::make_shared<ngraph::Function>(outputs, parameters);
 
   // fuse conv + bias before autodiff
-  /*
+#ifndef MXNET_USE_NGRAPH_IE  
   if (sub_graph->context_ == mxnet::Context::CPU() &&
       exe_mode_ == GraphExeMode::kTrain) {
     ngraph::pass::Manager pass_manager;
@@ -222,7 +222,7 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
         ngraph::runtime::cpu::pass::CPUFusion::DIFFERENTIABLE_FUSIONS);
     pass_manager.run_passes(func);
   }
-  */
+#endif
   return func;
 }
 
