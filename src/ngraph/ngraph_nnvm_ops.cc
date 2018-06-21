@@ -166,9 +166,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   std::vector<mxnet::NDArray> adjoints(inputs.begin(),
                                        inputs.begin() + graph->num_adjoints_);
 
-  auto placeholders = graph->enable_fprop_cache
-                          ? get_tensor_views(adjoints, backend)
-                          : get_tensor_views(inputs, backend);
+  auto placeholders = get_tensor_views(inputs, backend);
 
   if (graph->zero_grad) {
     for (size_t i = 0; i < graph->num_adjoints_; ++i) {
