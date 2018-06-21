@@ -112,10 +112,10 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   }
 
   if (mode == static_cast<int>(GraphExeMode::kInfer)) {
-    for (size_t i = 0; i < placeholders.size(); ++i) {
-      if (graph->input_is_weight_[i]) {
+    for (size_t i = 1; i < placeholders.size(); ++i) {
+      //if (graph->input_is_weight_[i]) {
         placeholders[i]->set_stale(false);
-      }
+      //}
     }
   }
 
