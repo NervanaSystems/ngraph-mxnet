@@ -14,7 +14,6 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include <vector>
 #include "ops/slice.h"
 #include "ngraph_sgcompiler_utils.h"
 #include "../operator/tensor/matrix_op-inl.h"
@@ -26,29 +25,58 @@ NgraphNodePtr create_slice_op(
     const nnvm::NodeAttrs& attrs) {
 
     const mxnet::op::SliceParam& param = nnvm::get<mxnet::op::SliceParam>(attrs.parsed);
-    ngraph::Shape nshape = node->get_shape();
-    nnvm::TShape tshape = NShape_to_TShape(nshape);
+    nnvm::TShape tshape = NShape_to_TShape(node->get_shape());
     ngraph::Coordinate ng_begin, ng_end, ng_step;
-    std::vector<int> begin_val, end_val, step_val;
+    size_t reverse_axis = 0;
 
-    MXNET_NDIM_SWITCH(tshape.ndim(), ndim, {
-      mxnet::common::StaticArray<int, ndim> begin, end, step;
-      mxnet::op::GetIndexRange(tshape, param.begin, param.end, param.step, &begin, &end, &step);
-      for (mxnet::index_t i = 0; i < param.begin.ndim(); ++i) {
-        const int b = begin[i], e = end[i], s = step[i];
-        begin_val.push_back(b);
-        end_val.push_back(e);
-        step_val.push_back(s);
-      }
-    });
+    for (mxnet::index_t i = 0; i < param.begin.ndim(); ++i) {
+        int b = 0, e = tshape[i], s = 1;
+        const int len = tshape[i];
 
-    for (size_t i = 0; i < begin_val.size(); ++i) {
-      ng_begin.push_back(begin_val[i] < 0 ? nshape.size() + begin_val[i] : begin_val[i]);
-      ng_end.push_back(end_val[i] < 0 ? nshape.size() + end_val[i] : end_val[i]);
-      ng_step.push_back(step_val[i] < 0 ? nshape.size() + step_val[i] : step_val[i]);
+        if (param.step.ndim() != 0U) {
+            const auto& opt_step_val = param.step[i];
+            if (opt_step_val.has_value()) {
+                s = opt_step_val.value();
+            }
+        }
+
+        if (param.begin[i].has_value()) {
+            b = param.begin[i].value();
+            if (b < 0) {
+                b = abs(b);
+            }
+        } else if (s < 0) {
+                b = 0;
+        }
+
+        if (param.end[i].has_value()) {
+            e = param.end[i].value();
+            if (e < 0) {
+                e = abs(e);
+            }
+        } else if (s < 0) {
+            e = len;
+        }
+
+        if (s < 0) {
+            s = abs(s);
+            reverse_axis = s;
+        }
+
+        ng_begin.push_back(b);
+        ng_end.push_back(e);
+        ng_step.push_back(s);
     }
 
-    NgraphNodePtr slice = std::make_shared<ngraph::op::Slice>(node, ng_begin, ng_end, ng_step);
+    NgraphNodePtr slice;
+    if (reverse_axis) {
+        slice = std::make_shared<ngraph::op::Slice>(
+                    std::make_shared<ngraph::op::Reverse>(
+                        node, ngraph::AxisSet{static_cast<size_t>(reverse_axis-1)}),
+                    ng_begin, ng_end, ng_step);
+    } else {
+     slice = std::make_shared<ngraph::op::Slice>(node, ng_begin, ng_end, ng_step);
+    }
     return slice;
 }
 }  // namespace ngraph_bridge
