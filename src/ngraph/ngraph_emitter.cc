@@ -28,6 +28,7 @@
 #include <ngraph/op/reverse_sequence.hpp>
 #include "ngraph_sgcompiler_utils.h"
 #include "ops/batchnorm.h"
+#include "ops/slice.h"
 
 namespace ngraph_bridge {
 
@@ -931,6 +932,12 @@ void Emitter::CreateLayerOps() {
     size_t slice_step = input_shape[axis] / num_outputs;
     return slice_data_on_axis(input, index * slice_step, slice_step, axis,
                               squeeze_axis && (slice_step == 1));
+  };
+
+  // slice op
+  ngraph_op_funcs_["slice"] = [this](const NodePtr& node) -> NgraphNodePtr {
+    NgraphNodePtr ng_slice = create_slice_op(op_map_[node->inputs_[0]], node->orig_node_->attrs);
+    return ng_slice;
   };
 
   // stack takes a list of tensors of equal shape and
