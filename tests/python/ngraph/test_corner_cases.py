@@ -325,6 +325,46 @@ def test_valid_normalized_softmax_grad():
     assert np.isclose(grad_out, (expected_softmax_out + expected_grad_out) 
                                  / sum(label_nd.asnumpy() != 0)).all()
 
+def test_valid_make_loss():
+    xpu = mx.cpu()
+    x = mx.sym.Variable('x')
+    label = mx.sym.Variable('label')
+    x_nd = mx.nd.array([[0, 1, 1, 0], 
+                        [1, 1, 1, .1]], ctx=xpu)
+    grad_x = mx.nd.zeros((2,4), ctx=xpu)
+    label_nd = mx.nd.array([1,1], ctx=xpu)
+
+    sym = mx.sym.MakeLoss(x, normalization="valid", valid_thresh=0.2)
+    ex = sym.bind(ctx=xpu, args={'x': x_nd, 'label': label_nd}, 
+                  args_grad={'x': grad_x})
+
+    ex.forward(is_train=True)
+    out = ex.outputs[0].asnumpy()
+    expected_out = [[0, 1, 1, 0], 
+                    [1, 1, 1, .1]]
+    assert np.isclose(out, expected_out).all()
+
+    ex.backward(is_train=True)
+    grad_out = ex.grad_arrays[0].asnumpy()
+    expected_grad_out = np.ones((2,4))/5
+    
+    assert np.isclose(grad_out, expected_grad_out).all() 
+
+def test_stop_gradient():                                    
+    v1 = mx.nd.array([[1, 2]])                                 
+    v2 = mx.nd.array([[0, 1]])                                 
+    a = mx.sym.Variable('a')                                   
+    b = mx.sym.Variable('b')                                   
+    b_stop_grad = mx.sym.stop_gradient(3 * b)                  
+    loss = mx.sym.MakeLoss(b_stop_grad + a)                    
+                                                               
+    executor = loss.simple_bind(ctx=mx.cpu(), a=(1,2), b=(1,2))
+    executor.forward(is_train=True, a=v1, b=v2)                     
+    assert np.isclose(executor.outputs[0].asnumpy(), [1,5]).all()
+    executor.backward()                                  
+    assert np.isclose(executor.grad_arrays[0].asnumpy(), [0,0]).all()
+    assert np.isclose(executor.grad_arrays[1].asnumpy(), [1,1]).all()
+
 if __name__ == '__main__':
     import nose
     nose.runmodule()
