@@ -32,6 +32,8 @@
 
 namespace ngraph_bridge {
 
+
+
 inline const ngraph::element::Type& getType(int type) {
   static const std::map<int, const ngraph::element::Type*> typemap = {
       {mshadow::kFloat32, &ngraph::element::f32},
@@ -40,12 +42,29 @@ inline const ngraph::element::Type& getType(int type) {
       {mshadow::kInt8, &ngraph::element::i8},
       {mshadow::kInt32, &ngraph::element::i32},
       {mshadow::kInt64, &ngraph::element::i64}};
-
   auto ngraphType = typemap.find(type);
   if (ngraphType == typemap.end()) {
     throw std::runtime_error("NGRAPH_BRIDGE: type not supported");
   }
   return *ngraphType->second;
+}
+
+inline int getType(const ngraph::element::Type &et) {
+  if (et == ngraph::element::f32) {
+    return mshadow::kFloat32;
+  } else if (et == ngraph::element::f64) {
+    return mshadow::kFloat64;
+  } else if (et == ngraph::element::u8) {
+    return mshadow::kUint8;
+  } else if (et == ngraph::element::i8) {
+    return mshadow::kInt8;
+  } else if (et == ngraph::element::i32) {
+    return mshadow::kInt32;
+  } else if (et == ngraph::element::i64) {
+    return mshadow::kInt64;
+  } else {
+    throw std::runtime_error("NGRAPH_BRIDGE: ngraph element type not supported by NDAarray");
+  }
 }
 
 // Template for converting shape objects via a range based for loop

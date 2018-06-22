@@ -330,11 +330,6 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
       dump_graph(sub_graph->fprop_cache->bprop, __func__, "fprop_cache.bprop");
     }
 
-    for (auto node : sub_graph->fprop_cache->fprop_output_nodes) {
-      sub_graph->cached_values[static_cast<int>(exe_mode_)].push_back(
-          backend->create_tensor(node->get_element_type(), node->get_shape()));
-    }
-
     return;
   }
 

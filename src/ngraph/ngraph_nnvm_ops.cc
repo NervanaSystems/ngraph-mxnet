@@ -57,8 +57,6 @@ void append_cached_to_forward(TensorViewVector *results,
   }
   results->insert(results->end(), graph->cached_aux_values[mode].begin(),
                   graph->cached_aux_values[mode].end());
-  results->insert(results->end(), graph->cached_values[mode].begin(),
-                  graph->cached_values[mode].end());
 }
 
 void update_aux_vals(const std::shared_ptr<Graph> &graph,
@@ -96,7 +94,16 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   auto backend = GetBackendFromContext(graph->context_);
   auto placeholders = get_tensor_views(inputs, backend);
   // for outputs we need to comply with req
-  auto results = get_tensor_views(outputs, backend, &req);
+  TensorViewVector results;
+  if (ctx.is_train) {
+    results = get_tensor_views(outputs, backend, &req);
+  } else {
+    std::vector<mxnet::NDArray> inference_outputs;
+    for (size_t i = 0; i < graph->num_outputs_; ++i ) {
+      inference_outputs.push_back(outputs[i]);
+    }
+    results = get_tensor_views(inference_outputs, backend, &req);
+  }
 
   int mode = static_cast<int>(GraphExeMode::kInfer);
   if (ctx.is_train) {
@@ -139,32 +146,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   const int mode = static_cast<int>(GraphExeMode::kTrain);
   compile_if_needed(graph, mode);
 
-  // check forward has been executed, if not we need to run forward to
-  // generate valid data in fprop cache
-  if (graph->enable_fprop_cache && !graph->forward_train_computed) {
-    std::cout << "NGRAPH_BRIDGE: WARNING: running forward in backward"
-              << std::endl;
-    // forward inputs
-    std::vector<mxnet::NDArray> fwd_inputs(
-        inputs.begin() + graph->num_adjoints_, inputs.end());
-    auto placeholders = get_tensor_views(fwd_inputs, backend);
-    // forward outputs
-    TensorViewVector results;
-    for (size_t i = 0; i < graph->num_outputs_; ++i) {
-      auto shape = TShape_to_NShape(graph->outputs_[i]->shape_);
-      const auto &element_type = getType(graph->outputs_[i]->dtype_);
-      auto output_tv = backend->create_tensor(element_type, shape);
-      results.push_back(output_tv);
-    }
-    append_cached_to_forward(&results, graph, mode);
-    // call forward
-    backend->call(graph->ngraph_forward[mode], results, placeholders);
-  }
-
   // backward op
-  std::vector<mxnet::NDArray> adjoints(inputs.begin(),
-                                       inputs.begin() + graph->num_adjoints_);
-
   auto placeholders = get_tensor_views(inputs, backend);
 
   if (graph->zero_grad) {
@@ -177,9 +159,6 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   }
 
   auto results = get_tensor_views(outputs, backend, &req);
-
-  placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
-                      graph->cached_values[mode].end());
 
   CHECK(graph->ngraph_backward[mode]);
   backend->call(graph->ngraph_backward[mode], results, placeholders);
@@ -218,8 +197,9 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   auto &op =
       ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(graph->name_);
   // setup the inputs and outpus
-  int num_inputs = graph->inputs_.size();
-  int num_outputs = graph->outputs_.size();
+  size_t num_inputs = graph->inputs_.size();
+  size_t num_outputs = graph->fprop_cache->fprop->get_results().size();
+  size_t num_visible_outputs = graph->outputs_.size();
   op.set_num_inputs(num_inputs);
   op.set_num_outputs(num_outputs);
 
@@ -261,7 +241,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   op.set_attr<nnvm::FInplaceOption>("FInplaceOption",
                                     [num_inputs](const nnvm::NodeAttrs &attrs) {
                                       std::vector<std::pair<int, int>> inplace;
-                                      for (int i = 0; i < num_inputs; ++i)
+                                      for (size_t i = 0; i < num_inputs; ++i)
                                         inplace.push_back({i, 0});
                                       return inplace;
                                     });
@@ -270,7 +250,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   op.set_attr<nnvm::FInplaceIdentity>(
       "FInplaceIdentity", [num_inputs](const nnvm::NodeAttrs &attrs) {
         std::vector<bool> inplace;
-        for (int i = 0; i < num_inputs; ++i) inplace.push_back(false);
+        for (size_t i = 0; i < num_inputs; ++i) inplace.push_back(false);
         return inplace;
       });
 
@@ -282,7 +262,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   auto back_op_name = "_backward_" + graph->name_;
   op.set_attr<nnvm::FGradient>(
       "FGradient",
-      [back_op_name, zero_grad, is_loss](
+      [back_op_name, zero_grad, is_loss, num_outputs, num_visible_outputs](
           const nnvm::NodePtr &n, const std::vector<nnvm::NodeEntry> &ograds) {
         auto p = nnvm::Node::Create();
         p->attrs.op = nnvm::Op::Get(back_op_name);
@@ -299,18 +279,23 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
           p->inputs.insert(p->inputs.end(), ograds.begin(), ograds.end());
         }
         p->inputs.insert(p->inputs.end(), n->inputs.begin(), n->inputs.end());
+        for (unsigned i = num_visible_outputs; i < num_outputs; ++i) {
+          p->inputs.emplace_back(nnvm::NodeEntry{n,i,0});
+        }
         std::vector<nnvm::NodeEntry> ret;
         for (unsigned i = 0; i < p->num_outputs(); ++i) {
           ret.emplace_back(nnvm::NodeEntry{p, i, 0});
         }
         return ret;
       });
+
   std::vector<nnvm::TShape> shapes;
   std::vector<int> dtypes;
-  for (auto output : graph->outputs_) {
-    shapes.push_back(output->shape_);
-    dtypes.push_back(output->dtype_);
+  for (auto output : graph->fprop_cache->fprop->get_results()) {
+    shapes.push_back(NShape_to_TShape(output->get_shape()));
+    dtypes.push_back(getType(output->get_element_type()));
   }
+
   // infer shapes
   op.set_attr<nnvm::FInferShape>(
       "FInferShape", [shapes](const nnvm::NodeAttrs &attrs,
@@ -358,9 +343,10 @@ void register_backward_op(std::shared_ptr<Graph> graph) {
   auto &op = ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(
       "_backward_" + graph->name_);
   // setup the inputs and outpus
-  int num_inputs = graph->inputs_.size();
-  op.set_num_inputs(graph->num_adjoints_ + num_inputs);
-  op.set_num_outputs(num_inputs);
+  size_t num_inputs = graph->fprop_cache->bprop->get_parameters().size();
+  size_t num_outputs = graph->inputs_.size();
+  op.set_num_inputs(num_inputs);
+  op.set_num_outputs(num_outputs);
 
   // Mark as backward
   op.set_attr<bool>("TIsBackward", true);
