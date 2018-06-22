@@ -27,7 +27,8 @@ NgraphNodePtr create_slice_op(
     const mxnet::op::SliceParam& param = nnvm::get<mxnet::op::SliceParam>(attrs.parsed);
     nnvm::TShape tshape = NShape_to_TShape(node->get_shape());
     ngraph::Coordinate ng_begin, ng_end, ng_step;
-    size_t reverse_axis = 0;
+    ngraph::AxisSet axes;
+    bool reverse = false;
 
     for (mxnet::index_t i = 0; i < param.begin.ndim(); ++i) {
         int b = 0, e = tshape[i], s = 1;
@@ -46,7 +47,7 @@ NgraphNodePtr create_slice_op(
                 b = abs(b);
             }
         } else if (s < 0) {
-                b = 0;
+            b = 0;
         }
 
         if (param.end[i].has_value()) {
@@ -59,8 +60,14 @@ NgraphNodePtr create_slice_op(
         }
 
         if (s < 0) {
+            reverse = true;
             s = abs(s);
-            reverse_axis = s;
+            axes.insert(i);
+            if (b > e) {
+                size_t temp = b;
+                b = e;
+                e = temp;
+            }
         }
 
         ng_begin.push_back(b);
@@ -68,14 +75,20 @@ NgraphNodePtr create_slice_op(
         ng_step.push_back(s);
     }
 
+    for (mxnet::index_t i = param.begin.ndim(); i < tshape.ndim(); ++i) {
+        ng_begin.push_back(0);
+        ng_end.push_back(tshape[i]);
+        ng_step.push_back(1);
+    }
+
     NgraphNodePtr slice;
-    if (reverse_axis) {
+    if (reverse) {
         slice = std::make_shared<ngraph::op::Slice>(
-                    std::make_shared<ngraph::op::Reverse>(
-                        node, ngraph::AxisSet{static_cast<size_t>(reverse_axis-1)}),
-                    ng_begin, ng_end, ng_step);
+                std::make_shared<ngraph::op::Reverse>(
+                    node, ngraph::AxisSet{axes}),
+                ng_begin, ng_end, ng_step);
     } else {
-     slice = std::make_shared<ngraph::op::Slice>(node, ng_begin, ng_end, ng_step);
+        slice = std::make_shared<ngraph::op::Slice>(node, ng_begin, ng_end, ng_step);
     }
     return slice;
 }
