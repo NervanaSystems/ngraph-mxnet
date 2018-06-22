@@ -48,21 +48,11 @@ nnvm::Op *get_subgraph_op(std::shared_ptr<Graph> graph) {
       ::dmlc::Registry<::nnvm::Op>::Get()->__REGISTER_OR_GET__(graph->name_));
 }
 
-void append_cached_to_forward(TensorViewVector *results,
-                              const std::shared_ptr<Graph> &graph,
-                              const int mode) {
-  if (results == nullptr) {
-    throw std::runtime_error(
-        "NGRAPH_BRIDGE: append_cached_to_forward recieved nullptr results");
-  }
-  results->insert(results->end(), graph->cached_aux_values[mode].begin(),
-                  graph->cached_aux_values[mode].end());
-}
-
 void update_aux_vals(const std::shared_ptr<Graph> &graph,
+                     const TensorViewVector &results,
                      const std::vector<mxnet::NDArray> &inputs, const int mode,
                      const int offset = 0) {
-  const size_t cached_aux_count = graph->cached_aux_values[mode].size();
+  const size_t cached_aux_count = graph->cached_aux_positions[mode].size();
   if (cached_aux_count > 0) {
     std::vector<mxnet::OpReqType> aux_req;
     std::vector<mxnet::NDArray> aux_outs;
@@ -72,7 +62,7 @@ void update_aux_vals(const std::shared_ptr<Graph> &graph,
       aux_req.push_back(mxnet::kWriteTo);
     }
 
-    result_to_NDArray(graph->cached_aux_values[mode], aux_req, aux_outs, true);
+    result_to_NDArray(results, aux_req, aux_outs, true);
   }
 }
 
@@ -99,7 +89,7 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     results = get_tensor_views(outputs, backend, &req);
   } else {
     std::vector<mxnet::NDArray> inference_outputs;
-    for (size_t i = 0; i < graph->num_outputs_; ++i ) {
+    for (size_t i = 0; i < graph->num_outputs_; ++i) {
       inference_outputs.push_back(outputs[i]);
     }
     results = get_tensor_views(inference_outputs, backend, &req);
@@ -119,7 +109,6 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   }
 
   assert(graph->ngraph_forward[mode] != nullptr);
-  append_cached_to_forward(&results, graph, mode);
   backend->call(graph->ngraph_forward[mode], results, placeholders);
 
   result_to_NDArray(results, req, outputs);
@@ -130,7 +119,11 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
         placeholders[i]->set_stale(false);
       }
     }
-    update_aux_vals(graph, inputs, mode);
+    TensorViewVector aux_results;
+    aux_results.insert(aux_results.end(), results.begin() + graph->num_outputs_,
+                       results.begin() + graph->num_outputs_ +
+                           graph->cached_aux_positions[mode].size());
+    update_aux_vals(graph, aux_results, inputs, mode);
   }
 }
 
@@ -147,7 +140,19 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   compile_if_needed(graph, mode);
 
   // backward op
-  auto placeholders = get_tensor_views(inputs, backend);
+  TensorViewVector placeholders;
+  TensorViewVector aux_results;
+  auto input_tvs = get_tensor_views(inputs, backend);
+
+  auto end_of_adjoints =
+      input_tvs.begin() + graph->num_adjoints_ + graph->inputs_.size();
+  auto end_of_aux = input_tvs.begin() + graph->num_adjoints_ +
+                    graph->inputs_.size() +
+                    graph->cached_aux_positions[mode].size();
+
+  placeholders.insert(placeholders.end(), input_tvs.begin(), end_of_adjoints);
+  aux_results.insert(aux_results.end(), end_of_adjoints, end_of_aux);
+  placeholders.insert(placeholders.end(), end_of_aux, input_tvs.end());
 
   if (graph->zero_grad) {
     for (size_t i = 0; i < graph->num_adjoints_; ++i) {
@@ -169,7 +174,8 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
   // overwrite aux data if they exist
   // aux result outputs mapped to inputs
-  update_aux_vals(graph, inputs, mode, graph->num_adjoints_);
+
+  update_aux_vals(graph, aux_results, inputs, mode, graph->num_adjoints_);
 }
 
 // check if last node in graph is an op that doesnt need head-gradient
@@ -280,7 +286,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
         }
         p->inputs.insert(p->inputs.end(), n->inputs.begin(), n->inputs.end());
         for (unsigned i = num_visible_outputs; i < num_outputs; ++i) {
-          p->inputs.emplace_back(nnvm::NodeEntry{n,i,0});
+          p->inputs.emplace_back(nnvm::NodeEntry{n, i, 0});
         }
         std::vector<nnvm::NodeEntry> ret;
         for (unsigned i = 0; i < p->num_outputs(); ++i) {

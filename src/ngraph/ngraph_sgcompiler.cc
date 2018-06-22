@@ -91,8 +91,9 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
   auto results = f_copy->get_results();
   for (size_t i = 0; i < (sub_graph->num_outputs_ +
                           sub_graph->cached_aux_values[mode].size());
-       ++i)
+       ++i) {
     results[i]->set_needs_default_layout(true);
+  }
 
   backend->compile(f_copy);
 
@@ -200,8 +201,6 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
         outputs.push_back(ngraph_node);
 
         // cache aux node
-        sub_graph->cached_aux_values[mode].push_back(backend->create_tensor(
-            ngraph_node->get_element_type(), ngraph_node->get_shape()));
         sub_graph->cached_aux_positions[mode].push_back(i);
       }
       i += 1;
@@ -223,9 +222,8 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   return func;
 }
 
-std::shared_ptr<ngraph::Function>
-SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
-                                 std::shared_ptr<ngraph::Function> f) {
+std::shared_ptr<ngraph::Function> SGCompiler::MakeBackwardFunction(
+    std::shared_ptr<Graph> sub_graph, std::shared_ptr<ngraph::Function> f) {
   // get parameters
   std::vector<std::shared_ptr<ngraph::op::Parameter>> back_parameters =
       f->get_parameters();
@@ -241,7 +239,6 @@ SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
     param_adjoints.push_back(C);
     return C;
   };
-  
 
   for (auto node : sub_graph->outputs_) {
     NgraphNodePtr Y;
@@ -322,8 +319,8 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   if (sub_graph->enable_fprop_cache && exe_mode_ == GraphExeMode::kTrain) {
-    sub_graph->fprop_cache = std::make_shared<ngraph::FpropCache>(
-        ngraph::cache_fprop(f, maybe_bf));
+    sub_graph->fprop_cache =
+        std::make_shared<ngraph::FpropCache>(ngraph::cache_fprop(f, maybe_bf));
 
     if (ngraph_log_graph()) {
       dump_graph(sub_graph->fprop_cache->fprop, __func__, "fprop_cache.fprop");

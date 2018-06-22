@@ -40,9 +40,8 @@ class SGCompiler : public Emitter {
  private:
   std::shared_ptr<ngraph::Function> MakeForwardFunction(
       std::shared_ptr<Graph> sub_graph);
-  std::shared_ptr<ngraph::Function>
-  MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
-                       std::shared_ptr<ngraph::Function> f);
+  std::shared_ptr<ngraph::Function> MakeBackwardFunction(
+      std::shared_ptr<Graph> sub_graph, std::shared_ptr<ngraph::Function> f);
 };
 
 void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,

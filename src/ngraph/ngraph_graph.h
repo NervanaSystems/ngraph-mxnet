@@ -212,7 +212,6 @@ class Graph : public Node {
   void CleanUp() {
     auto backend = GetBackendFromContext(context_);
     for (int i = 0; i < kGraphExeModeCount; ++i) {
-      cached_aux_values[i].clear();
       cached_aux_positions[i].clear();
 
       backend->remove_compiled_function(ngraph_forward[i]);

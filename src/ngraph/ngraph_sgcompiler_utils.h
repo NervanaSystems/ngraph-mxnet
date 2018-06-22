@@ -32,8 +32,6 @@
 
 namespace ngraph_bridge {
 
-
-
 inline const ngraph::element::Type& getType(int type) {
   static const std::map<int, const ngraph::element::Type*> typemap = {
       {mshadow::kFloat32, &ngraph::element::f32},
@@ -49,7 +47,7 @@ inline const ngraph::element::Type& getType(int type) {
   return *ngraphType->second;
 }
 
-inline int getType(const ngraph::element::Type &et) {
+inline int getType(const ngraph::element::Type& et) {
   if (et == ngraph::element::f32) {
     return mshadow::kFloat32;
   } else if (et == ngraph::element::f64) {
@@ -63,7 +61,8 @@ inline int getType(const ngraph::element::Type &et) {
   } else if (et == ngraph::element::i64) {
     return mshadow::kInt64;
   } else {
-    throw std::runtime_error("NGRAPH_BRIDGE: ngraph element type not supported by NDAarray");
+    throw std::runtime_error(
+        "NGRAPH_BRIDGE: ngraph element type not supported by NDAarray");
   }
 }
 
