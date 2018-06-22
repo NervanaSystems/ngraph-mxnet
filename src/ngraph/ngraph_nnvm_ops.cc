@@ -83,7 +83,8 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                      const std::vector<mxnet::NDArray> &outputs) {
   // std::cout << "forward " << graph->name_ << std::endl;
   // graph->num_forward_calls += 1;
-  // std::cout << "graph->num_forward_calls" << graph->num_forward_calls << std::endl;
+  // std::cout << "graph->num_forward_calls" << graph->num_forward_calls <<
+  // std::endl;
   auto backend = GetBackendFromContext(graph->context_);
   auto placeholders = get_tensor_views(inputs, backend);
   // for outputs we need to comply with req
@@ -136,7 +137,8 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                       const std::vector<mxnet::OpReqType> &req,
                       const std::vector<mxnet::NDArray> &outputs) {
   // graph->num_backward_calls += 1;
-  // std::cout << "graph->num_backward_calls" << graph->num_backward_calls << std::endl;
+  // std::cout << "graph->num_backward_calls" << graph->num_backward_calls <<
+  // std::endl;
   // std::cout << "backward " << graph->name_ << std::endl;
   // only expect backward is called in training mode
   assert(ctx.is_train);
@@ -150,12 +152,11 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   TensorViewVector aux_results;
   auto input_tvs = get_tensor_views(inputs, backend);
 
-  auto end_of_adjoints =
-      input_tvs.begin() + graph->num_adjoints_ + graph->inputs_.size();
-  auto end_of_aux = input_tvs.begin() + graph->num_adjoints_ +
-                    graph->inputs_.size() +
-                    graph->cached_aux_positions[mode].size();
+  size_t adjoints = 0;
+  if (!graph->zero_grad) adjoints = graph->num_adjoints_;
 
+  auto end_of_adjoints = input_tvs.begin() + adjoints + graph->inputs_.size();
+  auto end_of_aux = end_of_adjoints + graph->cached_aux_positions[mode].size();
   placeholders.insert(placeholders.end(), input_tvs.begin(), end_of_adjoints);
   aux_results.insert(aux_results.end(), end_of_adjoints, end_of_aux);
   placeholders.insert(placeholders.end(), end_of_aux, input_tvs.end());
@@ -163,7 +164,8 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   if (graph->zero_grad) {
     for (size_t i = 0; i < graph->num_adjoints_; ++i) {
       // TODO(mbrookahrt): don't bprop graph if it's zerograd?
-      placeholders.insert(placeholders.begin(), 
+      placeholders.insert(
+          placeholders.begin(),
           backend->create_tensor(getType(graph->outputs_[i]->dtype_),
                                  TShape_to_NShape(graph->outputs_[i]->shape_)));
     }
