@@ -213,8 +213,8 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   // create the Forward Function object representing the graph
   auto func = std::make_shared<ngraph::Function>(outputs, parameters);
 
-  // fuse conv + bias before autodiff
-#ifndef MXNET_USE_NGRAPH_IE  
+// fuse conv + bias before autodiff
+#ifndef MXNET_USE_NGRAPH_IE
   if (sub_graph->context_ == mxnet::Context::CPU() &&
       exe_mode_ == GraphExeMode::kTrain) {
     ngraph::pass::Manager pass_manager;
@@ -375,7 +375,7 @@ void SGCompiler::CompileNodes(NodePtr node,
     if (!op_map_.count(node)) {
       // if it's not in the graph, it's an input, compile it as an input
       if (!in_vec(sub_graph->nodes_, node)) {
-        this->CompileInput(node);
+        this->CompileInput(node, sub_graph);
       } else {
         this->op_map_.insert(
             {node, this->ngraph_op_funcs_[node->operation_](node)});
@@ -448,12 +448,17 @@ void SGCompiler::CompileNodes(NodePtr node,
 }
 
 // Compile the inputs
-void SGCompiler::CompileInput(NodePtr input) {
+void SGCompiler::CompileInput(NodePtr input, std::shared_ptr<Graph> graph) {
   auto shape = TShape_to_NShape(input->shape_);
   // make a shaped and typed parameter based on the input node
   // store it in the op_map_
+  bool is_cacheable =
+      graph->input_is_weight_[std::find(graph->inputs_.begin(),
+                                        graph->inputs_.end(), input) -
+                              graph->inputs_.begin()];
+
   op_map_.insert({input, std::make_shared<ngraph::op::Parameter>(
-                             getType(input->dtype_), shape)});
+                             getType(input->dtype_), shape, is_cacheable)});
 }
 
 }  // namespace ngraph_bridge
