@@ -81,6 +81,9 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                      const std::vector<mxnet::NDArray> &inputs,
                      const std::vector<mxnet::OpReqType> &req,
                      const std::vector<mxnet::NDArray> &outputs) {
+  // std::cout << "forward " << graph->name_ << std::endl;
+  // graph->num_forward_calls += 1;
+  // std::cout << "graph->num_forward_calls" << graph->num_forward_calls << std::endl;
   auto backend = GetBackendFromContext(graph->context_);
   auto placeholders = get_tensor_views(inputs, backend);
   // for outputs we need to comply with req
@@ -132,6 +135,9 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                       const std::vector<mxnet::NDArray> &inputs,
                       const std::vector<mxnet::OpReqType> &req,
                       const std::vector<mxnet::NDArray> &outputs) {
+  // graph->num_backward_calls += 1;
+  // std::cout << "graph->num_backward_calls" << graph->num_backward_calls << std::endl;
+  // std::cout << "backward " << graph->name_ << std::endl;
   // only expect backward is called in training mode
   assert(ctx.is_train);
   auto backend = GetBackendFromContext(graph->context_);
@@ -208,6 +214,11 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   size_t num_visible_outputs = graph->outputs_.size();
   op.set_num_inputs(num_inputs);
   op.set_num_outputs(num_outputs);
+  op.set_attr<nnvm::FNumVisibleOutputs>(
+      "FNumVisibleOutputs",
+      [num_visible_outputs](const nnvm::NodeAttrs &attrs) {
+        return num_visible_outputs;
+      });
 
   // register the inputs with nnvm
   std::vector<std::string> input_names;
@@ -266,10 +277,12 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
   graph->zero_grad = zero_grad;
   bool is_loss = graph->is_loss;
   auto back_op_name = "_backward_" + graph->name_;
+  size_t num_adjoints = graph->num_adjoints_;
   op.set_attr<nnvm::FGradient>(
       "FGradient",
-      [back_op_name, zero_grad, is_loss, num_outputs, num_visible_outputs](
-          const nnvm::NodePtr &n, const std::vector<nnvm::NodeEntry> &ograds) {
+      [back_op_name, zero_grad, is_loss, num_outputs, num_visible_outputs,
+       num_adjoints](const nnvm::NodePtr &n,
+                     const std::vector<nnvm::NodeEntry> &ograds) {
         auto p = nnvm::Node::Create();
         p->attrs.op = nnvm::Op::Get(back_op_name);
         if (!is_loss && zero_grad && p->num_outputs() == 1) {
@@ -282,7 +295,8 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
           p->op()->attr_parser(&(p->attrs));
         }
         if (!zero_grad) {
-          p->inputs.insert(p->inputs.end(), ograds.begin(), ograds.end());
+          p->inputs.insert(p->inputs.end(), ograds.begin(),
+                           ograds.begin() + num_adjoints);
         }
         p->inputs.insert(p->inputs.end(), n->inputs.begin(), n->inputs.end());
         for (unsigned i = num_visible_outputs; i < num_outputs; ++i) {
@@ -301,6 +315,8 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
     shapes.push_back(NShape_to_TShape(output->get_shape()));
     dtypes.push_back(getType(output->get_element_type()));
   }
+  // std::cout << num_outputs << std::endl;
+  // std::cout << dtypes.size() << std::endl;
 
   // infer shapes
   op.set_attr<nnvm::FInferShape>(
@@ -316,6 +332,7 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
       "FInferType",
       [dtypes](const nnvm::NodeAttrs &attrs, std::vector<int> *iattr,
                std::vector<int> *oattr) -> bool {
+        std::cout << dtypes.size() << std::endl;
         for (size_t i = 0; i < dtypes.size(); ++i) {
           mxnet::op::type_assign(&((*oattr)[i]), dtypes[i]);
         }
