@@ -37,21 +37,29 @@ echo "${PYTHON_VERSION_NUMBER}"
 
 # Note that the docker image must have been previously built using the
 # make-docker-mx-ngraph-base.sh script (in the same directory as this script).
-#IMAGE_NAME='ngmx_ci'
-#IMAGE_ID="${1}"
 
-IMAGE_ID="$(git rev-parse HEAD)"
+#IMAGE_ID="$(git rev-parse HEAD)"
 
+#if [ -z "${IMAGE_ID}" ] ; then
+#    echo 'Missing an image version as the only argument. Exitting ...'
+#    exit 1
+#fi
+
+IMAGE_NAME='ngmx_ci'
+IMAGE_ID="${1}"
 if [ -z "${IMAGE_ID}" ] ; then
     echo 'Missing an image version as the only argument. Exitting ...'
     exit 1
 fi
 
+set -u  # No unset variables after this point
+
 ngraph_mx_dir="$(realpath ../..)"
 
 docker_mx_dir="/home/dockuser/ng-mx"
 
-script='run-mx-ngraph-benchmark-test.sh'
+#script='run-mx-ngraph-benchmark-test.sh'
+script='run-ng-mx-deepmark-test.sh'
 
 # Parameters:
 #           MX_NG_RUN_PER_SCRIPT          Model to run
@@ -79,14 +87,8 @@ script='run-mx-ngraph-benchmark-test.sh'
 docker run --rm \
       --env RUN_UID="$(id -u)" \
       --env RUN_CMD="${docker_mx_dir}/docker/scripts/${script}" \
-      --env MX_NG_RUN_PER_SCRIPT="${MX_NG_RUN_PER_SCRIPT}" \
       --env PYTHON_VERSION_NUMBER="${PYTHON_VERSION_NUMBER}"\
-      --env MX_NG_RUN_BENCHMARK_NETWORK="${MX_NG_RUN_BENCHMARK_NETWORK}" \
-      --env MX_NG_RUN_BENCHMARK_WRK_FILE="${MX_NG_RUN_BENCHMARK_WRK_FILE}" \
-      --env MX_NG_RUN_BENCHMARK_WRK_COUNT="${MX_NG_RUN_BENCHMARK_WRK_COUNT}" \
-      --env MX_NG_RUN_BENCHMARK_GPU_COUNT="${MX_NG_RUN_BENCHMARK_GPU_COUNT}" \
-      --env MX_NG_OMP_NUM_THREADS="${MX_NG_OMP_NUM_THREADS}"\
-      --env http_proxy=http://proxy-us.intel.com:911 \
-      --env https_proxy=https://proxy-us.intel.com:911 \
+      --env http_proxy=http://proxy-fm.intel.com:911 \
+      --env https_proxy=http://proxy-fm.intel.com:912 \
       -v "${ngraph_mx_dir}:${docker_mx_dir}" \
-      "mxnet:${IMAGE_ID}" /home/run-as-user.sh
+      "${IMAGE_NAME}:${IMAGE_ID}" /home/run-as-user.sh
