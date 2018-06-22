@@ -163,10 +163,10 @@ inline std::string get_backend_name(const mxnet::Context &context) {
     return "GPU";
 #endif
   } else if (context.dev_type == mxnet::Context::CPU().dev_type) {
-#ifndef MXNET_USE_NGRAPH_IE
-    return "CPU";
-#else
+#ifdef MXNET_USE_NGRAPH_IE
     return "IE";
+#else
+    return "CPU";
 #endif
   } else {
     return "INTERPRETER";
