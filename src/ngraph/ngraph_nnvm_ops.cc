@@ -332,7 +332,6 @@ void register_forward_op(std::shared_ptr<Graph> graph) {
       "FInferType",
       [dtypes](const nnvm::NodeAttrs &attrs, std::vector<int> *iattr,
                std::vector<int> *oattr) -> bool {
-        std::cout << dtypes.size() << std::endl;
         for (size_t i = 0; i < dtypes.size(); ++i) {
           mxnet::op::type_assign(&((*oattr)[i]), dtypes[i]);
         }
