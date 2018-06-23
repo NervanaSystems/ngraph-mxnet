@@ -223,9 +223,8 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   return func;
 }
 
-std::shared_ptr<ngraph::Function>
-SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
-                                 std::shared_ptr<ngraph::Function> f) {
+std::shared_ptr<ngraph::Function> SGCompiler::MakeBackwardFunction(
+    std::shared_ptr<Graph> sub_graph, std::shared_ptr<ngraph::Function> f) {
   // get parameters
   std::vector<std::shared_ptr<ngraph::op::Parameter>> back_parameters =
       f->get_parameters();
@@ -241,7 +240,6 @@ SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
     param_adjoints.push_back(C);
     return C;
   };
-  
 
   for (auto node : sub_graph->outputs_) {
     NgraphNodePtr Y;
@@ -322,8 +320,8 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   if (sub_graph->enable_fprop_cache && exe_mode_ == GraphExeMode::kTrain) {
-    sub_graph->fprop_cache = std::make_shared<ngraph::FpropCache>(
-        ngraph::cache_fprop(f, maybe_bf));
+    sub_graph->fprop_cache =
+        std::make_shared<ngraph::FpropCache>(ngraph::cache_fprop(f, maybe_bf));
 
     if (ngraph_log_graph()) {
       dump_graph(sub_graph->fprop_cache->fprop, __func__, "fprop_cache.fprop");
