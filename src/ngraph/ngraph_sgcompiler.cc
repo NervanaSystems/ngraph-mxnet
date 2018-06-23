@@ -226,25 +226,21 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   return func;
 }
 
-std::pair<std::shared_ptr<ngraph::Function>,
-          std::vector<std::shared_ptr<ngraph::Node>>>
-SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
-                                 std::shared_ptr<ngraph::Function> f) {
+std::shared_ptr<ngraph::Function> SGCompiler::MakeBackwardFunction(
+    std::shared_ptr<Graph> sub_graph, std::shared_ptr<ngraph::Function> f) {
   // get parameters
   std::vector<std::shared_ptr<ngraph::op::Parameter>> back_parameters =
       f->get_parameters();
 
   std::vector<std::shared_ptr<ngraph::op::Parameter>> param_adjoints;
   ngraph::NodeVector adjoints;
-  ngraph::NodeVector output_adjoints;
   ngraph::NodeVector outputs;
 
   auto make_and_cache_parameter =
-      [&param_adjoints, &output_adjoints](NgraphNodePtr Y) -> NgraphNodePtr {
+      [&param_adjoints](NgraphNodePtr Y) -> NgraphNodePtr {
     auto C = std::make_shared<ngraph::op::Parameter>(Y->get_element_type(),
                                                      Y->get_shape());
     param_adjoints.push_back(C);
-    output_adjoints.push_back(C);
     return C;
   };
 
@@ -272,6 +268,8 @@ SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
     adjoints.push_back(C);
   }
 
+  sub_graph->num_adjoints_ = param_adjoints.size();
+
   ngraph::autodiff::Adjoints adjoint{outputs, adjoints};
 
   // Perform autodiff
@@ -284,8 +282,7 @@ SGCompiler::MakeBackwardFunction(std::shared_ptr<Graph> sub_graph,
   back_parameters.insert(back_parameters.begin(), param_adjoints.begin(),
                          param_adjoints.end());
 
-  return {std::make_shared<ngraph::Function>(dYdXs, back_parameters),
-          output_adjoints};
+  return std::make_shared<ngraph::Function>(dYdXs, back_parameters);
 }
 
 // Compile a Subgraph into ngraph forward and backward call frames
@@ -306,19 +303,14 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   std::shared_ptr<ngraph::Function> maybe_bf;
-  std::vector<std::shared_ptr<ngraph::Node>> adjoints;
   if (exe_mode_ == GraphExeMode::kTrain) {
-    auto bfa = MakeBackwardFunction(sub_graph, f);
-    maybe_bf = bfa.first;
-    adjoints = bfa.second;
-    sub_graph->num_adjoints_ = adjoints.size();
+    maybe_bf = MakeBackwardFunction(sub_graph, f);
     if (ngraph_log_graph()) {
       dump_graph(maybe_bf, __func__, "pre-optimized-bprop");
     }
 
     // OptimizeGraph's real benefit comes from optimizing the fprop cache, so we
-    // only call it when
-    // we're in training mode...
+    // only call it when we're in training mode...
     OptimizeGraph(sub_graph, f, maybe_bf, exe_mode_);
   }
 
@@ -331,8 +323,8 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   if (sub_graph->enable_fprop_cache && exe_mode_ == GraphExeMode::kTrain) {
-    sub_graph->fprop_cache = std::make_shared<ngraph::FpropCache>(
-        ngraph::cache_fprop(f, maybe_bf, adjoints));
+    sub_graph->fprop_cache =
+        std::make_shared<ngraph::FpropCache>(ngraph::cache_fprop(f, maybe_bf));
 
     if (ngraph_log_graph()) {
       dump_graph(sub_graph->fprop_cache->fprop, __func__, "fprop_cache.fprop");
