@@ -123,9 +123,8 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
         placeholders[i]->set_stale(false);
       }
     }
+    update_aux_vals(graph, inputs, mode);
   }
-
-  update_aux_vals(graph, inputs, mode);
 }
 
 // function for computing backward on ngraph
@@ -166,16 +165,15 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   std::vector<mxnet::NDArray> adjoints(inputs.begin(),
                                        inputs.begin() + graph->num_adjoints_);
 
-  auto placeholders = graph->enable_fprop_cache
-                          ? get_tensor_views(adjoints, backend)
-                          : get_tensor_views(inputs, backend);
+  auto placeholders = get_tensor_views(inputs, backend);
 
   if (graph->zero_grad) {
     for (size_t i = 0; i < graph->num_adjoints_; ++i) {
       // TODO(mbrookahrt): don't bprop graph if it's zerograd?
-      placeholders[i] =
+      placeholders.insert(
+          placeholders.begin(),
           backend->create_tensor(getType(graph->outputs_[i]->dtype_),
-                                 TShape_to_NShape(graph->outputs_[i]->shape_));
+                                 TShape_to_NShape(graph->outputs_[i]->shape_)));
     }
   }
 
