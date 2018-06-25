@@ -33,7 +33,7 @@ class SGCompiler : public Emitter {
   // compile subgraph into ngraph objects
   void CompileSubgraph(std::shared_ptr<Graph> sub_graph);
   // compile input to a node
-  void CompileInput(NodePtr input);
+  void CompileInput(NodePtr input, std::shared_ptr<Graph> graph);
   // compile the graph nodes into ngraph objects
   void CompileNodes(NodePtr node, const std::shared_ptr<Graph> sub_graph);
 
