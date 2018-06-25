@@ -20,54 +20,50 @@
 
 namespace ngraph_bridge {
 
-NgraphNodePtr create_slice_op(
-    const NgraphNodePtr& node,
-    const nnvm::NodeAttrs& attrs) {
-
-    const mxnet::op::SliceParam& param = nnvm::get<mxnet::op::SliceParam>(attrs.parsed);
+NgraphNodePtr create_slice_op(const NgraphNodePtr& node,
+                              const nnvm::NodeAttrs& attrs) {
+    const mxnet::op::SliceParam& param =
+        nnvm::get<mxnet::op::SliceParam>(attrs.parsed);
     nnvm::TShape tshape = NShape_to_TShape(node->get_shape());
     ngraph::Coordinate ng_begin, ng_end, ng_step;
     ngraph::AxisSet axes;
     bool reverse = false;
 
     for (mxnet::index_t i = 0; i < param.begin.ndim(); ++i) {
-        int b = 0, e = tshape[i], s = 1;
         const int len = tshape[i];
 
-        if (param.step.ndim() != 0U) {
-            const auto& opt_step_val = param.step[i];
-            if (opt_step_val.has_value()) {
-                s = opt_step_val.value();
-            }
+        int s = 1;
+        if (param.step[i].has_value()) {
+            s = param.step[i].value();
         }
 
+        int b = 0;
         if (param.begin[i].has_value()) {
             b = param.begin[i].value();
-            if (b < 0) {
-                b = abs(b);
-            }
+            if (b < 0) b += len;
         } else if (s < 0) {
-            b = 0;
+            b = len - 1;
         }
 
+        int e = len;
         if (param.end[i].has_value()) {
             e = param.end[i].value();
-            if (e < 0) {
-                e = abs(e);
-            }
+            if (e < 0) e += len;
         } else if (s < 0) {
-            e = len;
+            e = -1;
         }
 
         if (s < 0) {
             reverse = true;
             s = abs(s);
             axes.insert(i);
-            if (b > e) {
-                size_t temp = b;
-                b = e;
-                e = temp;
+            int tempb = b;
+            int last = b;
+            while (last > e + s) {
+                last -= s;
             }
+            b = last;
+            e = tempb + 1;
         }
 
         ng_begin.push_back(b);
@@ -83,12 +79,12 @@ NgraphNodePtr create_slice_op(
 
     NgraphNodePtr slice;
     if (reverse) {
-        slice = std::make_shared<ngraph::op::Slice>(
-                std::make_shared<ngraph::op::Reverse>(
-                    node, ngraph::AxisSet{axes}),
-                ng_begin, ng_end, ng_step);
+        slice = std::make_shared<ngraph::op::Reverse>(
+            std::make_shared<ngraph::op::Slice>(node, ng_begin, ng_end, ng_step),
+                ngraph::AxisSet{axes});
     } else {
-        slice = std::make_shared<ngraph::op::Slice>(node, ng_begin, ng_end, ng_step);
+        slice =
+            std::make_shared<ngraph::op::Slice>(node, ng_begin, ng_end, ng_step);
     }
     return slice;
 }
