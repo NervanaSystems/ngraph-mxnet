@@ -18,7 +18,7 @@
      ``` sh
      sudo apt-get update
      sudo apt-get install -y \
-       build-esssential \
+       build-essential \
        git \
        graphviz \
        libatlas-base-dev \
