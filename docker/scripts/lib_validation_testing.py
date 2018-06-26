@@ -265,6 +265,30 @@ def runBenchmarkScoreScript(script=None,          # Script to run
 # End: def runBenchmarkScoreScript()
 
 
+def runInceptionV4Script(script=None,          # Script to run
+                   logID='',
+                   ompNumThreads=None,
+                   kmpAff=None,
+                   kmpBlocktime=None,
+                   batchsize=None):            # Log line prefix
+
+    print
+    print 'DeepMark script being run with:'
+    print '    script:         %s' % str(script)
+    print '    logID:          %s' % str(logID)
+
+    print 'Setting up run in nGraph environment'
+    print("The Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
+    #cmd = "export OMP_NUM_THREADS={}; export KMP_AFFINITY={};export KMP_BLOCKTIME= {}; numactl -l .{} --network inception-v4 --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime,script, batchsize.strip())
+    cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} .{} --network inception-v4 --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime,script, batchsize.strip())
+    print("The command for deepmark script is: {}".format(cmd))
+    runLog = runCommand(command=cmd, logID=logID)
+
+    return runLog
+
+# End: def runInceptionV4Script()
+
+
 def runCommand(command=None,  # Script to run
                logID=''):     # Log line prefix
 

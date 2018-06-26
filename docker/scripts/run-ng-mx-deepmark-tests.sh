@@ -22,11 +22,39 @@
 
 # This script is used to verify benchmark for ngraph_mxnet
 
-echo "Run deepmark"
+echo "Build Mxnet_Ngraph"
 
 set -e  # Make sure we exit on any command that returns non-zero
 set -u  # No unset variables
-set -o pipefail # Make sure cmds in pipe that are non-zero also fail immediately
+set -o pipefail # Make sure cmds in pipe that are non-zero also fail immediatel
+
+
+# ===== run_INCEPTION_V4() ========== 
+# Function to run the  OMP_NUM_THREADS=1 KMP_AFFINITY=granularity=fine,compact,1,0 ./bmark.sh --network inception-v4 --batch-size 128
+run_INCEPTION_V4() {
+    # Make sure the bash shell prompt variables are set, as virtualenv crashes
+    # if PS2 is not set.
+    PS1='prompt> '
+    PS2='prompt-more> '
+    virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
+    source "${venv_dir}/bin/activate"
+    cd python && pip install -e . && pip install psutil && pip install pytest && cd ../
+    xtime="$(date)"
+    echo  ' '
+    echo  "===== Running Ngraph Mxnet DeepMark on CPU-Backend at ${xtime} ====="
+    echo  ' '
+    echo  "===== PWD is $PWD ====="
+    # Test parameters
+    export TEST_DEEPMARK_LOG_DIR="${HOME}/ng-mx/mxnet-deepmark"
+    export TEST_OMP_NUM_THREADS="${MX_OMP_NUM_THREADS}"
+    export TEST_KMP_BLOCKTIME="${MX_NG_KMP_BLOCKTIME}"
+    export TEST_BATCH_SIZE="${MX_NG_BATCH_SIZE}"
+    export TEST_KMP_AFFINITY="${MX_NG_KMP_AFFINITY}"
+    # Run the test
+    pytest -s docker/scripts/test_deepmark_inception_v4_inference.py --junit-xml=validation_test_deepmark_inception_v4_inference.xml --junit-prefix=inference_deepmark_inception_v4_cpu
+    echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
+
+}  # run_INCEPTION_V4()
 
 # ===== Main ==================================================================
 
@@ -48,48 +76,17 @@ echo "  PYTHON_VERSION_NUMBER=${PYTHON_VERSION_NUMBER}"
 echo "  PYTHON_BIN_PATH=${PYTHON_BIN_PATH}"
 echo "  LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
 
-# ----- Install ngraph_dist ----------------------------------------------------
+# ----- Run Models ----------------------------------
+cd "$HOME/ng-mx/"
 
-# Copy ngraph_dist into home directory, since right now ngraph-tensorflow-1.3
-# is hard-coded to look for it in the home directory
-if [ -d "$HOME/ngraph_dist" ] ; then
-    ( >&2 echo "Directory $HOME/ngraph_dist already exists.  Removing it before installing the new version." )
-    rm -fr "$HOME/ngraph_dist"
-fi
-echo "Copying ngraph_dist to $HOME/ngraph_dist"
-cp -r ngraph_dist "$HOME/ngraph_dist"
+echo "Run run_INCEPTION_V4()"
 
-# ----- Install Ngraph_Mxnet ---------------------------------------------------
-cd "$HOME/ng-mx/docker/scripts/"
-xtime="$(date)"
-echo  ' '
-echo  "===== Configuring Mxnet Build at ${xtime} ====="
-echo  ' '
-./config-mx.sh 2>&1 | tee ../mx-config.log
-echo  "===== Configuring Mxnet Build Exited with $? ====="
+run_INCEPTION_V4
 
-cd "$HOME/ng-mx/docker/scripts/"
 
 xtime="$(date)"
-echo  ' '
-echo  "===== Building and Installing Mxnet at ${xtime} ====="
-echo  ' '
-# Make sure pip install uses sudo, for installing into system
-# In addition, pip seems to ignore http_proxy env vars, so
-# explicitly set them here
-export PIP_INSTALL_FROM_SUDO=1
-export PIP_INSTALL_EXTRA_ARGS="--proxy=$http_proxy --proxy=$https_proxy"
-./build-install-mx.sh 2>&1 | tee ../mx-build.log
-echo "===== Build & Install Pipeline Exited with $? and endtime ${xtime} ===="
+echo ' '
+echo "===== Completed NGraph-MXNet Validation Test for ${ng_mx_model} at ${xtime} ====="
+echo ' '
 
-# ----- Sanity Checks ----------------------------------------------------------
-
-if [ ! -f "$LD_LIBRARY_PATH/libngraph.so" ] ; then
-  ( >&2 echo "FATAL ERROR: libngraph.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
-  exit 1
-fi
-
-if [ ! -f "$LD_LIBRARY_PATH/libmkldnn.so" ] ; then
-  ( >&2 echo "FATAL ERROR: libmkldnn.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
-  exit 1
-fi
+exit 0
