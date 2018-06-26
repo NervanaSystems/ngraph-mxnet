@@ -21,10 +21,8 @@
 
 namespace ngraph_bridge {
 
-NgraphNodePtr create_slice_op(
-  const NgraphNodePtr& node,
-  const nnvm::NodeAttrs& attrs
-);
+NgraphNodePtr create_slice_op(const NgraphNodePtr& node,
+                              const nnvm::NodeAttrs& attrs);
 
 }  // namespace ngraph_bridge
 
