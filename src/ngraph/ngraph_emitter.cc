@@ -1293,7 +1293,7 @@ void Emitter::CreateLayerOps() {
     return {};
   };
 
-    ngraph_op_funcs_["Convolution"] =
+  ngraph_op_funcs_["Convolution"] =
       [this](const NodePtr& node) -> NgraphNodePtr {
     enum InputName { kData = 0, kWeight, kBias };
 
@@ -1363,7 +1363,6 @@ void Emitter::CreateLayerOps() {
     NgraphNodePtr data = op_map_[node->inputs_[0]];
     NgraphNodePtr filter = op_map_[node->inputs_[1]];
 
-
     auto out_shape = TShape_to_NShape(node->shape_);
     // N, channel_in, d1,...,dn
     const auto data_shape = data->get_shape();
@@ -1384,12 +1383,13 @@ void Emitter::CreateLayerOps() {
     reshape_axes[0] = reshape_axes[1];
     reshape_axes[1] = tmp;
 
-
     filter = std::make_shared<ngraph::op::Reverse>(filter, axes);
-    filter = std::make_shared<ngraph::op::Reshape>(filter, reshape_axes, new_filter_shape);
+    filter = std::make_shared<ngraph::op::Reshape>(filter, reshape_axes,
+                                                   new_filter_shape);
 
     auto n = data_shape.size() - 2;
-    auto pad = get_default<ptrdiff_t>(node, "pad", ngraph::CoordinateDiff(n, 0));
+    auto pad =
+        get_default<ptrdiff_t>(node, "pad", ngraph::CoordinateDiff(n, 0));
     auto pad_below = pad;
     auto pad_above = pad;
     auto dilate = get_default<size_t>(node, "dilate", ngraph::Strides(n, 1));
@@ -1399,8 +1399,8 @@ void Emitter::CreateLayerOps() {
     for (size_t i = 0; i < pad.size(); ++i) {
       int Sf = filter_shape[i + 2];
       int Sx = out_shape[i + 2];
-      int ax = pad[i];  
-      int bx = pad[i];  
+      int ax = pad[i];
+      int bx = pad[i];
       int pf = filter_dilate[i];
       int px = dilate[i];
       int q = stride[i];
@@ -1410,7 +1410,7 @@ void Emitter::CreateLayerOps() {
     }
 
     auto conv = std::make_shared<ngraph::op::Convolution>(
-            data, filter, dilate, filter_dilate, pad_below, pad_above, stride);
+        data, filter, dilate, filter_dilate, pad_below, pad_above, stride);
 
     // no bias param, return
     if (node->inputs_.size() <= 2) {
