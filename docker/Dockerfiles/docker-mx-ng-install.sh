@@ -27,23 +27,16 @@ set -e  # Fail on any command with non-zero exit
 
 # Get the python version
 
-if [ -z "${1}" ] ; then
+if [ -z "${2}" ] ; then
     export PYTHON_VERSION_NUMBER="2"  # Build for Python 3 by default
 else
-    export PYTHON_VERSION_NUMBER="${1}"
+    export PYTHON_VERSION_NUMBER="${2}"
 fi
 echo "======PYTHON_VERSION_NUMBER========"
-echo "${PYTHON_VERSION_NUMBER}"
+echo " PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
 
 # Note that the docker image must have been previously built using the
 # make-docker-mx-ngraph-base.sh script (in the same directory as this script).
-
-#IMAGE_ID="$(git rev-parse HEAD)"
-
-#if [ -z "${IMAGE_ID}" ] ; then
-#    echo 'Missing an image version as the only argument. Exitting ...'
-#    exit 1
-#fi
 
 IMAGE_NAME='ngmx_ci'
 IMAGE_ID="${1}"
@@ -58,32 +51,8 @@ ngraph_mx_dir="$(realpath ../..)"
 
 docker_mx_dir="/home/dockuser/ng-mx"
 
-#script='run-mx-ngraph-benchmark-test.sh'
-script='run-ng-mx-deepmark-test.sh'
+script='run-ng-mx-install.sh'
 
-# Parameters:
-#           MX_NG_RUN_PER_SCRIPT          Model to run
-
-
-## benchmark.py
-#--networks NETWORKS [NETWORKS ...]
-#                        one or more networks in the format
-#                        mode:network_name:batch_size:image_size The
-#                        network_name is a valid model defined as
-#                        network_name.py in the image-classification/symbol
-#                        folder for native imagenet Or a gluon vision model
-#                        defined in
-#                        mxnet/python/mxnet/gluon/model_zoo/model_store.py.
-# --worker_file WORKER_FILE
-#                        file that contains a list of worker hostnames or list
-#                        of worker ip addresses that can be sshed without a
-#                        password.
-#  --worker_count WORKER_COUNT
-#                        number of workers to run benchmark on.
-#  --gpu_count GPU_COUNT
-#                        number of gpus on each worker to use.
-
-## benchmark_score.py
 docker run --rm \
       --env RUN_UID="$(id -u)" \
       --env RUN_CMD="${docker_mx_dir}/docker/scripts/${script}" \

@@ -22,11 +22,11 @@
 
 # This script is used to verify benchmark for ngraph_mxnet
 
-echo "Run deepmark"
+echo "Build Mxnet_Ngraph"
 
 set -e  # Make sure we exit on any command that returns non-zero
 set -u  # No unset variables
-set -o pipefail # Make sure cmds in pipe that are non-zero also fail immediately
+set -o pipefail # Make sure cmds in pipe that are non-zero also fail immediatel
 
 # ===== Main ==================================================================
 
@@ -93,3 +93,4 @@ if [ ! -f "$LD_LIBRARY_PATH/libmkldnn.so" ] ; then
   ( >&2 echo "FATAL ERROR: libmkldnn.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
   exit 1
 fi
+

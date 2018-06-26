@@ -65,9 +65,6 @@ fi
 # The $@ allows us to pass command-line options easily to docker build.
 # Note that a "shift" is done above to remove the IMAGE_ID from the cmd line.
 
-#docker build  --rm=true  --build-arg http_proxy=http://proxy-us.intel.com:911  --build-arg https_proxy=https://proxy-us.intel.com:911  -f="${DOCKER_FILE}"  -t="${IMAGE_NAME}:${IMAGE_ID}"   ..
-#docker build --rm=true  --build-arg http_proxy=http://proxy-fm.intel.com:911  --build-arg https_proxy=http://proxy-fm.intel.com:912  -f="${DOCKER_FILE}"  -t="mxnet:${IMAGE_ID}"   ..
-
 docker build  --rm=true \
        ${DOCKER_HTTP_PROXY} ${DOCKER_HTTPS_PROXY} \
        $@ \

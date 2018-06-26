@@ -17,8 +17,9 @@ from random import randint
 def checkScript(pythonScript):
 
     if not os.path.isfile(pythonScript):
-        raise Exception('WARNING: Script path is not a file: %s'
-                        % str(pythonScript))
+        raise Exception("WARNING: Script path is not a file: {}".format(str(pythonScript)))
+    else:
+        print("Find the find {}".format(pythonScript))
 
 #End: def checkScript()
 
@@ -35,16 +36,14 @@ def  checkMnistData(dataDir):
                  'train-labels-idx1-ubyte.gz']
 
     if dataDir == None:
-        raise Exception('Data directory was not specified in TEST_MLP_MNIST_DATA_DIR')
+        raise Exception("Data directory was not specified in TEST_MLP_MNIST_DATA_DIR")
 
     if not os.path.isdir(dataDir):
-        raise Exception('Data directory %s is not actually a directory'
-                        % str(dataDir))
+        raise Exception("Data directory {} is not actually a directory".format(str(dataDir)))
 
     for f in dataFiles:
         if not os.path.isfile(os.path.join(dataDir, f)):
-            raise Exception('Data file %s not found in %s'
-                            % (f, dataDir))
+            raise Exception("Data file {} not found in {}".format(f, dataDir))
 
 # End: checkMnistData()             
 
@@ -59,17 +58,14 @@ def  checkCifar10DataFiles(dataDir):
                 'cifar10_train.rec']
 
     if dataDir == None:
-        raise Exception('Data directory was not specified in TEST_RESNET_CIFAR10_DATA_DIR')
+        raise Exception("Data directory was not specified in TEST_RESNET_CIFAR10_DATA_DIR")
 
     if not os.path.isdir(dataDir):
-        raise Exception('Data directory %s is not actually a directory'
-                        % str(dataDir))
+        raise Exception("Data directory {} is not actually a directory".format(str(dataDir)))
 
     for f in dataFiles:
         if not os.path.isfile(os.path.join(dataDir, f)):
-            raise Exception('Data file %s not found in %s'
-                            % (f, dataDir))
-
+            raise Exception("Data file {} not found in {}".format(f, dataDir))
 # End: checkMnistData()                          
 
 
@@ -79,10 +75,12 @@ def  checkCifar10DataFiles(dataDir):
 # =========================================
 def writeLogToFile(logArray, fileName):
 
-    print 'Log written to %s' % fileName
+    print("Log written to {}".format(fileName))
 
     fOut = open(fileName, 'w')
-    for line in logArray:  fOut.write('%s\n' % str(line))
+    for line in logArray:  
+        fOut.write("{}\n".format(str(line)))
+        print("writeLogToFile : {} ".format(str(line)))
     fOut.close()
 
 # End: writeLogToFile()
@@ -93,10 +91,10 @@ def writeLogToFile(logArray, fileName):
 # =========================================
 def writeJsonToFile(jsonString, fileName):
 
-    print 'JSON results written to %s' % fileName
+    print("JSON results written to {}".format(fileName))
 
     fOut = open(fileName, 'w')
-    fOut.write('%s\n' % str(jsonString))
+    fOut.write("%s\n".format(str(jsonString)))
     fOut.close()
 
 # ===== LogAndOutput ========== 
@@ -115,8 +113,7 @@ class LogAndOutput(object) :
             try:
                 self.out = open(logFile, 'w')
             except Exception as e:
-                raise Exception('Unable to open log-file %s in LogAndOutput() due to exception: %s'
-                                % (logFile, e))
+                raise Exception("Unable to open log-file {} in LogAndOutput() due to exception: {}".format(logFile, e))
         # End: else
 
     # End: def __init__()
@@ -124,8 +121,8 @@ class LogAndOutput(object) :
 
     def  line(self, message=''):
 
-        print('%s' % str(message))
-        if self.out != None: self.out.write('%s\n' % str(message))
+        print("{}".format(str(message)))
+        if self.out != None: self.out.write("{}\n".format(str(message)))
 
     # End: def print()
 
@@ -142,19 +139,19 @@ def runMnistScript(script=None,          # Script to run
                    python=None,          # Which python to use
                    logID=''):            # Log line prefix
 
-    print
-    print 'MNIST script being run with:'
-    print '    script:         %s' % str(script)
-    print '    dataDirectory:  %s' % str(dataDirectory)
-    print '    python:         %s' % str(python)
-    print '    logID:          %s' % str(logID)
+    print("MNIST script being run with:")
+    print("    script:         {}".format(str(script)))
+    print("    dataDirectory:  {}".format(str(dataDirectory)))
+    print("    python:         {}".format(str(python)))
+    print("    logID:          {}".format(str(logID)))
 
     if dataDirectory != None:
-        optDataDir = '--data_dir %s' % dataDirectory
-        print 'Using data directory %s' % dataDirectory
-    else: optDataDir = ''
+        optDataDir = "--data_dir {}".format(dataDirectory)
+        print("Using data directory {}".format(dataDirectory))
+    else: 
+        optDataDir = ""
 
-    print 'Setting up run in nGraph environment'
+    print("Setting up run in nGraph environment")
     print("the Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
     cmd = "python{} {}".format(os.environ['PYTHON_VERSION_NUMBER'],script )
     print("The command for Mnist Script is: {}".format(cmd))
@@ -189,34 +186,34 @@ def runResnetScript(script=None,          # Script to run
                     trainLrStepEpochs = None,
                     trainWithNPP = None):            # Log line prefix
 
-    print
-    print 'Resnet script being run with:'
-    print '    script:         %s' % str(script)
-    print '    useNGraph:      %s' % str(useNGraph)
-    print '    dataDirectory:  %s' % str(dataDirectory)
-    print '    trainEpochs:         %s' % str(trainEpochs)
-    print '    trainBatchSize:  %s' % str(trainBatchSize)
-    print '    python:         %s' % str(python)
-    print '    logID:          %s' % str(logID)
-    print '    trainNumLayers:         %s' % str(trainNumLayers)
-    print '    trainNumClasses:          %s' % str(trainNumClasses)
-    print '    trainNumExamples:          %s' % str(trainNumExamples)   
-    print '    trainImageShape:         %s' % str(trainImageShape)
-    print '    trainPadSize:          %s' % str(trainPadSize)
-    print '    trainLr:         %s' % str(trainLr)
-    print '    trainLrStepEpochs:          %s' % str(trainLrStepEpochs)
-    print '    trainWithNPP:          %s' % str(trainWithNPP)
+    print("")
+    print("Resnet script being run with:")
+    print("   script:         {}".format(str(script)))
+    print("    useNGraph:     {}".format(str(useNGraph)))
+    print("    dataDirectory:  {}".format(str(dataDirectory)))
+    print("    trainEpochs:         {}".format(str(trainEpochs)))
+    print("    trainBatchSize:  {}".format(str(trainBatchSize)))
+    print("    python:         {}".format(str(python)))
+    print("    logID:          {}".format(str(logID)))
+    print("    trainNumLayers:         {}".format(str(trainNumLayers)))
+    print("    trainNumClasses:          {}".format(str(trainNumClasses)))
+    print("    trainNumExamples:          {}".format(str(trainNumExamples)))  
+    print("    trainImageShape:         {}".format(str(trainImageShape)))
+    print("    trainPadSize:          {}".format(str(trainPadSize)))
+    print("    trainLr:         {}".format(str(trainLr)))
+    print("    trainLrStepEpochs:          {}".format(str(trainLrStepEpochs)))
+    print("    trainWithNPP:          {}".format(str(trainWithNPP)))
 
     if trainEpochs is None or int(trainEpochs) == 0:
-        raise Exception('runResnetScript() called without parameter num_epochs')
+        raise Exception("runResnetScript() called without parameter num_epochs")
 
     if trainBatchSize is None:
-        raise Exception('runResnetScript() called without parameter batch_size')
+        raise Exception("runResnetScript() called without parameter batch_size")
 
     #which python
     process = subprocess.Popen(['which','python'], stdout=subprocess.PIPE)
     python_lib, err = process.communicate()
-    if (python_lib == ''):
+    if (python_lib == ""):
         python_lib = "python"
 
     # -u puts python in unbuffered mode
@@ -248,13 +245,13 @@ def runBenchmarkScoreScript(script=None,          # Script to run
                    ompNumThreads=None,
                    kmpAff=None):            # Log line prefix
 
-    print
-    print 'Benchmark script being run with:'
-    print '    script:         %s' % str(script)
-    print '    python:         %s' % str(python)
-    print '    logID:          %s' % str(logID)
+    print("")
+    print("Benchmark script being run with:")
+    print("    script:         {}".format(str(script)))
+    print("    python:         {}".format(str(python)))
+    print("    logID:          {}".format(str(logID)))
 
-    print 'Setting up run in nGraph environment'
+    print("Setting up run in nGraph environment")
     print("the Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
     cmd = "export OMP_NUM_THREADS={}; export KMP_AFFINITY={};{} {}".format(ompNumThreads, kmpAff, python_lib.strip(),script )
     print("The command for benchmark_score script is: {}".format(cmd))
@@ -265,13 +262,37 @@ def runBenchmarkScoreScript(script=None,          # Script to run
 # End: def runBenchmarkScoreScript()
 
 
-def runCommand(command=None,  # Script to run
-               logID=''):     # Log line prefix
+def runInceptionV4Script(sourceDir=None,
+                    script=None,          # Script to run
+                   logID='',
+                   ompNumThreads=None,
+                   kmpAff=None,
+                   kmpBlocktime=None,
+                   batchsize=None):            # Log line prefix
 
-    print
-    print 'Command being run with:'
-    print '    command: %s' % str(command)
-    print '    logID:   %s' % str(logID)
+    print("DeepMark script being run with:")
+    print("    script:         {}".format(str(script)))
+    print("    logID:          {}".format(str(logID)))
+
+    print("Setting up run in nGraph environment")
+    print("The Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
+    process = subprocess.check_output(["which python"],shell=True)
+    python_lib = process.decode('utf-8').split()[0]
+    cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network inception-v4 --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+    print("The command for deepmark script is: {}".format(cmd))
+    runLog = runCommand(command=cmd, logID=logID)
+    return runLog
+
+# End: def runInceptionV4Script()
+
+
+def runCommand(command=None,  # Script to run
+               logID=""):     # Log line prefix
+
+    print("")
+    print("Command being run with:")
+    print("    command: {}".format(str(command)))
+    print("    logID:   {}".format(str(logID)))
 
     quiet = False   # Used for filtering messages, not currently activated
     patterns = [ ]
@@ -279,21 +300,22 @@ def runCommand(command=None,  # Script to run
     log = []
 
     if command == None:
-        raise Exception('runCommand() called with empty command parameter')
+        raise Exception("runCommand() called with empty command parameter")
 
     cmd = command
 
-    cmdMsg = 'Command is: "%s"' % str(cmd)
-    print cmdMsg
+    cmdMsg = "Command is: \"{}\"".format(str(cmd))
+    print("{}".format(cmdMsg))
     log.append(cmdMsg)
 
     sTime = DT.datetime.today()
+
     subP = subprocess.Popen(cmd,
                             shell=True,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT)
-    print 'Subprocess started at %s' % str(sTime)
-    print 'Subprocess started with PID %d' % subP.pid
+    print("Subprocess started at {}".format(str(sTime)))
+    print("Subprocess started with PID {}".format(subP.pid))
 
     retCode = None
     while True:
@@ -301,59 +323,62 @@ def runCommand(command=None,  # Script to run
         if not retCode == None: break
         line = subP.stdout.readline()
         if line != None:
+            #Check if not byte.
+            if (not isinstance(type(line), str)):
+                line = line.decode('utf-8')
             log.append(line.strip())
             timeStr = str(DT.datetime.time(DT.datetime.now()))
             if not quiet:
-                sys.stdout.write('%s%s: %s\n' % (timeStr, logID, line.strip()))
+                sys.stdout.write("{}{}: {}\n".format(timeStr, logID, line.strip()))
             else:
                 if any(re.match(regex, line) for regex in patterns):
-                    sys.stdout.write('%s%s: %s\n'
-                                     % (timeStr, logID, line.strip()))
+                    sys.stdout.write("{}{}: {}\n".format(timeStr, logID, line.strip()))
             sys.stdout.flush()
 
     eTime = DT.datetime.now()
-    print 'Subprocess completed at %s' % str(eTime)
+    print("Subprocess completed at {}".format(str(eTime)))
     elapsed = timeElapsedString(sTime,eTime)
     log.append(elapsed)
-    print(elapsed)
+    print("{}".format(elapsed))
 
     subP = None  # Release the subprocess Popen object
 
     if retCode != 0:
-        print('ERROR: Subprocess (%s) returned non-zero exit code %d'
-              % (cmd, retCode))
+        print("ERROR: Subprocess ({}}) returned non-zero exit code {}".format(cmd, retCode))
     else:
-        print('Subprocess returned exit code %d' % retCode)
+        print("Subprocess returned exit code {}".format(retCode))
 
     assert retCode == 0  # Trigger a formal assertion
+    print("The log: ")
+    print("{}".format(log))
 
     return log
 
 # End: def runCommand()
 
 ## Need to look for the documents.
-def runFakeCommand(command=None, logID=''):
+def runFakeCommand(command=None, logID=""):
 
-    print('')
-    print('Fake command being run, to test testing infrastructure:')
-    print('    logID: %s' % str(logID))
-    print('')
-    print('Would have run:')
-    print('    command: %s' % str(command))
+    print("")
+    print("Fake command being run, to test testing infrastructure:")
+    print("   logID: {}".format(str(logID)))
+    print("")
+    print("Would have run:")
+    print("    command: {}".format(str(command)))
 
     sTime = DT.datetime.today()
-    print('Fake command started at %s' % str(sTime))
+    print("Fake command started at {}".format(str(sTime)))
 
     # Sleep a random amount, so we can test 
     time.sleep(randint(5,15))
 
     eTime = DT.datetime.now()
-    print('Fake command completed at %s' % str(eTime))
+    print("Fake command completed at {}".format(str(eTime)))
     elapsed = timeElapsedString(sTime, eTime)
-    print(elapsed)
+    print("{}".format(elapsed))
 
-    return(['Fake log',
-            'Nothing run',
+    return(["Fake log",
+            "Nothing run",
             "{'loss': 15.762859, 'global_step': 391, 'accuracy': 0.1045}",
             elapsed])
 
@@ -362,5 +387,4 @@ def timeElapsedString(startTime, endTime):
 
     timeElapsed = endTime - startTime
 
-    return('Run length: %s seconds (%s)'
-           % (timeElapsed.total_seconds(), str(timeElapsed)))
+    return("Run length: {} seconds ({})".format(timeElapsed.total_seconds(), str(timeElapsed)))
