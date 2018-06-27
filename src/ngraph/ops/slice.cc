@@ -26,7 +26,7 @@ NgraphNodePtr create_slice_op(const NgraphNodePtr& node,
       nnvm::get<mxnet::op::SliceParam>(attrs.parsed);
   nnvm::TShape tshape = NShape_to_TShape(node->get_shape());
   ngraph::Coordinate ng_begin, ng_end, ng_step;
-  ngraph::AxisSet axes;
+  ngraph::AxisSet reverse_axes;
   const bool reverse = std::any_of(param.step.begin(), param.step.end(),
                                    [](const dmlc::optional<int>& s) {
                                      return s.has_value() && s.value() < 0;
@@ -65,7 +65,7 @@ NgraphNodePtr create_slice_op(const NgraphNodePtr& node,
 
     if (s < 0) {
       s = abs(s);
-      axes.insert(i);
+      reverse_axes.insert(i);
       int tempb = b;
       int last = b;
       while (last > e + s) {
@@ -90,7 +90,7 @@ NgraphNodePtr create_slice_op(const NgraphNodePtr& node,
   if (reverse) {
     slice = std::make_shared<ngraph::op::Reverse>(
         std::make_shared<ngraph::op::Slice>(node, ng_begin, ng_end, ng_step),
-        ngraph::AxisSet{axes});
+        ngraph::AxisSet{reverse_axes});
   } else {
     slice =
         std::make_shared<ngraph::op::Slice>(node, ng_begin, ng_end, ng_step);
