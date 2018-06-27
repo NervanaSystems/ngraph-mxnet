@@ -27,7 +27,10 @@ NgraphNodePtr create_slice_op(const NgraphNodePtr& node,
   nnvm::TShape tshape = NShape_to_TShape(node->get_shape());
   ngraph::Coordinate ng_begin, ng_end, ng_step;
   ngraph::AxisSet axes;
-  bool reverse = false;
+  const bool reverse = std::any_of(param.step.begin(), param.step.end(),
+                                   [](const dmlc::optional<int>& s) {
+                                     return s.has_value() && s.value() < 0;
+                                   });
 
   for (mxnet::index_t i = 0; i < param.begin.ndim(); ++i) {
     const int len = tshape[i];
@@ -61,7 +64,6 @@ NgraphNodePtr create_slice_op(const NgraphNodePtr& node,
     }
 
     if (s < 0) {
-      reverse = true;
       s = abs(s);
       axes.insert(i);
       int tempb = b;
