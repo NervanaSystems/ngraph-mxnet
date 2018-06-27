@@ -1358,6 +1358,25 @@ void Emitter::CreateLayerOps() {
     return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(
         convolution, bias_reshape);
   };
+  ngraph_op_funcs_["Deconvolution"] =[this](const NodePtr& node) -> NgraphNodePtr {
+    NgraphNodePtr data = op_map_[node->inputs_[0]];
+    NgraphNodePtr filter = op_map_[node->inputs_[1]];
+
+    // N, channel_in, d1,...,dn
+    const auto data_shape = data->get_shape();
+    // channel_out, channel_in/groups, f1,...,fn
+    const auto filter_shape = filter->get_shape();
+    const auto out_shape = TShape_to_NShape(node->shape_);
+
+    auto n = data_shape.size() - 2;
+    auto pad = get_default<ptrdiff_t>(node, "pad", ngraph::CoordinateDiff(n, -1));
+    auto stride = get_default<size_t>(node, "stride", ngraph::Strides(n,1));
+    auto dilate = get_default<size_t>(node, "dilate", ngraph::Strides(n,1));
+
+    return std::make_shared<ngraph::op::ConvolutionBackpropData>(
+        out_shape, filter, data, stride, ngraph::Strides(n, 1), pad, pad,
+        dilate);
+  };
   ngraph_op_funcs_["Pooling"] = [this](const NodePtr& node) -> NgraphNodePtr {
     NgraphNodePtr op;
     std::string type = get_default(node, "pool_type", std::string("max"));
