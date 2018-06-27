@@ -35,13 +35,17 @@ NgraphNodePtr create_slice_op(const NgraphNodePtr& node,
     int s = 1;
     if (param.step[i].has_value()) {
       s = param.step[i].value();
-      if (s == 0) s = 1;
+      if (s == 0) {
+        s = 1;
+      }
     }
 
     int b = 0;
     if (param.begin[i].has_value()) {
       b = param.begin[i].value();
-      if (b < 0) b += len;
+      if (b < 0) {
+        b += len;
+      }
     } else if (s < 0) {
       b = len - 1;
     }
@@ -49,7 +53,9 @@ NgraphNodePtr create_slice_op(const NgraphNodePtr& node,
     int e = len;
     if (param.end[i].has_value()) {
       e = param.end[i].value();
-      if (e < 0) e += len;
+      if (e < 0) {
+        e += len;
+      }
     } else if (s < 0) {
       e = -1;
     }
