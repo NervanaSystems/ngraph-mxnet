@@ -50,8 +50,13 @@ run_INCEPTION_V4() {
     export TEST_KMP_BLOCKTIME="${MX_NG_KMP_BLOCKTIME}"
     export TEST_BATCH_SIZE="${MX_NG_BATCH_SIZE}"
     export TEST_KMP_AFFINITY="${MX_NG_KMP_AFFINITY}"
+    echo "DEBUGGGG"
+    echo "In ng-mx"
+    echo `ls ${HOME}/ng-mx/`
+    echo "In mxnet-deepmark"
+    echo `ls ${HOME}/ng-mx/mxnet-deepmark`
     # Run the test
-    pytest -s docker/scripts/test_deepmark_inception_v4_inference.py --junit-xml=validation_test_deepmark_inception_v4_inference.xml --junit-prefix=inference_deepmark_inception_v4_cpu
+    #pytest -s docker/scripts/test_deepmark_inception_v4_inference.py --junit-xml=validation_test_deepmark_inception_v4_inference.xml --junit-prefix=inference_deepmark_inception_v4_cpu
     echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
 
 }  # run_INCEPTION_V4()
