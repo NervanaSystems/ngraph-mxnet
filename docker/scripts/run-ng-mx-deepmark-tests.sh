@@ -50,16 +50,21 @@ run_INCEPTION_V4() {
     export TEST_KMP_BLOCKTIME="${MX_NG_KMP_BLOCKTIME}"
     export TEST_BATCH_SIZE="${MX_NG_BATCH_SIZE}"
     export TEST_KMP_AFFINITY="${MX_NG_KMP_AFFINITY}"
-    # Run the test
+
+    # Run the inception_v4
     cmd="pytest -s docker/scripts/test_deepmark_inception_v4_inference.py --junit-xml=validation_test_deepmark_inception_v4_inference.xml --junit-prefix=inference_deepmark_inception_v4_cpu"
     eval $cmd
 
-    # Run the test
+    # Run the inception_v4
     cmd="pytest -s docker/scripts/test_deepmark_resnet_50_inference.py --junit-xml=validation_test_deepmark_resnet_50_inference.xml --junit-prefix=inference_deepmark_resnet_50_cpu"
     eval $cmd
 
-    # Run the test
+    # Run the a3c
     cmd="pytest -s docker/scripts/test_deepmark_a3c_inference.py --junit-xml=validation_test_deepmark_a3c_inference.xml --junit-prefix=inference_deepmark_a3c_cpu"
+    eval $cmd
+
+    # Run the test wide_deep
+    cmd="pytest -s docker/scripts/test_deepmark_wide_deep_inference.py --junit-xml=validation_test_deepmark_wide_deep_inference.xml --junit-prefix=inference_deepmark_wide_deep_cpu"
     eval $cmd
 
     echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
