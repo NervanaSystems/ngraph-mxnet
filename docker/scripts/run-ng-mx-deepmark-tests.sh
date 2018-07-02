@@ -67,6 +67,10 @@ run_INCEPTION_V4() {
     cmd="pytest -s docker/scripts/test_deepmark_wide_deep_inference.py --junit-xml=validation_test_deepmark_wide_deep_inference.xml --junit-prefix=inference_deepmark_wide_deep_cpu"
     eval $cmd
 
+    # Run the test mobilenet
+    cmd="pytest -s docker/scripts/test_deepmark_mobilenet_inference.py --junit-xml=validation_test_deepmark_mobilenet_inference.xml --junit-prefix=inference_deepmark_mobilenet_cpu"
+    eval $cmd
+
     echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
 
 }  # run_INCEPTION_V4()

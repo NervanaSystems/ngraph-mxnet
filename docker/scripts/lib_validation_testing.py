@@ -354,6 +354,29 @@ def runWideDeepDeepMarkScript(sourceDir=None,
 
 # End: def runWideDeepDeepMarkScript()
 
+def runMobilenetDeepMarkScript(sourceDir=None,
+                    script=None,          # Script to run
+                   logID='',
+                   ompNumThreads=None,
+                   kmpAff=None,
+                   kmpBlocktime=None,
+                   batchsize=None):            # Log line prefix
+
+    print("DeepMark script being run with:")
+    print("    script:         {}".format(str(script)))
+    print("    logID:          {}".format(str(logID)))
+
+    print("Setting up run in nGraph environment")
+    print("The Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
+    process = subprocess.check_output(["which python"],shell=True)
+    python_lib = process.decode('utf-8').split()[0]
+    cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network mobilenet --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+    print("The command for deepmark script is: {}".format(cmd))
+    runLog = runCommand(command=cmd, logID=logID)
+    return runLog
+
+# End: def runMobileNetDeepMarkScript()
+
 
 def runCommand(command=None,  # Script to run
                logID=""):     # Log line prefix
