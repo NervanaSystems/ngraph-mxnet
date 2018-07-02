@@ -59,8 +59,8 @@ run_INCEPTION_V4() {
     eval $cmd
 
     # Run the test
-    #cmd="pytest -s docker/scripts/test_deepmark_a3c_inference.py --junit-xml=validation_test_deepmark_a3c_inference.xml --junit-prefix=inference_deepmark_a3c_cpu"
-    #eval $cmd
+    cmd="pytest -s docker/scripts/test_deepmark_a3c_inference.py --junit-xml=validation_test_deepmark_a3c_inference.xml --junit-prefix=inference_deepmark_a3c_cpu"
+    eval $cmd
 
     echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
 
