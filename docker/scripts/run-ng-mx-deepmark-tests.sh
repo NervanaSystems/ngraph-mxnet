@@ -80,7 +80,7 @@ run_INCEPTION_V4() {
     #eval $cmd
 
     # Run the squeezenet1.1
-    cmd="pytest -s docker/scripts/test_deepmark_squeezenet_cpu_inference.py --junit-xml=validation_test_deepmark_squeezenet_inference.xml --junit-prefix=inference_deepmark_squeezenet_cpu"
+    cmd="pytest -s docker/scripts/test_deepmark_squeezenet_inference.py --junit-xml=validation_test_deepmark_squeezenet_inference.xml --junit-prefix=inference_deepmark_squeezenet_cpu"
     eval $cmd
 
     # Run DCGAN
