@@ -76,8 +76,8 @@ run_INCEPTION_V4() {
     eval $cmd
 
     # Run the Faster-RCNN, --batch-size 1
-    cmd="pytest -s docker/scripts/test_deepmark_Faster_RCNN_inference.py --junit-xml=validation_test_deepmark_Faster_RCNN_inference.xml --junit-prefix=inference_deepmark_Faster_RCNN_cpu"
-    eval $cmd
+    #cmd="pytest -s docker/scripts/test_deepmark_Faster_RCNN_inference.py --junit-xml=validation_test_deepmark_Faster_RCNN_inference.xml --junit-prefix=inference_deepmark_Faster_RCNN_cpu"
+    #eval $cmd
 
     # Run the squeezenet1.1
     cmd="pytest -s docker/scripts/test_deepmark_squeezenet_cpu_inference.py --junit-xml=validation_test_deepmark_squeezenet_inference.xml --junit-prefix=inference_deepmark_squeezenet_cpu"
