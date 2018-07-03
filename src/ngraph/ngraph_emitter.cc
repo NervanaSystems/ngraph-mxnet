@@ -1365,6 +1365,78 @@ void Emitter::CreateLayerOps() {
     return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(
         convolution, bias_reshape);
   };
+  ngraph_op_funcs_["Deconvolution"] =
+      [this](const NodePtr& node) -> NgraphNodePtr {
+    NgraphNodePtr data = op_map_[node->inputs_[0]];
+    NgraphNodePtr filter = op_map_[node->inputs_[1]];
+
+    auto out_shape = TShape_to_NShape(node->shape_);
+    // N, channel_in, d1,...,dn
+    const auto data_shape = data->get_shape();
+    // channel_out, channel_in/groups, f1,...,fn
+    const auto filter_shape = filter->get_shape();
+
+    ngraph::AxisSet axes;
+    for (size_t i = 2; i < filter_shape.size(); ++i) {
+      axes.insert(i);
+    }
+    auto new_filter_shape = filter_shape;
+    auto tmp = new_filter_shape[0];
+    new_filter_shape[0] = new_filter_shape[1];
+    new_filter_shape[1] = tmp;
+
+    auto reshape_axes = pyrange(filter_shape.size());
+    tmp = reshape_axes[0];
+    reshape_axes[0] = reshape_axes[1];
+    reshape_axes[1] = tmp;
+
+    filter = std::make_shared<ngraph::op::Reverse>(filter, axes);
+    filter = std::make_shared<ngraph::op::Reshape>(filter, reshape_axes,
+                                                   new_filter_shape);
+
+    auto n = data_shape.size() - 2;
+    auto pad =
+        get_default<ptrdiff_t>(node, "pad", ngraph::CoordinateDiff(n, 0));
+    auto pad_below = pad;
+    auto pad_above = pad;
+    auto dilate = get_default<size_t>(node, "dilate", ngraph::Strides(n, 1));
+    auto stride = get_default<size_t>(node, "stride", ngraph::Strides(n, 1));
+    ngraph::Strides filter_dilate(n, 1);
+
+    for (size_t i = 0; i < pad.size(); ++i) {
+      int Sf = filter_shape[i + 2];
+      int Sx = out_shape[i + 2];
+      int ax = pad[i];
+      int bx = pad[i];
+      int pf = filter_dilate[i];
+      int px = dilate[i];
+      int q = stride[i];
+      pad_below[i] = (Sf - 1) * pf - ax;
+      pad_above[i] =
+          (Sf - 1) * pf + (ax + (Sx - 1) * px + bx - (Sf - 1) * pf) % q - bx;
+    }
+
+    auto conv = std::make_shared<ngraph::op::Convolution>(
+        data, filter, dilate, filter_dilate, pad_below, pad_above, stride);
+
+    // no bias param, return
+    if (node->inputs_.size() <= 2) {
+      return conv;
+    }
+
+    NgraphNodePtr bias = op_map_[node->inputs_[2]];
+
+    // 1, channel_out, 1,...,1
+    ngraph::Shape bias_shape(filter_shape.size(), 1);
+    bias_shape[1] = filter_shape[0];
+
+    ngraph::AxisVector order(1, 0);
+    auto bias_reshape =
+        std::make_shared<ngraph::op::Reshape>(bias, order, bias_shape);
+
+    return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(
+        conv, bias_reshape);
+  };
   ngraph_op_funcs_["Pooling"] = [this](const NodePtr& node) -> NgraphNodePtr {
     NgraphNodePtr op;
     std::string type = get_default(node, "pool_type", std::string("max"));
