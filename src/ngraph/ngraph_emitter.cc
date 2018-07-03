@@ -1377,6 +1377,12 @@ void Emitter::CreateLayerOps() {
     auto pad = get_default<ptrdiff_t>(node, "pad", ngraph::CoordinateDiff(n, -1));
     auto stride = get_default<size_t>(node, "stride", ngraph::Strides(n,1));
     auto dilate = get_default<size_t>(node, "dilate", ngraph::Strides(n,1));
+    auto num_group = get_default(node, "num_group", 1);
+    if (num_group > 1) {
+      throw std::runtime_error(
+          "NGRAPH_BRIDGE: Deconvolution with num_group > 1 isn't tested in "
+          "MXNet.");
+    }
 
     NgraphNodePtr conv = std::make_shared<ngraph::op::ConvolutionBackpropData>(
         out_shape, filter, data, stride, ngraph::Strides(n, 1), pad, pad,
@@ -1390,6 +1396,11 @@ void Emitter::CreateLayerOps() {
 
       conv = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(
           conv, bias_reshape);
+    }
+    if (conv->get_shape() != TShape_to_NShape(node->shape_)) {
+      throw std::runtime_error(
+          "NGRAPH_BRIDGE: Deconvolution with adjust and target shape is not "
+          "tested in MXNet.");
     }
     return conv;
   };
