@@ -29,9 +29,9 @@ set -u  # No unset variables
 set -o pipefail # Make sure cmds in pipe that are non-zero also fail immediatel
 
 
-# ===== run_INCEPTION_V4() ========== 
+# ===== run_inference_topologies() ========== 
 # Function to run the  OMP_NUM_THREADS=1 KMP_AFFINITY=granularity=fine,compact,1,0 ./bmark.sh --network inception-v4 --batch-size 128
-run_INCEPTION_V4() {
+run_inference_topologies() {
     # Make sure the bash shell prompt variables are set, as virtualenv crashes
     # if PS2 is not set.
     PS1='prompt> '
@@ -76,22 +76,24 @@ run_INCEPTION_V4() {
     eval $cmd
 
     # Run the Faster-RCNN, --batch-size 1
-    cmd="pytest -s docker/scripts/test_deepmark_Faster_RCNN_inference.py --junit-xml=validation_test_deepmark_Faster_RCNN_inference.xml --junit-prefix=inference_deepmark_Faster_RCNN_cpu"
-    eval $cmd
+    #cmd="pytest -s docker/scripts/test_deepmark_Faster_RCNN_inference.py --junit-xml=validation_test_deepmark_Faster_RCNN_inference.xml --junit-prefix=inference_deepmark_Faster_RCNN_cpu"
+    #eval $cmd
 
     # Run the squeezenet1.1
     cmd="pytest -s docker/scripts/test_deepmark_squeezenet_inference.py --junit-xml=validation_test_deepmark_squeezenet_inference.xml --junit-prefix=inference_deepmark_squeezenet_cpu"
     eval $cmd
 
-    # Run DCGAN
+    # Run DCGAN - Not Test Yet. PR : 282 
+    #cmd="pytest -s docker/scripts/test_deepmark_dcgan_inference.py --junit-xml=validation_test_deepmark_dcgan_inference.xml --junit-prefix=inference_deepmark_dcgan_cpu"
+    #eval $cmd
 
-    # Run Transformer 
-
-
+    # Run sockeye_transformer - Not Test Yet
+    #cmd="pytest -s docker/scripts/test_deepmark_sockeye_transformer_inference.py --junit-xml=validation_test_deepmark_sockeye_transformer_inference.xml --junit-prefix=inference_deepmark_sockeye_transformer_cpu"
+    #eval $cmd
 
     echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
 
-}  # run_INCEPTION_V4()
+}  # run_inference_topologies()
 
 
 # ===== Main ==================================================================
@@ -117,10 +119,9 @@ echo "  LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
 # ----- Run Models ----------------------------------
 cd "$HOME/ng-mx/"
 
-echo "Run run_INCEPTION_V4()"
+echo "Run run_inference_topologies()"
 
-run_INCEPTION_V4
-
+run_inference_topologies
 
 xtime="$(date)"
 echo ' '
