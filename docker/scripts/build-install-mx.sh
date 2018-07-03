@@ -34,7 +34,7 @@ fi
 
 cd "${MX_DIR}"
 git submodule update --init --recursive
-make USE_NGRAPH=1 NGRAPH_DIR=${NGRAPH_INSTALL_DIR} -j $(nproc)
+make USE_GPERFTOOLS=0 USE_JEMALLOC=0 USE_NGRAPH=1 NGRAPH_DIR=${NGRAPH_INSTALL_DIR} -j $(nproc)
 
 if [ ! -f "./lib/libmxnet.so" ] ; then
   ( >&2 echo "FATAL ERROR: Can not found libmxnet.so. Exiting ...." )
