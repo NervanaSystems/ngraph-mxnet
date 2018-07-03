@@ -52,36 +52,36 @@ run_INCEPTION_V4() {
     export TEST_KMP_AFFINITY="${MX_NG_KMP_AFFINITY}"
 
     # Run the inception_v4
-    #cmd="pytest -s docker/scripts/test_deepmark_inception_v4_inference.py --junit-xml=validation_test_deepmark_inception_v4_inference.xml --junit-prefix=inference_deepmark_inception_v4_cpu"
-    #eval $cmd
+    cmd="pytest -s docker/scripts/test_deepmark_inception_v4_inference.py --junit-xml=validation_test_deepmark_inception_v4_inference.xml --junit-prefix=inference_deepmark_inception_v4_cpu"
+    eval $cmd
 
     # Run the resnet_50
-    #cmd="pytest -s docker/scripts/test_deepmark_resnet_50_inference.py --junit-xml=validation_test_deepmark_resnet_50_inference.xml --junit-prefix=inference_deepmark_resnet_50_cpu"
-    #eval $cmd
+    cmd="pytest -s docker/scripts/test_deepmark_resnet_50_inference.py --junit-xml=validation_test_deepmark_resnet_50_inference.xml --junit-prefix=inference_deepmark_resnet_50_cpu"
+    eval $cmd
 
     # Run the a3c
-    #cmd="pytest -s docker/scripts/test_deepmark_a3c_inference.py --junit-xml=validation_test_deepmark_a3c_inference.xml --junit-prefix=inference_deepmark_a3c_cpu"
-    #eval $cmd
+    cmd="pytest -s docker/scripts/test_deepmark_a3c_inference.py --junit-xml=validation_test_deepmark_a3c_inference.xml --junit-prefix=inference_deepmark_a3c_cpu"
+    eval $cmd
 
     # Run the test wide_deep
-    #cmd="pytest -s docker/scripts/test_deepmark_wide_deep_inference.py --junit-xml=validation_test_deepmark_wide_deep_inference.xml --junit-prefix=inference_deepmark_wide_deep_cpu"
-    #eval $cmd
+    cmd="pytest -s docker/scripts/test_deepmark_wide_deep_inference.py --junit-xml=validation_test_deepmark_wide_deep_inference.xml --junit-prefix=inference_deepmark_wide_deep_cpu"
+    eval $cmd
 
     # Run the test mobilenet
-    #cmd="pytest -s docker/scripts/test_deepmark_mobilenet_inference.py --junit-xml=validation_test_deepmark_mobilenet_inference.xml --junit-prefix=inference_deepmark_mobilenet_cpu"
-    #eval $cmd
+    cmd="pytest -s docker/scripts/test_deepmark_mobilenet_inference.py --junit-xml=validation_test_deepmark_mobilenet_inference.xml --junit-prefix=inference_deepmark_mobilenet_cpu"
+    eval $cmd
 
     # Run the densenet121
-    #cmd="pytest -s docker/scripts/test_deepmark_densenet121_inference.py --junit-xml=validation_test_deepmark_densenet121_inference.xml --junit-prefix=inference_deepmark_densenet121_cpu"
-    #eval $cmd
+    cmd="pytest -s docker/scripts/test_deepmark_densenet121_inference.py --junit-xml=validation_test_deepmark_densenet121_inference.xml --junit-prefix=inference_deepmark_densenet121_cpu"
+    eval $cmd
 
     # Run the Faster-RCNN, --batch-size 1
     cmd="pytest -s docker/scripts/test_deepmark_Faster_RCNN_inference.py --junit-xml=validation_test_deepmark_Faster_RCNN_inference.xml --junit-prefix=inference_deepmark_Faster_RCNN_cpu"
     eval $cmd
 
     # Run the squeezenet1.1
-    #cmd="pytest -s docker/scripts/test_deepmark_squeezenet_inference.py --junit-xml=validation_test_deepmark_squeezenet_inference.xml --junit-prefix=inference_deepmark_squeezenet_cpu"
-    #eval $cmd
+    cmd="pytest -s docker/scripts/test_deepmark_squeezenet_inference.py --junit-xml=validation_test_deepmark_squeezenet_inference.xml --junit-prefix=inference_deepmark_squeezenet_cpu"
+    eval $cmd
 
     # Run DCGAN
 
