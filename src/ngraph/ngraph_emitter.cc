@@ -1369,9 +1369,7 @@ void Emitter::CreateLayerOps() {
     NgraphNodePtr data = op_map_[node->inputs_[0]];
     NgraphNodePtr filter = op_map_[node->inputs_[1]];
 
-    // N, channel_in, d1,...,dn
     const auto data_shape = data->get_shape();
-    // channel_out, channel_in/groups, f1,...,fn
     const auto filter_shape = filter->get_shape();
     const auto out_shape = TShape_to_NShape(node->shape_);
 
@@ -1380,9 +1378,20 @@ void Emitter::CreateLayerOps() {
     auto stride = get_default<size_t>(node, "stride", ngraph::Strides(n,1));
     auto dilate = get_default<size_t>(node, "dilate", ngraph::Strides(n,1));
 
-    return std::make_shared<ngraph::op::ConvolutionBackpropData>(
+    NgraphNodePtr conv = std::make_shared<ngraph::op::ConvolutionBackpropData>(
         out_shape, filter, data, stride, ngraph::Strides(n, 1), pad, pad,
         dilate);
+
+    if (node->inputs_.size() > 2) {
+      NgraphNodePtr bias = op_map_[node->inputs_[2]];
+
+      auto bias_reshape = std::make_shared<ngraph::op::Reshape>(
+          bias, ngraph::AxisVector{0}, ngraph::Shape{1, filter_shape[0]});
+
+      conv = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(
+          conv, bias_reshape);
+    }
+    return conv;
   };
   ngraph_op_funcs_["Pooling"] = [this](const NodePtr& node) -> NgraphNodePtr {
     NgraphNodePtr op;
