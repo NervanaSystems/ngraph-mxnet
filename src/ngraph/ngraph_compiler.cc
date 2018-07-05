@@ -463,44 +463,29 @@ void Compiler::CheckInNgraph() {
   for (const std::shared_ptr<ngraph_bridge::Node>& node : ngraph_.nodes_) {
     // The bridge code only has nGraph emitters for kOp-type nodes.
     if (node->type_ == NodeType::kOp) {
-      if (compiler_.ngraph_op_funcs_.count(node->operation_)) {
-        node->in_ngraph_ = true;
+      if (compiler_.supported_ops.count(node->operation_)) {
+        node->in_ngraph_ = compiler_.supported_ops[node->operation_](node);
+        // nGraph doesn't yet support float16 or sparse storage.
+        auto bad_type = [](NodePtr node) {
+          return node->dtype_ == mshadow::kFloat16 ||
+                 node->dtype_ == mshadow::kFloat64 ||
+                 node->stype_ != mxnet::kDefaultStorage;
+        };
 
-        if (node->operation_ == "BatchNorm") {
-          auto shape = TShape_to_NShape(node->inputs_[0]->shape_);
-          if (shape[1] % 8 != 0) {
-            // MXNet outperforms nGraph in this case.
-            node->in_ngraph_ = false;
-          }
-        } else if (node->operation_ == "LeakyReLU") {
-          // We haven't yet implemented all activation functions for
-          // LeaklyReLU...
-          const std::string act_type =
-              get_default(node, "act_type", std::string("leaky"));
-          if (act_type != "leaky") {
-            node->in_ngraph_ = false;
-          }
-        }
-
-        // nGraph doesn't yet support float16.
-        if (node->dtype_ == mshadow::kFloat16 ||
-            node->dtype_ == mshadow::kFloat64 ||
-            node->stype_ != mxnet::kDefaultStorage) {
+        if (bad_type(node)) {
           node->in_ngraph_ = false;
         } else {
           for (auto input : node->inputs_) {
-            if (input->dtype_ == mshadow::kFloat16 ||
-                input->dtype_ == mshadow::kFloat64 ||
-                input->stype_ != mxnet::kDefaultStorage) {
+            if (bad_type(node)) {
               node->in_ngraph_ = false;
             }
           }
         }
+
       } else {
         if (ngraph_log_verbose()) {
           unsupported_op_names.insert(node->operation_);
         }
-
         if (ngraph_log_verbose_detail()) {
           std::cout << "NGRAPH_BRIDGE: Unsupported Op instance (verbose):"
                     << std::endl;

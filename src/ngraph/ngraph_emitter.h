@@ -27,10 +27,10 @@ namespace ngraph_bridge {
 
 // Alias for maps of name, function, where function returns an ngraph node
 using OpEmitter =
-    std::map<std::string, std::function<NgraphNodePtr(const NodePtr&)> >;
+    std::map<std::string, std::function<NgraphNodePtr(const NodePtr&)>>;
 using GradientEmitter =
     std::map<std::string, std::function<NgraphNodePtr(const NodePtr&,
-                                                      const NgraphNodePtr&)> >;
+                                                      const NgraphNodePtr&)>>;
 
 // Emitter primairily serves to create and store ngraph Nodes
 class Emitter {
@@ -38,6 +38,7 @@ class Emitter {
   Emitter();
   // maps of ngraph operation generator functions
   OpEmitter ngraph_op_funcs_;
+  std::map<std::string, std::function<bool(const NodePtr&)>> supported_ops;
   GradientEmitter loss_op_backward_funcs_;
 
   void setExeMode(GraphExeMode exe_mode);
@@ -79,6 +80,8 @@ class Emitter {
   void CreateLayerOps();
   // create MXNet Loss Functions
   void CreateLossOps();
+  // create ways to distinguish partially unsupported ops
+  void UnsupportedOps();
 
  protected:
 };
