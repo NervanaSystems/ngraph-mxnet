@@ -81,12 +81,13 @@ inline TensorViewVector make_ngraph_placeholders(
 inline TensorViewVector get_tensor_views(
     const std::vector<mxnet::NDArray>& ndarrays,
     std::shared_ptr<ngraph::runtime::Backend> backend,
-    const std::vector<mxnet::OpReqType>* req = nullptr) {
+    const std::vector<mxnet::OpReqType>* req = nullptr,
+    const bool mem_reuse = true) {
   TensorViewVector out;
   for (size_t i = 0; i < ndarrays.size(); ++i) {
     auto shape = TShape_to_NShape(ndarrays[i].shape());
     const auto& element_type = getType(ndarrays[i].dtype());
-    if ((req != nullptr) && ((*req)[i] == mxnet::kAddTo))
+    if (!mem_reuse || ((req != nullptr) && ((*req)[i] == mxnet::kAddTo)))
       out.push_back(backend->create_tensor(element_type, shape));
     else
       out.push_back(
