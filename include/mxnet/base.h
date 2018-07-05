@@ -333,6 +333,10 @@ inline int32_t Context::GetGPUCount() {
 #endif
 }
 
+inline Context Context::NNP(int32_t dev_id) {
+  return Create(kNNP, dev_id);
+}
+
 inline Context Context::FromString(const std::string& str) {
   Context ret;
   try {

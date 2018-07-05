@@ -255,8 +255,7 @@ inline ValueType get_node_attr(
  */
 
 
-nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Graph g, std::vector<nnvm::NodePtr> args,
-                                         const std::vector<OpReqType>& grad_req_types) {
+nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Symbol symbol, const std::vector<OpReqType>& grad_req_types) {
   using nnvm::NodePtr;
   using nnvm::NodeEntry;
   // initial information
@@ -275,6 +274,7 @@ nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Graph g, std::vector<nnvm::NodePt
     head_grad_entry_.emplace_back(AttrHint(ngrad, g.outputs[i]));
     head_grad_map_[ngrad.node.get()] = i;
   }
+  std::vector<NodePtr> args = symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs);
   std::vector<NodeEntry> xs;
   for (size_t i = 0; i < grad_req_types.size(); ++i) {
     if (grad_req_types[i] != kNullOp) {
@@ -583,13 +583,14 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
       g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), bind,
       default_ctx);
   if (!multi_context && !grad_sparse) {
-    saved_states_ = compiler.CopySavedStates(saved_states_);
     g = compiler.Compile();
 
     // create "device" and "context" attrs for the graph
-    g = InitFullGraph(g, compiler.GetInputs(), grad_req_types);
+    Symbol sym;
+    sym.outputs = g.outputs;
+    g = InitFullGraph(sym, grad_req_types);
   } else {
-    g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), grad_req_types);
+    g = InitFullGraph(symbol,  grad_req_types);
   }
   g = AssignContext(g, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
                     aux_state_ctxes, grad_req_types, num_forward_inputs_,
@@ -1066,7 +1067,6 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
       g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), simplebind,
       default_ctx);
   if (!multi_context && !grad_sparse) {
-    saved_states_ = compiler.CopySavedStates(saved_states_);
     g = compiler.Compile();
 
     // modify shape / dtype with ngraph version
@@ -1075,9 +1075,11 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
     arg_stype_mapn = compiler.GetNgraphStype();
 
     // create "device" and "context" attrs for the graph
-    g = InitFullGraph(g, compiler.GetInputs(), grad_req_types);
+    Symbol sym;
+    sym.outputs = g.outputs;
+    g = InitFullGraph(sym, grad_req_types);
   } else {
-    g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), grad_req_types);
+    g = InitFullGraph(symbol, grad_req_types);
   }
     g = AssignContext(g, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
                       aux_state_ctxes, grad_req_types, num_forward_inputs_,
@@ -1303,7 +1305,7 @@ Graph GraphExecutor::InitGraph(nnvm::Symbol symbol,
   g.outputs = symbol.outputs;
   // setup gradient
 #if MXNET_USE_NGRAPH == 0
-  g = InitFullGraph(g, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs),
+  g = InitFullGraph(symbol,
                     grad_req_types);
   // create "device" and "context" attrs for the graph
   g = AssignContext(g, default_ctx, ctx_map,

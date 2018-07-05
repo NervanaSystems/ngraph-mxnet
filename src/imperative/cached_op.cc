@@ -23,6 +23,9 @@
 #include "../executor/exec_pass.h"
 #include "../profiler/profiler.h"
 #include "../operator/operator_common.h"
+#if MXNET_USE_NGRAPH == 1
+#include "../ngraph/ngraph_compiler.h"
+#endif
 
 
 namespace mxnet {
@@ -160,7 +163,7 @@ CachedOp::CachedOp(
 #endif
 }
 
-void Imperative::CachedOp::UpdateFullGraph(nnvm::Graph* fwd_graph,
+void CachedOp::UpdateFullGraph(nnvm::Graph* fwd_graph,
     const std::vector<nnvm::NodePtr>& symbol_inputs) {
   using namespace nnvm;
   using namespace imperative;

@@ -97,7 +97,27 @@ else
 	CFLAGS += -O3 -DNDEBUG=1
 endif
 CFLAGS += -I$(TPARTYDIR)/mshadow/ -I$(TPARTYDIR)/dmlc-core/include -fPIC -I$(NNVM_PATH)/include -I$(DLPACK_PATH)/include -I$(TPARTYDIR)/tvm/include -Iinclude $(MSHADOW_CFLAGS)
-LDFLAGS = -pthread $(MSHADOW_LDFLAGS) $(DMLC_LDFLAGS)
+ifndef NGRAPH_DIR
+  ifeq ($(USE_NGRAPH),1)
+        NGRAPH_DIR = $(ROOTDIR)/ngraph/install
+        NGRAPH := $(shell ./prepare_ngraph.sh $(NGRAPH_DIR) v0.3.0)
+  endif
+endif
+
+LDFLAGS =
+ifeq ($(USE_NGRAPH),1)
+    CFLAGS += -I$(ROOTDIR)/src/ngraph -I$(NGRAPH_DIR)/include -DMXNET_USE_NGRAPH=1
+    ifeq ($(USE_NGRAPH_DISTRIBUTED),1)
+        CFLAGS += -DMXNET_USE_NGRAPH_DISTRIBUTED=1
+    endif
+    ifeq ($(USE_NGRAPH_IE),1)
+        CFLAGS += -DMXNET_USE_NGRAPH_IE=1
+        LDFLAGS += -L$(NGRAPH_DIR)/lib -lngraph -Wl,--as-needed
+    else
+        LDFLAGS += -L$(NGRAPH_DIR)/lib -liomp5 -lcpu_backend -lngraph -lmklml_intel -Wl,--as-needed
+    endif
+endif
+LDFLAGS += -pthread $(MSHADOW_LDFLAGS) $(DMLC_LDFLAGS)
 ifeq ($(DEBUG), 1)
 	NVCCFLAGS += -std=c++11 -Xcompiler -D_FORCE_INLINES -g -G -O0 -ccbin $(CXX) $(MSHADOW_NVCCFLAGS)
 else
