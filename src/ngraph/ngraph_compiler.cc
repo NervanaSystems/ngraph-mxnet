@@ -457,6 +457,12 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
   for (auto& out : graph_.outputs) out.node = node_map_[out.node.get()];
 }
 
+bool bad_type(const NodePtr& node) {
+  return node->dtype_ == mshadow::kFloat16 ||
+         node->dtype_ == mshadow::kFloat64 ||
+         node->stype_ != mxnet::kDefaultStorage;
+}
+
 // Check nodes in NGraph
 void Compiler::CheckInNgraph() {
   std::unordered_set<std::string> unsupported_op_names;
@@ -466,12 +472,6 @@ void Compiler::CheckInNgraph() {
       if (compiler_.supported_ops.count(node->operation_)) {
         node->in_ngraph_ = compiler_.supported_ops[node->operation_](node);
         // nGraph doesn't yet support float16 or sparse storage.
-        auto bad_type = [](NodePtr node) {
-          return node->dtype_ == mshadow::kFloat16 ||
-                 node->dtype_ == mshadow::kFloat64 ||
-                 node->stype_ != mxnet::kDefaultStorage;
-        };
-
         if (bad_type(node)) {
           node->in_ngraph_ = false;
         } else {
