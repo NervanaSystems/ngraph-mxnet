@@ -32,7 +32,7 @@ from numpy.testing import assert_allclose
 
 curr_path = os.path.dirname(os.path.abspath(os.path.expanduser(__file__)))
 sys.path.insert(0, os.path.join(curr_path, '../unittest'))
-from common import setup_module, with_seed
+from common import setup_module, with_seed, teardown
 from test_operator import *
 from test_optimizer import *
 from test_random import *
@@ -41,11 +41,7 @@ from test_loss import *
 from test_exc_handling import *
 #from test_rnn import *
 from test_gluon_rnn import *
-from test_sparse_ndarray import test_create_csr, test_create_row_sparse, test_sparse_nd_slice
-from test_sparse_ndarray import test_create_sparse_nd_empty, test_create_sparse_nd_from_sparse
-from test_sparse_ndarray import test_create_sparse_nd_from_dense, test_create_sparse_nd_infer_shape
-from test_sparse_ndarray import test_sparse_nd_check_format, test_sparse_nd_copy
-from test_sparse_ndarray import test_sparse_nd_setitem, test_sparse_nd_binary_scalar_op
+from test_sparse_ndarray import *
 from test_sparse_operator import *
 from test_ndarray import *
 
@@ -91,6 +87,8 @@ def check_countsketch(in_dim,out_dim,n):
                 a[j,i] = out_grad.asnumpy()[j, h[0,i]] * s[0,i]
     assert_almost_equal(a,arr_grad[0].asnumpy(),rtol=1e-3, atol=1e-12)
 
+
+@unittest.skip("test fails intermittently. temporarily disabled till it gets fixed. tracked at https://github.com/apache/incubator-mxnet/issues/10988")
 @with_seed(0)
 def test_countsketch():
     nrepeat = 2
@@ -283,21 +281,21 @@ def test_batchnorm_with_type():
   ]
 
   ctx_list_v2_2D = [
-    {'ctx': mx.cpu(0), 'norm_data': (10, 2, 10, 10), 'type_dict': {'norm_data': np.float32}},
-    {'ctx': mx.cpu(0), 'norm_data': (10, 2, 10, 10), 'type_dict': {'norm_data': np.float16}},
-    {'ctx': mx.cpu(0), 'norm_data': (10, 2, 10, 10), 'type_dict': {'norm_data': np.float64}},
-    {'ctx': mx.gpu(0), 'norm_data': (10, 2, 10, 10), 'type_dict': {'norm_data': np.float32}},
-    {'ctx': mx.gpu(0), 'norm_data': (10, 2, 10, 10), 'type_dict': {'norm_data': np.float16}},
-    {'ctx': mx.gpu(0), 'norm_data': (10, 2, 10, 10), 'type_dict': {'norm_data': np.float64}},
+    {'ctx': mx.cpu(0), 'norm_data': (5, 2, 5, 5), 'type_dict': {'norm_data': np.float32}},
+    {'ctx': mx.cpu(0), 'norm_data': (5, 2, 5, 5), 'type_dict': {'norm_data': np.float16}},
+    {'ctx': mx.cpu(0), 'norm_data': (5, 2, 5, 5), 'type_dict': {'norm_data': np.float64}},
+    {'ctx': mx.gpu(0), 'norm_data': (5, 2, 5, 5), 'type_dict': {'norm_data': np.float32}},
+    {'ctx': mx.gpu(0), 'norm_data': (5, 2, 5, 5), 'type_dict': {'norm_data': np.float16}},
+    {'ctx': mx.gpu(0), 'norm_data': (5, 2, 5, 5), 'type_dict': {'norm_data': np.float64}},
   ]
 
   ctx_list_v2_1D = [
-    {'ctx': mx.cpu(0), 'norm_data': (10, 2, 10), 'type_dict': {'norm_data': np.float16}},
-    {'ctx': mx.cpu(0), 'norm_data': (10, 2, 10), 'type_dict': {'norm_data': np.float32}},
-    {'ctx': mx.cpu(0), 'norm_data': (10, 2, 10), 'type_dict': {'norm_data': np.float64}},
-    {'ctx': mx.gpu(0), 'norm_data': (10, 2, 10), 'type_dict': {'norm_data': np.float16}},
-    {'ctx': mx.gpu(0), 'norm_data': (10, 2, 10), 'type_dict': {'norm_data': np.float32}},
-    {'ctx': mx.gpu(0), 'norm_data': (10, 2, 10), 'type_dict': {'norm_data': np.float64}},
+    {'ctx': mx.cpu(0), 'norm_data': (5, 2, 5), 'type_dict': {'norm_data': np.float16}},
+    {'ctx': mx.cpu(0), 'norm_data': (5, 2, 5), 'type_dict': {'norm_data': np.float32}},
+    {'ctx': mx.cpu(0), 'norm_data': (5, 2, 5), 'type_dict': {'norm_data': np.float64}},
+    {'ctx': mx.gpu(0), 'norm_data': (5, 2, 5), 'type_dict': {'norm_data': np.float16}},
+    {'ctx': mx.gpu(0), 'norm_data': (5, 2, 5), 'type_dict': {'norm_data': np.float32}},
+    {'ctx': mx.gpu(0), 'norm_data': (5, 2, 5), 'type_dict': {'norm_data': np.float64}},
   ]
 
   ctx_list_v2_3D = [
@@ -462,8 +460,10 @@ def test_convolution_with_type():
 def check_consistency_NxM(sym_list, ctx_list):
     # e.g. if sym_list=[sym1, sym2] and ctx_list=[ctx1, ctx2, ctx3], then resulting lists are:
     # sym_list=[sym1, sym1, sym1, sym2, sym2, sym2] and ctx_list=[ctx1, ctx2, ctx3, ctx1, ctx2, ctx3]
-    check_consistency(np.repeat(sym_list, len(ctx_list)), ctx_list * len(sym_list))
+    check_consistency(np.repeat(sym_list, len(ctx_list)), ctx_list * len(sym_list), scale=0.5)
 
+
+@unittest.skip("test fails intermittently. temporarily disabled till it gets fixed. tracked at https://github.com/apache/incubator-mxnet/issues/10141")
 @with_seed()
 def test_convolution_options():
     # 1D convolution
@@ -701,8 +701,7 @@ def test_grid_generator_with_type():
     check_consistency(sym, ctx_list, grad_req="add")
 
 
-@unittest.skip("test fails intermittently. temporarily disabled till it gets fixed. tracked at https://github.com/apache/incubator-mxnet/issues/7645")
-@with_seed(1234)
+@with_seed()
 def test_spatial_transformer_with_type():
     data = mx.sym.Variable('data')
     loc = mx.sym.Flatten(data)
@@ -711,8 +710,8 @@ def test_spatial_transformer_with_type():
     loc = mx.sym.FullyConnected(data=loc, num_hidden=6)
     sym = mx.sym.SpatialTransformer(data=data, loc=loc, target_shape=(10, 10),
                                     transform_type="affine", sampler_type="bilinear")
-    ctx_list = [{'ctx': mx.gpu(0), 'data': (1, 5, 10, 10), 'type_dict': {'data': np.float32}},
-                {'ctx': mx.cpu(0), 'data': (1, 5, 10, 10), 'type_dict': {'data': np.float32}}]
+    ctx_list = [{'ctx': mx.gpu(0), 'data': (1, 5, 10, 10), 'type_dict': {'data': np.float64}},
+                {'ctx': mx.cpu(0), 'data': (1, 5, 10, 10), 'type_dict': {'data': np.float64}}]
     check_consistency(sym, ctx_list)
     check_consistency(sym, ctx_list, grad_req="add")
 
@@ -742,10 +741,11 @@ def test_pooling_with_type():
     check_consistency(sym, ctx_list)
 
 
+@unittest.skip("Flaky test https://github.com/apache/incubator-mxnet/issues/11517")
 @with_seed()
 def test_pooling_versions():
-    def test_pooling_versions_helper(pool_op_list, data, kernel, pool_type, pad, stride,
-                                     pooling_convention='valid', global_pool=False):
+    def test_pooling_versions_helper(pool_op_list, data, kernel, pool_type, pad, stride, pooling_convention='valid',
+                                     global_pool=False, p_value=2, count_include_pad=True, tol=None):
         ctx_list = []
         sym_list = []
         # PoolingV1 cpu
@@ -769,140 +769,188 @@ def test_pooling_versions():
             ctx_list.append({'ctx': mx.cpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
             if not global_pool:
                 sym_list.append(mx.sym.Pooling(kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                               pooling_convention=pooling_convention, name='pool'))
+                                               pooling_convention=pooling_convention, name='pool',
+                                               p_value=p_value, count_include_pad=count_include_pad))
             else:
-                sym_list.append(mx.sym.Pooling(kernel=kernel, pool_type=pool_type, global_pool=True, name='pool'))
+                sym_list.append(mx.sym.Pooling(kernel=kernel, pool_type=pool_type, global_pool=True, name='pool',
+                                               p_value=p_value, count_include_pad=count_include_pad))
         # Pooling gpu
         if 'pool_gpu' in pool_op_list:
             ctx_list.append({'ctx': mx.gpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
             if not global_pool:
                 sym_list.append(mx.sym.Pooling(kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                               pooling_convention=pooling_convention, cudnn_off=True, name='pool'))
+                                               pooling_convention=pooling_convention, cudnn_off=True, name='pool',
+                                               p_value=p_value, count_include_pad=count_include_pad))
             else:
                 sym_list.append(mx.sym.Pooling(kernel=kernel, pool_type=pool_type, global_pool=True, cudnn_off=True,
-                                               name='pool'))
+                                               name='pool', p_value=p_value, count_include_pad=count_include_pad))
         # CuDNNPooling
         if 'pool_cudnn' in pool_op_list:
             ctx_list.append({'ctx': mx.gpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
             if not global_pool:
                 sym_list.append(mx.sym.Pooling(kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                               pooling_convention=pooling_convention, cudnn_off=False, name='pool'))
+                                               pooling_convention=pooling_convention, p_value=p_value, cudnn_off=False,
+                                               name='pool', count_include_pad=count_include_pad))
             else:
-                sym_list.append(mx.sym.Pooling(kernel=kernel, pool_type=pool_type, global_pool=True, cudnn_off=False,
-                                               name='pool'))
-        check_consistency(sym_list, ctx_list)
+                sym_list.append(mx.sym.Pooling(kernel=kernel, pool_type=pool_type, global_pool=True, p_value=p_value,
+                                               cudnn_off=False, name='pool', count_include_pad=count_include_pad))
+        check_consistency(sym_list, ctx_list, equal_nan=(not count_include_pad), tol=tol)
 
-    def test_1d_pooling(pool_type):
+    def test_1d_pooling(pool_type, p_value=2, count_include_pad=True):
         data = (2, 3, 20)
         kernel = (4,)
         pad = (0,)
         stride = (1,)
         test_pooling_versions_helper(pool_op_list=['pool_cpu', 'pool_gpu'],
                                      data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                     pooling_convention='valid', global_pool=False)
+                                     pooling_convention='valid', global_pool=False, p_value=p_value,
+                                     count_include_pad=count_include_pad)
 
         pad = (2,)
         stride = (2,)
         test_pooling_versions_helper(pool_op_list=['pool_cpu', 'pool_gpu'],
                                      data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                     pooling_convention='valid', global_pool=False)
+                                     pooling_convention='valid', global_pool=False, p_value=p_value,
+                                     count_include_pad=count_include_pad)
 
         pad = (0,)
         stride = (1,)
         test_pooling_versions_helper(pool_op_list=['pool_cpu', 'pool_gpu'],
                                      data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                     pooling_convention='full', global_pool=False)
+                                     pooling_convention='full', global_pool=False, p_value=p_value,
+                                     count_include_pad=count_include_pad)
 
         pad = (2,)
         stride = (2,)
         test_pooling_versions_helper(pool_op_list=['pool_cpu', 'pool_gpu'],
                                      data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                     pooling_convention='full', global_pool=False)
+                                     pooling_convention='full', global_pool=False, p_value=p_value,
+                                     count_include_pad=count_include_pad)
 
         test_pooling_versions_helper(pool_op_list=['pool_cpu', 'pool_gpu'],
                                      data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                     global_pool=True)
+                                     global_pool=True, p_value=p_value, count_include_pad=count_include_pad)
 
-    def test_2d_pooling(pool_type):
+    def test_2d_pooling(pool_type, p_value=2, count_include_pad=True):
         data = (2, 3, 20, 20)
         kernel = (4, 5)
         pad = (0, 0)
         stride = (1, 1)
-        test_pooling_versions_helper(pool_op_list=['pool_v1_cpu', 'pool_v1_gpu', 'pool_cpu', 'pool_gpu', 'pool_cudnn'],
-                                     data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                     pooling_convention='valid', global_pool=False)
+        if pool_type == 'lp':
+            test_pooling_versions_helper(pool_op_list=['pool_cpu', 'pool_gpu'],
+                                         data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
+                                         pooling_convention='valid', global_pool=False, p_value=p_value)
+        else:
+            test_pooling_versions_helper(pool_op_list=['pool_v1_cpu', 'pool_v1_gpu', 'pool_cpu', 'pool_gpu', 'pool_cudnn'],
+                                         data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
+                                         pooling_convention='valid', global_pool=False, count_include_pad=count_include_pad)
 
         # pool_v1 has bugs when pad is not 0, do not test PoolingV1 here
         pad = (2, 3)
         stride = (2, 3)
         test_pooling_versions_helper(pool_op_list=['pool_cpu', 'pool_gpu', 'pool_cudnn'],
                                      data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                     pooling_convention='valid', global_pool=False)
+                                     pooling_convention='valid', global_pool=False, p_value=p_value,
+                                     count_include_pad=count_include_pad)
 
         pad = (0, 0)
         stride = (1, 1)
-        test_pooling_versions_helper(pool_op_list=['pool_v1_cpu', 'pool_v1_gpu', 'pool_cpu', 'pool_gpu', 'pool_cudnn'],
-                                     data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                     pooling_convention='full', global_pool=False)
+        if pool_type == 'lp':
+            test_pooling_versions_helper(pool_op_list=['pool_cpu', 'pool_gpu', 'pool_cudnn'],
+                                         data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
+                                         pooling_convention='full', global_pool=False, p_value=p_value)
+        else:
+            if count_include_pad:
+                test_pooling_versions_helper(pool_op_list=['pool_v1_cpu', 'pool_v1_gpu', 'pool_cpu', 'pool_gpu', 'pool_cudnn'],
+                                             data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
+                                             pooling_convention='full', global_pool=False,
+                                             count_include_pad=count_include_pad)
+            else:
+                test_pooling_versions_helper(pool_op_list=['pool_cpu', 'pool_gpu', 'pool_cudnn'],
+                                             data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
+                                             pooling_convention='full', global_pool=False,
+                                             count_include_pad=count_include_pad)
 
         # pool_v1 has bugs when pad is not 0, do not test PoolingV1 here
         pad = (2, 3)
         stride = (2, 3)
         test_pooling_versions_helper(pool_op_list=['pool_cpu', 'pool_gpu', 'pool_cudnn'],
                                      data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                     pooling_convention='full', global_pool=False)
+                                     pooling_convention='full', global_pool=False, p_value=p_value,
+                                     count_include_pad=count_include_pad)
 
-        test_pooling_versions_helper(pool_op_list=['pool_v1_cpu', 'pool_v1_gpu', 'pool_cpu', 'pool_gpu', 'pool_cudnn'],
-                                     data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                     global_pool=True)
+        if pool_type == 'lp':
+            test_pooling_versions_helper(pool_op_list=['pool_cpu', 'pool_gpu', 'pool_cudnn'],
+                                         data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
+                                         global_pool=True, p_value=p_value)
+        else:
+            test_pooling_versions_helper(pool_op_list=['pool_v1_cpu', 'pool_v1_gpu', 'pool_cpu', 'pool_gpu', 'pool_cudnn'],
+                                         data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
+                                         global_pool=True, count_include_pad=count_include_pad)
 
-    def test_3d_pooling(pool_type):
+    def test_3d_pooling(pool_type, p_value=2, count_include_pad=True):
         data = (2, 3, 20, 20, 20)
         kernel = (4, 5, 3)
         pad = (0, 0, 0)
         stride = (1, 1, 1)
         test_pooling_versions_helper(pool_op_list=['pool_cpu', 'pool_gpu', 'pool_cudnn'],
                                      data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                     pooling_convention='valid', global_pool=False)
+                                     pooling_convention='valid', global_pool=False, p_value=p_value,
+                                     count_include_pad=count_include_pad)
 
         pad = (2, 3, 3)
         stride = (2, 3, 1)
         test_pooling_versions_helper(pool_op_list=['pool_cpu', 'pool_gpu', 'pool_cudnn'],
                                      data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                     pooling_convention='valid', global_pool=False)
+                                     pooling_convention='valid', global_pool=False, p_value=p_value,
+                                     count_include_pad=count_include_pad)
 
         pad = (0, 0, 0)
         stride = (1, 1, 1)
         test_pooling_versions_helper(pool_op_list=['pool_cpu', 'pool_gpu', 'pool_cudnn'],
                                      data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                     pooling_convention='full', global_pool=False)
+                                     pooling_convention='full', global_pool=False, p_value=p_value,
+                                     count_include_pad=count_include_pad)
 
         pad = (2, 3, 3)
         stride = (2, 3, 1)
         test_pooling_versions_helper(pool_op_list=['pool_cpu', 'pool_gpu', 'pool_cudnn'],
                                      data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                     pooling_convention='full', global_pool=False)
+                                     pooling_convention='full', global_pool=False, p_value=p_value,
+                                     count_include_pad=count_include_pad)
 
         test_pooling_versions_helper(pool_op_list=['pool_cpu', 'pool_gpu', 'pool_cudnn'],
                                      data=data, kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                     global_pool=True)
+                                     global_pool=True, p_value=p_value, count_include_pad=count_include_pad)
 
     test_1d_pooling('max')
-    test_1d_pooling('avg')
+    test_1d_pooling('avg', count_include_pad=True)
+    test_1d_pooling('avg', count_include_pad=False)
     test_1d_pooling('sum')
+    test_1d_pooling('lp', p_value=1)
+    test_1d_pooling('lp', p_value=2)
+    test_1d_pooling('lp', p_value=3)
 
     test_2d_pooling('max')
-    test_2d_pooling('avg')
+    test_2d_pooling('avg', count_include_pad=True)
+    test_2d_pooling('avg', count_include_pad=False)
     test_2d_pooling('sum')
+    test_2d_pooling('lp', p_value=1)
+    test_2d_pooling('lp', p_value=2)
+    test_2d_pooling('lp', p_value=3)
 
     test_3d_pooling('max')
-    test_3d_pooling('avg')
+    test_3d_pooling('avg', count_include_pad=True)
+    test_3d_pooling('avg', count_include_pad=False)
     test_3d_pooling('sum')
+    test_3d_pooling('lp', p_value=1)
+    test_3d_pooling('lp', p_value=2)
+    test_3d_pooling('lp', p_value=3)
 
 
 @with_seed()
 def test_global_pooling():
-    def test_1d_pooling(pool_type):
+    def test_1d_pooling(pool_type, p_value=2):
         data = (2, 3, 20)
         kernel = (4,)
         pad = (2,)
@@ -915,43 +963,43 @@ def test_global_pooling():
 
         ctx_list.append({'ctx': mx.cpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, name='pool', p_value=p_value))
 
         ctx_list.append({'ctx': mx.cpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(kernel=kernel, pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, name='pool', p_value=p_value))
 
         ctx_list.append({'ctx': mx.cpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, name='pool', p_value=p_value))
 
         ctx_list.append({'ctx': mx.gpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, cudnn_off=False, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, p_value=p_value, cudnn_off=False, name='pool'))
 
         ctx_list.append({'ctx': mx.gpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(kernel=kernel, pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, cudnn_off=False, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, p_value=p_value, cudnn_off=False, name='pool'))
 
         ctx_list.append({'ctx': mx.gpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, cudnn_off=False, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, p_value=p_value, cudnn_off=False, name='pool'))
 
         ctx_list.append({'ctx': mx.gpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, cudnn_off=True, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, p_value=p_value, cudnn_off=True, name='pool'))
 
         ctx_list.append({'ctx': mx.gpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(kernel=kernel, pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, cudnn_off=True, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, p_value=p_value, cudnn_off=True, name='pool'))
 
         ctx_list.append({'ctx': mx.gpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, cudnn_off=True, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, p_value=p_value, cudnn_off=True, name='pool'))
 
         check_consistency(sym_list, ctx_list)
 
-    def test_2d_pooling(pool_type):
+    def test_2d_pooling(pool_type, p_value=2):
         data = (2, 3, 20, 20)
         kernel = (4, 4)
         pad = (2, 2)
@@ -962,53 +1010,54 @@ def test_global_pooling():
 
         pooling_convention = 'valid'
 
-        ctx_list.append({'ctx': mx.cpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
-        sym_list.append(mx.sym.Pooling_v1(kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, name='pool'))
+        if pool_type != 'lp':
+            ctx_list.append({'ctx': mx.cpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
+            sym_list.append(mx.sym.Pooling_v1(kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
+                                              pooling_convention=pooling_convention, global_pool=True, name='pool'))
 
-        ctx_list.append({'ctx': mx.cpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
-        sym_list.append(mx.sym.Pooling_v1(kernel=kernel, pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, name='pool'))
+            ctx_list.append({'ctx': mx.cpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
+            sym_list.append(mx.sym.Pooling_v1(kernel=kernel, pool_type=pool_type,
+                                              pooling_convention=pooling_convention, global_pool=True, name='pool'))
 
-        ctx_list.append({'ctx': mx.cpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
-        sym_list.append(mx.sym.Pooling_v1(pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, name='pool'))
+            ctx_list.append({'ctx': mx.cpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
+            sym_list.append(mx.sym.Pooling_v1(pool_type=pool_type,
+                                              pooling_convention=pooling_convention, global_pool=True, name='pool'))
 
         ctx_list.append({'ctx': mx.cpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, p_value=p_value, name='pool'))
 
         ctx_list.append({'ctx': mx.cpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(kernel=kernel, pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, p_value=p_value, name='pool'))
 
         ctx_list.append({'ctx': mx.cpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, p_value=p_value, name='pool'))
 
         ctx_list.append({'ctx': mx.gpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, cudnn_off=False, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, p_value=p_value, cudnn_off=False, name='pool'))
 
         ctx_list.append({'ctx': mx.gpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(kernel=kernel, pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, cudnn_off=False, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, p_value=p_value, cudnn_off=False, name='pool'))
 
         ctx_list.append({'ctx': mx.gpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, cudnn_off=False, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, p_value=p_value, cudnn_off=False, name='pool'))
 
         ctx_list.append({'ctx': mx.gpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(kernel=kernel, pad=pad, stride=stride, pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, cudnn_off=True, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, p_value=p_value, cudnn_off=True, name='pool'))
 
         ctx_list.append({'ctx': mx.gpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(kernel=kernel, pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, cudnn_off=True, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, p_value=p_value, cudnn_off=True, name='pool'))
 
         ctx_list.append({'ctx': mx.gpu(0), 'pool_data': data, 'type_dict': {'pool_data': np.float32}})
         sym_list.append(mx.sym.Pooling(pool_type=pool_type,
-                                       pooling_convention=pooling_convention, global_pool=True, cudnn_off=True, name='pool'))
+                                       pooling_convention=pooling_convention, global_pool=True, p_value=p_value, cudnn_off=True, name='pool'))
 
 
         check_consistency(sym_list, ctx_list)
@@ -1016,10 +1065,16 @@ def test_global_pooling():
     test_1d_pooling('max')
     test_1d_pooling('avg')
     test_1d_pooling('sum')
+    test_1d_pooling('lp', p_value=1)
+    test_1d_pooling('lp', p_value=2)
+    test_1d_pooling('lp', p_value=3)
 
     test_2d_pooling('max')
     test_2d_pooling('avg')
     test_2d_pooling('sum')
+    test_2d_pooling('lp', p_value=1)
+    test_2d_pooling('lp', p_value=2)
+    test_2d_pooling('lp', p_value=3)
 
 
 @with_seed()
@@ -1133,14 +1188,17 @@ def test_fullyconnected_with_type():
 
 @with_seed()
 def test_activation_with_type():
-    sym = mx.sym.Activation(name='act', act_type='sigmoid')
-    ctx_list = [{'ctx': mx.gpu(0), 'act_data': (2, 2, 10, 10), 'type_dict': {'act_data': np.float64}},
-                {'ctx': mx.gpu(0), 'act_data': (2, 2, 10, 10), 'type_dict': {'act_data': np.float32}},
-                {'ctx': mx.gpu(0), 'act_data': (2, 2, 10, 10), 'type_dict': {'act_data': np.float16}},
-                {'ctx': mx.cpu(0), 'act_data': (2, 2, 10, 10), 'type_dict': {'act_data': np.float64}},
-                {'ctx': mx.cpu(0), 'act_data': (2, 2, 10, 10), 'type_dict': {'act_data': np.float32}},
-                {'ctx': mx.cpu(0), 'act_data': (2, 2, 10, 10), 'type_dict': {'act_data': np.float16}}]
-    check_consistency(sym, ctx_list)
+    act_types = ['relu', 'sigmoid', 'tanh', 'softrelu', 'softsign']
+    shape = (2, 2, 10, 10)
+    for act_type in act_types:
+        sym = mx.sym.Activation(name='act', act_type=act_type)
+        ctx_list = [{'ctx': mx.gpu(0), 'act_data': shape, 'type_dict': {'act_data': np.float64}},
+                    {'ctx': mx.gpu(0), 'act_data': shape, 'type_dict': {'act_data': np.float32}},
+                    {'ctx': mx.gpu(0), 'act_data': shape, 'type_dict': {'act_data': np.float16}},
+                    {'ctx': mx.cpu(0), 'act_data': shape, 'type_dict': {'act_data': np.float64}},
+                    {'ctx': mx.cpu(0), 'act_data': shape, 'type_dict': {'act_data': np.float32}},
+                    {'ctx': mx.cpu(0), 'act_data': shape, 'type_dict': {'act_data': np.float16}}]
+        check_consistency(sym, ctx_list)
 
 
 @with_seed()
@@ -1176,7 +1234,6 @@ def test_embedding_with_type():
     test_embedding_helper(data_types, weight_types, 0, 5)
 
 
-@unittest.skip("test fails intermittently. temporarily disabled till it gets fixed. tracked at https://github.com/apache/incubator-mxnet/issues/8288")
 @with_seed()
 def test_svmoutput_with_type():
     sym = mx.sym.SVMOutput(name='svmoutput', use_linear=True)
@@ -1186,7 +1243,7 @@ def test_svmoutput_with_type():
                 {'ctx': mx.cpu(0), 'svmoutput_data': (20, 10), 'type_dict': {'svmoutput_data': np.float64}},
                 {'ctx': mx.cpu(0), 'svmoutput_data': (20, 10), 'type_dict': {'svmoutput_data': np.float32}},
                 {'ctx': mx.cpu(0), 'svmoutput_data': (20, 10), 'type_dict': {'svmoutput_data': np.float16}}]
-    check_consistency(sym, ctx_list)
+    check_consistency(sym, ctx_list, use_uniform=True)
 
 
 @with_seed()
@@ -1269,19 +1326,6 @@ def test_rnn():
     check_rnn_consistency(fused, stack)
     check_rnn_consistency(stack, fused)
 
-
-@with_seed()
-def test_lstm():
-    fused = mx.rnn.FusedRNNCell(100, num_layers=2, mode='lstm', prefix='')
-
-    stack = mx.rnn.SequentialRNNCell()
-    stack.add(mx.rnn.LSTMCell(100, prefix='l0_'))
-    stack.add(mx.rnn.LSTMCell(100, prefix='l1_'))
-
-    check_rnn_consistency(fused, stack)
-    check_rnn_consistency(stack, fused)
-
-
 @with_seed()
 def test_lstm_forget_bias():
     forget_bias = 2.0
@@ -1303,7 +1347,6 @@ def test_lstm_forget_bias():
     expected_bias = forget_bias * np.ones(10, )
     assert_allclose(args[bias_name].asnumpy(), expected_bias)
 
-
 @with_seed()
 def test_gru():
     fused = mx.rnn.FusedRNNCell(100, num_layers=2, mode='gru', prefix='')
@@ -1314,7 +1357,6 @@ def test_gru():
 
     check_rnn_consistency(fused, stack)
     check_rnn_consistency(stack, fused)
-
 
 @with_seed()
 def test_bidirectional():
@@ -1333,7 +1375,6 @@ def test_bidirectional():
 
     check_rnn_consistency(fused, stack)
     check_rnn_consistency(stack, fused)
-
 
 @with_seed()
 def test_unfuse():
@@ -1516,7 +1557,6 @@ def test_deformable_convolution_options():
     sym = mx.sym.contrib.DeformableConvolution(num_filter=4, kernel=(3,3), num_deformable_group=2,
                                                name='deformable_conv')
 
-
 @with_seed()
 def test_residual_fused():
     cell = mx.rnn.ResidualCell(
@@ -1587,7 +1627,6 @@ def test_sequence_reverse():
     check_sequence_reverse(mx.gpu(0))
 
 
-@unittest.skip("Test fails intermittently. Temporarily disabled until fixed. Tracked at https://github.com/apache/incubator-mxnet/issues/8211")
 @with_seed()
 def test_autograd_save_memory():
     x = mx.nd.zeros((128, 512, 512), ctx=mx.gpu(0))
@@ -1689,7 +1728,6 @@ def test_cross_device_autograd():
 
     assert_almost_equal(dx, x.grad.asnumpy())
 
-@unittest.skip("JIRA issue: https://issues.apache.org/jira/projects/MXNET/issues/MXNET-130")
 @with_seed()
 def test_multi_proposal_op():
     # paramters
@@ -1698,7 +1736,6 @@ def test_multi_proposal_op():
     ratios = (0.5, 1, 2)
     rpn_pre_nms_top_n = 12000
     rpn_post_nms_top_n = 2000
-    threshold = 0.7
     rpn_min_size = feature_stride
 
     feat_len = (1000 + 15) // 16
@@ -1729,13 +1766,13 @@ def test_multi_proposal_op():
             im_info[i, :] = [im_size[0], im_size[1], im_scale]
         return cls_prob, bbox_pred, im_info
 
-    def check_proposal_consistency(op, batch_size):
+    def check_proposal_consistency(op, batch_size, with_nms=False):
         '''
         op is mx.nd.contrib.Proposal or mx.nd.contrib.MultiProposal
         '''
         cls_prob, bbox_pred, im_info = get_new_data(batch_size, mx.cpu(0))
         rois_cpu, score_cpu = op(
-                cls_score = cls_prob,
+                cls_prob = cls_prob,
                 bbox_pred = bbox_pred,
                 im_info = im_info,
                 feature_stride = feature_stride,
@@ -1743,7 +1780,7 @@ def test_multi_proposal_op():
                 ratios = ratios,
                 rpn_pre_nms_top_n = rpn_pre_nms_top_n,
                 rpn_post_nms_top_n = rpn_post_nms_top_n,
-                threshold = threshold,
+                threshold = 0.7 if with_nms else 1.0,
                 rpn_min_size = rpn_min_size, output_score = True)
 
         gpu_ctx = mx.gpu(0)
@@ -1754,7 +1791,7 @@ def test_multi_proposal_op():
         im_info_gpu = im_info.as_in_context(gpu_ctx)
 
         rois_gpu, score_gpu = op(
-                cls_score = cls_prob_gpu,
+                cls_prob = cls_prob_gpu,
                 bbox_pred = bbox_pred_gpu,
                 im_info = im_info_gpu,
                 feature_stride = feature_stride,
@@ -1762,7 +1799,7 @@ def test_multi_proposal_op():
                 ratios = ratios,
                 rpn_pre_nms_top_n = rpn_pre_nms_top_n,
                 rpn_post_nms_top_n = rpn_post_nms_top_n,
-                threshold = threshold,
+                threshold = 0.7 if with_nms else 1.0,
                 rpn_min_size = rpn_min_size, output_score = True)
 
         rois_cpu_np = rois_cpu.asnumpy()
@@ -1771,11 +1808,18 @@ def test_multi_proposal_op():
         score_cpu_np = score_cpu.asnumpy()
         score_gpu_np = score_gpu.asnumpy()
 
-        assert_almost_equal(score_cpu_np, score_gpu_np, atol = 1e-3, rtol = 1e-3)
-        assert_almost_equal(rois_cpu_np, rois_gpu_np, atol = 1e-3, rtol = 1e-3)
+        if not with_nms:
+            assert_almost_equal(score_cpu_np, score_gpu_np, atol = 1e-3, rtol = 1e-3)
+            assert_almost_equal(rois_cpu_np, rois_gpu_np, atol = 1e-3, rtol = 1e-3)
+        else:
+            # no 100% gurantee with nms
+            assert(np.sum(np.abs(score_cpu_np - score_gpu_np) < 1e-3) >= 10)
+            assert(np.sum(np.abs(rois_cpu_np - rois_gpu_np) < 1e-3) >= 40)
 
     check_proposal_consistency(mx.nd.contrib.Proposal, 1)
-    check_proposal_consistency(mx.nd.contrib.MultiProposal, 20)
+    check_proposal_consistency(mx.nd.contrib.MultiProposal, 5)
+    check_proposal_consistency(mx.nd.contrib.Proposal, 1, with_nms=True)
+    check_proposal_consistency(mx.nd.contrib.MultiProposal, 5, with_nms=True)
 
 
 # The following 2 functions launch 0-thread kernels, an error that should be caught and signaled.
@@ -1833,6 +1877,47 @@ def test_batchnorm_backwards_notrain():
                                          fix_gamma=False, cudnn_off=cudnn_o)
                 loss=y.square().sum()
             loss.backward(train_mode=False)
+
+@with_seed()
+def test_create_sparse_ndarray_gpu_to_cpu():
+    dim0 = 10
+    dim1 = 5
+    densities = [0, 0.5, 1]
+    for density in densities:
+        shape = rand_shape_2d(dim0, dim1)
+        matrix = rand_ndarray(shape, 'row_sparse', density)
+        data = matrix.data
+        indices = matrix.indices
+        rsp_created = mx.nd.sparse.row_sparse_array((data, indices), shape=shape, ctx=mx.cpu())
+        assert rsp_created.stype == 'row_sparse'
+        assert same(rsp_created.data.asnumpy(), data.asnumpy())
+        assert same(rsp_created.indices.asnumpy(), indices.asnumpy())
+        rsp_copy = mx.nd.array(rsp_created)
+        assert(same(rsp_copy.asnumpy(), rsp_created.asnumpy()))
+
+
+@with_seed()
+def test_softmax_activation():
+    gpu_a = mx.nd.array([[3., 0.5, -0.5, 2., 7.],
+        [2., -.4, 7.,   3., 0.2]], ctx=mx.gpu(0))
+    cpu_a = mx.nd.array([[3., 0.5, -0.5, 2., 7.],
+        [2., -.4, 7.,   3., 0.2]], ctx=mx.cpu())
+
+    cpu_a.attach_grad()
+    gpu_a.attach_grad()
+    with mx.autograd.record():
+        gpu_y = mx.nd.SoftmaxActivation(data = gpu_a)
+        cpu_y = mx.nd.SoftmaxActivation(data = cpu_a)
+        assert_almost_equal(cpu_y.asnumpy(), gpu_y.asnumpy(), atol = 1e-3, rtol = 1e-3)
+
+        gpu_y.backward()
+        cpu_y.backward()
+        assert_almost_equal(cpu_a.grad.asnumpy(), gpu_a.grad.asnumpy(),
+                atol = 1e-3, rtol = 1e-3)
+
+def test_context_num_gpus():
+    # Test that num_gpus reports at least one GPU, as the test is run on a GPU host.
+    assert mx.context.num_gpus() > 0
 
 if __name__ == '__main__':
     import nose

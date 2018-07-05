@@ -37,8 +37,8 @@ static bool IdentityAttrLikeRhsStorageType(const nnvm::NodeAttrs& attrs,
                                            std::vector<int> *out_attrs) {
   CHECK_EQ(in_attrs->size(), 2U);
   CHECK_EQ(out_attrs->size(), 1U);
-  auto& lhs_stype = in_attrs->at(0);
   const auto& rhs_stype = in_attrs->at(1);
+  auto& lhs_stype = in_attrs->at(0);
   auto& out_stype = out_attrs->at(0);
   bool dispatched = false;
 
@@ -57,9 +57,10 @@ static bool IdentityAttrLikeRhsStorageType(const nnvm::NodeAttrs& attrs,
     dispatched = storage_type_assign(&out_stype, static_cast<NDArrayStorageType>(out_stype),
                                      dispatch_mode, DispatchMode::kFComputeEx);
   }
-  if (!dispatched && (rhs_stype == kRowSparseStorage || rhs_stype == kCSRStorage)) {
-    // rsp, _ -> rsp, or csr, _ -> csr
-    dispatched = storage_type_assign(&out_stype, static_cast<NDArrayStorageType>(rhs_stype),
+  if (!dispatched && (lhs_stype == kRowSparseStorage || lhs_stype == kCSRStorage) &&
+      (out_stype == kDefaultStorage)) {
+    // rsp/csr, _ -> dns
+    dispatched = storage_type_assign(&out_stype, static_cast<NDArrayStorageType>(out_stype),
                                      dispatch_mode, DispatchMode::kFComputeEx);
   }
   if (!dispatched) {
@@ -85,7 +86,7 @@ The storage type of ``relu`` output depends upon the input storage type:
 .set_attr<FInferStorageType>("FInferStorageType", ElemwiseStorageType<1, 1, false, true, false>)
 .set_attr<FCompute>("FCompute<cpu>", UnaryOp::Compute<cpu, mshadow_op::relu>)
 .set_attr<FComputeEx>("FComputeEx<cpu>", UnaryOp::ComputeEx<cpu, mshadow_op::relu>)
-.set_attr<nnvm::FGradient>("FGradient", ElemwiseGradUseIn{"_backward_relu"});
+.set_attr<nnvm::FGradient>("FGradient", ElemwiseGradUseOut{"_backward_relu"});
 
 MXNET_OPERATOR_REGISTER_BINARY_WITH_SPARSE_CPU(_backward_relu,
                                                unary_bwd<mshadow_op::relu_grad>);
@@ -106,9 +107,37 @@ The storage type of ``sigmoid`` output is always dense
 
 MXNET_OPERATOR_REGISTER_BINARY_WITH_SPARSE_CPU(_backward_sigmoid,
                                                unary_bwd<mshadow_op::sigmoid_grad>);
+
+DMLC_REGISTER_PARAMETER(HardSigmoidParam);
+MXNET_OPERATOR_REGISTER_UNARY(hard_sigmoid)
+.describe(R"code(Computes hard sigmoid of x element-wise.
+
+.. math::
+   y = max(0, min(1, alpha * x + beta))
+
+)code" ADD_FILELINE)
+.set_attr_parser(ParamParser<HardSigmoidParam>)
+.set_attr<FCompute>("FCompute<cpu>", HardSigmoidForward<cpu>)
+.set_attr<nnvm::FGradient>("FGradient", ElemwiseGradUseIn{"_backward_hard_sigmoid"})
+.add_arguments(HardSigmoidParam::__FIELDS__());
+
+NNVM_REGISTER_OP(_backward_hard_sigmoid)
+.set_attr_parser(ParamParser<HardSigmoidParam>)
+.set_num_inputs(2)
+.set_num_outputs(1)
+.set_attr<nnvm::TIsBackward>("TIsBackward", true)
+.set_attr<nnvm::FInplaceOption>("FInplaceOption",
+  [](const NodeAttrs& attrs){
+    return std::vector<std::pair<int, int> >{{0, 0}};
+  })
+.set_attr<nnvm::FInplaceIdentity>("FInplaceIdentity",
+  [](const NodeAttrs& attrs){
+    return std::vector<bool>{true};
+  })
+.set_attr<FCompute>("FCompute<cpu>", HardSigmoidBackward<cpu>);
+
 // softsign
 MXNET_OPERATOR_REGISTER_UNARY(softsign)
-MXNET_ADD_SPARSE_OP_ALIAS(softsign)
 .describe(R"code(Computes softsign of x element-wise.
 
 .. math::
@@ -294,6 +323,7 @@ The storage type of ``make_loss`` output depends upon the input storage type:
 
 // identity output as first input, but attributes (shape and type) are constrained to be like rhs
 // storage type attribute is not constrained to be like rhs if it is already defined
+// for internal use only
 NNVM_REGISTER_OP(_identity_with_attr_like_rhs)
 .set_num_inputs(2)
 .set_attr<nnvm::FListInputNames>("FListInputNames",
@@ -368,6 +398,98 @@ NNVM_REGISTER_OP(reshape_like)
 .add_argument("lhs", "NDArray-or-Symbol", "First input.")
 .add_argument("rhs", "NDArray-or-Symbol", "Second input.");
 
+void ShapeComputeCPU(const nnvm::NodeAttrs& attrs,
+                     const OpContext& ctx,
+                     const std::vector<TBlob>& inputs,
+                     const std::vector<OpReqType>& req,
+                     const std::vector<TBlob>& outputs) {
+  CHECK_EQ(inputs.size(), 1U);
+  CHECK_EQ(outputs.size(), 1U);
+  CHECK_EQ(req.size(), 1U);
+  const TBlob& in_data = inputs[0];
+  const TBlob& out_data = outputs[0];
+  memcpy(out_data.dptr_, in_data.shape_.data(), in_data.ndim() * sizeof(int64_t));
+}
+
+NNVM_REGISTER_OP(shape_array)
+.describe(R"code(Returns a 1D int64 array containing the shape of data.
+
+Example::
+
+  shape_array([[1,2,3,4], [5,6,7,8]]) = [2,4]
+
+)code" ADD_FILELINE)
+.set_num_inputs(1)
+.set_num_outputs(1)
+.set_attr<FCompute>("FCompute<cpu>", ShapeComputeCPU)
+.set_attr<nnvm::FInferShape>("FInferShape",
+  [](const nnvm::NodeAttrs& attrs,
+     std::vector<TShape> *in_attrs,
+     std::vector<TShape> *out_attrs) {
+    CHECK_EQ(in_attrs->size(), 1U);
+    CHECK_EQ(out_attrs->size(), 1U);
+    TShape target_shape(1);
+    target_shape[0] = in_attrs->at(0).ndim();
+    SHAPE_ASSIGN_CHECK(*out_attrs, 0, target_shape);
+    return !shape_is_none(out_attrs->at(0));
+  })
+.set_attr<nnvm::FInferType>("FInferType",
+  [](const nnvm::NodeAttrs& attrs,
+     std::vector<int>* in_attrs,
+     std::vector<int>* out_attrs) {
+    CHECK_EQ(in_attrs->size(), 1U);
+    CHECK_EQ(out_attrs->size(), 1U);
+    TYPE_ASSIGN_CHECK(*out_attrs, 0, mshadow::kInt64);
+    return out_attrs->at(0) != -1;
+  })
+.add_argument("data", "NDArray-or-Symbol", "Input Array.");
+
+void SizeComputeCPU(const nnvm::NodeAttrs& attrs,
+                    const OpContext& ctx,
+                    const std::vector<TBlob>& inputs,
+                    const std::vector<OpReqType>& req,
+                    const std::vector<TBlob>& outputs) {
+  using namespace mshadow;
+  using namespace mxnet_op;
+  CHECK_EQ(inputs.size(), 1U);
+  CHECK_EQ(outputs.size(), 1U);
+  CHECK_EQ(req.size(), 1U);
+  const TBlob& in_data = inputs[0];
+  const TBlob& out_data = outputs[0];
+  const index_t size_var = in_data.Size();
+  memcpy(out_data.dptr_, &size_var, 1U * sizeof(int64_t));
+}
+
+NNVM_REGISTER_OP(size_array)
+.describe(R"code(Returns a 1D int64 array containing the size of data.
+
+Example::
+
+  size_array([[1,2,3,4], [5,6,7,8]]) = [8]
+
+)code" ADD_FILELINE)
+.set_num_inputs(1)
+.set_num_outputs(1)
+.set_attr<FCompute>("FCompute<cpu>", SizeComputeCPU)
+.set_attr<nnvm::FInferShape>("FInferShape",
+  [](const nnvm::NodeAttrs& attrs,
+     std::vector<TShape> *in_attrs,
+     std::vector<TShape> *out_attrs) {
+    CHECK_EQ(in_attrs->size(), 1U);
+    CHECK_EQ(out_attrs->size(), 1U);
+    SHAPE_ASSIGN_CHECK(*out_attrs, 0, 1U);
+    return !shape_is_none(out_attrs->at(0));
+  })
+.set_attr<nnvm::FInferType>("FInferType",
+  [](const nnvm::NodeAttrs& attrs,
+     std::vector<int>* in_attrs,
+     std::vector<int>* out_attrs) {
+    CHECK_EQ(in_attrs->size(), 1U);
+    CHECK_EQ(out_attrs->size(), 1U);
+    TYPE_ASSIGN_CHECK(*out_attrs, 0, mshadow::kInt64);
+    return out_attrs->at(0) != -1;
+  })
+.add_argument("data", "NDArray-or-Symbol", "Input Array.");
 
 DMLC_REGISTER_PARAMETER(CastParam);
 NNVM_REGISTER_OP(Cast)
@@ -825,6 +947,16 @@ The storage type of ``gammaln`` output is always dense
 
 MXNET_OPERATOR_REGISTER_BINARY_WITH_SPARSE_CPU_DR(_backward_gammaln,
                                                   unary_bwd<mshadow_op::gammaln_grad>);
+
+MXNET_OPERATOR_REGISTER_UNARY(logical_not)
+.describe(R"code(Returns the result of logical NOT (!) function
+
+Example:
+  logical_not([-2., 0., 1.]) = [0., 1., 0.]
+
+)code")
+.set_attr<FCompute>("FCompute<cpu>", UnaryOp::Compute<cpu, mshadow_op::nt>)
+.set_attr<nnvm::FGradient>("FGradient", MakeZeroGradNodes);
 
 }  // namespace op
 }  // namespace mxnet

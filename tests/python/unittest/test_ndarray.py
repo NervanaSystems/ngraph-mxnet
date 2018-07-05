@@ -21,12 +21,13 @@ import os
 import pickle as pkl
 import unittest
 from nose.tools import raises
-from common import setup_module, with_seed, assertRaises, TemporaryDirectory
+from common import setup_module, with_seed, assertRaises, TemporaryDirectory, teardown
 from mxnet.test_utils import almost_equal
-from mxnet.test_utils import assert_almost_equal
+from mxnet.test_utils import assert_almost_equal, assert_exception
 from mxnet.test_utils import default_context
 from mxnet.test_utils import np_reduce
 from mxnet.test_utils import same
+from mxnet.test_utils import random_sample, rand_shape_nd
 from numpy.testing import assert_allclose
 import mxnet.autograd
 
@@ -154,30 +155,23 @@ def test_ndarray_negate():
 
 @with_seed()
 def test_ndarray_reshape():
-    tensor  = mx.nd.array([[[1, 2], [3, 4]],
-                           [[5, 6], [7, 8]]])
-    true_res = mx.nd.arange(8) + 1
-    assert same(tensor.reshape((-1, )).asnumpy(), true_res.asnumpy())
-    true_res  = mx.nd.array([[1, 2, 3, 4],
-                             [5, 6, 7, 8]])
-    assert same(tensor.reshape((2, -1)).asnumpy(), true_res.asnumpy())
-    assert same(tensor.reshape((0, -1)).asnumpy(), true_res.asnumpy())
-    true_res  = mx.nd.array([[1, 2],
-                             [3, 4],
-                             [5, 6],
-                             [7, 8]])
-    assert same(tensor.reshape((-1, 2)).asnumpy(), true_res.asnumpy())
-    assert same(tensor.reshape(4, 2).asnumpy(), true_res.asnumpy())
-    assert same(tensor.reshape(-1, 2).asnumpy(), true_res.asnumpy())
-    true_res = mx.nd.arange(8) + 1
+    tensor = (mx.nd.arange(30) + 1).reshape(2, 3, 5)
+    true_res = mx.nd.arange(30) + 1
+    assert same(tensor.reshape((-1,)).asnumpy(), true_res.asnumpy())
+    assert same(tensor.reshape((2, -1)).asnumpy(), true_res.reshape(2, 15).asnumpy())
+    assert same(tensor.reshape((0, -1)).asnumpy(), true_res.reshape(2, 15).asnumpy())
+    assert same(tensor.reshape((-1, 2)).asnumpy(), true_res.reshape(15, 2).asnumpy())
+    assert same(tensor.reshape(6, 5).asnumpy(), true_res.reshape(6, 5).asnumpy())
+    assert same(tensor.reshape(-1, 2).asnumpy(), true_res.reshape(15, 2).asnumpy())
     assert same(tensor.reshape(-1).asnumpy(), true_res.asnumpy())
-    assert same(tensor.reshape(8).asnumpy(), true_res.asnumpy())
-
-    assert same(tensor.reshape(0, -1).asnumpy(), true_res.reshape(2, 4).asnumpy())
-    assert same(tensor.reshape(-1, 4).asnumpy(), true_res.reshape(2, 4).asnumpy())
-    assert same(tensor.reshape(-2,).asnumpy(), true_res.reshape(2, 2, 2).asnumpy())
-    assert same(tensor.reshape(-3, -1).asnumpy(), true_res.reshape(4, 2).asnumpy())
-    assert same(tensor.reshape(-1, 4).reshape(0, -4, 2, -1).asnumpy(), true_res.reshape(2, 2, 2).asnumpy())
+    assert same(tensor.reshape(30).asnumpy(), true_res.asnumpy())
+    assert same(tensor.reshape(0, -1).asnumpy(), true_res.reshape(2, 15).asnumpy())
+    assert same(tensor.reshape(-1, 6).asnumpy(), true_res.reshape(5, 6).asnumpy())
+    assert same(tensor.reshape(-2,).asnumpy(), true_res.reshape(2, 3, 5).asnumpy())
+    assert same(tensor.reshape(-3, -1).asnumpy(), true_res.reshape(6, 5).asnumpy())
+    assert same(tensor.reshape(-1, 15).reshape(0, -4, 3, -1).asnumpy(), true_res.reshape(2, 3, 5).asnumpy())
+    assert same(tensor.reshape(-1, 0).asnumpy(), true_res.reshape(10, 3).asnumpy())
+    assert same(tensor.reshape(-1, 0, reverse=True).asnumpy(), true_res.reshape(6, 5).asnumpy())
 
 
 @with_seed()
@@ -718,9 +712,8 @@ def test_order():
                  k=dat_size*dat_size*dat_size*dat_size, is_ascend=False)
     assert_almost_equal(nd_ret_argsort, gt)
 
-    # test topk with a big shape
-    a = mx.nd.arange(0, 54686454, step=1, repeat=1)
-    assert_almost_equal(a.topk(k=54686454).asnumpy(), a.asnumpy()[::-1])
+    a = mx.nd.arange(0, 1024, step=1, repeat=1)
+    assert_almost_equal(a.topk(k=1024).asnumpy(), a.asnumpy()[::-1])
 
     # Repeat those tests that don't involve indices.  These should pass even with
     # duplicated input data values (over many repeated runs with different random seeds,
@@ -939,8 +932,8 @@ def test_ndarray_fluent():
                 assert almost_equal(regular.asnumpy(), fluent.asnumpy(), equal_nan=equal_nan)
 
     for func in ['flatten', 'norm', 'round', 'rint', 'fix', 'floor', 'ceil', 'trunc', 'zeros_like',
-                 'ones_like', 'abs', 'sign', 'sin', 'cos', 'degrees', 'radians',
-                 'exp', 'expm1', 'square', 'reciprocal', 'argmax_channel']:
+                 'ones_like', 'abs', 'sign', 'sin', 'cos', 'degrees', 'radians', 'exp', 'expm1',
+                 'square', 'reciprocal', 'argmax_channel', 'shape_array', 'size_array']:
         check_fluent_regular(func, {})
 
     for func in ['arccosh', 'arcsin', 'arccos', 'arctan', 'tan', 'sinh', 'cosh', 'tanh',
@@ -1071,6 +1064,18 @@ def test_ndarray_indexing():
         x_grad[index] = value
         assert same(x_grad.asnumpy(), x.grad.asnumpy())
 
+    def test_setitem_autograd(np_array, index):
+        x = mx.nd.array(np_array, dtype=np_array.dtype)
+        out_shape = x[index].shape
+        y = mx.nd.random.uniform(shape=out_shape)
+        y.attach_grad()
+        try:
+            with mx.autograd.record():
+                x[index] = y
+                assert False  # should not reach here
+        except mx.base.MXNetError as err:
+            assert str(err).find('Inplace operations (+=, -=, x[:]=, etc) are not supported when recording with') != -1
+
     def np_int(index, int_type=np.int32):
         def convert(num):
             if num is None:
@@ -1194,6 +1199,7 @@ def test_ndarray_indexing():
         test_getitem(np_array, index[0], index[1])
         test_setitem(np_array, index[0], index[1])
         test_getitem_autograd(np_array, index[0])
+        test_setitem_autograd(np_array, index[0])
 
 
 def test_assign_float_value_to_ndarray():
@@ -1270,33 +1276,33 @@ def test_ndarray_astype():
 
 @with_seed()
 def test_norm(ctx=default_context()):
-    np_arr = np.random.uniform(size=(3, 3, 3, 3))
+    def l1norm(input_data, axis=0, keepdims=False):
+        return np.sum(abs(input_data), axis=axis, keepdims=keepdims)
+    def l2norm(input_data, axis=0, keepdims=False): 
+        return np.linalg.norm(input_data, axis=axis, keepdims=keepdims)
+
+    in_data_dim = random_sample([4,5,6], 1)[0]
+    in_data_shape = rand_shape_nd(in_data_dim)
+    np_arr = np.random.uniform(-1, 1, in_data_shape).astype(np.float32)
     mx_arr = mx.nd.array(np_arr, ctx=ctx)
-    arr1 = np.linalg.norm(np_arr, keepdims=False)
-    arr2 = mx.nd.norm(mx_arr, keepdims=False)
-    print(arr1)
-    print(arr2.asnumpy())
-    mx.test_utils.assert_almost_equal(arr1, arr2.asnumpy()[0])
+    for ord in [1,2]:
+        for keep_dims in [True, False]:
+            for i in range(4):
+                npy_out = l1norm(np_arr, i, keep_dims) if ord==1 else l2norm(np_arr, i, keep_dims)
+                mx_out = mx.nd.norm(mx_arr, ord=ord, axis=i, keepdims=keep_dims)
+                assert npy_out.shape == mx_out.shape
+                mx.test_utils.assert_almost_equal(npy_out, mx_out.asnumpy())
+                if (i < 3):
+                    npy_out = l1norm(np_arr, (i, i+1), keep_dims) if ord==1 else l2norm(np_arr, (i, i+1), keep_dims)
+                    mx_out = mx.nd.norm(mx_arr, ord=ord, axis=(i, i+1), keepdims=keep_dims)
+                    assert npy_out.shape == mx_out.shape
+                    mx.test_utils.assert_almost_equal(npy_out, mx_out.asnumpy())
 
-    for i in range(4):
-        arr1 = np.linalg.norm(np_arr, axis=i, keepdims=False)
-        arr2 = mx.nd.norm(mx_arr, axis=i, keepdims=False)
-        assert arr1.shape == arr2.shape
-        mx.test_utils.assert_almost_equal(arr1, arr2.asnumpy())
-
-        arr1 = np.linalg.norm(np_arr, axis=i, keepdims=True)
-        arr2 = mx.nd.norm(mx_arr, axis=i, keepdims=True)
-        assert arr1.shape == arr2.shape
-        mx.test_utils.assert_almost_equal(arr1, arr2.asnumpy())
-        if (i < 3):
-            arr1 = np.linalg.norm(np_arr, axis=(i, i+1), keepdims=False)
-            arr2 = mx.nd.norm(mx_arr, axis=(i, i+1), keepdims=False)
-            assert arr1.shape == arr2.shape
-            mx.test_utils.assert_almost_equal(arr1, arr2.asnumpy())
-            arr1 = np.linalg.norm(np_arr, axis=(i, i+1), keepdims=True)
-            arr2 = mx.nd.norm(mx_arr, axis=(i, i+1), keepdims=True)
-            assert arr1.shape == arr2.shape
-            mx.test_utils.assert_almost_equal(arr1, arr2.asnumpy())
+@with_seed()
+def test_ndarray_cpu_shared_ctx():
+    ctx = mx.Context('cpu_shared', 0)
+    res = mx.nd.zeros((1, 2, 3), ctx=ctx)
+    assert(res.context == ctx)
 
 
 if __name__ == '__main__':

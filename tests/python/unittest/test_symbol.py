@@ -20,7 +20,8 @@ import os
 import re
 import mxnet as mx
 import numpy as np
-from common import models
+from common import assertRaises, models
+from mxnet.base import NotImplementedForSymbol
 from mxnet.test_utils import discard_stderr
 import pickle as pkl
 import unittest
@@ -31,6 +32,10 @@ def test_symbol_basic():
     for m in mlist:
         m.list_arguments()
         m.list_outputs()
+
+def test_symbol_bool():
+    x = mx.symbol.Variable('x')
+    assertRaises(NotImplementedForSymbol, bool, x)
 
 def test_symbol_compose():
     data = mx.symbol.Variable('data')
@@ -186,8 +191,8 @@ def test_symbol_fluent():
                                      equal_nan=equal_nan)
 
     for func in ['flatten', 'norm', 'round', 'rint', 'fix', 'floor', 'ceil', 'trunc', 'zeros_like',
-                 'ones_like', 'abs', 'sign', 'sin', 'cos', 'degrees', 'radians',
-                 'exp', 'expm1',  'square', 'reciprocal', 'argmax_channel']:
+                 'ones_like', 'abs', 'sign', 'sin', 'cos', 'degrees', 'radians', 'exp', 'expm1',
+                 'square', 'reciprocal', 'argmax_channel', 'shape_array', 'size_array']:
         check_fluent_regular(func, {})
 
     for func in ['arccosh', 'arcsin', 'arccos', 'arctan', 'tan', 'sinh', 'cosh', 'tanh',
