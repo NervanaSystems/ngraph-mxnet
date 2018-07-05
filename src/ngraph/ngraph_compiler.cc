@@ -475,10 +475,9 @@ void Compiler::CheckInNgraph() {
         if (bad_type(node)) {
           node->in_ngraph_ = false;
         } else {
-          for (auto input : node->inputs_) {
-            if (bad_type(node)) {
-              node->in_ngraph_ = false;
-            }
+          if (std::find_if(node->inputs_.begin(), node->inputs_.end(),
+                           bad_type) != node->inputs_.end()) {
+            node->in_ngraph_ = false;
           }
         }
 
