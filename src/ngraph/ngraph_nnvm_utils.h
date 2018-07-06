@@ -85,10 +85,8 @@ inline TensorViewVector get_tensor_views(
     const bool mem_reuse = true) {
   TensorViewVector out;
   for (size_t i = 0; i < ndarrays.size(); ++i) {
-    auto shape = TShape_to_NShape(ndarrays[i].shape());
-    const auto& element_type = getType(ndarrays[i].dtype());
     if (!mem_reuse || ((req != nullptr) && ((*req)[i] == mxnet::kAddTo)))
-      out.push_back(backend->create_tensor(element_type, shape));
+      out.push_back(NDArray_to_TensorView(ndarrays[i], backend, req == nullptr));
     else
       out.push_back(
           const_cast<mxnet::NDArray&>(ndarrays[i]).create_tensor_view());
