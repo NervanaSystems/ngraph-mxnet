@@ -347,6 +347,7 @@ void Compiler::CleanUpUneededReferences() {
       output_element->base_node_ = nullptr;
     }
     kv.first->nodes_.clear();
+    kv.first->entry_map_.clear();
   }
 }
 

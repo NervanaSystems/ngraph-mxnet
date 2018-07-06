@@ -936,7 +936,8 @@ void Emitter::CreateLayerOps() {
 
   // slice op
   ngraph_op_funcs_["slice"] = [this](const NodePtr& node) -> NgraphNodePtr {
-    NgraphNodePtr ng_slice = create_slice_op(op_map_[node->inputs_[0]], node->orig_node_->attrs);
+    NgraphNodePtr ng_slice =
+        create_slice_op(op_map_[node->inputs_[0]], node->orig_node_->attrs);
     return ng_slice;
   };
 
