@@ -182,7 +182,7 @@ void CachedOp::UpdateFullGraph(nnvm::Graph* fwd_graph,
     }
 
     std::vector<NodeEntry> xs;
-    const auto& idx = fwd_graph_.indexed_graph();
+    const auto& idx = fwd_graph->indexed_graph();
     for (size_t i = 0; i < idx.input_nodes().size(); ++i) {
       auto nid = idx.input_nodes()[i];
       if (idx.mutable_input_nodes().count(nid)) continue;
@@ -204,7 +204,7 @@ void CachedOp::UpdateFullGraph(nnvm::Graph* fwd_graph,
     size_t num_forward_nodes = fwd_graph->indexed_graph().num_nodes();
     size_t num_forward_entries = fwd_graph->indexed_graph().num_node_entries();
 
-    full_graph_.outputs = fwd_graph_.outputs;
+    full_graph_.outputs = fwd_graph->outputs;
     bwd_output_reqs_ = std::vector<OpReqType>(grad_graph_.outputs.size(), kWriteTo);
     for (const auto& i : grad_graph_.outputs) full_graph_.outputs.emplace_back(i);
     const auto& idx = full_graph_.indexed_graph();
@@ -323,7 +323,7 @@ bool CachedOp::SetForwardGraph(
 #if MXNET_USE_NGRAPH == 1
     ngraph_bridge::Compiler compiler(
         ngraph_fwd_graph_, symbol_inputs_, inputs);
-    g = compiler.GetCachedOpGraph(inputs);
+    fwd_graph_ = g = compiler.GetCachedOpGraph(inputs);
     UpdateFullGraph(&g, compiler.GetInputs());
 #endif
 
