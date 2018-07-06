@@ -232,6 +232,11 @@ class Graph : public Node {
     output_elements_.clear();
   }
 
+  // TODO(mbrookhart): We're carrying a map of NodeEntry to bridge nodes
+  // for easy lookup during parsing. This relies on nodes being added through
+  // the AddNode method, but nodes_ is a public variable, so this isn't 100%
+  // seafe probably need a refactor into a getter/setter type situation.
+
   // Add a node to the graph
   void AddNode(NodePtr node) {
     entry_map_[MapEntry{node->orig_node_, node->multi_output_index_}] = node;
