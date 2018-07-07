@@ -365,8 +365,8 @@ void CollapseSubgraph(Graph* graph, int subgraph_num) {
     }
     for (auto node : tmpGraph->nodes_) {
       if (node->operation_ == "Convolution" ||
+          node->operation_ == "Deconvolution" ||
           node->operation_ == "BatchNorm" ||
-          node->operation_ == "SoftmaxOutput" ||
           node->operation_ == "FullyConnected") {
         for (size_t i = 1; i < node->inputs_.size(); ++i) {
           auto input = node->inputs_[i];
