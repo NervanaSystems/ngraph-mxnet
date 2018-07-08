@@ -216,8 +216,6 @@ class Graph : public Node {
   void CleanUp() {
     auto backend = GetBackendFromContext(context_);
     for (int i = 0; i < kGraphExeModeCount; ++i) {
-      cached_values[i].clear();
-      cached_aux_values[i].clear();
       cached_aux_positions[i].clear();
 
       backend->remove_compiled_function(ngraph_forward[i]);
@@ -261,8 +259,6 @@ class Graph : public Node {
   std::shared_ptr<ngraph::FpropCache> fprop_cache;
 
   const mxnet::Context context_;
-  std::vector<std::shared_ptr<ngraph::runtime::TensorView>>
-      cached_values[kGraphExeModeCount];
   std::vector<std::shared_ptr<ngraph::runtime::TensorView>>
       cached_aux_values[kGraphExeModeCount];
 
