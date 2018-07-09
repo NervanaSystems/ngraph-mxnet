@@ -32,6 +32,7 @@
 #include <string>
 #include <tuple>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include <ngraph/ngraph.hpp>
@@ -248,7 +249,7 @@ class Graph : public Node {
     MapEntry tmp{entry.node, entry.index};
     if (entry_map_.count(tmp)) {
       return entry_map_[tmp];
-    };
+    }
     return nullptr;
   }
 
