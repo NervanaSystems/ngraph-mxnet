@@ -80,7 +80,6 @@ def writeLogToFile(logArray, fileName):
     fOut = open(fileName, 'w')
     for line in logArray:  
         fOut.write("{}\n".format(str(line)))
-        print("writeLogToFile : {} ".format(str(line)))
     fOut.close()
 
 # End: writeLogToFile()
@@ -152,7 +151,6 @@ def runMnistScript(script=None,          # Script to run
         optDataDir = ""
 
     print("Setting up run in nGraph environment")
-    print("the Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
     cmd = "python{} {}".format(os.environ['PYTHON_VERSION_NUMBER'],script )
     print("The command for Mnist Script is: {}".format(cmd))
 
@@ -512,7 +510,6 @@ def runCommand(command=None,  # Script to run
     cmd = command
 
     cmdMsg = "Command is: \"{}\"".format(str(cmd))
-    print("{}".format(cmdMsg))
     log.append(cmdMsg)
 
     sTime = DT.datetime.today()
@@ -593,5 +590,4 @@ def runFakeCommand(command=None, logID=""):
 def timeElapsedString(startTime, endTime):
 
     timeElapsed = endTime - startTime
-
     return("Run length: {} seconds ({})".format(timeElapsed.total_seconds(), str(timeElapsed)))

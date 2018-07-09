@@ -32,18 +32,20 @@ if [ -z "${2}" ] ; then
 else
     export PYTHON_VERSION_NUMBER="${2}"
 fi
+echo "======PYTHON_VERSION_NUMBER========"
+echo " PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
 
 # Note that the docker image must have been previously built using the
 # make-docker-mx-ngraph-base.sh script (in the same directory as this script).
-#IMAGE_NAME='ngmx_ci'
-#IMAGE_ID="${1}"
 
-IMAGE_ID="$(git rev-parse HEAD)"
-
+IMAGE_NAME='ngmx_ci'
+IMAGE_ID="${1}"
 if [ -z "${IMAGE_ID}" ] ; then
     echo 'Missing an image version as the only argument. Exitting ...'
     exit 1
 fi
+
+set -u  # No unset variables
 
 ngraph_mx_dir="$(realpath ../..)"
 
@@ -110,4 +112,4 @@ docker run --rm \
        --env http_proxy=http://proxy-fm.intel.com:911 \
        --env https_proxy=http://proxy-fm.intel.com:912 \
        -v "${ngraph_mx_dir}:${docker_mx_dir}" \
-       "mxnet:${IMAGE_ID}" /home/run-as-user.sh
+       "${IMAGE_NAME}:${IMAGE_ID}" /home/run-as-user.sh
