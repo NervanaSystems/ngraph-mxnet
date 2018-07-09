@@ -458,50 +458,34 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
   for (auto& out : graph_.outputs) out.node = node_map_[out.node.get()];
 }
 
+bool bad_type(const NodePtr& node) {
+  return node->dtype_ == mshadow::kFloat16 ||
+         node->dtype_ == mshadow::kFloat64 ||
+         node->stype_ != mxnet::kDefaultStorage;
+}
+
 // Check nodes in NGraph
 void Compiler::CheckInNgraph() {
   std::unordered_set<std::string> unsupported_op_names;
   for (const std::shared_ptr<ngraph_bridge::Node>& node : ngraph_.nodes_) {
     // The bridge code only has nGraph emitters for kOp-type nodes.
     if (node->type_ == NodeType::kOp) {
-      if (compiler_.ngraph_op_funcs_.count(node->operation_)) {
-        node->in_ngraph_ = true;
-
-        if (node->operation_ == "BatchNorm") {
-          auto shape = TShape_to_NShape(node->inputs_[0]->shape_);
-          if (shape[1] % 8 != 0) {
-            // MXNet outperforms nGraph in this case.
-            node->in_ngraph_ = false;
-          }
-        } else if (node->operation_ == "LeakyReLU") {
-          // We haven't yet implemented all activation functions for
-          // LeaklyReLU...
-          const std::string act_type =
-              get_default(node, "act_type", std::string("leaky"));
-          if (act_type != "leaky") {
-            node->in_ngraph_ = false;
-          }
-        }
-
-        // nGraph doesn't yet support float16.
-        if (node->dtype_ == mshadow::kFloat16 ||
-            node->dtype_ == mshadow::kFloat64 ||
-            node->stype_ != mxnet::kDefaultStorage) {
+      if (compiler_.supported_ops.count(node->operation_)) {
+        node->in_ngraph_ = compiler_.supported_ops[node->operation_](node);
+        // nGraph doesn't yet support float16 or sparse storage.
+        if (bad_type(node)) {
           node->in_ngraph_ = false;
         } else {
-          for (auto input : node->inputs_) {
-            if (input->dtype_ == mshadow::kFloat16 ||
-                input->dtype_ == mshadow::kFloat64 ||
-                input->stype_ != mxnet::kDefaultStorage) {
-              node->in_ngraph_ = false;
-            }
+          if (std::find_if(node->inputs_.begin(), node->inputs_.end(),
+                           bad_type) != node->inputs_.end()) {
+            node->in_ngraph_ = false;
           }
         }
+
       } else {
         if (ngraph_log_verbose()) {
           unsupported_op_names.insert(node->operation_);
         }
-
         if (ngraph_log_verbose_detail()) {
           std::cout << "NGRAPH_BRIDGE: Unsupported Op instance (verbose):"
                     << std::endl;

@@ -204,6 +204,7 @@ class Graph : public Node {
         context_(context),
         enable_fprop_cache(enable_fprop_cache) {
     fprop_cache = std::make_shared<ngraph::FpropCache>();
+    is_reuse_mem = context.dev_type != mxnet::Context::kNNP;
   }
 
   std::string createNodeLabel() override {
@@ -283,6 +284,7 @@ class Graph : public Node {
   // is loss is used to mark graphs as ending in loss layers to
   // handle some zero_grad errors with batch_take
   bool is_loss = false;
+  bool is_reuse_mem = true;
 };
 
 // Element to represent outputs of Graph objects embedded in other Graph objects
