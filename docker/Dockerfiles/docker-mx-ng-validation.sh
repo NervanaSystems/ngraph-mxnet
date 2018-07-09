@@ -96,7 +96,6 @@ docker run --rm \
        --env RUN_CMD="${docker_mx_dir}/docker/scripts/${script}" \
        --env PYTHON_VERSION_NUMBER="${PYTHON_VERSION_NUMBER}" \
        --env MX_NG_MODEL="${MX_NG_MODEL}" \
-       --env MX_NG_ITERATIONS="${MX_NG_ITERATIONS}" \
        --env MX_NG_EPOCHS="${MX_NG_EPOCHS}" \
        --env MX_NG_DO_NOT_RUN="${MX_NG_DO_NOT_RUN}" \
        --env MX_NG_RESNET_NUM_LAYERS="${MX_NG_RESNET_NUM_LAYERS}" \
