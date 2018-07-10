@@ -386,7 +386,6 @@ void Emitter::CreateUnaryOps() {
     }
     return std::make_shared<ngraph::op::Reverse>(op_map_[node->inputs_[0]],
                                                  axis_set);
-
   };
   ngraph_op_funcs_["reshape"] = [this](const NodePtr& node) -> NgraphNodePtr {
     auto new_shape = TShape_to_NShape(node->shape_);
