@@ -157,7 +157,7 @@ def runMnistScript(script=None,          # Script to run
     # Hook for testing results detection without having to run multi-hour
     # FW+Dataset tests
     if (os.environ.has_key('MX_NG_DO_NOT_RUN')
-        and len(os.environ['MX_NG_DO_NOT_RUN']) > 0):
+        and len(os.environ.get['MX_NG_DO_NOT_RUN'] == "1")):
         runLog = runFakeCommand(command=cmd, logID=logID)
     else:
         runLog = runCommand(command=cmd, logID=logID)
@@ -215,6 +215,7 @@ def runResnetScript(script=None,          # Script to run
         python_lib = "python"
 
     # -u puts python in unbuffered mode
+    #check trainWithNPP
     if (trainWithNPP != "1"):
         cmd = ("{} {} --network {} --batch-size {} --num-layers {} --num-epochs {} --num-classes {} --num-examples {} --image-shape {} --pad-size {} --lr {} --lr-step-epochs {} --with-nnp".format(python_lib.strip(), script, "resnet", trainBatchSize, trainNumLayers, 
         trainEpochs, trainNumClasses, trainNumExamples, str(trainImageShape).strip(), trainPadSize, trainLr, str(trainLrStepEpochs).strip()))
@@ -227,7 +228,7 @@ def runResnetScript(script=None,          # Script to run
     # Hook for testing results detection without having to run multi-hour
     # Framework+Dataset tests
     if (os.environ.has_key('MX_NG_DO_NOT_RUN')
-        and len(os.environ['MX_NG_DO_NOT_RUN']) > 0):
+        and len(os.environ.get['MX_NG_DO_NOT_RUN'] == "1")):
         runLog = runFakeCommand(command=cmd, logID=logID)
     else:
         runLog = runCommand(command=cmd, logID=logID)
