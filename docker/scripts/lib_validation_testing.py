@@ -550,7 +550,7 @@ def runCommand(command=None,  # Script to run
     subP = None  # Release the subprocess Popen object
 
     if retCode != 0:
-        print("ERROR: Subprocess ({}}) returned non-zero exit code {}".format(cmd, retCode))
+        print("ERROR: Subprocess ({}) returned non-zero exit code {}".format(cmd, retCode))
     else:
         print("Subprocess returned exit code {}".format(retCode))
 
