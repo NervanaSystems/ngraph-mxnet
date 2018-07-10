@@ -32,6 +32,7 @@
 #include <string>
 #include <tuple>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include <ngraph/ngraph.hpp>
@@ -186,6 +187,7 @@ inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
 
 class OutputElement;
 
+using MapEntry = std::pair<nnvmNodePtr, size_t>;
 /*
 Graph class
 Graph subclasses Node so that we can embed graphs into other graphs
@@ -232,19 +234,22 @@ class Graph : public Node {
     output_elements_.clear();
   }
 
+  // TODO(mbrookhart): We're carrying a map of NodeEntry to bridge nodes
+  // for easy lookup during parsing. This relies on nodes being added through
+  // the AddNode method, but nodes_ is a public variable, so this isn't 100%
+  // seafe probably need a refactor into a getter/setter type situation.
+
   // Add a node to the graph
-  void AddNode(NodePtr node) { nodes_.emplace_back(node); }
+  void AddNode(NodePtr node) {
+    entry_map_[MapEntry{node->orig_node_, node->multi_output_index_}] = node;
+    nodes_.emplace_back(node);
+  }
 
   // get the node corresponding to an orig_node
   NodePtr operator[](const nnvm::NodeEntry &entry) {
-    for (auto n : nodes_) {
-      if (n->name_ == "gelqf0")
-        std::cout << n->orig_node_.get() << " " << n->multi_output_index_
-                  << std::endl;
-      if ((n->orig_node_ == entry.node) &&
-          (n->multi_output_index_ == entry.index)) {
-        return n;
-      }
+    MapEntry tmp{entry.node, entry.index};
+    if (entry_map_.count(tmp)) {
+      return entry_map_[tmp];
     }
     return nullptr;
   }
@@ -254,6 +259,7 @@ class Graph : public Node {
   size_t num_adjoints_ = 0;
   // nodes in this graph
   std::vector<NodePtr> nodes_;
+  std::map<MapEntry, NodePtr> entry_map_;
   // functions to execute this graph in ngraph.
   // Note: ngraph_backward[GraphExeMode::kInfer] should always be null, but we
   // define it for consisteny.

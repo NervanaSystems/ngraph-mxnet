@@ -114,6 +114,9 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
 std::vector<NodePtr> RemoveBroken(NodePtr node,
                                   const std::vector<NodePtr>& subgraph_nodes) {
   std::vector<NodePtr> outNodes;
+  std::unordered_set<NodePtr> outNodes_set;
+  std::unordered_set<NodePtr> subgraph_nodes_set(subgraph_nodes.begin(),
+                                                 subgraph_nodes.end());
 
   /****************************************************************************/
   // First Graph pass - get the intersection of all inputs to a subgraph rooted
@@ -122,18 +125,22 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
   GraphVisitor visitor1;
   std::unordered_map<NodePtr, bool> is_output;
 
-  visitor1.operation = [&outNodes, &is_output, &subgraph_nodes](NodePtr node) {
+  visitor1.operation = [&outNodes, &is_output, &subgraph_nodes_set,
+                        &outNodes_set](NodePtr node) {
     // assume this node isn't in the set
     is_output[node] = false;
     // if it's in the subgraph or it's inputs are, mark it as in the set
-    if (in_vec(subgraph_nodes, node)) {
+    if (subgraph_nodes_set.count(node) != 0) {
       is_output[node] = true;
     } else {
       for (auto input : node->inputs_)
         if (is_output[input]) is_output[node] = true;
     }
     // if this node is in in the set, store it in the output
-    if (is_output[node]) outNodes.push_back(node);
+    if (is_output[node]) {
+      outNodes.push_back(node);
+      outNodes_set.insert(node);
+    }
   };
 
   std::unordered_set<NodePtr> visited1;
@@ -162,10 +169,11 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
   for (auto n : subgraph_nodes) is_good[n] = true;
 
   // erase nodes in bad branches from the output
-  visitor2.operation = [&is_good, &outNodes](NodePtr node) {
+  visitor2.operation = [&is_good, &outNodes, &outNodes_set](NodePtr node) {
     if (!is_good[node]) {
       outNodes.erase(std::remove(outNodes.begin(), outNodes.end(), node),
                      outNodes.end());
+      outNodes_set.erase(node);
     }
   };
 
@@ -173,8 +181,8 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
   using NodeGood = std::tuple<NodePtr, bool>;
   std::set<NodeGood> visited2;
 
-  visitor2.stop_condition = [&visited2, &outNodes, &is_good](NodePtr node,
-                                                             NodePtr input) {
+  visitor2.stop_condition = [&visited2, &outNodes_set, &is_good](
+      NodePtr node, NodePtr input) {
     // propagate 'good' status from node to input
     if (!is_good[node]) is_good[input] = false;
     auto edge_tup = NodeGood{input, is_good[input]};
@@ -182,7 +190,7 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
     // continue if...
     // 1) the input is still in output nodes
     // 2) the input has not already been visited with its 'good' status
-    if (in_vec(outNodes, input) && !visited2.count(edge_tup)) {
+    if (outNodes_set.count(input) && !visited2.count(edge_tup)) {
       visited2.insert(edge_tup);
       return false;
     }
@@ -209,12 +217,12 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
   using NodeGood = std::tuple<NodePtr, bool>;
   std::set<NodePtr> visited3;
 
-  visitor3.stop_condition = [&visited3, &outNodes](NodePtr node,
-                                                   NodePtr input) {
+  visitor3.stop_condition = [&visited3, &outNodes_set](NodePtr node,
+                                                       NodePtr input) {
     // continue if...
     // 1) the input is in output nodes
     // 2) the input has not already been visited
-    if (in_vec(outNodes, input) && !visited3.count(input)) {
+    if (outNodes_set.count(input) && !visited3.count(input)) {
       visited3.insert(input);
       return false;
     }
@@ -236,19 +244,31 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
 
 std::vector<NodePtr> GetSubgraphOutputs(
     const Graph& graph, const std::vector<NodePtr>& subgraph_nodes) {
+  std::unordered_set<NodePtr> sg_nodes(subgraph_nodes.begin(),
+                                       subgraph_nodes.end());
+  std::unordered_set<NodePtr> out_nodes_set;
+
   std::vector<NodePtr> outNodes;
   // for every node in the subgraph, if the node is an input to other nodes
   // that aren't in the subgraph, this node is an output of the subgraph
-  for (auto n : graph.nodes_)
-    if (!in_vec(subgraph_nodes, n))
-      for (auto i : n->inputs_)
-        if (in_vec(subgraph_nodes, i) && !in_vec(outNodes, i))
+  for (auto n : graph.nodes_) {
+    if (!sg_nodes.count(n)) {
+      for (auto i : n->inputs_) {
+        if (sg_nodes.count(i) && !out_nodes_set.count(i)) {
           outNodes.emplace_back(i);
+          out_nodes_set.insert(i);
+        }
+      }
+    }
+  }
 
   // of nodes in the subgraph are outputs of the main graph, they need
   // to be outputs of the subgraph
-  for (auto n : graph.outputs_)
-    if (in_vec(subgraph_nodes, n)) outNodes.emplace_back(n);
+  for (auto n : graph.outputs_) {
+    if (sg_nodes.count(n)) {
+      outNodes.emplace_back(n);
+    }
+  }
 
   if (outNodes.size() == 0) {
     // this is here for algorithm debugging
