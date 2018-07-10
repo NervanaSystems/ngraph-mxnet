@@ -49,7 +49,6 @@ ngraph_mx_dir="$(realpath ../..)"
 # We need this ID to know which docker image to run with.
 # Note that the docker image must have been previously built using the
 # make-docker-mx-ngraph-base.sh script (in the same directory as this script).
-IMAGE_ID="$(git rev-parse HEAD)"
 
 docker run --rm \
        --env RUN_UID="$(id -u)" \
