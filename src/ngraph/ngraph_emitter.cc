@@ -378,6 +378,16 @@ void Emitter::CreateUnaryOps() {
     auto oneeighty = makeConstant(node, "180");
     return op_map_[node->inputs_[0]] * (pi / oneeighty);
   };
+  ngraph_op_funcs_["reverse"] = [this](const NodePtr& node) -> NgraphNodePtr {
+    auto axes = get_default(node, "axis", std::vector<size_t>());
+    ngraph::AxisSet axis_set;
+    for (auto x : axes) {
+      axis_set.insert(x);
+    }
+    return std::make_shared<ngraph::op::Reverse>(op_map_[node->inputs_[0]],
+                                                 axis_set);
+
+  };
   ngraph_op_funcs_["reshape"] = [this](const NodePtr& node) -> NgraphNodePtr {
     auto new_shape = TShape_to_NShape(node->shape_);
 
