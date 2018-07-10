@@ -216,7 +216,7 @@ def runResnetScript(script=None,          # Script to run
 
     # -u puts python in unbuffered mode
     #check trainWithNPP
-    if (trainWithNPP != "1"):
+    if (trainWithNPP == "1"):
         cmd = ("{} {} --network {} --batch-size {} --num-layers {} --num-epochs {} --num-classes {} --num-examples {} --image-shape {} --pad-size {} --lr {} --lr-step-epochs {} --with-nnp".format(python_lib.strip(), script, "resnet", trainBatchSize, trainNumLayers, 
         trainEpochs, trainNumClasses, trainNumExamples, str(trainImageShape).strip(), trainPadSize, trainLr, str(trainLrStepEpochs).strip()))
         print("The Command for Resnet is: {}".format(cmd))
