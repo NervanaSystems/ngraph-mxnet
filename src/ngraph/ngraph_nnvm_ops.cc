@@ -94,9 +94,9 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                      const std::vector<mxnet::OpReqType> &req,
                      const std::vector<mxnet::NDArray> &outputs) {
   auto backend = GetBackendFromContext(graph->context_);
-  auto placeholders = get_tensor_views(inputs, backend);
+  auto placeholders = get_tensor_views(inputs, backend, nullptr, graph->is_reuse_mem);
   // for outputs we need to comply with req
-  auto results = get_tensor_views(outputs, backend, &req);
+  auto results = get_tensor_views(outputs, backend, &req, graph->is_reuse_mem);
 
   int mode = static_cast<int>(GraphExeMode::kInfer);
   if (ctx.is_train) {
@@ -115,7 +115,7 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   append_cached_to_forward(&results, graph, mode);
   backend->call(graph->ngraph_forward[mode], results, placeholders);
 
-  result_to_NDArray(results, req, outputs);
+  result_to_NDArray(results, req, outputs, !graph->is_reuse_mem);
 
   if (mode == static_cast<int>(GraphExeMode::kInfer)) {
     for (size_t i = 0; i < placeholders.size(); ++i) {
@@ -147,7 +147,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     // forward inputs
     std::vector<mxnet::NDArray> fwd_inputs(
         inputs.begin() + graph->num_adjoints_, inputs.end());
-    auto placeholders = get_tensor_views(fwd_inputs, backend);
+    auto placeholders = get_tensor_views(fwd_inputs, backend, nullptr, graph->is_reuse_mem);
     // forward outputs
     TensorViewVector results;
     for (size_t i = 0; i < graph->num_outputs_; ++i) {
@@ -165,7 +165,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   std::vector<mxnet::NDArray> adjoints(inputs.begin(),
                                        inputs.begin() + graph->num_adjoints_);
 
-  auto placeholders = get_tensor_views(inputs, backend);
+  auto placeholders = get_tensor_views(inputs, backend, nullptr, graph->is_reuse_mem);
 
   if (graph->zero_grad) {
     for (size_t i = 0; i < graph->num_adjoints_; ++i) {
@@ -177,7 +177,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     }
   }
 
-  auto results = get_tensor_views(outputs, backend, &req);
+  auto results = get_tensor_views(outputs, backend, &req, graph->is_reuse_mem);
 
   placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
                       graph->cached_values[mode].end());
@@ -187,7 +187,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // reset the forward training compute flag to ensure backward always have
   // updated data from forward
   graph->forward_train_computed = false;
-  result_to_NDArray(results, req, outputs);
+  result_to_NDArray(results, req, outputs, !graph->is_reuse_mem);
 
   // overwrite aux data if they exist
   // aux result outputs mapped to inputs
