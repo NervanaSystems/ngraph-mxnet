@@ -24,7 +24,7 @@ set -e  # Fail on any command with non-zero exit
 DOCKER_FILE='Dockerfile.ci.mxnet'
 
 # The docker image name
-IMAGE_NAME="ngmx_ci"
+IMAGE_NAME='ngmx_ci'
 
 # The docker image ID will passed
 IMAGE_ID="${1}"
@@ -33,6 +33,8 @@ IMAGE_ID="${1}"
 if [ -z "${IMAGE_ID}" ] ; then
     echo 'Missing an image version as the only argument. Exitting ...'
     exit 1
+else
+    echo "IMAGE_ID= ${IMAGE_ID}"
 fi
 
 # If there are more parameters, which are intended to be directly passed to
@@ -68,4 +70,4 @@ fi
 docker build  --rm=true \
        ${DOCKER_HTTP_PROXY} ${DOCKER_HTTPS_PROXY} \
        $@ \
-       -f="${DOCKER_FILE}"  -t="${IMAGE_NAME}:${IMAGE_ID}"   ..
+       -f="${DOCKER_FILE}"  -t="${IMAGE_NAME}:${IMAGE_ID}"   .
