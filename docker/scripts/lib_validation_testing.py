@@ -157,7 +157,7 @@ def runMnistScript(script=None,          # Script to run
     # Hook for testing results detection without having to run multi-hour
     # FW+Dataset tests
     if (os.environ.has_key('MX_NG_DO_NOT_RUN')
-        and (os.environ.get(['MX_NG_DO_NOT_RUN'], '') == "1")):
+        and (os.environ['MX_NG_DO_NOT_RUN'] == "1")):
         runLog = runFakeCommand(command=cmd, logID=logID)
     else:
         runLog = runCommand(command=cmd, logID=logID)
@@ -227,8 +227,9 @@ def runResnetScript(script=None,          # Script to run
 
     # Hook for testing results detection without having to run multi-hour
     # Framework+Dataset tests
+    print("MX_NG_DO_NOT_RUN = {}".format(os.environ['MX_NG_DO_NOT_RUN']))
     if (os.environ.has_key('MX_NG_DO_NOT_RUN')
-        and (os.environ.get(['MX_NG_DO_NOT_RUN'], '') == "1")):
+        and (os.environ['MX_NG_DO_NOT_RUN'] == "1")):
         runLog = runFakeCommand(command=cmd, logID=logID)
     else:
         runLog = runCommand(command=cmd, logID=logID)
