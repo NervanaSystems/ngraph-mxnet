@@ -70,4 +70,4 @@ fi
 docker build  --rm=true \
        ${DOCKER_HTTP_PROXY} ${DOCKER_HTTPS_PROXY} \
        $@ \
-       -f="${DOCKER_FILE}"  -t="${IMAGE_NAME}:${IMAGE_ID}"   .
+       -f="${DOCKER_FILE}"  -t="${IMAGE_NAME}:${IMAGE_ID}"   ..
