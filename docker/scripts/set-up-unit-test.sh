@@ -71,7 +71,7 @@ PS1='prompt> '
 PS2='prompt-more> '
 virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
 source "${venv_dir}/bin/activate"
-cd "$HOME/ng-mx/"
+cd python  && pip install pylint cpplint && cd ../
 make cpplint |& tee  ../check_style.txt
 if [ "$?" -ne "0" ]; then
 	echo "Fail to check the style. Exiting ..."
