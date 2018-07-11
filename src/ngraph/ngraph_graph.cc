@@ -22,7 +22,9 @@
 #include "ngraph_graph.h"
 
 namespace ngraph_bridge {
-// Type Aliases
+
+std::unordered_map<std::string, std::shared_ptr<ngraph::runtime::Backend>>
+    backends;
 
 /**
  * Perform a DFS graph traversal non-recursively but always ensuring
