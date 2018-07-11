@@ -431,7 +431,17 @@ void Emitter::CreateUnaryOps() {
 
   //----------------------------- Reduce Ops ----------------------------//
   ngraph_op_funcs_["norm"] = [this](const NodePtr& node) {
-    return ReduceAxes(node, ngraph::builder::l2_norm);
+    auto norm_ord1 = [](const NgraphNodePtr& node,
+                        const ngraph::AxisSet& reduction_axes) {
+      return std::make_shared<ngraph::op::Sum>(
+          std::make_shared<ngraph::op::Abs>(node), reduction_axes);
+    };
+    auto ord = get_default(node, "ord", 2);
+    if (ord == 1) {
+      return ReduceAxes(node, norm_ord1);
+    } else {
+      return ReduceAxes(node, ngraph::builder::l2_norm);
+    }
   };
   ngraph_op_funcs_["mean"] = [this](const NodePtr& node) {
     return ReduceAxes(node, ngraph::builder::mean);

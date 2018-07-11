@@ -6709,6 +6709,7 @@ def test_histogram():
         assert_almost_equal(np_histo2, executor2.outputs[0].asnumpy(), 0, 0, ("EXPECTED_histo2", "FORWARD_histo2"), equal_nan=False)
 
 
+@unittest.skip("skip for ngraph-mxnet as output names are handled internally")
 def test_op_output_names_monitor():
     def check_name(op_sym, expected_names):
         output_names = []
