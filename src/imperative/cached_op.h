@@ -132,7 +132,6 @@ class CachedOp {
       const std::vector<OpReqType>& reqs,
       const std::vector<NDArray*>& inputs,
       bool detect_inplace_addto = false);
-  void UpdateFullGraph(nnvm::Graph* fwd_graph, const std::vector<nnvm::NodePtr>& symbol_inputs); 
   OpStatePtr DynamicForward(
       const Context& default_ctx,
       const std::vector<NDArray*>& inputs,
@@ -173,10 +172,6 @@ class CachedOp {
   nnvm::Graph fwd_graph_;
   nnvm::Graph grad_graph_;
   nnvm::Graph full_graph_;
-#if MXNET_USE_NGRAPH == 1
-    nnvm::Graph ngraph_fwd_graph_;
-    std::vector<nnvm::NodePtr> symbol_inputs_;
-#endif
   bool inlining_;
   std::vector<nnvm::NodeEntry> ograd_entries_;
   std::vector<uint32_t> bwd_in_dep_, bwd_out_dep_, bwd_ograd_dep_;

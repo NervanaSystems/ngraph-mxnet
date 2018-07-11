@@ -23,9 +23,6 @@
 #include "../executor/exec_pass.h"
 #include "../profiler/profiler.h"
 #include "../operator/operator_common.h"
-#if MXNET_USE_NGRAPH == 1
-#include "../ngraph/ngraph_compiler.h"
-#endif
 
 
 namespace mxnet {
@@ -99,6 +96,7 @@ CachedOp::CachedOp(
     const std::vector<std::pair<std::string, std::string> >& flags) {
   using namespace nnvm;
   using namespace imperative;
+  static const std::vector<const Op*> zero_ops{Op::Get("zeros_like"), Op::Get("_zeros")};
   static const auto _copy = Op::Get("_copy");
   config_.Init(flags);
 
@@ -157,34 +155,15 @@ CachedOp::CachedOp(
     }
   }
 
-#if MXNET_USE_NGRAPH == 1
-  ngraph_fwd_graph_.outputs = fwd_graph_.outputs;
-  symbol_inputs_ = sym.ListInputs(Symbol::kReadOnlyArgs);
-#else
-  UpdateFullGraph(&fwd_graph_, sym.ListInputs(Symbol::kReadOnlyArgs));
-#endif
-}
-
-void CachedOp::UpdateFullGraph(nnvm::Graph* fwd_graph,
-    const std::vector<nnvm::NodePtr>& symbol_inputs) {
-  using namespace nnvm;
-  using namespace imperative;
-  static const std::vector<const Op*> zero_ops{Op::Get("zeros_like"), Op::Get("_zeros")};
-  std::vector<nnvm::NodeEntry> inputs;
-  inputs.reserve(symbol_inputs.size());
-  for (const auto& i : symbol_inputs) inputs.emplace_back(NodeEntry{i, 0, 0});
-  CHECK_GT(inputs.size(), 0)
-      << "There are no inputs in computation graph that require gradients.";
   // construct backward graph
   {
-    ograd_entries_.clear();
-    ograd_entries_.reserve(fwd_graph->outputs.size());
-    for (size_t i = 0; i < fwd_graph->outputs.size(); ++i) {
+    ograd_entries_.reserve(fwd_graph_.outputs.size());
+    for (size_t i = 0; i < fwd_graph_.outputs.size(); ++i) {
       ograd_entries_.emplace_back(NodeEntry{Node::Create(), 0, 0});
     }
 
     std::vector<NodeEntry> xs;
-    const auto& idx = fwd_graph->indexed_graph();
+    const auto& idx = fwd_graph_.indexed_graph();
     for (size_t i = 0; i < idx.input_nodes().size(); ++i) {
       auto nid = idx.input_nodes()[i];
       if (idx.mutable_input_nodes().count(nid)) continue;
@@ -196,20 +175,21 @@ void CachedOp::UpdateFullGraph(nnvm::Graph* fwd_graph,
         << "There are no inputs in computation graph that require gradients.";
 
     grad_graph_ = pass::Gradient(
-        *fwd_graph, fwd_graph->outputs, inputs, ograd_entries_,
+        fwd_graph_, fwd_graph_.outputs, xs, ograd_entries_,
         exec::AggregateGradient, nullptr, nullptr,
         zero_ops, "_copy");
   }
 
   // construct full graph
   {
-    size_t num_forward_nodes = fwd_graph->indexed_graph().num_nodes();
-    size_t num_forward_entries = fwd_graph->indexed_graph().num_node_entries();
+    size_t num_forward_nodes = fwd_graph_.indexed_graph().num_nodes();
+    size_t num_forward_entries = fwd_graph_.indexed_graph().num_node_entries();
 
-    full_graph_.outputs = fwd_graph->outputs;
+    full_graph_.outputs = fwd_graph_.outputs;
     bwd_output_reqs_ = std::vector<OpReqType>(grad_graph_.outputs.size(), kWriteTo);
     for (const auto& i : grad_graph_.outputs) full_graph_.outputs.emplace_back(i);
     const auto& idx = full_graph_.indexed_graph();
+
     std::vector<uint32_t> ref_count(idx.num_node_entries(), 0);
     for (size_t i = num_forward_nodes; i < idx.num_nodes(); ++i) {
       for (const auto& j : idx[i].inputs) {
@@ -217,28 +197,23 @@ void CachedOp::UpdateFullGraph(nnvm::Graph* fwd_graph,
       }
     }
 
-    auto full_ref_count = fwd_graph->GetAttr<std::vector<uint32_t> >("forward_ref_count");
+    auto full_ref_count = fwd_graph_.GetAttr<std::vector<uint32_t> >("forward_ref_count");
     for (size_t i = 0; i < num_forward_entries; ++i) full_ref_count[i] += ref_count[i];
-    fwd_graph->attrs["full_ref_count"] =
+    fwd_graph_.attrs["full_ref_count"] =
         std::make_shared<dmlc::any>(std::move(full_ref_count));
 
     size_t num_forward_inputs = num_inputs();
     size_t num_forward_outputs = num_outputs();
-    bwd_ograd_dep_.clear();
     for (uint32_t i = 0; i < ograd_entries_.size(); ++i) {
       if (!idx.exist(ograd_entries_[i].node.get())) continue;
       bwd_ograd_dep_.push_back(i);
     }
-    save_inputs_.clear();
     save_inputs_.resize(num_forward_inputs, false);
-    bwd_in_dep_.clear();
     for (uint32_t i = 0; i < num_forward_inputs; ++i) {
       save_inputs_[i] = true;
       bwd_in_dep_.push_back(i);
     }
-    save_outputs_.clear();
     save_outputs_.resize(idx.outputs().size(), false);
-    bwd_out_dep_.clear();
     for (uint32_t i = 0; i < num_forward_outputs; ++i) {
       save_outputs_[i] = true;
       bwd_out_dep_.push_back(i);
@@ -322,13 +297,6 @@ bool CachedOp::SetForwardGraph(
     return true;
   }
 
-#if MXNET_USE_NGRAPH == 1
-    ngraph_bridge::Compiler compiler(
-        ngraph_fwd_graph_, symbol_inputs_, inputs);
-    fwd_graph_ = g = compiler.GetCachedOpGraph(inputs);
-    UpdateFullGraph(&g, compiler.GetInputs());
-#endif
-
   const auto& idx = g.indexed_graph();
 
   StorageVector storage(idx.num_node_entries(), exec::kBadStorageID);
@@ -344,26 +312,11 @@ bool CachedOp::SetForwardGraph(
     storage[idx.entry_id(idx.outputs()[i])] = exec::kExternalStorageID;
   }
 
-#if MXNET_USE_NGRAPH == 1
-  // create both mem plans for ngraph to avoid recompile
-  auto storage_copy = storage;
-  auto mem_plan = PlanMemory(
-      &g, std::move(storage), g.GetAttr<std::vector<uint32_t> >(
-          "full_ref_count"));
-  g.attrs["full_mem_plan"] =
-      std::make_shared<dmlc::any>(std::move(mem_plan));
-  mem_plan = PlanMemory(
-      &g, std::move(storage_copy), g.GetAttr<std::vector<uint32_t> >(
-         "forward_ref_count"));
-  g.attrs["forward_mem_plan"] =
-      std::make_shared<dmlc::any>(std::move(mem_plan));
-#else
   auto mem_plan = PlanMemory(
       &g, std::move(storage), g.GetAttr<std::vector<uint32_t> >(
           recording ? "full_ref_count" : "forward_ref_count"));
   g.attrs[recording ? "full_mem_plan" : "forward_mem_plan"] =
       std::make_shared<dmlc::any>(std::move(mem_plan));
-#endif
 
   return false;
 }
