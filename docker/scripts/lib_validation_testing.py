@@ -119,8 +119,6 @@ class LogAndOutput(object) :
 
 
     def  line(self, message=''):
-
-        print("{}".format(str(message)))
         if self.out != None: self.out.write("{}\n".format(str(message)))
 
     # End: def print()
@@ -555,9 +553,6 @@ def runCommand(command=None,  # Script to run
         print("Subprocess returned exit code {}".format(retCode))
 
     assert retCode == 0  # Trigger a formal assertion
-    print("The log: ")
-    print("{}".format(log))
-
     return log
 
 # End: def runCommand()
