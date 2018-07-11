@@ -71,7 +71,7 @@ PS1='prompt> '
 PS2='prompt-more> '
 virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
 source "${venv_dir}/bin/activate"
-cd "$HOME/ng-mx/docker/scripts/"
+cd "$HOME/ng-mx/"
 make cpplint |& tee  ../check_style.txt
 if [ "$?" -ne "0" ]; then
 	echo "Fail to check the style. Exiting ..."
@@ -79,6 +79,7 @@ if [ "$?" -ne "0" ]; then
 else
 	echo "Pass to check style. Continueing to run the unit tests"
 fi
+cd "$HOME/ng-mx/docker/scripts/"
 #./run-unit-tests.sh 2>&1 | tee ../mx-tests.log
 echo "===== Unit Tests Pipeline Exited with $? ====="
 
