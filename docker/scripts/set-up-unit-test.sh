@@ -72,7 +72,7 @@ PS2='prompt-more> '
 virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
 source "${venv_dir}/bin/activate"
 cd python  && pip install pylint cpplint && cd ../
-make cpplint |& tee  ../check_style.txt
+make cpplint |& tee  check_style.txt
 if [ "$?" -ne "0" ]; then
 	echo "Fail to check the style. Exiting ..."
 	exit 1
@@ -80,7 +80,7 @@ else
 	echo "Pass to check style. Continueing to run the unit tests"
 fi
 cd "$HOME/ng-mx/docker/scripts/"
-#./run-unit-tests.sh 2>&1 | tee ../mx-tests.log
+./run-unit-tests.sh 2>&1 | tee ../mx-tests.log
 echo "===== Unit Tests Pipeline Exited with $? ====="
 
 xtime="$(date)"
