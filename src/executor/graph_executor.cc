@@ -255,7 +255,8 @@ inline ValueType get_node_attr(
  */
 
 
-nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Symbol symbol, const std::vector<OpReqType>& grad_req_types) {
+nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Symbol symbol,
+    const std::vector<OpReqType>& grad_req_types) {
   using nnvm::NodePtr;
   using nnvm::NodeEntry;
   // initial information
