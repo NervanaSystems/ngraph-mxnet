@@ -24,6 +24,10 @@
 
 namespace ngraph_bridge {
 
+// slice data along a single axis statrting
+// at a position and going a certain distance
+// If the slice results in a single sample along the axis and flatten is true,
+// the function will reshape to remove the unary axis.
 NgraphNodePtr slice_data_on_axis(NgraphNodePtr data, size_t starting_loc,
                                  size_t step_size = 1, size_t axis = 0,
                                  bool flatten = true);

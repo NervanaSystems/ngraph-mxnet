@@ -1628,12 +1628,14 @@ void Emitter::UnsupportedOps() {
     return out;
   };
   supported_ops["Deconvolution"] = [](const NodePtr& node) {
+    // There are some untested arguments to Deconvolution, this is to check and
+    // make sure we don't send a deconvolution to nGraph with unsupported
+    // arguments
     bool out = true;
     const auto out_shape = TShape_to_NShape(node->shape_);
     auto data = makeConstant(node->inputs_[0], "0");
     auto filter = makeConstant(node->inputs_[1], "0");
-    auto conv =
-        create_deconvolution(data, filter, out_shape, node->orig_node_);
+    auto conv = create_deconvolution(data, filter, out_shape, node->orig_node_);
 
     if (conv->get_shape() != TShape_to_NShape(node->shape_)) {
       if (ngraph_log_verbose_detail()) {
