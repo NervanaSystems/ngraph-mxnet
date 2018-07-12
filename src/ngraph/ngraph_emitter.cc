@@ -1629,33 +1629,21 @@ void Emitter::UnsupportedOps() {
   };
   supported_ops["Deconvolution"] = [](const NodePtr& node) {
     bool out = true;
-    auto num_group = get_default(node, "num_group", 1);
-    if (num_group > 1) {
+    const auto out_shape = TShape_to_NShape(node->shape_);
+    auto data = makeConstant(node->inputs_[0], "0");
+    auto filter = makeConstant(node->inputs_[1], "0");
+    auto conv =
+        create_deconvolution(data, filter, out_shape, node->orig_node_);
+
+    if (conv->get_shape() != TShape_to_NShape(node->shape_)) {
       if (ngraph_log_verbose_detail()) {
-        std::cout << "NGRAPH_BRIDGE: Deconvolution with num_group > 1 isn't "
-                     "tested in MXNet."
+        std::cout << "NGRAPH_BRIDGE: Deconvolution with adjust and target "
+                     "shape is not tested in MXNet."
                   << std::endl;
         node->printOpDetails(std::cout);
         std::cout << std::endl;
       }
       out = false;
-    } else {
-      const auto out_shape = TShape_to_NShape(node->shape_);
-      auto data = makeConstant(node->inputs_[0], "0");
-      auto filter = makeConstant(node->inputs_[1], "0");
-      auto conv =
-          create_deconvolution(data, filter, out_shape, node->orig_node_);
-
-      if (conv->get_shape() != TShape_to_NShape(node->shape_)) {
-        if (ngraph_log_verbose_detail()) {
-          std::cout << "NGRAPH_BRIDGE: Deconvolution with adjust and target "
-                       "shape is not tested in MXNet."
-                    << std::endl;
-          node->printOpDetails(std::cout);
-          std::cout << std::endl;
-        }
-        out = false;
-      }
     }
     return out;
   };
