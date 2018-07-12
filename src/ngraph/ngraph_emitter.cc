@@ -28,6 +28,7 @@
 #include <ngraph/op/reverse_sequence.hpp>
 #include "ngraph_sgcompiler_utils.h"
 #include "ops/batchnorm.h"
+#include "ops/slice.h"
 
 namespace ngraph_bridge {
 
@@ -49,6 +50,7 @@ void Emitter::InitOpFuncs() {
   CreateBinaryOps();
   CreateLayerOps();
   CreateLossOps();
+  UnsupportedOps();
 }
 
 void Emitter::ClearOpMap() {
@@ -376,6 +378,15 @@ void Emitter::CreateUnaryOps() {
     auto oneeighty = makeConstant(node, "180");
     return op_map_[node->inputs_[0]] * (pi / oneeighty);
   };
+  ngraph_op_funcs_["reverse"] = [this](const NodePtr& node) -> NgraphNodePtr {
+    auto axes = get_default(node, "axis", std::vector<size_t>());
+    ngraph::AxisSet axis_set;
+    for (auto x : axes) {
+      axis_set.insert(x);
+    }
+    return std::make_shared<ngraph::op::Reverse>(op_map_[node->inputs_[0]],
+                                                 axis_set);
+  };
   ngraph_op_funcs_["reshape"] = [this](const NodePtr& node) -> NgraphNodePtr {
     auto new_shape = TShape_to_NShape(node->shape_);
 
@@ -420,7 +431,17 @@ void Emitter::CreateUnaryOps() {
 
   //----------------------------- Reduce Ops ----------------------------//
   ngraph_op_funcs_["norm"] = [this](const NodePtr& node) {
-    return ReduceAxes(node, ngraph::builder::l2_norm);
+    auto norm_ord1 = [](const NgraphNodePtr& node,
+                        const ngraph::AxisSet& reduction_axes) {
+      return std::make_shared<ngraph::op::Sum>(
+          std::make_shared<ngraph::op::Abs>(node), reduction_axes);
+    };
+    auto ord = get_default(node, "ord", 2);
+    if (ord == 1) {
+      return ReduceAxes(node, norm_ord1);
+    } else {
+      return ReduceAxes(node, ngraph::builder::l2_norm);
+    }
   };
   ngraph_op_funcs_["mean"] = [this](const NodePtr& node) {
     return ReduceAxes(node, ngraph::builder::mean);
@@ -933,6 +954,13 @@ void Emitter::CreateLayerOps() {
                               squeeze_axis && (slice_step == 1));
   };
 
+  // slice op
+  ngraph_op_funcs_["slice"] = [this](const NodePtr& node) -> NgraphNodePtr {
+    NgraphNodePtr ng_slice =
+        create_slice_op(op_map_[node->inputs_[0]], node->orig_node_->attrs);
+    return ng_slice;
+  };
+
   // stack takes a list of tensors of equal shape and
   // concatenates them along a given axis expanded for each input
   ngraph_op_funcs_["stack"] = [this](const NodePtr& node) {
@@ -1358,6 +1386,36 @@ void Emitter::CreateLayerOps() {
     return ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(
         convolution, bias_reshape);
   };
+  ngraph_op_funcs_["Deconvolution"] =
+      [this](const NodePtr& node) -> NgraphNodePtr {
+    NgraphNodePtr data = op_map_[node->inputs_[0]];
+    NgraphNodePtr filter = op_map_[node->inputs_[1]];
+
+    const auto data_shape = data->get_shape();
+    const auto filter_shape = filter->get_shape();
+    const auto out_shape = TShape_to_NShape(node->shape_);
+
+    auto n = data_shape.size() - 2;
+    auto pad =
+        get_default<ptrdiff_t>(node, "pad", ngraph::CoordinateDiff(n, -1));
+    auto stride = get_default<size_t>(node, "stride", ngraph::Strides(n, 1));
+    auto dilate = get_default<size_t>(node, "dilate", ngraph::Strides(n, 1));
+
+    NgraphNodePtr conv = std::make_shared<ngraph::op::ConvolutionBackpropData>(
+        out_shape, filter, data, stride, ngraph::Strides(n, 1), pad, pad,
+        dilate);
+
+    if (node->inputs_.size() > 2) {
+      NgraphNodePtr bias = op_map_[node->inputs_[2]];
+
+      auto bias_reshape = std::make_shared<ngraph::op::Reshape>(
+          bias, ngraph::AxisVector{0}, ngraph::Shape{1, filter_shape[0]});
+
+      conv = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(
+          conv, bias_reshape);
+    }
+    return conv;
+  };
   ngraph_op_funcs_["Pooling"] = [this](const NodePtr& node) -> NgraphNodePtr {
     NgraphNodePtr op;
     std::string type = get_default(node, "pool_type", std::string("max"));
@@ -1626,6 +1684,71 @@ void Emitter::CreateLossOps() {
     auto num_output = makeConstant(
         node, std::to_string(node->shape_.Size() / node->shape_[0]));
     return (label - data) * grad_scale / num_output;
+  };
+}
+
+void Emitter::UnsupportedOps() {
+  for (auto kv : ngraph_op_funcs_) {
+    supported_ops[kv.first] = [](const NodePtr& node) { return true; };
+  }
+  supported_ops["BatchNorm"] = [](const NodePtr& node) {
+    bool out = true;
+    auto shape = TShape_to_NShape(node->inputs_[0]->shape_);
+    if (shape[1] % 8 != 0) {
+      // MXNet outperforms nGraph in this case.
+      out = false;
+    }
+    return out;
+  };
+  supported_ops["LeakyReLU"] = [](const NodePtr& node) {
+    bool out = true;
+    // We haven't yet implemented all activation functions for
+    // LeaklyReLU...
+    const std::string act_type =
+        get_default(node, "act_type", std::string("leaky"));
+    if (act_type != "leaky") {
+      out = false;
+    }
+    return out;
+  };
+  supported_ops["Deconvolution"] = [](const NodePtr& node) {
+    bool out = true;
+    auto num_group = get_default(node, "num_group", 1);
+    if (num_group > 1) {
+      if (ngraph_log_verbose_detail()) {
+        std::cout << "NGRAPH_BRIDGE: Deconvolution with num_group > 1 isn't "
+                     "tested in MXNet."
+                  << std::endl;
+        node->printOpDetails(std::cout);
+        std::cout << std::endl;
+      }
+      out = false;
+    }
+    auto data_shape = TShape_to_NShape(node->inputs_[0]->shape_);
+    auto out_shape = TShape_to_NShape(node->shape_);
+    auto n = data_shape.size() - 2;
+    auto pad =
+        get_default<ptrdiff_t>(node, "pad", ngraph::CoordinateDiff(n, -1));
+    auto stride = get_default<size_t>(node, "stride", ngraph::Strides(n, 1));
+    auto dilate = get_default<size_t>(node, "dilate", ngraph::Strides(n, 1));
+    auto data = makeConstant(node->inputs_[0], "0");
+    auto filter = makeConstant(node->inputs_[1], "0");
+
+    NgraphNodePtr conv = std::make_shared<ngraph::op::ConvolutionBackpropData>(
+        out_shape, filter, data, stride, ngraph::Strides(n, 1), pad, pad,
+        dilate);
+
+    if (conv->get_shape() != TShape_to_NShape(node->shape_)) {
+      if (ngraph_log_verbose_detail()) {
+        std::cout << "NGRAPH_BRIDGE: Deconvolution with adjust and target "
+                     "shape is not tested in MXNet."
+                  << std::endl;
+        node->printOpDetails(std::cout);
+        std::cout << std::endl;
+      }
+      out = false;
+    }
+    return out;
   };
 }
 

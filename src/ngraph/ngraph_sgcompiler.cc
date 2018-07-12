@@ -213,6 +213,10 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeForwardFunction(
   // create the Forward Function object representing the graph
   auto func = std::make_shared<ngraph::Function>(outputs, parameters);
 
+  if (ngraph_log_graph()) {
+    dump_graph(func, __func__, "pre-optimized-fprop");
+  }
+
 // fuse conv + bias before autodiff
 #ifndef MXNET_USE_NGRAPH_IE
   if (sub_graph->context_ == mxnet::Context::CPU() &&
@@ -298,9 +302,6 @@ void SGCompiler::CompileSubgraph(std::shared_ptr<Graph> sub_graph) {
   }
 
   auto f = MakeForwardFunction(sub_graph);
-  if (ngraph_log_graph()) {
-    dump_graph(f, __func__, "pre-optimized-fprop");
-  }
 
   std::shared_ptr<ngraph::Function> maybe_bf;
   if (exe_mode_ == GraphExeMode::kTrain) {
@@ -365,10 +366,12 @@ void SGCompiler::CompileNodes(NodePtr node,
   // an input if it's not part of the subgraph or as an ngraph operation
   // if the node is part of the subgraph
   // we capture this so we can save the outputs to the SGCompiler op_map_
-  visitor.operation = [this, sub_graph](NodePtr node) {
+  std::unordered_set<NodePtr> nodes(sub_graph->nodes_.begin(),
+                                    sub_graph->nodes_.end());
+  visitor.operation = [this, sub_graph, &nodes](NodePtr node) {
     if (!op_map_.count(node)) {
       // if it's not in the graph, it's an input, compile it as an input
-      if (!in_vec(sub_graph->nodes_, node)) {
+      if (!nodes.count(node)) {
         this->CompileInput(node, sub_graph);
       } else {
         this->op_map_.insert(
