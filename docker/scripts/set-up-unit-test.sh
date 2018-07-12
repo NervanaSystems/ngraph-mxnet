@@ -77,7 +77,7 @@ if [ "$?" -ne "0" ]; then
 	echo "Fail to check the style. Exiting ..."
 	exit 1
 else
-	echo "Pass to check style. Continueing to run the unit tests"
+	echo "Pass to check style. Continue running the unit tests"
 fi
 cd "$HOME/ng-mx/docker/scripts/"
 ./run-unit-tests.sh 2>&1 | tee ../mx-tests.log
