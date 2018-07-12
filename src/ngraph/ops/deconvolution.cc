@@ -13,6 +13,7 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 *******************************************************************************/
+#include <vector>
 
 #include "ops/deconvolution.h"
 #include "../../operator/nn/deconvolution-inl.h"
@@ -78,4 +79,5 @@ NgraphNodePtr create_deconvolution(const NgraphNodePtr& data,
 
   return conv;
 }
-}
+
+}  // namespace ngraph_bridge

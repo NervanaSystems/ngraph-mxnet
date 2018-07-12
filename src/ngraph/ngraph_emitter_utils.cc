@@ -17,6 +17,9 @@
 #ifndef MXNET_NGRAPH_NGRAPH_EMITTER_UTILS_H_
 #define MXNET_NGRAPH_NGRAPH_EMITTER_UTILS_H_
 
+#include <string>
+#include <vector>
+
 #include "ngraph_emitter_utils.h"
 #include "ngraph_sgcompiler_utils.h"
 #include "ngraph_utils.h"
@@ -91,6 +94,7 @@ NgraphNodePtr clip(const NgraphNodePtr& input, const float& min,
   return std::make_shared<ngraph::op::Maximum>(
       std::make_shared<ngraph::op::Minimum>(input, a_max), a_min);
 }
-}
+
+}  // namespace ngraph_bridge
 
 #endif

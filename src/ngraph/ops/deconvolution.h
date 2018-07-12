@@ -24,6 +24,6 @@ NgraphNodePtr create_deconvolution(const NgraphNodePtr& data,
                                    const NgraphNodePtr& shape,
                                    const ngraph::Shape& out_shape,
                                    const nnvm::NodePtr& orig_node);
-}
+}  // namespace ngraph_bridge
 
-#endif
+#endif  // MXNET_NGRAPH_OPS_DECONVOLUTION_H_

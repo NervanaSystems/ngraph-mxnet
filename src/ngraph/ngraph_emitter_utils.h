@@ -17,6 +17,9 @@
 #ifndef MXNET_NGRAPH_NGRAPH_EMITTER_UTILS_H_
 #define MXNET_NGRAPH_NGRAPH_EMITTER_UTILS_H_
 
+#include <string>
+#include <vector>
+
 #include "ngraph_graph.h"
 
 namespace ngraph_bridge {
@@ -46,6 +49,6 @@ NgraphNodePtr cast_result(const NgraphNodePtr& op,
 // clip utility function
 NgraphNodePtr clip(const NgraphNodePtr& input, const float& min,
                    const float& max);
-}
+}  // namespace ngraph_bridge
 
-#endif
+#endif  // MXNET_NGRAPH_NGRAPH_EMITTER_UTILS_H_
