@@ -179,7 +179,7 @@ inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
   auto backend_name = get_backend_name(context);
   auto backend_key = backend_name + ":" + std::to_string(context.dev_id);
   if (backends.count(backend_key) == 0) {
-    auto backend = ngraph::runtime::Backend::create(backend_name);
+    auto backend = ngraph::runtime::Backend::create(backend_key);
     backends[backend_key] = backend;
   }
   return backends[backend_key];
@@ -222,9 +222,10 @@ class Graph : public Node {
       cached_values[i].clear();
       cached_aux_values[i].clear();
       cached_aux_positions[i].clear();
-
-      backend->remove_compiled_function(ngraph_forward[i]);
-      backend->remove_compiled_function(ngraph_backward[i]);
+      if (ngraph_forward[i])
+        backend->remove_compiled_function(ngraph_forward[i]);
+      if (ngraph_backward[i])
+        backend->remove_compiled_function(ngraph_backward[i]);
       ngraph_forward[i] = nullptr;
       ngraph_backward[i] = nullptr;
     }
