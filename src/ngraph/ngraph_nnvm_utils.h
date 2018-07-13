@@ -86,7 +86,8 @@ inline TensorViewVector get_tensor_views(
   TensorViewVector out;
   for (size_t i = 0; i < ndarrays.size(); ++i) {
     if (!mem_reuse || ((req != nullptr) && ((*req)[i] == mxnet::kAddTo)))
-      out.push_back(NDArray_to_TensorView(ndarrays[i], backend, req == nullptr));
+      out.push_back(
+          NDArray_to_TensorView(ndarrays[i], backend, req == nullptr));
     else
       out.push_back(
           const_cast<mxnet::NDArray&>(ndarrays[i]).create_tensor_view());
