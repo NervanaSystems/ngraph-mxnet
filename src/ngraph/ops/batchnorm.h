@@ -23,31 +23,30 @@
 
 namespace ngraph_bridge {
 
-// Create an subgraph of nGraph nodes that's functionally equivalent to nGraph's training-version
+// Create an subgraph of nGraph nodes that's functionally equivalent to nGraph's
+// training-version
 // BatchNorm op, but which doesn't actually use that particular nGraph op.
-// This function exists as a crutch until nGraph's BatchNorm op is fully implemented.
+// This function exists as a crutch until nGraph's BatchNorm op is fully
+// implemented.
 //
 // All of the nGraph nodes created by this function support autodiff.
 std::tuple<NgraphNodePtr, NgraphNodePtr, NgraphNodePtr>
 create_batchnorm_training_without_ngraph_bn_op(
-    const float epsilon,
-    const NgraphNodePtr ng_maybe_gamma,
-    const NgraphNodePtr ng_beta,
-    const NgraphNodePtr ng_in_data,
+    const float epsilon, const NgraphNodePtr ng_maybe_gamma,
+    const NgraphNodePtr ng_beta, const NgraphNodePtr ng_in_data,
     size_t channel_axis);
 
-// Create an subgraph of nGraph nodes that's functionally equivalent to nGraph's inference-version
+// Create an subgraph of nGraph nodes that's functionally equivalent to nGraph's
+// inference-version
 // BatchNorm op, but which doesn't actually use that particular nGraph op.
-// This function exists as a crutch until nGraph's BatchNorm op is fully implemented.
+// This function exists as a crutch until nGraph's BatchNorm op is fully
+// implemented.
 //
 // All of the nGraph nodes created by this function support autodiff.
 NgraphNodePtr create_batchnorm_inference_without_ngraph_bn_op(
-    const float epsilon,
-    const NgraphNodePtr ng_maybe_gamma,
-    const NgraphNodePtr ng_beta,
-    const NgraphNodePtr ng_in_data,
-    const NgraphNodePtr ng_moving_mean,
-    const NgraphNodePtr ng_moving_var,
+    const float epsilon, const NgraphNodePtr ng_maybe_gamma,
+    const NgraphNodePtr ng_beta, const NgraphNodePtr ng_in_data,
+    const NgraphNodePtr ng_moving_mean, const NgraphNodePtr ng_moving_var,
     size_t channel_axis);
 
 }  // namespace ngraph_bridge
