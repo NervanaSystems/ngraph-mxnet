@@ -15,6 +15,7 @@
 *******************************************************************************/
 
 #include "ngraph_emitter.h"
+#include "ngraph_emitter_utils.h"
 #include "ngraph_utils.h"
 
 #include <functional>
@@ -28,6 +29,7 @@
 #include <ngraph/op/reverse_sequence.hpp>
 #include "ngraph_sgcompiler_utils.h"
 #include "ops/batchnorm.h"
+#include "ops/deconvolution.h"
 #include "ops/slice.h"
 
 namespace ngraph_bridge {
@@ -57,41 +59,6 @@ void Emitter::ClearOpMap() {
   // delete the temporary storage
   op_map_.clear();
   placeholder_order_.clear();
-}
-
-/**
- * Transforms input axis attribute with name in key based on MXNet convention (0
- * based index), where
- * negative values means indexing from the right.
- */
-inline size_t transform_axis(int axis, int shape_size) {
-  assert(abs(axis) <= shape_size);
-  // convert negative axis index to postive (counting from right per mxnet
-  // convention)
-  return axis < 0 ? shape_size + axis : axis;
-}
-
-inline size_t get_default_transformed_axis(const NodePtr& node,
-                                           const std::string& key,
-                                           const int default_val,
-                                           const int shape_size) {
-  return transform_axis(get_default(node, key, default_val), shape_size);
-}
-
-inline std::vector<size_t> get_default_transformed_axis(
-    const NodePtr& node, const std::string& key,
-    const ngraph::AxisVector& default_val, const int shape_size) {
-  std::vector<int> values;
-  for (auto val : default_val) {
-    values.push_back(val);
-  }
-  values = get_default(node, key, values);
-
-  std::vector<size_t> axes;
-  for (size_t i = 0; i < values.size(); ++i) {
-    axes.push_back(transform_axis(values[i], shape_size));
-  }
-  return axes;
 }
 
 /**
@@ -468,37 +435,6 @@ std::shared_ptr<ngraph::Node> Emitter::CreateScalarOp(const NodePtr& node) {
   auto arg0 = op_map_[node->inputs_[0]];
   auto arg1 = makeConstant(node, get_default(node, "scalar", std::string("0")));
   return std::make_shared<op>(arg0, arg1);
-}
-// cast result of op to given type
-NgraphNodePtr cast_result(const NgraphNodePtr& op,
-                          const ngraph::element::Type& type) {
-  return std::make_shared<ngraph::op::Convert>(op, type);
-}
-
-NgraphNodePtr slice_data_on_axis(NgraphNodePtr data, size_t starting_loc,
-                                 size_t step_size = 1, size_t axis = 0,
-                                 bool flatten = true) {
-  // slice data on given axis
-  ngraph::Coordinate lower(data->get_shape().size(), 0);
-  ngraph::Coordinate upper = data->get_shape();
-
-  lower[axis] = starting_loc;
-  upper[axis] = starting_loc + step_size;
-
-  NgraphNodePtr slice = std::make_shared<ngraph::op::Slice>(data, lower, upper);
-
-  if (flatten && (step_size == 1)) {
-    std::vector<size_t> out_shape;
-    for (size_t i = 0; i < slice->get_shape().size(); ++i) {
-      if (i != axis) {
-        out_shape.push_back(slice->get_shape()[i]);
-      }
-    }
-    slice = std::make_shared<ngraph::op::Reshape>(
-        slice, pyrange(data->get_shape().size()), out_shape);
-  }
-
-  return slice;
 }
 
 // binary op generating function generator
@@ -922,17 +858,6 @@ struct PoolingParams {
   std::vector<size_t> stride;
   std::vector<size_t> pad;
 };
-
-// clip utility function
-NgraphNodePtr clip(const NgraphNodePtr& input, const float& min,
-                   const float& max) {
-  auto shape = input->get_shape();
-  auto dtype = input->get_element_type();
-  const NgraphNodePtr a_min = makeConstant(dtype, shape, min);
-  const NgraphNodePtr a_max = makeConstant(dtype, shape, max);
-  return std::make_shared<ngraph::op::Maximum>(
-      std::make_shared<ngraph::op::Minimum>(input, a_max), a_min);
-}
 
 // MXNet high level ops generating function
 void Emitter::CreateLayerOps() {
@@ -1391,25 +1316,16 @@ void Emitter::CreateLayerOps() {
     NgraphNodePtr data = op_map_[node->inputs_[0]];
     NgraphNodePtr filter = op_map_[node->inputs_[1]];
 
-    const auto data_shape = data->get_shape();
-    const auto filter_shape = filter->get_shape();
-    const auto out_shape = TShape_to_NShape(node->shape_);
-
-    auto n = data_shape.size() - 2;
-    auto pad =
-        get_default<ptrdiff_t>(node, "pad", ngraph::CoordinateDiff(n, -1));
-    auto stride = get_default<size_t>(node, "stride", ngraph::Strides(n, 1));
-    auto dilate = get_default<size_t>(node, "dilate", ngraph::Strides(n, 1));
-
-    NgraphNodePtr conv = std::make_shared<ngraph::op::ConvolutionBackpropData>(
-        out_shape, filter, data, stride, ngraph::Strides(n, 1), pad, pad,
-        dilate);
+    auto conv = create_deconvolution(
+        data, filter, TShape_to_NShape(node->shape_), node->orig_node_);
 
     if (node->inputs_.size() > 2) {
       NgraphNodePtr bias = op_map_[node->inputs_[2]];
+      ngraph::Shape bias_shape(filter->get_shape().size(), 1);
+      bias_shape[1] = bias->get_shape()[0];
 
       auto bias_reshape = std::make_shared<ngraph::op::Reshape>(
-          bias, ngraph::AxisVector{0}, ngraph::Shape{1, filter_shape[0]});
+          bias, ngraph::AxisVector{0}, bias_shape);
 
       conv = ngraph::builder::make_with_numpy_broadcast<ngraph::op::Add>(
           conv, bias_reshape);
@@ -1712,31 +1628,14 @@ void Emitter::UnsupportedOps() {
     return out;
   };
   supported_ops["Deconvolution"] = [](const NodePtr& node) {
+    // There are some untested arguments to Deconvolution, this is to check and
+    // make sure we don't send a deconvolution to nGraph with unsupported
+    // arguments
     bool out = true;
-    auto num_group = get_default(node, "num_group", 1);
-    if (num_group > 1) {
-      if (ngraph_log_verbose_detail()) {
-        std::cout << "NGRAPH_BRIDGE: Deconvolution with num_group > 1 isn't "
-                     "tested in MXNet."
-                  << std::endl;
-        node->printOpDetails(std::cout);
-        std::cout << std::endl;
-      }
-      out = false;
-    }
-    auto data_shape = TShape_to_NShape(node->inputs_[0]->shape_);
-    auto out_shape = TShape_to_NShape(node->shape_);
-    auto n = data_shape.size() - 2;
-    auto pad =
-        get_default<ptrdiff_t>(node, "pad", ngraph::CoordinateDiff(n, -1));
-    auto stride = get_default<size_t>(node, "stride", ngraph::Strides(n, 1));
-    auto dilate = get_default<size_t>(node, "dilate", ngraph::Strides(n, 1));
+    const auto out_shape = TShape_to_NShape(node->shape_);
     auto data = makeConstant(node->inputs_[0], "0");
     auto filter = makeConstant(node->inputs_[1], "0");
-
-    NgraphNodePtr conv = std::make_shared<ngraph::op::ConvolutionBackpropData>(
-        out_shape, filter, data, stride, ngraph::Strides(n, 1), pad, pad,
-        dilate);
+    auto conv = create_deconvolution(data, filter, out_shape, node->orig_node_);
 
     if (conv->get_shape() != TShape_to_NShape(node->shape_)) {
       if (ngraph_log_verbose_detail()) {

@@ -216,6 +216,18 @@ std::ostream& operator<<(std::ostream& os, const ngraph::AxisSet& s);
 
 /// Emits a programmer-friendly representation, to assist with logging
 /// and debugging.
+std::ostream& operator<<(std::ostream& os, const ngraph::Strides& s);
+
+/// Emits a programmer-friendly representation, to assist with logging
+/// and debugging.
+std::ostream& operator<<(std::ostream& os, const ngraph::AxisVector& s);
+
+/// Emits a programmer-friendly representation, to assist with logging
+/// and debugging.
+std::ostream& operator<<(std::ostream& os, const ngraph::CoordinateDiff& s);
+
+/// Emits a programmer-friendly representation, to assist with logging
+/// and debugging.
 std::ostream& operator<<(std::ostream& os, const nnvm::TShape& s);
 
 /// A convenience method to obtain the elements of s1 that are not
