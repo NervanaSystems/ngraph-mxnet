@@ -38,6 +38,18 @@ std::ostream& operator<<(std::ostream& os, const ngraph::AxisSet& s) {
   return container_to_debug_stream(os, s, ", ", "{", "}");
 }
 
+std::ostream& operator<<(std::ostream& os, const ngraph::AxisVector& s) {
+  return container_to_debug_stream(os, s);
+}
+
+std::ostream& operator<<(std::ostream& os, const ngraph::Strides& s) {
+  return container_to_debug_stream(os, s);
+}
+
+std::ostream& operator<<(std::ostream& os, const ngraph::CoordinateDiff& s) {
+  return container_to_debug_stream(os, s);
+}
+
 ngraph::AxisSet shape_to_axis_set(const ngraph::Shape& s) {
   ngraph::AxisSet result;
 
