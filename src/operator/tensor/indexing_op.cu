@@ -26,6 +26,7 @@
 
 #include "./indexing_op.h"
 #include "./util/tensor_util-inl.cuh"
+#include "./util/tensor_util-inl.h"
 
 namespace mxnet {
 namespace op {
@@ -115,20 +116,6 @@ struct AddTakeGradRspDeterministicKernel {
   }
 };
 
-/*
- * \brief the kernel to generate a lookup table for positions of row ids
- * \param i thread id
- * \param out output table
- * \param data the input row id in sorted order
- */
-struct mark_lookup_table {
-  template<typename IType, typename DType>
-  MSHADOW_XINLINE static void Map(int i, IType* out, const DType* data) {
-    out[static_cast<nnvm::dim_t>(data[i])] = i;
-  }
-};
-
-
 template<>
 void SparseEmbeddingOpForwardRspImpl<gpu>(const OpContext& ctx,
                                           const TBlob& data,
@@ -201,7 +188,8 @@ void SparseEmbeddingDeterministicKernelLaunch(const OpContext& ctx,
   // estimate unique temp space
   IType* data_ptr = data.dptr<IType>();
   size_t *null_ptr = nullptr;
-  cub::DeviceSelect::Unique(NULL, unique_workspace_bytes, data_ptr, data_ptr,
+  // unique operations will be applied on sorted data
+  cub::DeviceSelect::Unique(NULL, unique_workspace_bytes, sorted_data, sorted_data,
     null_ptr, data_size, Stream<gpu>::GetStream(s));
   // One more space reserved for unique count
   size_t temp_workspace_bytes = std::max(unique_workspace_bytes,
@@ -252,7 +240,7 @@ void SparseEmbeddingDeterministicKernelLaunch(const OpContext& ctx,
   output.set_aux_shape(kIdx, Shape1(nnr));
 
   // generate lookup table
-  Kernel<mark_lookup_table, gpu>::Launch(s, nnr, lookup_table, grad_row_idx);
+  Kernel<MarkLookupTable, gpu>::Launch(s, nnr, lookup_table, grad_row_idx);
 
   // accumulate gradients
   DType* grad_data = output.data().dptr<DType>();
@@ -294,13 +282,13 @@ inline void SparseEmbeddingOpBackwardDeterministicRspImpl(const OpContext& ctx,
 
 
 template<>
-inline void SparseEmbeddingOpBackwardRspImpl<gpu>(const SparseEmbeddingParam& param,
+inline void SparseEmbeddingOpBackwardRspImpl<gpu>(const bool deterministic,
                                                   const OpContext& ctx,
                                                   const TBlob& ograd,
                                                   const TBlob& data,
                                                   const OpReqType req,
                                                   const NDArray& output) {
-  if (param.deterministic) {
+  if (deterministic) {
     SparseEmbeddingOpBackwardDeterministicRspImpl(ctx, ograd, data, req, output);
     return;
   }
@@ -399,13 +387,15 @@ inline void GatherNDBackwardImpl(int N, int M, int K,
 }
 
 NNVM_REGISTER_OP(Embedding)
-.set_attr<FCompute>("FCompute<gpu>", EmbeddingOpForward<gpu>);
+.set_attr<FCompute>("FCompute<gpu>", EmbeddingOpForward<gpu>)
+.set_attr<FComputeEx>("FComputeEx<gpu>", SparseEmbeddingOpForwardEx<gpu>);
 
 NNVM_REGISTER_OP(_contrib_SparseEmbedding)
 .set_attr<FComputeEx>("FComputeEx<gpu>", SparseEmbeddingOpForwardEx<gpu>);
 
 NNVM_REGISTER_OP(_backward_Embedding)
-.set_attr<FCompute>("FCompute<gpu>", EmbeddingOpBackward<gpu>);
+.set_attr<FCompute>("FCompute<gpu>", EmbeddingOpBackward<gpu>)
+.set_attr<FComputeEx>("FComputeEx<gpu>", EmbeddingOpBackwardEx<gpu>);
 
 NNVM_REGISTER_OP(_backward_SparseEmbedding)
 .set_attr<FComputeEx>("FComputeEx<gpu>", SparseEmbeddingOpBackwardEx<gpu>);
