@@ -282,6 +282,12 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeBackwardFunction(
       back_parameters.begin(), back_parameters.end(), dYdXs.begin(),
       [&adjoint](const NgraphNodePtr &X) { return adjoint.backprop_node(X); });
 
+#if MXNET_USE_NGRAPH_DISTRIBUTED
+  for (size_t i = 0; i < dYdXs.size(); ++i) {
+    dYdXs[i] = std::make_shared<ngraph::op::AllReduce>(dYdXs[i]);
+  }
+#endif
+
   // create the backward function
   back_parameters.insert(back_parameters.begin(), param_adjoints.begin(),
                          param_adjoints.end());
