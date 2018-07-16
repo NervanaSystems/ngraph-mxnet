@@ -15,9 +15,13 @@
 # ********************************************************************************
 
 #!  /bin/bash
+
 # Author:  Lam Nguyen
 
-# This script is designed to be run from the docker directory
+# Script parameters:
+#
+# $1 IMAGE_ID    Required: ID of the ngmx_ci docker image to use
+# $2 PythonVer  Optional: version of Python to build with (default: 2)
 
 set -e  # Fail on any command with non-zero exit
 
@@ -41,20 +45,24 @@ if [ -z "${IMAGE_ID}" ] ; then
     exit 1
 fi
 
-set -u  # No unset variables
+set -u  # No unset variables after this point
 
 ngraph_mx_dir="$(realpath ../..)"
 
-# The docker image ID is currently just the git SHA of this cloned repo.
-# We need this ID to know which docker image to run with.
-# Note that the docker image must have been previously built using the
-# make-docker-mx-ngraph-base.sh script (in the same directory as this script).
+docker_mx_dir="/home/dockuser/ng-mx"
 
+script='run-ng-mx-deepmark-tests.sh'
+
+## deepmark
 docker run --rm \
-       --env RUN_UID="$(id -u)" \
-       --env RUN_CMD='/home/dockuser/ng-mx/docker/scripts/run-ng-mx-build-and-unit-tests.sh' \
-       --env PYTHON_VERSION_NUMBER="${PYTHON_VERSION_NUMBER}" \
-       --env http_proxy=http://proxy-fm.intel.com:911 \
-       --env https_proxy=http://proxy-fm.intel.com:912 \
-       -v "${ngraph_mx_dir}:/home/dockuser/ng-mx" \
-       "${IMAGE_NAME}:${IMAGE_ID}" /home/run-as-user.sh
+      --env RUN_UID="$(id -u)" \
+      --env RUN_CMD="${docker_mx_dir}/docker/scripts/${script}" \
+      --env PYTHON_VERSION_NUMBER="${PYTHON_VERSION_NUMBER}"\
+      --env MX_OMP_NUM_THREADS="${MX_OMP_NUM_THREADS}" \
+      --env MX_NG_KMP_BLOCKTIME="${MX_NG_KMP_BLOCKTIME}" \
+      --env MX_NG_BATCH_SIZE="${MX_NG_BATCH_SIZE}" \
+      --env MX_NG_KMP_AFFINITY="${MX_NG_KMP_AFFINITY}" \
+      --env http_proxy=http://proxy-fm.intel.com:911 \
+      --env https_proxy=http://proxy-fm.intel.com:912 \
+      -v "${ngraph_mx_dir}:${docker_mx_dir}" \
+      "${IMAGE_NAME}:${IMAGE_ID}" /home/run-as-user.sh
