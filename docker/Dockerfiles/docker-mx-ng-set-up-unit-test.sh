@@ -20,7 +20,6 @@
 # This script is designed to be run from the docker directory
 
 set -e  # Fail on any command with non-zero exit
-
 # Get the python version
 
 if [ -z "${2}" ] ; then
@@ -40,7 +39,6 @@ if [ -z "${IMAGE_ID}" ] ; then
     echo 'Missing an image version as the only argument. Exitting ...'
     exit 1
 fi
-
 set -u  # No unset variables
 
 ngraph_mx_dir="$(realpath ../..)"
@@ -52,7 +50,7 @@ ngraph_mx_dir="$(realpath ../..)"
 
 docker run --rm \
        --env RUN_UID="$(id -u)" \
-       --env RUN_CMD='/home/dockuser/ng-mx/docker/scripts/run-ng-mx-build-and-unit-tests.sh' \
+       --env RUN_CMD='/home/dockuser/ng-mx/docker/scripts/set-up-unit-test.sh' \
        --env PYTHON_VERSION_NUMBER="${PYTHON_VERSION_NUMBER}" \
        --env http_proxy=http://proxy-fm.intel.com:911 \
        --env https_proxy=http://proxy-fm.intel.com:912 \
