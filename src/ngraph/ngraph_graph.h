@@ -204,7 +204,7 @@ class Graph : public Node {
         context_(context),
         enable_fprop_cache(enable_fprop_cache) {
     fprop_cache = std::make_shared<ngraph::FpropCache>();
-    is_reuse_mem = context.dev_type != mxnet::Context::kNNP;
+    is_reuse_mem = false;
   }
 
   std::string createNodeLabel() override {
