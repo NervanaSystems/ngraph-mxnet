@@ -22,60 +22,14 @@
 
 # This script is used to verify benchmark for ngraph_mxnet
 
-if [ ! -z "${MX_NG_RUN_PER_SCRIPT}" ] ; then
-    ng_mx_run_script="${MX_NG_RUN_PER_SCRIPT}"
-fi
-if [ ! -z "${1}" ] ; then
-    ng_mx_run_script="${1}"
-fi
-if [ -z "${ng_mx_run_script}" ] ; then
-    ( >&2 echo "Please select to run benchmark or benchmark score." )
-    ( >&2 echo "Supported Ngraph Mxnet Performance combinations are:")
-    ( >&2 echo "    benchmark  benchmark_score")  
-    ( >&2 echo "Exitting...")
-    exit 1
-fi
+echo "Build Mxnet_Ngraph"
 
 set -e  # Make sure we exit on any command that returns non-zero
 set -u  # No unset variables
-set -o pipefail # Make sure cmds in pipe that are non-zero also fail immediately
-
-# ===== run_benchmark() ========== 
-# Function to run the example/image-classification/benmark.py
-run_benchmark() {
-    echo "===== Will do ====="
-
-}  # run_benchmark()
-
-# ===== run_benchmark_score========== 
-# Function to run the example/image-classification/benchmark_score.py
-run_benchmark_score() {
-    # Make sure the bash shell prompt variables are set, as virtualenv crashes
-    # if PS2 is not set.
-    PS1='prompt> '
-    PS2='prompt-more> '
-    virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
-    source "${venv_dir}/bin/activate"
-    cd python && pip install -e . && pip install psutil && pip install pytest && cd ../
-    xtime="$(date)"
-    echo  ' '
-    echo  "===== Running Ngraph Mxnet Daily Validation on CPU-Backend at ${xtime} ====="
-    echo  ' '
-    echo  "===== PWD is $PWD ====="
-    export TEST_RUN_BENCHMARK_LOG_DIR="${HOME}/ng-mx"
-    export TEST_OMP_NUM_THREADS="${MX_NG_OMP_NUM_THREADS}"
-    export TEST_KMP_AFFINITY="granularity=fine,compact,1,0"
-
-    # Run the inference test
-    cmd="pytest -s docker/scripts/test_benchmark_score_validation.py --junit-xml=validation_benchmark_score_validation.xml --junit-prefix=benchmark_score_cpu"
-    eval $cmd
-
-    echo "===== Run benchmark_score.py with Ngraph_MXnet with $? ====="
-
-}  #run_benchmark_score()
-
+set -o pipefail # Make sure cmds in pipe that are non-zero also fail immediatel
 
 # ===== Main ==================================================================
+
 echo "the Python version in run_mx_ngraph-validation.py is: PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
 export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
 export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
@@ -89,7 +43,6 @@ cd "$HOME/ng-mx"
 export LD_LIBRARY_PATH="$HOME/ng-mx/ngraph_dist/lib"
 
 echo "In $(basename ${0}):"
-echo "  ng_mx_run_script=${ng_mx_run_script}"
 echo "  HOME=${HOME}"
 echo "  PYTHON_VERSION_NUMBER=${PYTHON_VERSION_NUMBER}"
 echo "  PYTHON_BIN_PATH=${PYTHON_BIN_PATH}"
@@ -141,25 +94,3 @@ if [ ! -f "$LD_LIBRARY_PATH/libmkldnn.so" ] ; then
   exit 1
 fi
 
-# ----- Run Models ----------------------------------
-cd "$HOME/ng-mx/"
-
-case "${ng_mx_run_script}" in
-benchmark)
-    run_benchmark
-    ;;
-benchmark_score)
-    run_benchmark_score
-    ;;
-*)
-    ( >&2 echo "FATAL ERROR: ${ng_mx_run_script} is not supported in this script")
-    exit 1
-    ;;
-esac
-
-xtime="$(date)"
-echo ' '
-echo "===== Completed NGraph MXNet Performance Test for ${ng_mx_run_script} at ${xtime} ====="
-echo ' '
-
-exit 0
