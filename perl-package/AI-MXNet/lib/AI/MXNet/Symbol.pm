@@ -229,6 +229,16 @@ method hypot(AI::MXNet::Symbol|Num $other)
     );
 }
 
+method reshape(@args)
+{
+    if(@args%2)
+    {
+        unshift @args, 'shape';
+    }
+    return $self->SUPER::reshape(@args);
+}
+
+
 method deepcopy()
 {
     my $handle = check_call(AI::MXNetCAPI::SymbolCopy($self->handle));
@@ -1495,9 +1505,12 @@ sub  _ufunc_helper
     }
 }
 
+method histogram(@args) { __PACKAGE__->_histogram(@args%2 ? ('data', @args) : @args) }
+
 sub contrib { 'AI::MXNet::Contrib::Symbol' }
 sub random  { 'AI::MXNet::Symbol::Random' }
 sub sparse  { 'AI::MXNet::Symbol::Sparse' }
 sub linalg  { 'AI::MXNet::LinAlg::Symbol' }
+sub image   { 'AI::MXNet::Image::Symbol' }
 
 1;

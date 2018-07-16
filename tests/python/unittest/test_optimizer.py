@@ -23,7 +23,7 @@ import unittest
 from nose.tools import raises
 import math
 from mxnet.test_utils import *
-from common import setup_module, with_seed
+from common import setup_module, with_seed, teardown
 
 @with_seed()
 def test_learning_rate():
@@ -204,7 +204,6 @@ class PySGD(mx.optimizer.Optimizer):
     def update_multi_precision(self, index, weight, grad, state):
         self.update(index, weight, grad, state)
 
-@unittest.skip("Test fails intermittently. Temporarily disabled until fixed. Tracked at https://github.com/apache/incubator-mxnet/issues/9000")
 @with_seed()
 def test_sgd():
     opt1 = PySGD
@@ -231,18 +230,14 @@ def test_sgd():
                                     ('multi_precision' not in kwarg or
                                         not kwarg['multi_precision'])):
                                 continue
-                            compare_optimizer(opt1(**kwarg), opt2(**kwarg), shape, dtype)
+                            if dtype == np.float16:
+                                compare_optimizer(opt1(**kwarg), opt2(**kwarg), shape, dtype, rtol=1e-3)
+                            else:
+                                compare_optimizer(opt1(**kwarg), opt2(**kwarg), shape, dtype)
                             # test operator fallback on cpu
-                            if (default_context() == mx.cpu()):
-                                compare_optimizer(opt1(**kwarg), opt2(**kwarg), shape, dtype,
-                                                  g_stype='row_sparse')
-                                if dtype != np.float16:
-                                    compare_optimizer(opt1(**kwarg), opt2(**kwarg), shape[:2],
-                                                      dtype, w_stype='csr', g_stype='csr')
-    # test optimizer with a big shape
-    big_shape = (54686454, 1)
-    kwarg = {'momentum': 0.9, 'wd': 0.05}
-    compare_optimizer(opt1(**kwarg), opt2(**kwarg), big_shape, np.float32)
+                            if dtype != np.float16:
+                                compare_optimizer(opt1(**kwarg), opt2(**kwarg), shape[:2],
+                                                  dtype, w_stype='csr', g_stype='csr')
 
 class PySparseSGD(mx.optimizer.Optimizer):
     """python reference implemenation of sgd"""
@@ -337,14 +332,16 @@ def test_sparse_sgd():
                             kwarg.update(mp_option)
                             compare_optimizer(opt1(**kwarg), opt2(**kwarg), shape, dtype,
                                               w_stype='row_sparse', g_stype='row_sparse')
+                            compare_optimizer(opt1(**kwarg), opt2(**kwarg), shape, dtype,
+                                              w_stype='default', g_stype='row_sparse')
 
 
-@with_seed(0)
+@with_seed()
 def test_std_sparse_sgd():
     opt1 = PySGD
     opt2 = mx.optimizer.SGD
     shape = (3, 4, 5)
-    mom_options = [{'momentum': 0.9}]
+    mom_options = [{'momentum': 0.0}, {'momentum': 0.9}]
     cg_options = [{}, {'clip_gradient': 0.4}, {'clip_gradient': 0.5}]
     rg_options = [{}, {'rescale_grad': 0.14}, {'rescale_grad': 0.8}]
     wd_options = [{}, {'wd': 0.03}, {'wd': 0.05}, {'wd': 0.07}]
@@ -360,6 +357,8 @@ def test_std_sparse_sgd():
                         kwarg.update(wd_option)
                         compare_optimizer(opt1(**kwarg), opt2(lazy_update=False, **kwarg), shape, dtype,
                                           w_stype='row_sparse', g_stype='row_sparse')
+                        compare_optimizer(opt1(**kwarg), opt2(lazy_update=False, **kwarg), shape, dtype,
+                                          w_stype='default', g_stype='row_sparse')
 
 
 class PyNAG(PySGD):
@@ -424,7 +423,7 @@ class PyNAG(PySGD):
               grad += wd * weight
               mom[:] += grad
               grad[:] += self.momentum * mom
-              weight[:] += -lr * grad 
+              weight[:] += -lr * grad
         else:
             grad32 = array(grad, ctx=grad.context, dtype=np.float32)
             grad32 = grad32 * self.rescale_grad
@@ -543,7 +542,7 @@ def test_ftml():
 class PyAdam(mx.optimizer.Optimizer):
     """python reference implemenation of adam"""
     def __init__(self, learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-8,
-                 decay_factor=(1 - 1e-8), lazy_update=False, **kwargs):
+                 decay_factor=(1 - 1e-8), lazy_update=True, **kwargs):
         super(PyAdam, self).__init__(learning_rate=learning_rate, **kwargs)
         self.beta1 = beta1
         self.beta2 = beta2
@@ -594,7 +593,7 @@ class PyAdam(mx.optimizer.Optimizer):
         for row in range(num_rows):
             # check row slices of all zeros
             all_zeros = mx.test_utils.almost_equal(grad[row].asnumpy(), np.zeros_like(grad[row].asnumpy()))
-            # skip zeros during sparse update
+            # skip zeros during lazy update
             if all_zeros and self.lazy_update:
                 continue
             grad[row] = grad[row] * self.rescale_grad + wd * weight[row]
@@ -635,14 +634,20 @@ def test_adam():
                                     not kwarg['multi_precision'])):
                             continue
                         # atol 2e-5 needed to pass with seed 1248389097
-                        compare_optimizer(opt1(**kwarg), opt2(**kwarg), shape, dtype,
+                        compare_optimizer(opt1(lazy_update=False, **kwarg), opt2(**kwarg), shape, dtype,
                                           rtol=1e-4, atol=2e-5)
                         # atol 2e-5 needed to pass with seed 781809840
-                        compare_optimizer(opt1(lazy_update=True, **kwarg), opt2(**kwarg), shape,
+                        compare_optimizer(opt1(**kwarg), opt2(**kwarg), shape,
                                           dtype, w_stype='row_sparse', g_stype='row_sparse',
                                           rtol=1e-4, atol=2e-5)
-                        compare_optimizer(opt1(**kwarg), opt2(lazy_update=False, **kwarg), shape,
+                        compare_optimizer(opt1(lazy_update=False, **kwarg), opt2(lazy_update=False, **kwarg), shape,
                                           dtype, w_stype='row_sparse', g_stype='row_sparse',
+                                          rtol=1e-4, atol=2e-5)
+                        compare_optimizer(opt1(**kwarg), opt2(**kwarg), shape,
+                                          dtype, w_stype='default', g_stype='row_sparse',
+                                          rtol=1e-4, atol=2e-5)
+                        compare_optimizer(opt1(lazy_update=False, **kwarg), opt2(lazy_update=False, **kwarg), shape,
+                                          dtype, w_stype='default', g_stype='row_sparse',
                                           rtol=1e-4, atol=2e-5)
 
 # Signum
@@ -1029,6 +1034,8 @@ def test_adagrad():
                         if wd_option.get('wd', 0.0) == 0.0:
                             compare_optimizer(opt1(**kwarg), opt2(**kwarg), shape, dtype,
                                               w_stype='row_sparse', g_stype='row_sparse')
+                            compare_optimizer(opt1(**kwarg), opt2(**kwarg), shape, dtype,
+                                              g_stype='row_sparse')
 
 
 

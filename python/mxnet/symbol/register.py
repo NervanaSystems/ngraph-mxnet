@@ -113,9 +113,13 @@ def %s(*%s, **kwargs):"""%(func_name, arr_name))
             dtype_name, dtype_name, dtype_name))
             code.append("""
     attr = kwargs.pop('attr', None)
-    kwargs.update(AttrScope.current.get(attr))
+    if not hasattr(AttrScope._current, "value"):
+        AttrScope._current.value = AttrScope()
+    kwargs.update(AttrScope._current.value.get(attr))
     name = kwargs.pop('name', None)
-    name = NameManager.current.get(name, '%s')
+    if not hasattr(NameManager._current, "value"):
+        NameManager._current.value = NameManager()
+    name = NameManager._current.value.get(name, '%s')
     _ = kwargs.pop('out', None)
     keys = []
     vals = []
@@ -141,7 +145,9 @@ def %s(*%s, **kwargs):"""%(func_name, arr_name))
 def %s(%s):"""%(func_name, ', '.join(signature)))
         if not signature_only:
             code.append("""
-    kwargs.update(AttrScope.current.get(attr))
+    if not hasattr(AttrScope._current, "value"):
+        AttrScope._current.value = AttrScope()
+    kwargs.update(AttrScope._current.value.get(attr))
     sym_kwargs = dict()
     _keys = []
     _vals = []
@@ -172,7 +178,9 @@ def %s(%s):"""%(func_name, ', '.join(signature)))
         _vals.append(np.dtype(%s).name)"""%(dtype_name, dtype_name, dtype_name))
 
             code.append("""
-    name = NameManager.current.get(name, '%s')
+    if not hasattr(NameManager._current, "value"):
+        NameManager._current.value = NameManager()
+    name = NameManager._current.value.get(name, '%s')
     return _symbol_creator(%d, None, sym_kwargs, _keys, _vals, name)"""%(
         func_name.lower(), handle.value))
 

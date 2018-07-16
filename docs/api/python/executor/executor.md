@@ -3,6 +3,8 @@
 The executor and executor manager are internal classes for managing symbolic
 graph execution. This document is only intended for reference for advanced users.
 
+.. note:: Direct interactions with executor and executor manager are dangerous and not recommended.
+
 ## Executor
 
 ```eval_rst
@@ -28,7 +30,7 @@ graph execution. This document is only intended for reference for advanced users
 
 ## API Reference
 
-<script type="text/javascript" src='../../_static/js/auto_module_index.js'></script>
+<script type="text/javascript" src='../../../_static/js/auto_module_index.js'></script>
 
 ```eval_rst
 .. automodule:: mxnet.executor

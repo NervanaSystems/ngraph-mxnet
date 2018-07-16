@@ -70,7 +70,7 @@ struct NormParam : public dmlc::Parameter<NormParam> {
   bool keepdims;
   DMLC_DECLARE_PARAMETER(NormParam) {
     DMLC_DECLARE_FIELD(ord).set_default(2)
-      .describe("Order of the norm. Currently ord=2 is supported.");
+      .describe("Order of the norm. Currently ord=1 and ord=2 is supported.");
     DMLC_DECLARE_FIELD(axis).set_default(dmlc::optional<TShape>())
       .describe(R"code(The axis or axes along which to perform the reduction.
       The default, `axis=()`, will compute over all elements into a
@@ -385,11 +385,11 @@ inline bool ReduceAxesOpForwardStorage(const nnvm::NodeAttrs& attrs,
   const ReduceAxesParam& param = nnvm::get<ReduceAxesParam>(attrs.parsed);
   const int in_stype = in_attrs->at(0);
   int& out_stype = out_attrs->at(0);
-  bool dispatched = false;
-  // sum only supported for CPU for now. TODO: Remove when support for GPU added
+  // sum and reduce only supports for CPU for now.
   const bool invalid_ctx = dev_mask != mshadow::cpu::kDevMask;
   const auto dispatch_ex =
       invalid_ctx ? DispatchMode::kFComputeFallback : DispatchMode::kFComputeEx;
+  bool dispatched = false;
   if (!dispatched && in_stype == kDefaultStorage) {
     // When input is dense output storage is set as dense and dispatched to
     // dense operator
@@ -707,18 +707,16 @@ void ReduceCsr(const nnvm::NodeAttrs& attrs, mshadow::Stream<xpu>* s, const OpCo
 }
 
 template <typename xpu, typename reducer, bool normalize = false>
-void SumOpForwardEx(const nnvm::NodeAttrs& attrs, const OpContext& ctx,
-                    const std::vector<NDArray>& inputs,
-                    const std::vector<OpReqType>& req,
-                    const std::vector<NDArray>& outputs) {
+void ReduceAxesOpForwardEx(const nnvm::NodeAttrs& attrs, const OpContext& ctx,
+                           const std::vector<NDArray>& inputs,
+                           const std::vector<OpReqType>& req,
+                           const std::vector<NDArray>& outputs) {
   CHECK_EQ(inputs.size(), 1U);
   CHECK_EQ(outputs.size(), 1U);
   CHECK_EQ(req.size(), 1U);
   mshadow::Stream<xpu>* s = ctx.get_stream<xpu>();
   const NDArrayStorageType istype = inputs[0].storage_type();
   if (istype == kCSRStorage) {
-    CHECK_EQ(inputs[0].shape().ndim(), 2U)
-        << "sum(csr)/mean(csr) op only supports 2D ndarray as input";
     NDArray output = outputs[0];
     ReduceCsr<xpu, mshadow::red::sum, normalize>(attrs, s, ctx, inputs[0],
                                                  req[0], &output);
@@ -871,7 +869,7 @@ struct ReduceGrad {
   }
 };
 
-inline bool L2NormStorageType(const nnvm::NodeAttrs& attrs,
+inline bool LpNormStorageType(const nnvm::NodeAttrs& attrs,
                               const int dev_mask,
                               DispatchMode* dispatch_mode,
                               std::vector<int>* in_attrs,
@@ -880,16 +878,31 @@ inline bool L2NormStorageType(const nnvm::NodeAttrs& attrs,
   CHECK_EQ(out_attrs->size(), 1U);
   const int in_stype = in_attrs->at(0);
   int& out_stype = out_attrs->at(0);
+  const NormParam& param = nnvm::get<NormParam>(attrs.parsed);
   bool dispatched = false;
+  // l2 norm on a particular axis only supports cpu
+  const bool invalid_ctx = dev_mask != mshadow::cpu::kDevMask;
+  const auto dispatch_ex =
+      invalid_ctx ? DispatchMode::kFComputeFallback : DispatchMode::kFComputeEx;
   if (!dispatched && in_stype == kDefaultStorage) {
     // dns -> dns
     dispatched = storage_type_assign(&out_stype, kDefaultStorage, dispatch_mode,
                                      DispatchMode::kFCompute);
   }
-  if (!dispatched && (in_stype == kCSRStorage || in_stype == kRowSparseStorage)) {
-    // csr/rsp -> dns
-    dispatched = storage_type_assign(&out_stype, kDefaultStorage, dispatch_mode,
-                                     DispatchMode::kFComputeEx);
+  if (param.ord == 2) {
+    const TShape axis = param.axis.has_value() ? param.axis.value() : TShape();
+    if (!dispatched && (in_stype == kRowSparseStorage || in_stype == kCSRStorage) &&
+        axis.ndim() == 0 && param.ord == 2) {
+      // l2 norm: rsp/csr, axis = () -> dns
+      dispatched = storage_type_assign(&out_stype, kDefaultStorage, dispatch_mode,
+                                       DispatchMode::kFComputeEx);
+    }
+    if (!dispatched && in_stype == kCSRStorage && axis.ndim() == 1 && !param.keepdims &&
+        (axis[0] == 0 || axis[0] == 1) && param.ord == 2) {
+      // l2 norm: csr, axis = 0/1 -> dns
+      dispatched = storage_type_assign(&out_stype, kDefaultStorage, dispatch_mode,
+                                       dispatch_ex);
+    }
   }
   if (!dispatched) {
     dispatched = dispatch_fallback(out_attrs, dispatch_mode);
@@ -943,10 +956,11 @@ void L2NormComputeImpl(mshadow::Stream<xpu> *s,
                        const TBlob& input,
                        const OpReqType req,
                        const TBlob& output) {
-  if (req == kNullOp) return;
   MSHADOW_REAL_TYPE_SWITCH(output.type_flag_, DType, {
+    // assign_req switch exits immediately for null req
     MXNET_ASSIGN_REQ_SWITCH(req, Req, {
-      mshadow::Tensor<xpu, 1, DType> out = output.get<xpu, 1, DType>(s);
+      mshadow::Tensor<xpu, 1, DType> out = output.get_with_shape<xpu, 1, DType>(
+        mshadow::Shape1(output.shape_.Size()), s);
       mshadow::Tensor<xpu, 1, DType> in = input.get_with_shape<xpu, 1, DType>(
         mshadow::Shape1(input.shape_.Size()), s);
       mshadow::VectorDot(out, in, in);
@@ -972,13 +986,13 @@ void SqRootForL2(const OpContext& ctx, OpReqType req, const TBlob &output) {
 }
 
 template<typename xpu>
-void L2NormCompute(const nnvm::NodeAttrs& attrs,
+void LpNormCompute(const nnvm::NodeAttrs& attrs,
                    const OpContext& ctx,
                    const std::vector<TBlob>& inputs,
                    const std::vector<OpReqType>& req,
                    const std::vector<TBlob>& outputs) {
   const NormParam& param = nnvm::get<NormParam>(attrs.parsed);
-  CHECK_EQ(param.ord, 2) << "norm only support ord=2";
+  CHECK(param.ord == 1 || param.ord == 2) << "norm only supports ord=1 and ord=2";
   if (req[0] == kNullOp) return;
 
   TShape small;
@@ -987,13 +1001,17 @@ void L2NormCompute(const nnvm::NodeAttrs& attrs,
   } else {
     small = ReduceAxesShapeImpl(inputs[0].shape_, param.axis, true, false);
   }
-  ReduceAxesComputeImpl<xpu, mshadow::red::sum, false, mshadow_op::square>(
-      ctx, inputs, req, outputs, small);
-  SqRootForL2<xpu>(ctx, req[0], outputs[0]);
+  if (param.ord == 1) {
+    ReduceAxesComputeImpl<xpu, mshadow::red::sum, false, mshadow_op::abs>(
+          ctx, inputs, req, outputs, small);
+  } else if (param.ord == 2) {
+    ReduceAxesComputeImpl<xpu, mshadow_op::nrm2, false, mshadow_op::identity>(
+        ctx, inputs, req, outputs, small);
+  }
 }
 
 template<typename xpu>
-void L2NormGradCompute(const nnvm::NodeAttrs& attrs,
+void LpNormGradCompute(const nnvm::NodeAttrs& attrs,
                        const OpContext& ctx,
                        const std::vector<TBlob>& inputs,
                        const std::vector<OpReqType>& req,
@@ -1002,15 +1020,43 @@ void L2NormGradCompute(const nnvm::NodeAttrs& attrs,
   using namespace mshadow::expr;
   if (req[0] == kNullOp) return;
 
-  const ReduceAxesParam& param = nnvm::get<ReduceAxesParam>(attrs.parsed);
+  const NormParam& param = nnvm::get<NormParam>(attrs.parsed);
   TShape small;
   if (param.keepdims) {
     small = inputs[0].shape_;
   } else {
-    small = ReduceAxesShapeImpl(outputs[0].shape_, param.axis, true, param.exclude);
+    small = ReduceAxesShapeImpl(outputs[0].shape_, param.axis, true, false);
   }
-  ReduceAxesBackwardUseInOutImpl<xpu, mshadow_op::div, false>(ctx, small, inputs,
-                                                              req, outputs);
+  if (param.ord == 1) {
+    TShape src_shape, dst_shape;
+    BroadcastReduceShapeCompact(outputs[0].shape_, small, &src_shape, &dst_shape);
+    Stream<xpu> *s = ctx.get_stream<xpu>();
+    MSHADOW_TYPE_SWITCH(outputs[0].type_flag_, DType, {
+      if (dst_shape.ndim() == 2) {
+        Tensor<xpu, 2, DType> ograd =
+          inputs[0].get_with_shape<xpu, 2, DType>(dst_shape.get<2>(), s);
+        Tensor<xpu, 2, DType> igrad =
+          outputs[0].get_with_shape<xpu, 2, DType>(src_shape.get<2>(), s);
+        Tensor<xpu, 2, DType> data =
+          inputs[1].get_with_shape<xpu, 2, DType>(src_shape.get<2>(), s);
+        ASSIGN_DISPATCH(igrad, req[0],
+          broadcast_to(ograd, src_shape)*F<mshadow_op::sign>(data));
+      } else {
+        const int ndim = MXNET_SPECIAL_MAX_NDIM;
+        Tensor<xpu, ndim, DType> igrad =
+          outputs[0].get_with_shape<xpu, ndim, DType>(src_shape.get<ndim>(), s);
+        Tensor<xpu, ndim, DType> ograd =
+          inputs[0].get_with_shape<xpu, ndim, DType>(dst_shape.get<ndim>(), s);
+        Tensor<xpu, ndim, DType> data =
+          inputs[1].get_with_shape<xpu, ndim, DType>(src_shape.get<ndim>(), s);
+        ASSIGN_DISPATCH(igrad, req[0],
+          broadcast_to(ograd, src_shape)*F<mshadow_op::sign>(data));
+      }
+    });
+  } else if (param.ord == 2) {
+    ReduceAxesBackwardUseInOutImpl<xpu, mshadow_op::div, false>(ctx, small, inputs,
+                                                                req, outputs);
+  }
 }
 
 template<typename xpu>
@@ -1034,42 +1080,7 @@ void L2NormComputeEx(const nnvm::NodeAttrs& attrs,
                      const OpContext& ctx,
                      const std::vector<NDArray>& inputs,
                      const std::vector<OpReqType>& req,
-                     const std::vector<NDArray>& outputs) {
-  CHECK_EQ(inputs.size(), 1U);
-  CHECK_EQ(outputs.size(), 1U);
-  CHECK_EQ(req.size(), 1U);
-  const NormParam& param = nnvm::get<NormParam>(attrs.parsed);
-  CHECK_EQ(param.ord, 2) << "norm only support ord=2";
-  mshadow::Stream<xpu>* s = ctx.get_stream<xpu>();
-  const NDArrayStorageType istype = inputs[0].storage_type();
-  const TShape axis = param.axis.has_value() ? param.axis.value() : TShape();
-  if ((istype == kRowSparseStorage || istype == kCSRStorage) && axis.ndim() == 0) {
-    // We only support norm on the entire array for now.
-    L2NormComputeSparseImpl<xpu>(s, inputs[0], req[0], outputs[0].data());
-  } else if (istype == kCSRStorage) {
-    CHECK_EQ(inputs[0].shape().ndim(), 2U)
-        << "norm(csr) op only supports 2D ndarray as input";
-    CHECK_EQ(axis.ndim(), 1U) << "sum(csr)/mean(csr) only supports axis 0 or 1";
-    CHECK(axis[0] == 0 || axis[0] == 1)
-        << "sum(csr)/mean(csr) only support axis 0 or 1";
-    CHECK(!param.keepdims) << "keepdims not supported for sparse";
-    NDArray output = outputs[0];
-    ReduceCsrImpl<xpu, sq_sum, false>(s, ctx, inputs[0], req[0], &output, axis);
-    CHECK_EQ(outputs[0].storage_type(), kDefaultStorage);
-    SqRootForL2<xpu>(ctx, req[0], outputs[0].data());
-  } else {
-    LogUnimplementedOp(attrs, ctx, inputs, req, outputs);
-  }
-}
-
-template<typename xpu>
-void L2NormGradComputeEx(const nnvm::NodeAttrs& attrs,
-                         const OpContext& ctx,
-                         const std::vector<NDArray>& inputs,
-                         const std::vector<OpReqType>& req,
-                         const std::vector<NDArray>& outputs) {
-  LogUnimplementedOp(attrs, ctx, inputs, req, outputs);
-}
+                     const std::vector<NDArray>& outputs);
 
 /*! \brief index element from array along axes */
 template<int ndim>

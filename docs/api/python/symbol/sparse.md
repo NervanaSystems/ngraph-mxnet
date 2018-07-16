@@ -76,6 +76,15 @@ In the rest of this document, we list sparse related routines provided by the
     cast_storage
 ```
 
+### Joining arrays
+
+```eval_rst
+.. autosummary::
+    :nosignatures:
+
+    concat
+```
+
 ### Indexing routines
 
 ```eval_rst
@@ -97,6 +106,10 @@ In the rest of this document, we list sparse related routines provided by the
     elemwise_add
     elemwise_sub
     elemwise_mul
+    broadcast_add
+    broadcast_sub
+    broadcast_mul
+    broadcast_div
     negative
     dot
     add_n
@@ -193,7 +206,7 @@ In the rest of this document, we list sparse related routines provided by the
 
     make_loss
     stop_gradient
-    mxnet.symbol.contrib.SparseEmbedding
+    Embedding
     LinearRegressionOutput
     LogisticRegressionOutput
 ```
