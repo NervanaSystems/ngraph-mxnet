@@ -55,6 +55,10 @@ class NGRAPH_SGCOMPILER : public ::testing::Test {
     subgraph->inputs_.push_back(in1);
     subgraph->inputs_.push_back(in2);
     subgraph->inputs_.push_back(in3);
+    for (auto i : subgraph->inputs_) {
+      subgraph->input_is_weight_.push_back(false);
+    }
+
     subgraph->nodes_.push_back(node1);
     subgraph->nodes_.push_back(node2);
     subgraph->outputs_.push_back(node2);
