@@ -1,5 +1,7 @@
 # KVStore API
 
+.. note:: Direct interactions with ``KVStore`` are dangerous and not recommended.
+
 ## Basic Push and Pull
 
 Provides basic operation over multiple devices (GPUs) on a single device.
@@ -117,7 +119,7 @@ update on key: 9
 
 ## API Reference
 
-<script type="text/javascript" src='../../_static/js/auto_module_index.js'></script>
+<script type="text/javascript" src='../../../_static/js/auto_module_index.js'></script>
 
 ```eval_rst
 .. automodule:: mxnet.kvstore

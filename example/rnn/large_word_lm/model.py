@@ -46,12 +46,11 @@ def cross_entropy_loss(inputs, labels, rescale_loss=1):
 
 def rnn(bptt, vocab_size, num_embed, nhid, num_layers, dropout, num_proj, batch_size):
     """ word embedding + LSTM Projected """
-    embed = mx.sym.contrib.SparseEmbedding
     state_names = []
     data = S.var('data')
     weight = S.var("encoder_weight", stype='row_sparse')
-    embed = embed(data=data, weight=weight, input_dim=vocab_size,
-                  output_dim=num_embed, name='embed', deterministic=True)
+    embed = S.sparse.Embedding(data=data, weight=weight, input_dim=vocab_size,
+                               output_dim=num_embed, name='embed', sparse_grad=True)
     states = []
     outputs = S.Dropout(embed, p=dropout)
     for i in range(num_layers):
@@ -59,7 +58,7 @@ def rnn(bptt, vocab_size, num_embed, nhid, num_layers, dropout, num_proj, batch_
         init_h = S.var(prefix + 'init_h', shape=(batch_size, num_proj), init=mx.init.Zero())
         init_c = S.var(prefix + 'init_c', shape=(batch_size, nhid), init=mx.init.Zero())
         state_names += [prefix + 'init_h', prefix + 'init_c']
-        lstmp = mx.gluon.contrib.rnn.LSTMPCell(nhid, num_proj)
+        lstmp = mx.gluon.contrib.rnn.LSTMPCell(nhid, num_proj, prefix=prefix)
         outputs, next_states = lstmp.unroll(bptt, outputs, begin_state=[init_h, init_c], \
                                             layout='NTC', merge_outputs=True)
         outputs = S.Dropout(outputs, p=dropout)
@@ -78,7 +77,6 @@ def sampled_softmax(num_classes, num_samples, in_dim, inputs, weight, bias,
             This under-estimates the full softmax and is only used for training.
         """
         # inputs = (n, in_dim)
-        embed = mx.sym.contrib.SparseEmbedding
         sample, prob_sample, prob_target = sampled_values
 
         # (num_samples, )
@@ -90,12 +88,13 @@ def sampled_softmax(num_classes, num_samples, in_dim, inputs, weight, bias,
         sample_label = S.concat(sample, label, dim=0)
         # lookup weights and biases
         # (num_samples+n, dim)
-        sample_target_w = embed(data=sample_label, weight=weight,
-                                     input_dim=num_classes, output_dim=in_dim,
-                                     deterministic=True)
+        sample_target_w = S.sparse.Embedding(data=sample_label, weight=weight,
+                                             input_dim=num_classes, output_dim=in_dim,
+                                             sparse_grad=True)
         # (num_samples+n, 1)
-        sample_target_b = embed(data=sample_label, weight=bias,
-                                input_dim=num_classes, output_dim=1, deterministic=True)
+        sample_target_b = S.sparse.Embedding(data=sample_label, weight=bias,
+                                             input_dim=num_classes, output_dim=1,
+                                             sparse_grad=True)
         # (num_samples, dim)
         sample_w = S.slice(sample_target_w, begin=(0, 0), end=(num_samples, None))
         target_w = S.slice(sample_target_w, begin=(num_samples, 0), end=(None, None))
@@ -128,7 +127,7 @@ def sampled_softmax(num_classes, num_samples, in_dim, inputs, weight, bias,
         new_targets = S.zeros_like(label)
         return logits, new_targets
 
-def generate_samples(label, num_splits, num_samples, num_classes):
+def generate_samples(label, num_splits, sampler):
     """ Split labels into `num_splits` and
         generate candidates based on log-uniform distribution.
     """
@@ -140,29 +139,30 @@ def generate_samples(label, num_splits, num_samples, num_classes):
     samples = []
     for label_split in label_splits:
         label_split_2d = label_split.reshape((-1,1))
-        sampled_value = mx.nd.contrib.rand_zipfian(label_split_2d, num_samples, num_classes)
+        sampled_value = sampler.draw(label_split_2d)
         sampled_classes, exp_cnt_true, exp_cnt_sampled = sampled_value
         samples.append(sampled_classes.astype(np.float32))
-        prob_targets.append(exp_cnt_true.astype(np.float32))
+        prob_targets.append(exp_cnt_true.astype(np.float32).reshape((-1,1)))
         prob_samples.append(exp_cnt_sampled.astype(np.float32))
     return samples, prob_samples, prob_targets
 
 class Model():
     """ LSTMP with Importance Sampling """
-    def __init__(self, args, ntokens, rescale_loss):
-        out = rnn(args.bptt, ntokens, args.emsize, args.nhid, args.nlayers,
-                  args.dropout, args.num_proj, args.batch_size)
+    def __init__(self, ntokens, rescale_loss, bptt, emsize,
+                 nhid, nlayers, dropout, num_proj, batch_size, k):
+        out = rnn(bptt, ntokens, emsize, nhid, nlayers,
+                  dropout, num_proj, batch_size)
         rnn_out, self.last_states, self.lstm_args, self.state_names = out
         # decoder weight and bias
         decoder_w = S.var("decoder_weight", stype='row_sparse')
         decoder_b = S.var("decoder_bias", shape=(ntokens, 1), stype='row_sparse')
 
         # sampled softmax for training
-        sample = S.var('sample', shape=(args.k,))
-        prob_sample = S.var("prob_sample", shape=(args.k,))
+        sample = S.var('sample', shape=(k,))
+        prob_sample = S.var("prob_sample", shape=(k,))
         prob_target = S.var("prob_target")
         self.sample_names = ['sample', 'prob_sample', 'prob_target']
-        logits, new_targets = sampled_softmax(ntokens, args.k, args.num_proj,
+        logits, new_targets = sampled_softmax(ntokens, k, num_proj,
                                               rnn_out, decoder_w, decoder_b,
                                               [sample, prob_sample, prob_target])
         self.train_loss = cross_entropy_loss(logits, new_targets, rescale_loss=rescale_loss)

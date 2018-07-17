@@ -37,13 +37,15 @@
 # choice of compiler
 #--------------------
 
+ifndef CC
 export CC = gcc
+endif
+ifndef CXX
 export CXX = g++
-
-# If we set NVCC here, there's logic in the top-level Makefile for computing the
-# value of NVCC that will never run.
-#export NVCC = nvcc
-export NVCC =
+endif
+ifndef NVCC
+export NVCC = nvcc
+endif
 
 # whether compile with options for MXNet developer
 DEV = 0

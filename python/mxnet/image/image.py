@@ -25,6 +25,7 @@ import os
 import random
 import logging
 import json
+import warnings
 import numpy as np
 
 try:
@@ -432,7 +433,7 @@ def color_normalize(src, mean, std=None):
     return src
 
 
-def random_size_crop(src, size, min_area, ratio, interp=2):
+def random_size_crop(src, size, area, ratio, interp=2, **kwargs):
     """Randomly crop src with size. Randomize area and aspect ratio.
 
     Parameters
@@ -441,8 +442,9 @@ def random_size_crop(src, size, min_area, ratio, interp=2):
         Input image
     size : tuple of (int, int)
         Size of the crop formatted as (width, height).
-    min_area : int
-        Minimum area to be maintained after cropping
+    area : float in (0, 1] or tuple of (float, float)
+        If tuple, minimum area and maximum area to be maintained after cropping
+        If float, minimum area to be maintained after cropping, maximum area is set to 1.0
     ratio : tuple of (float, float)
         Aspect ratio range as (min_aspect_ratio, max_aspect_ratio)
     interp: int, optional, default=2
@@ -457,9 +459,18 @@ def random_size_crop(src, size, min_area, ratio, interp=2):
 
     """
     h, w, _ = src.shape
-    area = h * w
+    src_area = h * w
+
+    if 'min_area' in kwargs:
+        warnings.warn('`min_area` is deprecated. Please use `area` instead.',
+                      DeprecationWarning)
+        area = kwargs.pop('min_area')
+    assert not kwargs, "unexpected keyword arguments for `random_size_crop`."
+
+    if isinstance(area, numeric_types):
+        area = (area, 1.0)
     for _ in range(10):
-        target_area = random.uniform(min_area, 1.0) * area
+        target_area = random.uniform(area[0], area[1]) * src_area
         new_ratio = random.uniform(*ratio)
 
         new_w = int(round(np.sqrt(target_area * new_ratio)))
@@ -596,24 +607,31 @@ class RandomSizedCropAug(Augmenter):
     ----------
     size : tuple of (int, int)
         Size of the crop formatted as (width, height).
-    min_area : int
-        Minimum area to be maintained after cropping
+    area : float in (0, 1] or tuple of (float, float)
+        If tuple, minimum area and maximum area to be maintained after cropping
+        If float, minimum area to be maintained after cropping, maximum area is set to 1.0
     ratio : tuple of (float, float)
         Aspect ratio range as (min_aspect_ratio, max_aspect_ratio)
     interp: int, optional, default=2
         Interpolation method. See resize_short for details.
     """
-    def __init__(self, size, min_area, ratio, interp=2):
-        super(RandomSizedCropAug, self).__init__(size=size, min_area=min_area,
+    def __init__(self, size, area, ratio, interp=2, **kwargs):
+        super(RandomSizedCropAug, self).__init__(size=size, area=area,
                                                  ratio=ratio, interp=interp)
         self.size = size
-        self.min_area = min_area
+        if 'min_area' in kwargs:
+            warnings.warn('`min_area` is deprecated. Please use `area` instead.',
+                          DeprecationWarning)
+            self.area = kwargs.pop('min_area')
+        else:
+            self.area = area
         self.ratio = ratio
         self.interp = interp
+        assert not kwargs, "unexpected keyword arguments for `RandomSizedCropAug`."
 
     def __call__(self, src):
         """Augmenter body"""
-        return random_size_crop(src, self.size, self.min_area, self.ratio, self.interp)[0]
+        return random_size_crop(src, self.size, self.area, self.ratio, self.interp)[0]
 
 
 class CenterCropAug(Augmenter):
@@ -821,8 +839,8 @@ class ColorNormalizeAug(Augmenter):
     """
     def __init__(self, mean, std):
         super(ColorNormalizeAug, self).__init__(mean=mean, std=std)
-        self.mean = nd.array(mean) if mean is not None else None
-        self.std = nd.array(std) if std is not None else None
+        self.mean = mean if mean is None or isinstance(mean, nd.NDArray) else nd.array(mean)
+        self.std = std if std is None or isinstance(std, nd.NDArray) else nd.array(std)
 
     def __call__(self, src):
         """Augmenter body"""
@@ -981,14 +999,14 @@ def CreateAugmenter(data_shape, resize=0, rand_crop=False, rand_resize=False, ra
         auglist.append(RandomGrayAug(rand_gray))
 
     if mean is True:
-        mean = np.array([123.68, 116.28, 103.53])
+        mean = nd.array([123.68, 116.28, 103.53])
     elif mean is not None:
-        assert isinstance(mean, np.ndarray) and mean.shape[0] in [1, 3]
+        assert isinstance(mean, (np.ndarray, nd.NDArray)) and mean.shape[0] in [1, 3]
 
     if std is True:
-        std = np.array([58.395, 57.12, 57.375])
+        std = nd.array([58.395, 57.12, 57.375])
     elif std is not None:
-        assert isinstance(std, np.ndarray) and std.shape[0] in [1, 3]
+        assert isinstance(std, (np.ndarray, nd.NDArray)) and std.shape[0] in [1, 3]
 
     if mean is not None or std is not None:
         auglist.append(ColorNormalizeAug(mean, std))

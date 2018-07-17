@@ -344,6 +344,7 @@ inline void FillDnsZerosRspImpl(mshadow::Stream<xpu> *s, NDArray *dst) {
  */
 template<typename xpu>
 void FillZerosRspImpl(mshadow::Stream<xpu> *, const NDArray& dst) {
+  CHECK_EQ(dst.storage_type(), kRowSparseStorage) << "dst should be an RSP NDArray";
   if (dst.storage_initialized()) {
     // reset the shapes if it's not zeros (set_aux_shape() will set storage_shape to zero as well)
     dst.set_aux_shape(rowsparse::kIdx, TShape(mshadow::Shape1(0)));
@@ -356,6 +357,7 @@ void FillZerosRspImpl(mshadow::Stream<xpu> *, const NDArray& dst) {
  * \param dst - NDArray which is to be set to "all zeroes"
  */
 inline void FillZerosCsrImpl(mshadow::Stream<mshadow::cpu> *s, const NDArray& dst) {
+  CHECK_EQ(dst.storage_type(), kCSRStorage) << "dst is not a CSR NDArray";
   dst.set_aux_shape(csr::kIdx, mshadow::Shape1(0));
   dst.CheckAndAllocAuxData(csr::kIndPtr, mshadow::Shape1(dst.shape()[0] + 1));
   TBlob indptr_data = dst.aux_data(csr::kIndPtr);
@@ -383,8 +385,8 @@ void FillComputeZerosEx(const nnvm::NodeAttrs& attrs,
   Stream<xpu> *s = ctx.get_stream<xpu>();
   CHECK_EQ(outputs.size(), 1);
   auto stype = outputs[0].storage_type();
-  if (req[0] == kNullOp) return;
-  CHECK_EQ(req[0], kWriteTo) << "kWriteTo is expected for FillComputeZerosEx";
+  // x + 0 == x
+  if (req[0] == kNullOp || req[0] == kAddTo) return;
   if (stype == kRowSparseStorage) {
     FillZerosRspImpl(s, outputs[0]);
   } else if (stype == kCSRStorage) {
