@@ -67,7 +67,8 @@ class CpuEngine {
  public:
   static CpuEngine *Get() {
     // I's thread-safe in C++11.
-    static thread_local CpuEngine myInstance;
+    // ensure same mkldnn engine is used across threads
+    static CpuEngine myInstance;
     return &myInstance;
   }
   CpuEngine(CpuEngine const &) = delete;             // Copy construct
@@ -136,10 +137,6 @@ static inline bool SupportMKLDNN(const NDArray &input) {
       && SupportStorageMKLDNN(input.storage_type());
 }
 
-static inline bool SupportMKLDNNConv(const NDArray &input) {
-  return input.dtype() == mshadow::kFloat32 && input.shape().ndim() == 4;
-}
-
 /*
  * This is to align address to a certain alignment.
  */
@@ -147,7 +144,11 @@ void *AlignMem(void *mem, size_t size, size_t alignment, size_t *space);
 
 namespace op {
 struct ActivationParam;
-bool SupportMKLDNNAct(const op::ActivationParam& param);
+struct ConvolutionParam;
+struct DeconvolutionParam;
+bool SupportMKLDNNAct(const ActivationParam& param);
+bool SupportMKLDNNConv(const ConvolutionParam& params, const NDArray &input);
+bool SupportMKLDNNDeconv(const DeconvolutionParam& params, const NDArray &input);
 }
 
 static int GetTypeSize(int dtype) {
@@ -231,7 +232,11 @@ class TmpMemMgr {
 
  public:
   static TmpMemMgr *Get() {
+#if DMLC_CXX11_THREAD_LOCAL
     static thread_local TmpMemMgr mgr;
+#else
+    static MX_THREAD_LOCAL TmpMemMgr mgr;
+#endif
     return &mgr;
   }
 
@@ -272,12 +277,11 @@ class MKLDNNStream {
   std::vector<std::shared_ptr<const mkldnn::memory> > mem_holder;
 
  public:
-  static MKLDNNStream *Get() {
-    static thread_local MKLDNNStream stream;
-    return &stream;
-  }
+  static MKLDNNStream *Get();
 
-  void RegisterPrim(const mkldnn::primitive &prim) { net.push_back(prim); }
+  void RegisterPrim(const mkldnn::primitive &prim) {
+    net.push_back(prim);
+  }
 
   void RegisterMem(std::shared_ptr<const mkldnn::memory> mem) {
     mem_holder.push_back(mem);
@@ -287,10 +291,21 @@ class MKLDNNStream {
     return !net.empty();
   }
 
-  void Submit() {
-    if (!net.empty())
+  /*
+   * After submitting mkldnn operations for execution, we need to
+   * clean up memory held by the stream. However, sometimes users
+   * might want to separate mkldnn execution and memory cleanup.
+   */
+  void Submit(bool cleanup = true) {
+    if (!net.empty()) {
       mkldnn::stream(mkldnn::stream::kind::eager).submit(net).wait();
-    net.clear();
+      net.clear();
+    }
+    if (cleanup)
+      Cleanup();
+  }
+
+  void Cleanup() {
     mem_holder.clear();
     TmpMemMgr::Get()->Reset();
   }
@@ -303,19 +318,23 @@ enum OutDataOp {
 };
 
 typedef std::pair<OutDataOp, mkldnn::memory *> mkldnn_output_t;
+void MKLDNNCopy(const mkldnn::memory &mem, const mkldnn::memory* this_mem);
 
 /*
  * These two functions try to create MKLDNN memory in an NDArray based on `req'.
  * The difference is that the first function can create MKLDNN memory with
  * special layouts in an NDArray, while the second one can only create MKLDNN
  * memory with default layouts.
+ * Also an optional in_arr parameter can be passed in the first function with
+ * the kWriteInPlace req to validate if mkldnn can support write in place;
+ * otherwise new memory will be written to an copied back onto out_arr.
  * If these two functions are used, we have to call CommitOutput to write
  * the output back to the output NDArray.
  */
-mkldnn_output_t CreateMKLDNNMem(const NDArray &arr,
+mkldnn_output_t CreateMKLDNNMem(const NDArray &out_arr,
                                 const mkldnn::memory::primitive_desc &desc,
-                                OpReqType req);
-mkldnn_output_t CreateMKLDNNWeightGrad(const NDArray &arr,
+                                OpReqType req, const NDArray* in_arr = nullptr);
+mkldnn_output_t CreateMKLDNNWeightGrad(const NDArray &out_arr,
                                        const mkldnn::memory::primitive_desc &desc,
                                        OpReqType req);
 /* This function has to be used with one of the functions above. */
@@ -344,6 +363,16 @@ inline bool same_shape(const TShape &shape, const mkldnn_dims_t dims, int ndims)
     return false;
   for (int i = 0; i < ndims; i++)
     if (shape[i] != dims[i])
+      return false;
+  return true;
+}
+
+inline bool same_shape(const mkldnn::memory::desc &desc1,
+                       const mkldnn::memory::desc &desc2) {
+  if (desc1.data.ndims != desc2.data.ndims)
+    return false;
+  for (int i = 0; i < desc1.data.ndims; i++)
+    if (desc1.data.dims[i] != desc2.data.dims[i])
       return false;
   return true;
 }
@@ -462,6 +491,13 @@ class OpCheck {
            const std::vector<mxnet::OpReqType> &req,
            const std::vector<mxnet::NDArray> &outputs_);
 };
+
+bool MKLDNNStorageType(const nnvm::NodeAttrs &attrs,
+                       const int dev_mask,
+                       bool support_mkldnn,
+                       DispatchMode *dispatch_mode,
+                       std::vector<int> *in_attrs,
+                       std::vector<int> *out_attrs);
 
 #define MKLDNN_OPCHECK_INIT(backward, num_checks, inputs, outputs)  \
     static bool debug = dmlc::GetEnv("MXNET_MKLDNN_DEBUG", false);  \

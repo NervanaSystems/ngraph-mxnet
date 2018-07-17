@@ -46,6 +46,35 @@ Defined in )code";
   return doc;
 }
 
+template<>
+void L2NormComputeEx<cpu>(const nnvm::NodeAttrs& attrs,
+                          const OpContext& ctx,
+                          const std::vector<NDArray>& inputs,
+                          const std::vector<OpReqType>& req,
+                          const std::vector<NDArray>& outputs) {
+  CHECK_EQ(inputs.size(), 1U);
+  CHECK_EQ(outputs.size(), 1U);
+  CHECK_EQ(req.size(), 1U);
+  const NormParam& param = nnvm::get<NormParam>(attrs.parsed);
+  mshadow::Stream<cpu>* s = ctx.get_stream<cpu>();
+  const NDArrayStorageType istype = inputs[0].storage_type();
+  const TShape axis = param.axis.has_value() ? param.axis.value() : TShape();
+  if ((istype == kRowSparseStorage || istype == kCSRStorage) && axis.ndim() == 0 &&
+       param.ord == 2) {
+    // l2 norm on the entire array
+    L2NormComputeSparseImpl<cpu>(s, inputs[0], req[0], outputs[0].data());
+  } else if (istype == kCSRStorage && axis.ndim() == 1 && (axis[0] == 0 || axis[0] == 1) &&
+             !param.keepdims && param.ord == 2) {
+    // l2 norm on a particular axis
+    NDArray output = outputs[0];
+    ReduceCsrImpl<cpu, sq_sum, false>(s, ctx, inputs[0], req[0], &output, axis);
+    CHECK_EQ(outputs[0].storage_type(), kDefaultStorage);
+    SqRootForL2<cpu>(ctx, req[0], outputs[0].data());
+  } else {
+    LogUnimplementedOp(attrs, ctx, inputs, req, outputs);
+  }
+}
+
 MXNET_OPERATOR_REGISTER_REDUCE(sum)
 MXNET_ADD_SPARSE_OP_ALIAS(sum)
 .add_alias("sum_axis")
@@ -59,9 +88,9 @@ MXNET_ADD_SPARSE_OP_ALIAS(sum)
 
 Example::
 
-  data = [[[1,2],[2,3],[1,3]],
-          [[1,4],[4,3],[5,2]],
-          [[7,1],[7,2],[7,3]]]
+  data = [[[1, 2], [2, 3], [1, 3]],
+          [[1, 4], [4, 3], [5, 2]],
+          [[7, 1], [7, 2], [7, 3]]]
 
   sum(data, axis=1)
   [[  4.   8.]
@@ -71,9 +100,9 @@ Example::
   sum(data, axis=[1,2])
   [ 12.  19.  27.]
 
-  data = [[1,2,0],
-          [3,0,1],
-          [4,1,0]]
+  data = [[1, 2, 0],
+          [3, 0, 1],
+          [4, 1, 0]]
 
   csr = cast_storage(data, 'csr')
 
@@ -85,7 +114,7 @@ Example::
 
 )code" ADD_FILELINE)
 .set_attr<FCompute>("FCompute<cpu>", ReduceAxesCompute<cpu, mshadow::red::sum>)
-.set_attr<FComputeEx>("FComputeEx<cpu>", SumOpForwardEx<cpu, mshadow::red::sum>)
+.set_attr<FComputeEx>("FComputeEx<cpu>", ReduceAxesOpForwardEx<cpu, mshadow::red::sum>)
 .set_attr<FInferStorageType>("FInferStorageType", ReduceAxesOpForwardStorage)
 .set_attr<FResourceRequest>("FResourceRequest",
   [](const NodeAttrs& attrs) {
@@ -101,7 +130,7 @@ MXNET_OPERATOR_REGISTER_REDUCE(mean)
 MXNET_ADD_SPARSE_OP_ALIAS(mean)
 .describe(get_reduce_axes_description("mean", __LINE__))
 .set_attr<FCompute>("FCompute<cpu>", ReduceAxesCompute<cpu, mshadow::red::sum, true>)
-.set_attr<FComputeEx>("FComputeEx<cpu>", SumOpForwardEx<cpu, mshadow::red::sum, true>)
+.set_attr<FComputeEx>("FComputeEx<cpu>", ReduceAxesOpForwardEx<cpu, mshadow::red::sum, true>)
 .set_attr<FInferStorageType>("FInferStorageType", ReduceAxesOpForwardStorage)
 .set_attr<FResourceRequest>("FResourceRequest",
   [](const NodeAttrs& attrs) {
@@ -251,14 +280,20 @@ MXNET_ADD_SPARSE_OP_ALIAS(norm)
 
 This operator computes the norm on an NDArray with the specified axis, depending
 on the value of the ord parameter. By default, it computes the L2 norm on the entire
-array.
+array. Currently only ord=2 supports sparse ndarrays.
 
 Examples::
 
-  x = [[1, 2],
-       [3, 4]]
+  x = [[[1, 2],
+        [3, 4]],
+       [[2, 2],
+        [5, 6]]]
 
-  norm(x) = [5.47722578]
+  norm(x, ord=2, axis=1) = [[3.1622777 4.472136 ]
+                            [5.3851647 6.3245554]]
+
+  norm(x, ord=1, axis=1) = [[4., 6.],
+                            [7., 8.]]
 
   rsp = x.cast_storage('row_sparse')
 
@@ -274,25 +309,26 @@ Examples::
 .set_attr_parser(ParamParser<NormParam>)
 .set_attr<nnvm::FInferShape>("FInferShape", NormShape)
 .set_attr<nnvm::FInferType>("FInferType", ElemwiseType<1, 1>)
-.set_attr<FInferStorageType>("FInferStorageType", L2NormStorageType)
+.set_attr<FInferStorageType>("FInferStorageType", LpNormStorageType)
 .set_attr<nnvm::FGradient>("FGradient", ReduceGrad{ "_backward_norm" })
 .set_attr<FResourceRequest>("FResourceRequest",
   [](const NodeAttrs& attrs) {
     return std::vector<ResourceRequest>{ResourceRequest::kTempSpace};
   })
-.set_attr<FCompute>("FCompute<cpu>", L2NormCompute<cpu>)
+.set_attr<FCompute>("FCompute<cpu>", LpNormCompute<cpu>)
 .set_attr<FComputeEx>("FComputeEx<cpu>", L2NormComputeEx<cpu>)
 .add_argument("data", "NDArray-or-Symbol", "The input")
 .add_arguments(NormParam::__FIELDS__());
 
-MXNET_OPERATOR_REGISTER_REDUCE_BACKWARD(_backward_norm)
-.set_num_inputs(1)
+NNVM_REGISTER_OP(_backward_norm)
+.set_num_outputs(1)
+.set_attr_parser(ParamParser<NormParam>)
+.set_attr<nnvm::TIsBackward>("TIsBackward", true)
 .set_attr<FResourceRequest>("FResourceRequest",
   [](const NodeAttrs& attrs) {
     return std::vector<ResourceRequest>{ResourceRequest::kTempSpace};
   })
-.set_attr<FCompute>("FCompute<cpu>", L2NormGradCompute<cpu>)
-.set_attr<FComputeEx>("FComputeEx<cpu>", L2NormGradComputeEx<cpu>);
+.set_attr<FCompute>("FCompute<cpu>", LpNormGradCompute<cpu>);
 
 
 }  // namespace op
