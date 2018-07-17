@@ -152,7 +152,7 @@ class OpNode : public Node {
   }
 };
 
-static std::unordered_map<std::string,
+extern std::unordered_map<std::string,
                           std::shared_ptr<ngraph::runtime::Backend>>
     backends;
 
