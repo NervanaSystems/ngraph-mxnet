@@ -256,7 +256,7 @@ inline bool dispatch_mode_assign(DispatchMode *y, const DispatchMode& x) {
  */
 #define STORAGE_TYPE_ASSIGN_CHECK(type_array, index, type)                  \
   {                                                                         \
-    if (!type_assign(&(type_array)[index], type)) {                         \
+    if (!::mxnet::op::type_assign(&(type_array)[index], type)) {            \
       std::ostringstream os;                                                \
       os << "Storage type inconsistent, Provided = "                        \
          << common::stype_string((type_array)[index]) << ','                \
@@ -274,7 +274,7 @@ inline bool dispatch_mode_assign(DispatchMode *y, const DispatchMode& x) {
  */
 #define DISPATCH_MODE_ASSIGN_CHECK(type_array, index, type)                 \
   {                                                                         \
-    if (!dispatch_mode_assign(&(type_array)[index], type)) {                \
+    if (!::mxnet::op::dispatch_mode_assign(&(type_array)[index], type)) {   \
       std::ostringstream os;                                                \
       os << "Dispatch mode inconsistent, Provided = "                       \
          << common::dispatch_mode_string((type_array)[index]) << ','        \
@@ -471,14 +471,18 @@ inline void ParamParser(nnvm::NodeAttrs* attrs) {
   attrs->parsed = std::move(param);
 }
 
-#define CHECK_RSP_ALL_ROWS_NON_ZERO(rsp, func, param)                              \
-  {                                                                                \
-    CHECK(rsp.storage_shape()[0] == rsp.shape()[0]) << func                        \
-          << " for RowSparse " << param << " is only implemented for "             \
-          << "RowSparse " << param << " with all rows containing non-zeros. "      \
-          << "Expects " << param << ".values.shape[0] (" << rsp.storage_shape()[0] \
-          << ") == " << param << ".shape[0] (" << rsp.shape()[0] << ").";          \
+inline void CheckAllRowsPresent(const NDArray& arr, const std::string& func,
+                                const std::string& param) {
+  if (arr.storage_type() == kRowSparseStorage) {
+    CHECK(arr.storage_shape()[0] == arr.shape()[0]) << func
+          << " for RowSparse " << param << " is only implemented for "
+          << "RowSparse " << param << " with all rows containing non-zeros. "
+          << "Expects " << param << ".data.shape[0] (" << arr.storage_shape()[0]
+          << ") == " << param << ".shape[0] (" << arr.shape()[0] << ").";
+  } else {
+    CHECK(arr.storage_type() == kDefaultStorage);
   }
+}
 
 inline void LogUnimplementedOp(const nnvm::NodeAttrs& attrs,
                                const OpContext &ctx,
