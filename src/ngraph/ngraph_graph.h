@@ -156,23 +156,23 @@ extern std::unordered_map<std::string,
                           std::shared_ptr<ngraph::runtime::Backend>>
     backends;
 
-inline std::string get_backend_name(const mxnet::Context &context) {
-  if (context.dev_type == mxnet::Context::NNP().dev_type) {
-    return "NNP";
-#if MXNET_USE_CUDA
-  } else if (context.dev_type == mxnet::Context::GPU().dev_type) {
-    return "GPU";
-#endif
-  } else if (context.dev_type == mxnet::Context::CPU().dev_type) {
-#ifdef MXNET_USE_NGRAPH_IE
-    return "IE";
-#else
-    return "CPU";
-#endif
-  } else {
-    return "INTERPRETER";
-  }
-}
+//inline std::string get_backend_name(const mxnet::Context &context) {
+//  if (context.dev_type == mxnet::Context::NNP().dev_type) {
+//    return "NNP";
+//#if MXNET_USE_CUDA
+//  } else if (context.dev_type == mxnet::Context::GPU().dev_type) {
+//    return "GPU";
+//#endif
+//  } else if (context.dev_type == mxnet::Context::CPU().dev_type) {
+//#ifdef MXNET_USE_NGRAPH_IE
+//    return "IE";
+//#else
+//    return "CPU";
+//#endif
+//  } else {
+//    return "INTERPRETER";
+//  }
+//}
 
 inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
     const mxnet::Context &context) {
@@ -204,7 +204,7 @@ class Graph : public Node {
         context_(context),
         enable_fprop_cache(enable_fprop_cache) {
     fprop_cache = std::make_shared<ngraph::FpropCache>();
-    is_reuse_mem = context.dev_type != mxnet::Context::kNNP;
+    is_reuse_mem = context.dev_type != mxnet::Context::kNGraph;
   }
 
   ~Graph() {

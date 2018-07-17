@@ -34,6 +34,7 @@
 #include <nnvm/op.h>
 #include <nnvm/tuple.h>
 #include <nnvm/symbolic.h>
+#include <algorithm>
 #include <string>
 
 /*!
@@ -136,13 +137,17 @@ struct Context {
     kCPU = cpu::kDevMask,
     kGPU = gpu::kDevMask,
     kCPUPinned = 3,
-    kNNP = 4,
+#if MXNET_USE_NGRAPH
+    kNGraph = 4,
+#endif // MXNET_USE_NGRAPH
     kCPUShared = 5,
   };
   /*! \brief the device type we run the op on */
   DeviceType dev_type;
   /*! \brief device id we are going to run it on */
   int32_t dev_id;
+  /*! \brief String providing additional detail required for some device types. */
+  std::string dev_subtype;
   /*! \brief default constructor */
   Context() : dev_type(kCPU), dev_id(0) {}
   /*!
@@ -150,7 +155,7 @@ struct Context {
    * \return cpu::kDevMask or gpu::kDevMask
    */
   inline DeviceType dev_mask() const {
-    if (dev_type == kCPUPinned || dev_type == kCPUShared || dev_type == kNNP) return kCPU;
+    if (dev_type == kCPUPinned || dev_type == kCPUShared || dev_type == kNGraph) return kCPU;
     return dev_type;
   }
   /*!
@@ -172,7 +177,7 @@ struct Context {
    * \return whether dev mask and id are same
    */
   inline bool operator==(const Context &b) const {
-    return dev_type == b.dev_type && dev_id == b.dev_id;
+    return dev_type == b.dev_type  && dev_subtype == b.dev_subtype && dev_id == b.dev_id;
   }
   /*!
    * \brief check if current context not equals another one
@@ -189,6 +194,9 @@ struct Context {
   inline void Save(dmlc::Stream *strm) const {
     strm->Write(&dev_type, sizeof(dev_type));
     strm->Write(&dev_id, sizeof(dev_id));
+
+    //strm->Write(dev_subtype.c_str(), dev_subtype.size()+1);
+    strm->Write(dev_subtype);
   }
   /*!
    * \brief load the content from binary stream
@@ -198,6 +206,7 @@ struct Context {
   inline bool Load(dmlc::Stream *strm) {
     if (strm->Read(&dev_type, sizeof(dev_type)) != sizeof(dev_type)) return false;
     if (strm->Read(&dev_id, sizeof(int32_t)) != sizeof(int32_t)) return false;
+    strm->Read(&dev_subtype);
     return true;
   }
   /*! \brief the maximal device type */
@@ -208,8 +217,11 @@ struct Context {
    * \brief Create a new context.
    * \param dev_type device type.
    * \param dev_id device id. -1 for current device.
+   * \param dev_subtype For device types that need it, a string providing additional details about
+   *   the device for which a context is being created.
    */
-  inline static Context Create(DeviceType dev_type, int32_t dev_id = -1);
+  inline static Context Create(DeviceType dev_type, int32_t dev_id = -1,
+      const std::string dev_subtype = "");
   /*! \return CPU Context */
   inline static Context CPU(int32_t dev_id = 0);
   /*!
@@ -229,12 +241,12 @@ struct Context {
    * \return Pinned CPU context. -1 for current GPU.
    */
   inline static Context CPUPinned(int32_t dev_id = -1);
-/*!
-   * Create a NNP context.
-   * \param dev_id the device id for corresponding NNP.
-   * \return NNP context.
+  /*!
+   * Create an nGraph context.
+   * \param dev_id the device id for corresponding nGraph instance.
+   * \return nGraph context.
    */
-  inline static Context NNP(int32_t dev_id = 0);
+  inline static Context nGraph(const std::string & nGraph_backend_name, int32_t dev_id = 0);
   /*!
    * Create a CPU shared memory context.
    * \param dev_id dummy device id.
@@ -280,15 +292,33 @@ struct RunContext {
 namespace mxnet {
 // implementing Context
 inline bool Context::operator<(const Context &b) const {
-  if (dev_type == b.dev_type) {
-    return dev_id < b.dev_id;
-  } else {
-    return dev_type < b.dev_type;
+  if (dev_type < b.dev_type) {
+    return true;
   }
+  else if (dev_type > b.dev_type) {
+    return false;
+  }
+
+  if (std::lexical_compare(dev_subtype, b.dev_subtype)) {
+    return true;
+  }
+  else if (std::lexical_compare(b.dev_subtype, dev_subtype)) {
+    return false;
+  }
+
+  if (dev_id < b.dev_id) {
+    return true;
+  }
+  else if (dev_id > b.dev_id) {
+    return false;
+  }
+
 }
-inline Context Context::Create(DeviceType dev_type, int32_t dev_id) {
+inline Context Context::Create(DeviceType dev_type, int32_t dev_id,
+      const std::string dev_subtype) {
   Context ctx;
   ctx.dev_type = dev_type;
+  ctx.dev_subtype = dev_subtype;
   if (dev_id < 0) {
     ctx.dev_id = 0;
     if (dev_type & kGPU) {
@@ -333,9 +363,13 @@ inline int32_t Context::GetGPUCount() {
 #endif
 }
 
-inline Context Context::NNP(int32_t dev_id) {
-  return Create(kNNP, dev_id);
+#if MXNET_USE_NGRAPH
+inline Context Context::nGraph(const std::string & nGraph_backend_name, int32_t dev_id) {
+  // FIXME: Decide role of dev_id.  Does nGraph support multiple back-ends instances  in a single
+  // process space?
+  return Create(kNGraph, dev_id, nGraph_backend_name);
 }
+#endif // MXNET_USE_NGRAPH
 
 inline Context Context::FromString(const std::string& str) {
   Context ret;
@@ -353,8 +387,11 @@ inline Context Context::FromString(const std::string& str) {
       ret = GPU(id);
     } else if (type == "cpu_pinned") {
       ret = CPUPinned(id);
-    } else if (type == "nnp") {
-      ret = NNP(id);
+#if MXNET_USE_NGRAPH
+    } else if (type.find("ngraph:") == 0) {
+      const std::string nGraph_backend_name = str.substr(type.find(7), l);
+      ret = nGraph(nGraph_backend_name, id);
+#endif // MXNET_USE_NGRAPH
     } else if (type == "cpu_shared") {
       ret = CPUShared(id);
     } else {
@@ -373,8 +410,10 @@ inline std::ostream& operator<<(std::ostream &out, const Context &ctx) {
     out << "gpu(";
   } else if (ctx.dev_type == Context::kCPUPinned) {
     out << "cpu_pinned(";
-  } else if (ctx.dev_type == Context::kNNP) {
-    out << "nnp(";
+#if MXNET_USE_NGRAPH
+  } else if (ctx.dev_type == Context::kNGraph) {
+    out << "nGraph:" << ctx.dev_subtype << "(";
+#endif // MXNET_USE_NGRAPH
   } else if (ctx.dev_type == Context::kCPUShared) {
     out << "cpu_shared(";
   } else {

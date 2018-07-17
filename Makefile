@@ -107,10 +107,12 @@ endif
 LDFLAGS =
 ifeq ($(USE_NGRAPH),1)
     CFLAGS += -I$(ROOTDIR)/src/ngraph -I$(NGRAPH_DIR)/include -DMXNET_USE_NGRAPH=1
+    # FIXME? remove this special case?
     ifeq ($(USE_NGRAPH_DISTRIBUTED),1)
         CFLAGS += -DMXNET_USE_NGRAPH_DISTRIBUTED=1
     endif
     ifeq ($(USE_NGRAPH_IE),1)
+	# FIXME? remove this special case?
         CFLAGS += -DMXNET_USE_NGRAPH_IE=1
         LDFLAGS += -L$(NGRAPH_DIR)/lib -lngraph -Wl,--as-needed
     else
