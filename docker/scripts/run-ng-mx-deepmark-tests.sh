@@ -84,12 +84,12 @@ run_inference_topologies() {
     eval $cmd
 
     # Run DCGAN - Not Test Yet. PR : 282 
-    #cmd="pytest -s docker/scripts/test_deepmark_dcgan_inference.py --junit-xml=validation_test_deepmark_dcgan_inference.xml --junit-prefix=inference_deepmark_dcgan_cpu"
-    #eval $cmd
+    cmd="pytest -s docker/scripts/test_deepmark_dcgan_inference.py --junit-xml=validation_test_deepmark_dcgan_inference.xml --junit-prefix=inference_deepmark_dcgan_cpu"
+    eval $cmd
 
-    # Run sockeye_transformer - Not Test Yet
-    #cmd="pytest -s docker/scripts/test_deepmark_sockeye_transformer_inference.py --junit-xml=validation_test_deepmark_sockeye_transformer_inference.xml --junit-prefix=inference_deepmark_sockeye_transformer_cpu"
-    #eval $cmd
+    # Run  sockeye_transformer- Not Test Yet
+    cmd="pytest -s docker/scripts/test_deepmark_sockeye_transformer_inference.py --junit-xml=validation_test_deepmark_sockeye_transformer_inference.xml --junit-prefix=inference_deepmark_sockeye_transformer_cpu"
+    eval $cmd
 
     echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
 
