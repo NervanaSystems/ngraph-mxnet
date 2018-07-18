@@ -65,8 +65,11 @@ run_benchmark_score() {
     export TEST_RUN_BENCHMARK_LOG_DIR="${HOME}/ng-mx"
     export TEST_OMP_NUM_THREADS="${MX_NG_OMP_NUM_THREADS}"
     export TEST_KMP_AFFINITY="granularity=fine,compact,1,0"
-    # Run the test
-    pytest -s docker/scripts/test_benchmark_score_validation.py --junit-xml=validation_benchmark_score_validation.xml --junit-prefix=benchmark_score_cpu
+
+    # Run the inference test
+    cmd="pytest -s docker/scripts/test_benchmark_score_validation.py --junit-xml=validation_benchmark_score_validation.xml --junit-prefix=benchmark_score_cpu"
+    eval $cmd
+
     echo "===== Run benchmark_score.py with Ngraph_MXnet with $? ====="
 
 }  #run_benchmark_score()

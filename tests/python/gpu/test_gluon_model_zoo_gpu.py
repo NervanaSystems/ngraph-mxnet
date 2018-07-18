@@ -27,7 +27,7 @@ import os
 import unittest
 curr_path = os.path.dirname(os.path.abspath(os.path.expanduser(__file__)))
 sys.path.insert(0, os.path.join(curr_path, '../unittest'))
-from common import setup_module, with_seed
+from common import setup_module, with_seed, teardown
 
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -81,15 +81,16 @@ def test_inference():
             gpu_param = gpu_params.get(k)
             gpu_param.set_data(cpu_param.data().as_in_context(mx.gpu()))
 
-        # Run inference.
-        with autograd.record(train_mode=False):
-            cpu_out = cpu_model(mx.nd.array(data, ctx=mx.cpu()))
-            gpu_out = gpu_model(gpu_data)
-        out = cpu_out.asnumpy()
-        max_val = np.max(np.abs(out))
-        gpu_max_val = np.max(np.abs(gpu_out.asnumpy()))
-        eprint(model_name + ": CPU " + str(max_val) + ", GPU " + str(gpu_max_val))
-        assert_almost_equal(out / max_val, gpu_out.asnumpy() / max_val, rtol=1e-3, atol=1e-3)
+        for i in range(5):
+            # Run inference.
+            with autograd.record(train_mode=False):
+                cpu_out = cpu_model(mx.nd.array(data, ctx=mx.cpu()))
+                gpu_out = gpu_model(gpu_data)
+            out = cpu_out.asnumpy()
+            max_val = np.max(np.abs(out))
+            gpu_max_val = np.max(np.abs(gpu_out.asnumpy()))
+            eprint(model_name + ": CPU " + str(max_val) + ", GPU " + str(gpu_max_val))
+            assert_almost_equal(out / max_val, gpu_out.asnumpy() / max_val, rtol=1e-3, atol=1e-3)
 
 def get_nn_model(name):
     if "densenet" in name:

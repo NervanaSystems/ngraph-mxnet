@@ -124,6 +124,8 @@ The `ndarray` package provides several classes:
     :nosignatures:
 
     NDArray.T
+    NDArray.shape_array
+    NDArray.size_array
     NDArray.reshape
     NDArray.reshape_like
     NDArray.flatten
@@ -375,6 +377,8 @@ The `ndarray` package provides several classes:
     :nosignatures:
 
     cast
+    shape_array
+    size_array
     reshape
     reshape_like
     flatten
@@ -430,6 +434,8 @@ The `ndarray` package provides several classes:
     one_hot
     pick
     where
+    ravel_multi_index
+    unravel_index
 ```
 
 ## Mathematical functions
@@ -555,6 +561,18 @@ The `ndarray` package provides several classes:
     lesser_equal
 ```
 
+### Logical operators
+
+```eval_rst
+.. autosummary::
+    :nosignatures:
+
+    logical_and
+    logical_or
+    logical_xor
+    logical_not
+```
+
 ### Random sampling
 
 ```eval_rst
@@ -568,6 +586,8 @@ The `ndarray` package provides several classes:
     mxnet.ndarray.random.poisson
     mxnet.ndarray.random.negative_binomial
     mxnet.ndarray.random.generalized_negative_binomial
+    mxnet.ndarray.random.multinomial
+    mxnet.ndarray.random.shuffle
     mxnet.random.seed
 ```
 

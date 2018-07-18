@@ -42,7 +42,8 @@ if __name__ == '__main__':
     fit.add_fit_args(parser)
     data.add_data_args(parser)
     data.add_data_aug_args(parser)
-    data.set_data_aug_level(parser, 2)
+    parser.set_defaults(random_crop=1, random_mirror=1,
+                        max_random_h=36, max_random_s=50, max_random_l=50)
     parser.set_defaults(
         # network
         network        = 'resnet',

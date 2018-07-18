@@ -76,7 +76,7 @@ TEST_F(NGRAPH_IMPERATIVE, UNSUPPORTED_OP) {
 TEST_F(NGRAPH_IMPERATIVE, INVOKE_OP) {
   auto ctx = mxnet::Context::CPU();
   mxnet::OpContext opctx{
-      false, {ctx, nullptr}, mxnet::engine::CallbackOnComplete(), {}};
+      false, false, {ctx, nullptr}, mxnet::engine::CallbackOnComplete(), {}};
   testImperative test(attrs, ctx, inputs, nullptr, outputs);
   auto op_ng = test.get_op_ngraph();
 
