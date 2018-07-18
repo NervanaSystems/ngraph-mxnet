@@ -594,7 +594,7 @@ int MXExecutorReshape(int partial_shaping,
     *aux_states = &(ret->ret_handles[nd_idx]);
     nd_idx = ret->ret_handles.size();
   }
-  API_END_HANDLE_ERROR(delete out);
+  API_END_HANDLE_ERROR(delete (Executor*)(*out));
 }
 
 int MXExecutorSetMonitorCallback(ExecutorHandle handle,
