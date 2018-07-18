@@ -73,11 +73,12 @@ virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
 source "${venv_dir}/bin/activate"
 cd python  && pip install pylint cpplint && cd ../
 make cpplint |& tee  check_style.txt
-if [ "$?" -ne "0" ]; then
+STYLE_CHECK_LOGFILE='check_style.txt'
+if [ "$(grep 'All passed!' ${STYLE_CHECK_LOGFILE} | wc -l)" = "1" ] ; then
+	echo "Pass to check style. Continue running the unit tests"
+else
 	echo "Fail to check the style. Exiting ..."
 	exit 1
-else
-	echo "Pass to check style. Continue running the unit tests"
 fi
 cd "$HOME/ng-mx/docker/scripts/"
 ./run-unit-tests.sh 2>&1 | tee ../mx-tests.log
