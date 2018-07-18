@@ -216,6 +216,8 @@ class GraphExecutor : public Executor {
   bool need_grad_;
   // internal graph
   nnvm::Graph graph_;
+  // original internal symbol
+  nnvm::Symbol symbol_;
   // operator node
   std::vector<OpNode> op_nodes_;
   // internal data entry of each node
