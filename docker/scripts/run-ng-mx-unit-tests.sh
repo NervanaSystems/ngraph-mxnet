@@ -68,12 +68,11 @@ eval $cmd
 
 ## Unit tests test_engine.py
 #cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_engine.py --verbose --capture=no --junit-xml=result_test_engine.xml --junit-prefix=result_test_engine"
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_engine.py --verbose --capture=no --junit-xml=result_test_engine.xml --junit-prefix=result_test_engin
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_engine.py --verbose --capture=no --junit-xml=result_test_engine.xml --junit-prefix=result_test_engine"
 eval $cmd
 
-## Unit tests test_executor.py
-#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_executor.py --verbose --capture=no --junit-xml=result_test_executor.xml --junit-prefix=result_test_executor"
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_executor.py --verbose --capture=no --junit-xml=result_test_executor.xml --junit-prefix=result_test_executor"
+## Unit tests test_execcmdutor.py
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_executor.py --verbose --capture=no --junit-xml=result_test_executor.xml --junit-prefix=result_test_executor"
 eval $cmd
 
 ## Unit tests test_gluon.py
@@ -121,7 +120,8 @@ cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/t
 eval $cmd
 
 ## Unit tests test_loss.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_loss.py --verbose --capture=no --junit-xml=result_test_loss.xml --junit-prefix=result_test_loss"
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_loss.py --verbose --capture=no --junit-xml=result_test_loss.xml --junit-prefix=result_test_loss"
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_loss.py --verbose --capture=no --junit-xml=result_test_loss.xml --junit-prefix=result_test_loss"
 eval $cmd
 
 ## Unit tests test_metric.py
@@ -141,11 +141,13 @@ cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/t
 eval $cmd
 
 ## Unit tests test_ndarray.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_ndarray.py --verbose --capture=no --junit-xml=result_test_ndarray.xml --junit-prefix=result_test_ndarray"
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_ndarray.py --verbose --capture=no --junit-xml=result_test_ndarray.xml --junit-prefix=result_test_ndarray"
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_ndarray.py --verbose --capture=no --junit-xml=result_test_ndarray.xml --junit-prefix=result_test_ndarray"
 eval $cmd
 
 ##Unit tests test_optimizer.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_optimizer.py --verbose --capture=no --junit-xml=result_test_optimizer.xml --junit-prefix=result_test_optimizer"
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_optimizer.py --verbose --capture=no --junit-xml=result_test_optimizer.xml --junit-prefix=result_test_optimizer"
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_optimizer.py --verbose --capture=no --junit-xml=result_test_optimizer.xml --junit-prefix=result_test_optimizer"
 eval $cmd
 
 ## Profiler integration is ongoing but incomplete.Temporary to disabled the test.
@@ -162,7 +164,8 @@ cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/t
 eval $cmd
 
 ##Unit tests test_rnn.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_rnn.py --verbose --capture=no --junit-xml=result_test_rnn.xml --junit-prefix=result_test_rnn"
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_rnn.py --verbose --capture=no --junit-xml=result_test_rnn.xml --junit-prefix=result_test_rnn"
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_rnn.py --verbose --capture=no --junit-xml=result_test_rnn.xml --junit-prefix=result_test_rnn"
 eval $cmd
 
 ##Unit tests test_sparse_ndarray.py
