@@ -76,18 +76,18 @@ run_inference_topologies() {
     eval $cmd
 
     # Run the Faster-RCNN, --batch-size 1
-    #cmd="pytest -s docker/scripts/test_deepmark_Faster_RCNN_inference.py --junit-xml=validation_test_deepmark_Faster_RCNN_inference.xml --junit-prefix=inference_deepmark_Faster_RCNN_cpu"
-    #eval $cmd
+    cmd="pytest -s docker/scripts/test_deepmark_Faster_RCNN_inference.py --junit-xml=validation_test_deepmark_Faster_RCNN_inference.xml --junit-prefix=inference_deepmark_Faster_RCNN_cpu"
+    eval $cmd
 
     # Run the squeezenet1.1
     cmd="pytest -s docker/scripts/test_deepmark_squeezenet_inference.py --junit-xml=validation_test_deepmark_squeezenet_inference.xml --junit-prefix=inference_deepmark_squeezenet_cpu"
     eval $cmd
 
-    # Run DCGAN - Not Test Yet. PR : 282 
+    # Run DCGAN 
     cmd="pytest -s docker/scripts/test_deepmark_dcgan_inference.py --junit-xml=validation_test_deepmark_dcgan_inference.xml --junit-prefix=inference_deepmark_dcgan_cpu"
     eval $cmd
 
-    # Run  sockeye_transformer- Not Test Yet
+    # Run  sockeye_transformer
     cmd="pytest -s docker/scripts/test_deepmark_sockeye_transformer_inference.py --junit-xml=validation_test_deepmark_sockeye_transformer_inference.xml --junit-prefix=inference_deepmark_sockeye_transformer_cpu"
     eval $cmd
 
