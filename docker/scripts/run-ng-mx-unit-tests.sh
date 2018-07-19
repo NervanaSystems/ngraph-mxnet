@@ -32,39 +32,48 @@ pip install scipy==1.0.0
 ### tests/python/unittest/ 
 
 ## Unit tests test_operator.py 
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_operator.py --verbose --capture=no --junit-xml=result_test_operator.xml --junit-prefix=result_test_operator"
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_operator.py --verbose --capture=no --junit-xml=result_test_operator.xml --junit-prefix=result_test_operator"
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_operator.py --verbose --capture=no --junit-xml=result_test_operator.xml --junit-prefix=result_test_operator"
 eval $cmd
 
 ## Unit tests test_attr.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_attr.py --verbose --capture=no --junit-xml=result_test_attr.xml --junit-prefix=result_test_attr"
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_attr.py --verbose --capture=no --junit-xml=result_test_attr.xml --junit-prefix=result_test_attr"
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_attr.py --verbose --capture=no --junit-xml=result_test_attr.xml --junit-prefix=result_test_attr"
 eval $cmd
 
 ## Unit tests test_autograd.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_autograd.py --verbose --capture=no --junit-xml=result_test_autograd.xml --junit-prefix=result_test_autograd"
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_autograd.py --verbose --capture=no --junit-xml=result_test_autograd.xml --junit-prefix=result_test_autograd"
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_autograd.py --verbose --capture=no --junit-xml=result_test_autograd.xml --junit-prefix=result_test_autograd"
 eval $cmd
 
 ## Unit tests test_contrib_autograd.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_contrib_autograd.py --verbose --capture=no --junit-xml=result_test_contrib_autograd.xml --junit-prefix=result_test_contrib_autograd"
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_contrib_autograd.py --verbose --capture=no --junit-xml=result_test_contrib_autograd.xml --junit-prefix=result_test_contrib_autograd"
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_contrib_autograd.py --verbose --capture=no --junit-xml=result_test_contrib_autograd.xml --junit-prefix=result_test_contrib_autograd"
 eval $cmd
 
 ## Unit tests test_contrib_krprod.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_contrib_krprod.py --verbose --capture=no --junit-xml=result_test_contrib_krprod.xml --junit-prefix=result_test_contrib_krprod"
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_contrib_krprod.py --verbose --capture=no --junit-xml=result_test_contrib_krprod.xml --junit-prefix=result_test_contrib_krprod"
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_contrib_krprod.py --verbose --capture=no --junit-xml=result_test_contrib_krprod.xml --junit-prefix=result_test_contrib_krprod"
 eval $cmd
 
 ## Unit tests test_contrib_operator.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_contrib_operator.py --verbose --capture=no --junit-xml=result_test_contrib_operator.xml --junit-prefix=result_test_contrib_operator"
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_contrib_operator.py --verbose --capture=no --junit-xml=result_test_contrib_operator.xml --junit-prefix=result_test_contrib_operator"
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_contrib_operator.py --verbose --capture=no --junit-xml=result_test_contrib_operator.xml --junit-prefix=result_test_contrib_operator"
 eval $cmd
 
 ## Unit tests test_contrib_text.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_contrib_text.py --verbose --capture=no --junit-xml=result_test_contrib_text.xml --junit-prefix=result_test_contrib_text"
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_contrib_text.py --verbose --capture=no --junit-xml=result_test_contrib_text.xml --junit-prefix=result_test_contrib_text"
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_contrib_text.py --verbose --capture=no --junit-xml=result_test_contrib_text.xml --junit-prefix=result_test_contrib_text"
 eval $cmd
 
 ## Unit tests test_engine.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_engine.py --verbose --capture=no --junit-xml=result_test_engine.xml --junit-prefix=result_test_engine"
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_engine.py --verbose --capture=no --junit-xml=result_test_engine.xml --junit-prefix=result_test_engine"
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_engine.py --verbose --capture=no --junit-xml=result_test_engine.xml --junit-prefix=result_test_engin
 eval $cmd
 
 ## Unit tests test_executor.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_executor.py --verbose --capture=no --junit-xml=result_test_executor.xml --junit-prefix=result_test_executor"
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_executor.py --verbose --capture=no --junit-xml=result_test_executor.xml --junit-prefix=result_test_executor"
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_executor.py --verbose --capture=no --junit-xml=result_test_executor.xml --junit-prefix=result_test_executor"
 eval $cmd
 
 ## Unit tests test_gluon.py
