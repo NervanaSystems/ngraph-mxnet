@@ -107,6 +107,43 @@ run_RESNET110_CIFAR10() {
 
 }  # run_RESNET110_CIFAR10()
 
+run_RESNET_I1K() {
+    # Make sure the bash shell prompt variables are set, as virtualenv crashes
+    # if PS2 is not set.
+    PS1='prompt> '
+    PS2='prompt-more> '
+    virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
+    source "${venv_dir}/bin/activate"
+    cd python && pip install -e . && pip install psutil && pip install pytest && cd ../
+    xtime="$(date)"
+    echo  ' '
+    echo  "===== Running Ngraph Mxnet Daily Validation on CPU-Backend at ${xtime} ====="
+    echo  ' '
+    echo  "===== PWD is $PWD ====="
+    # In train_cifar10.py script, OMP_NUM_THREADS (omp_max_thread) and KMP_AFFINITY are explicitly
+    # set only for the nGraph run.  Thus, they are not set here.
+    # Test parameters
+    export TEST_RESNET_I1K_LOG_DIR="${HOME}/ng-mx"
+    export TEST_MX_NG_RESNET_NUM_LAYERS="${MX_NG_RESNET_NUM_LAYERS}"
+    export TEST_MX_RESNET_NUM_CLASSES="${MX_NG_RESNET_NUM_CLASSES}"
+    export TEST_MX_NG_RESNET_NUM_EXAMPLES="${MX_NG_RESNET_NUM_EXAMPLES}"
+    export TEST_MX_NG_RESNET_IMAGE_SHAPE="${MX_NG_RESNET_IMAGE_SHAPE}"
+    export TEST_MX_NG_RESNET_PAD_SIZE="${MX_NG_RESNET_PAD_SIZE}"
+    export TEST_MX_NG_RESNET_BATCH_SIZE="${MX_NG_RESNET_BATCH_SIZE}"
+    export TEST_MX_NG_RESNET_DATA_DIR="${MX_NG_RESNET_DATA_DIR}"
+    export TEST_MX_NG_RESNET_LR="${MX_NG_RESNET_LR}"
+    export TEST_MX_NG_RESNET_LR_STEP_EPOCHS="${MX_NG_RESNET_LR_STEP_EPOCHS}"
+    export TEST_MX_NG_RESNET_WITH_NNP="${MX_NG_RESNET_WITH_NNP}"
+    export TEST_RESNET_I1K_EPOCHS="${MX_NG_EPOCHS:-}"
+    export TEST_MX_NG_RESNET_ACCEPTABLE_ACCURACY="${MX_NG_RESNET_ACCEPTABLE_ACCURACY}"
+    if [ -z "${TEST_RESNET_I1K_EPOCHS}" ] ; then
+        export TEST_RESNET_I1K_EPOCHS=1  # Default is 300 epoches
+    fi
+    # Run the test
+    pytest -s docker/scripts/test_resnet_i1k_daily_validation.py --junit-xml=validation_tests_resnet_i1k_cpu.xml --junit-prefix=daily_validation_resnet_i1k_cpu
+    echo "===== Daily Validation CPU-Backend Pipeline Exited with $? ====="
+
+}  # run_RESNET_I1K()
 
 # ===== Main ==================================================================
 
@@ -185,6 +222,9 @@ mlp-mnist)  # Multi-Layer Perceptron (MLP) with MNIST dataset
     ;;
 resnet110-cifar10)  # Resnet110 with CIFAR10 dataset
     run_RESNET110_CIFAR10
+    ;;
+resnet-i1k)  # Resnet with I1K dataset
+    run_RESNET_I1K
     ;;
 *)
     ( >&2 echo "FATAL ERROR: ${ng_mx_model} is not supported in this script")
