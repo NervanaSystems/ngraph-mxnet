@@ -71,7 +71,7 @@ eval $cmd
 cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_engine.py --verbose --capture=no --junit-xml=result_test_engine.xml --junit-prefix=result_test_engine"
 eval $cmd
 
-## Unit tests test_execcmdutor.py
+## Unit tests test_executor.py
 cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_executor.py --verbose --capture=no --junit-xml=result_test_executor.xml --junit-prefix=result_test_executor"
 eval $cmd
 
