@@ -15,15 +15,15 @@
 #
 #     Parameter              Purpose & Default (if any)
 #
-#     TEST_MX_NG_RESNET_NUM_LAYERS    Number of layers for resnet network; default=101                             
-#     TEST_MX_RESNET_NUM_CLASSES   Number of classes for resnet network; default=10
-#     TEST_MX_NG_RESNET_NUM_EXAMPLES  Number of examples for resnet network; default=50000
-#     TEST_MX_NG_RESNET_IMAGE_SHAPE   Image shape; default= '3,28,28'
+#     TEST_MX_NG_RESNET_NUM_LAYERS    Number of layers for resnet network; default=50                            
+#     TEST_MX_RESNET_NUM_CLASSES   Number of classes for resnet network; default=1000
+#     TEST_MX_NG_RESNET_NUM_EXAMPLES  Number of examples for resnet network; default=1281167
+#     TEST_MX_NG_RESNET_IMAGE_SHAPE   Image shape; default= '3,224,224'
 #     TEST_MX_NG_RESNET_PAD_SIZE      Pad size; default= 4
 #     TEST_MX_NG_RESNET_BATCH_SIZE    Batch size; default= 128
-#     TEST_RESNET_I1K_EPOCHS          Number of epochs; default = ?
+#     TEST_RESNET_I1K_EPOCHS          Number of epochs; default = 80
 #     TEST_MX_NG_RESNET_LR            Learning rate; default = .05
-#     TEST_MX_NG_RESNET_LR_STEP_EPOCHS Learning Step Epochs; default '200,250'
+#     TEST_MX_NG_RESNET_LR_STEP_EPOCHS Learning Step Epochs; default '30,60''
 #     TEST_MX_NG_RESNET_WITH_NNP       Using NNP transformer; default = False
 #     TEST_RESNET_I1K_LOG_DIR     Optional: directory to write log files to
 #     TEST_RESNET_I1K_DATA_DIR    Directory where CIRAF10 datafiles are located
@@ -50,25 +50,25 @@ else:
 if (os.environ.get('TEST_MX_NG_RESNET_NUM_LAYERS') != ''):
     trainNumLayers = int(os.environ.get('TEST_MX_NG_RESNET_NUM_LAYERS'))
 else:
-    trainNumLayers = 110
+    trainNumLayers = 50
 
 # Num Classes
 if (os.environ.get('TEST_MX_RESNET_NUM_CLASSES') != ''):
     trainNumClasses = int(os.environ.get('TEST_MX_RESNET_NUM_CLASSES'))
 else:
-    trainNumClasses = 10
+    trainNumClasses = 1000
 
 # Num Examples
 if (os.environ.get('TEST_MX_NG_RESNET_NUM_EXAMPLES') != ''):
     trainNumExamples = int(os.environ.get('TEST_MX_NG_RESNET_NUM_EXAMPLES'))
 else:
-    trainNumExamples = 50000
+    trainNumExamples = 1281167
 
 # IMAGE_SHAPE 
 if (os.environ.get('TEST_MX_NG_RESNET_IMAGE_SHAPE') != ''):
     trainImageShape = os.environ.get('TEST_MX_NG_RESNET_IMAGE_SHAPE')
 else:
-    trainImageShape = '3,28,28'
+    trainImageShape = '3,224,224'
 
 # Pad size
 if (os.environ.get('TEST_MX_NG_RESNET_PAD_SIZE') != ''): 
@@ -99,7 +99,7 @@ else:
 if (os.environ.get('TEST_MX_NG_RESNET_LR_STEP_EPOCHS') != ''): 
     trainLrStepEpochs = os.environ.get('TEST_MX_NG_RESNET_LR_STEP_EPOCHS').strip()
 else:
-    trainLrStepEpochs = '200,250'
+    trainLrStepEpochs = '30,60'
 
 # With NNP 
 trainWithNPP = os.environ.get('TEST_MX_NG_RESNET_WITH_NNP')
