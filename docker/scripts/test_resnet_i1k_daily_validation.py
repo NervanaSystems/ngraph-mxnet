@@ -117,9 +117,11 @@ def test_resnet_i1k_daily_validation():
     VT.checkScript(script)
     # Check if the data exist 
     TEST_I1K_DATA_DIR=os.environ.get('TEST_RESNET_I1K_LOG_DIR', None)
-
-    dataDir = os.environ.get('TEST_RESNET_I1K_LOG_DIR', None)
-
+    
+    dataDir = os.environ.get('TEST_RESNET_I1K_DATA_DIR', None)
+    process = subprocess.check_output(["ls /dataset/mxnet_imagenet/"],shell=True)
+    print("The output = {}".format(process.decode('utf-8')))
+    
     # Run with NGraph CPU backend, saving timing and accuracy
     ngraphLog = VT.runResnetI1KScript(logID=' nGraph',
                                   script=script,
