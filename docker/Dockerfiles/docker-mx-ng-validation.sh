@@ -85,4 +85,5 @@ docker run --rm \
        --env http_proxy=http://proxy-fm.intel.com:911 \
        --env https_proxy=http://proxy-fm.intel.com:912 \
        -v "${ngraph_mx_dir}:${docker_mx_dir}" \
+       -v "/dataset/mxnet_imagenet/:/dataset/mxnet_imagenet/" \
        "${IMAGE_NAME}:${IMAGE_ID}" /home/run-as-user.sh
