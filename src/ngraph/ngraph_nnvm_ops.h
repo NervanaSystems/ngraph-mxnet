@@ -59,6 +59,7 @@ struct NGraphParam {
   }
   std::shared_ptr<ngraph_bridge::Graph> g;
 };
+bool check_zero_grad(const std::shared_ptr<Graph> &graph);
 
 }  // namespace ngraph_bridge
 #endif  // MXNET_NGRAPH_NGRAPH_NNVM_OPS_H_

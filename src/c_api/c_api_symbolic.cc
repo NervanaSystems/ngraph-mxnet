@@ -31,6 +31,9 @@
 #include "./c_api_common.h"
 #include "../operator/operator_common.h"
 #include "../executor/exec_pass.h"
+#if MXNET_USE_NGRAPH == 1
+#include "../ngraph/ngraph_imperative.h"
+#endif
 #include "../operator/subgraph/default_subgraph_op.h"
 
 namespace mxnet {
