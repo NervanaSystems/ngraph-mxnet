@@ -558,6 +558,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                          const std::vector<NDArray>& aux_states,
                          Executor* shared_exec,
                          const nnvm::NodeEntryMap<NDArray>& feed_dict) {
+  symbol_ = symbol;
   // create in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes
   auto get_ctx1 = [](const NDArray& nd) { return nd.ctx(); };
   auto get_ctx2 = [default_ctx](const NDArray& nd) -> Context {
@@ -1055,6 +1056,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                          std::unordered_map<std::string, NDArray>* shared_buffer,
                          Executor* shared_exec,
                          const nnvm::NodeEntryMap<NDArray>& feed_dict) {
+  symbol_ = symbol;
   nnvm::Graph g = InitGraph(symbol, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
                             aux_state_ctxes, grad_req_types);
 
@@ -1201,8 +1203,8 @@ Executor* GraphExecutor::Reshape(const bool partial_shaping,
                                  std::vector<NDArray>* arg_grads,
                                  std::vector<NDArray>* aux_states) {
   nnvm::Graph g;
-  g.outputs = std::vector<nnvm::NodeEntry>(graph_.outputs.begin(),
-    graph_.outputs.begin() + num_forward_outputs_);
+  g.outputs = std::vector<nnvm::NodeEntry>(symbol_.outputs.begin(),
+    symbol_.outputs.begin() + num_forward_outputs_);
   nnvm::Symbol symbol;
   symbol.outputs = g.outputs;
   const nnvm::IndexedGraph& idx = g.indexed_graph();
