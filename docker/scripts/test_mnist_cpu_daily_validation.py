@@ -98,8 +98,7 @@ def test_mlp_mnist_cpu_backend():
         writeJenkinsDescription(ngraphResults,  os.path.join(lDir,
                                     'test_mlp_mnist_cpu_jenkins_oneline.log'))
 
-    print
-    print '----- MNIST-MLP Testing Summary ----------------------------------------'
+    print("----- MNIST-MLP Testing Summary ----------------------------------------")
 
 
     summaryLog = None
@@ -111,15 +110,15 @@ def test_mlp_mnist_cpu_backend():
     # Report commands
     logOut.line()
     #logOut.line('Run with default CPU: %s' % referenceResults['command'])
-    logOut.line('Run with NGraph CPU: %s' % ngraphResults['command'])
+    logOut.line("Run with NGraph CPU: {}".format(ngraphResults['command']))
 
     # Report parameters
     logOut.line()
-    logOut.line('Batch size:       %d (fixed)' % trainBatchSize)
-    logOut.line('Epoch  :       %d (fixed)' % trainEpochs)
-    logOut.line('nGraph priority:  %d (fixed)' % 70)
-    logOut.line('nGraph back-end:  %s (fixed)' % 'CPU')
-    logOut.line('Data directory:   %s' % dataDir)
+    logOut.line("Batch size:       {} (fixed)".format(trainBatchSize))
+    logOut.line("Epoch  :       {} (fixed)".format(trainEpochs))
+    logOut.line("nGraph priority:  70 (fixed)")
+    logOut.line("nGraph back-end:  CPU (fixed)")
+    logOut.line("Data directory:   {}".format(dataDir))
 
     ## Need to update the refAccPercent from the paper.
     #refAccPercent = float(referenceResults['accuracy']) * 100.0
@@ -133,7 +132,7 @@ def test_mlp_mnist_cpu_backend():
     #deltaAccuracy = abs(float(refAccPercent) - ngAccPercent)
     logOut.line()
     #logOut.line('Run with default CPU accuracy: %7.4f%%' % float(refAccPercent))
-    logOut.line('Run with NGraph CPU accuracy: %7.4f%%' % ngAccPercent)
+    logOut.line("Run with NGraph CPU accuracy: {}".format(ngAccPercent))
     #logOut.line('Accuracy delta: %6.4f%%' % deltaAccuracy)
     #logOut.line('Acceptable accuracy delta is <= %6.4f%%'
     #            % float(kAcceptableAccuracy))
@@ -144,8 +143,7 @@ def test_mlp_mnist_cpu_backend():
     logOut.line()
     #logOut.line('Run with default CPU took:    %f seconds'
     #            % referenceResults['wallclock'])
-    logOut.line('Run with NGraph CPU took: %f seconds'
-                % ngraphResults['wallclock'])
+    logOut.line("Run with NGraph CPU took: {} seconds".format(ngraphResults['wallclock']))
     #logOut.line('NGraph was %f times longer than default (wall-clock measurement)'
     #            % (ngraphResults['wallclock'] / referenceResults['wallclock']))
 
@@ -173,25 +171,25 @@ def processOutput(log):
             if command == None:
                 lArray = line.split('"')
                 command = str(lArray[1].strip('"'))
-                print 'Found command = [%s]' % command
+                print("Found command = [{}]".format(command))
             else:
-                raise Exception('Multiple command-is lines found')
+                raise Exception("Multiple command-is lines found")
 
         if re.match('Accuracy:', line):
             if accuracy == None:
                 lArray = line.split()
                 accuracy = float(lArray[1].strip())
-                print 'Found accuracy = %f' % accuracy
+                print("Found accuracy = {}".format(accuracy))
             else:
-                raise Exception('Multiple accuracy lines found')
+                raise Exception("Multiple accuracy lines found")
                 
         if re.match('Run length:', line):
             if wallclock == None:
                 lArray = line.split()
                 wallclock = float(lArray[2].strip())
-                print 'Found wallclock = %f' % wallclock
+                print("Found wallclock = {}".format(float(wallclock)))
             else:
-                raise Exception('Multiple time-elapsed lines found')
+                raise Exception("Multiple time-elapsed lines found")
 
         lineCount += 1
 
@@ -210,7 +208,7 @@ def processOutput(log):
 #def writeJenkinsDescription(refResults, ngResults, fileName):
 def writeJenkinsDescription(ngResults, fileName):
 
-    print 'Jenkins description written to %s' % fileName
+    print("Jenkins description written to {}".format(fileName))
 
     try: 
 
@@ -223,12 +221,11 @@ def writeJenkinsDescription(ngResults, fileName):
         #            % (refAccPercent, ngAccPercent,
         #               abs(refAccPercent - ngAccPercent),
         #               (ngResults['wallclock']/refResults['wallclock'])))
-        fOut.write( 'MNIST-MLP accuracy - ngraph: %5.2f%%; ngraph speed %4.2f'
-                    % (ngResults['accuracy'], ngResults['wallclock']))
+        fOut.write("MNIST-MLP accuracy - ngraph: {}; ngraph speed {}".format(ngResults['accuracy'], ngResults['wallclock']))
 
         fOut.close()
 
     except Exception as e:
-        print 'Unable to write Jenkins description file - %s' % e
+        print("Unable to write Jenkins description file - {}".format(e))
 
 # End: writeJenkinsDescription()
