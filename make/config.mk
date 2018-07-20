@@ -107,7 +107,21 @@ USE_NGRAPH_DISTRIBUTED = 0
 # e.g. NGRAPH_DIR = <path>/ngraph/install (containing lib and include dirs)
 # if not specified nGraph will be cloned/built/installed during make
 NGRAPH_DIR =
+# If USE_NGRAPH=1 and NGRAPH_DIR is undefined/empty, then the following variables
+# are used to configure/build a local copy of nGraph:
+NGRAPH_EXTRA_MAKE_FLAGS="VERBOSE=1"
 
+LSB_RELEASE_UBUNTU_1604 := $(shell /usr/bin/lsb_release -a 2>/dev/null | grep "Ubuntu 16.04" )
+ifneq ($(LSB_RELEASE_UBUNTU_1604),)
+  NGRAPH_EXTRA_CMAKE_FLAGS="-DNGRAPH_USE_PREBUILT_LLVM=1"
+else
+  NGRAPH_EXTRA_CMAKE_FLAGS="-DNGRAPH_USE_PREBUILT_LLVM=0"
+endif
+
+# If USE_NGRAPH=1 and ADD_NGRAPH_LIBDIR_TO_MXNET_RPATH=1, then 'libmxnet.so' will
+# be linked with linker option `-rpath=D`, where "D" is whatever directory contains
+# the copy of `libngraph.so` used by MXnet's build system.
+ADD_NGRAPH_LIBDIR_TO_MXNET_RPATH=1
 
 # whether use NNPACK library
 USE_NNPACK = 0

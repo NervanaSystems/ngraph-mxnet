@@ -1,4 +1,32 @@
 # nGraph - MXNet Integration
+
+## Building with nGraph support
+MXnet's experimental support for the Intel nGraph graph compiler can be enabled
+using MXnet's Makefile-based build system.
+
+When building MXnet with experimental nGraph integration enabled, MXnet's build
+system builds its own copy of the nGraph-supplied libraries.  Upon successful
+completion of an nGraph-enabled build, these libraries and related symbolic links
+can be found in the same build directory as `libmxnet.so`.
+
+The experimental MXnet nGraph integration does not currently support externally
+supplied builds of nGraph's libraries to be used by MXnet.  However, it is possible
+to use control which particular version of the nGraph source code is built by
+executing an appropriate `git checkout ...` command in the `3rdparty/ngraph`
+MXnet source tree.
+
+Some of the Make-variable influential for experimental nGraph MXnet integration
+are as follows:
+- `USE_NGRAPH` - If set to `1`, build MXnet with experimental nGraph integration
+  enabled.
+- `NGRAPH_EXTRA_CMAKE_FLAGS` - nGraph uses a CMake-based build system. This variable
+  can provide additional command-line arguments to the `cmake` invocation used to
+  configure nGraph for compilation.
+- `NGRAPH_EXTRA_MAKE_FLAGS` - This variable can provide additional command-line
+  arguments to the invocation of `make` used to compile and link nGraph.
+
+Please see the files `ngraph.mk` and `make/config.mk` for more details.
+
 ## Compilation instructions for Ubuntu 16.04
 
 1. **Clone the nGraph-MXNet repository**
@@ -33,25 +61,10 @@
        python3-pip \
        virtualenv
      ```
-1. **(Optional) Build and install the Intel® nGraph™ open source C++ library and
-   compiler**
-
-   The nGraph library is a build-time and runtime dependency of the nGraph-enabled
-   MXNet software.  The build system for nGraph-enabled MXNet supports two approaches
-   to satisfying this dependency:
-
-   - The build system can download and install the nGraph library on its own, as part
-     of the nGraph-enabled MXNet build process.
-
-   - The user can manually install the nGraph library onto the system before building
-     nGraph-enabled MXNet.  To install the nGraph software manually, please see
-     [this page](https://github.com/NervanaSystems/ngraph) for instructions.
-
-   Additional details are provided below.
 1. **Build the nGraph-MXNet libraries**
 
-   The build system for nGraph-enabled MXNet use GNU Makefiles and is performed
-   in the source directory.
+   The build system for nGraph-enabled MXNet uses GNU Makefiles and is performed
+   in the MXnet source directory.
 
    The simplest invocation of the build system is as follows:
 
@@ -78,28 +91,6 @@
    make USE_NGRAPH=1 USE_CUDA=0 DEBUG=0 -j
    ```
 
-  *Some important Make variables:*
-   For a list of influential GNU Make variables, please review the file
-   `make/config.mk`.  Here are several of particular interest to new users:
-   - `USE_NGRAPH` - This must be set to (exactly) `1` in order for MXNet to
-     build with nGraph support.
-   - `NGRAPH_DIR`
-     - If the `USE_NGRAPH` Make variable is *not* set to `1`, then this variable
-       ignored.
-     - If `USE_NGRAPH`'s value is `1` and `NGRAPH_DIR` is undefined or the
-       empty string, then running `make` will:
-         1. download and/or update the nGraph source code into the
-            subdirectory `MXNET_ROOT/ngraph`,
-         1. build nGraph in the subdirectory `MXNET_ROOT/ngraph/build`, and
-         1. install nGraph into the subdirectory `MXNET_ROOT/ngraph/install`.
-     - If `USE_NGRAPH`'s value is `1` and `NGRAPH_DIR` is set to a non-empty
-       string, it must give the path to an existing installation of nGraph.
-       E.g., `NGRAPH_DIR=/usr/local`.
-
-     The directions below use `NGRAPH_INSTALL` to indicate the nGraph
-     installation directory.
-     This is either `MXNET_ROOT/ngraph/install` or `NGRAPH_DIR` from the
-     from the steps immediately above.
 1. **Update `LD_LIBRARY_PATH`**
 
    Programs using nGraph-enabled MXNet will typically be dynamically linked to
@@ -110,7 +101,7 @@
    environment variable is set appropriately so that the dynamic linker can find
    the required libraries.
 
-   For example, using the definition of `NGRPAH_INSTALL` described above:
+   For example, using the definition of `NGRAPH_INSTALL` described above:
      ``` sh
      export LD_LIBRARY_PATH=NGRAPH_INSTALL/lib:${LD_LIBRARY_PATH}
      ```

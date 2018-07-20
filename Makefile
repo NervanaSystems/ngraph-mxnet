@@ -22,6 +22,8 @@
 print-%:
 	@echo '$*=$($*)'
 
+.DEFAULT_GOAL := all
+
 ROOTDIR = $(CURDIR)
 TPARTYDIR = $(ROOTDIR)/3rdparty
 
@@ -78,6 +80,8 @@ ifeq ($(USE_MKLDNN), 1)
 	export USE_MKLML = 1
 endif
 
+include ngraph.mk
+
 include $(TPARTYDIR)/mshadow/make/mshadow.mk
 include $(DMLC_CORE)/make/dmlc.mk
 
@@ -97,26 +101,14 @@ else
 	CFLAGS += -O3 -DNDEBUG=1
 endif
 CFLAGS += -I$(TPARTYDIR)/mshadow/ -I$(TPARTYDIR)/dmlc-core/include -fPIC -I$(NNVM_PATH)/include -I$(DLPACK_PATH)/include -I$(TPARTYDIR)/tvm/include -Iinclude $(MSHADOW_CFLAGS)
-ifndef NGRAPH_DIR
-  ifeq ($(USE_NGRAPH),1)
-        NGRAPH_DIR = $(ROOTDIR)/ngraph/install
-        NGRAPH := $(shell ./prepare_ngraph.sh $(NGRAPH_DIR) v0.3.0)
-  endif
-endif
 
 LDFLAGS =
+
 ifeq ($(USE_NGRAPH),1)
-    CFLAGS += -I$(ROOTDIR)/src/ngraph -I$(NGRAPH_DIR)/include -DMXNET_USE_NGRAPH=1
-    ifeq ($(USE_NGRAPH_DISTRIBUTED),1)
-        CFLAGS += -DMXNET_USE_NGRAPH_DISTRIBUTED=1
-    endif
-    ifeq ($(USE_NGRAPH_IE),1)
-        CFLAGS += -DMXNET_USE_NGRAPH_IE=1
-        LDFLAGS += -L$(NGRAPH_DIR)/lib -lngraph -Wl,--as-needed
-    else
-        LDFLAGS += -Wl,-rpath-link=$(NGRAPH_DIR)/lib -L$(NGRAPH_DIR)/lib -liomp5 -lcpu_backend -lngraph -lmklml_intel -Wl,--as-needed
-    endif
+    CFLAGS += $(NGRAPH_CFLAGS)
+    LDFLAGS += $(NGRAPH_LDFLAGS)
 endif
+
 LDFLAGS += -pthread $(MSHADOW_LDFLAGS) $(DMLC_LDFLAGS)
 ifeq ($(DEBUG), 1)
 	NVCCFLAGS += -std=c++11 -Xcompiler -D_FORCE_INLINES -g -G -O0 -ccbin $(CXX) $(MSHADOW_NVCCFLAGS)
@@ -157,13 +149,6 @@ ifeq ($(USE_OPENCV), 1)
 	BIN += bin/im2rec
 else
 	CFLAGS+= -DMXNET_USE_OPENCV=0
-endif
-
-ifeq ($(USE_NGRAPH_DISTRIBUTED), 1)
-    MPI_COMPILE_FLAGS = $(shell mpicxx --showme:compile)
-    MPI_LINK_FLAGS = $(shell mpicxx --showme:link)
-    CFLAGS += -I$(MPI_COMPILE_FLAGS)
-    LDFLAGS += -L$(MPI_LINK_FLAGS)
 endif
 
 ifeq ($(USE_OPENMP), 1)
@@ -399,6 +384,7 @@ SRC = $(wildcard src/*/*/*/*.cc src/*/*/*.cc src/*/*.cc src/*.cc)
 ifneq ($(USE_NGRAPH),1)
     SRC := $(foreach f,$(SRC),$(if $(findstring src/ngraph,$f),,$f))
 endif
+
 OBJ = $(patsubst %.cc, build/%.o, $(SRC))
 CUSRC = $(wildcard src/*/*/*/*.cu src/*/*/*.cu src/*/*.cu src/*.cu)
 CUOBJ = $(patsubst %.cu, build/%_gpu.o, $(CUSRC))
@@ -481,11 +467,11 @@ endif
 # For quick compile test, used smaller subset
 ALLX_DEP= $(ALL_DEP)
 
-build/src/%.o: src/%.cc | mkldnn
+build/src/%.o: src/%.cc | mkldnn ngraph
 	@mkdir -p $(@D)
 	$(CXX) -std=c++11 -c $(CFLAGS) -MMD -c $< -o $@
 
-build/src/%_gpu.o: src/%.cu | mkldnn
+build/src/%_gpu.o: src/%.cu | mkldnn ngraph
 	@mkdir -p $(@D)
 	$(NVCC) $(NVCCFLAGS) $(CUDA_ARCH) -Xcompiler "$(CFLAGS)" -M -MT build/src/$*_gpu.o $< >build/src/$*_gpu.d
 	$(NVCC) -c -o $@ $(NVCCFLAGS) $(CUDA_ARCH) -Xcompiler "$(CFLAGS)" $<
@@ -569,6 +555,10 @@ cpplint:
 
 pylint:
 	pylint --rcfile=$(ROOTDIR)/tests/ci_build/pylintrc --ignore-patterns=".*\.so$$,.*\.dll$$,.*\.dylib$$" python/mxnet tools/caffe_converter/*.py
+
+python_clean:
+	$(RM) -r python/build
+	$(RM) -r python/dist
 
 doc: docs
 
@@ -673,7 +663,7 @@ clean: cyclean $(EXTRA_PACKAGES_CLEAN)
 	$(RM) -r  $(patsubst %, %/*.d, $(EXTRA_OPERATORS)) $(patsubst %, %/*/*.d, $(EXTRA_OPERATORS))
 	$(RM) -r  $(patsubst %, %/*.o, $(EXTRA_OPERATORS)) $(patsubst %, %/*/*.o, $(EXTRA_OPERATORS))
 else
-clean: mkldnn_clean cyclean testclean $(EXTRA_PACKAGES_CLEAN)
+clean: ngraph_clean mkldnn_clean cyclean testclean $(EXTRA_PACKAGES_CLEAN)
 	$(RM) -r build lib bin *~ */*~ */*/*~ */*/*/*~ R-package/NAMESPACE R-package/man R-package/R/mxnet_generated.R \
 		R-package/inst R-package/src/image_recordio.h R-package/src/*.o R-package/src/*.so mxnet_*.tar.gz
 	cd $(DMLC_CORE); $(MAKE) clean; cd -
