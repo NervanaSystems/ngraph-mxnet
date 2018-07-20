@@ -146,8 +146,6 @@ run_RESNET_I1K() {
 }  # run_RESNET_I1K()
 
 # ===== Main ==================================================================
-
-export PYTHON_VERSION_NUMBER=2
 echo "the Python version in run_mx_ngraph-validation.py is: PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
 export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
 export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
