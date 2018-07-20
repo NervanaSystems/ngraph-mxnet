@@ -96,7 +96,8 @@ cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/t
 eval $cmd
 
 ## Unit tests test_gluon_rnn.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_gluon_rnn.py --verbose --capture=no --junit-xml=result_test_gluon_rnn.xml --junit-prefix=result_test_gluon_rnn"
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_gluon_rnn.py --verbose --capture=no --junit-xml=result_test_gluon_rnn.xml --junit-prefix=result_test_gluon_rnn"
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_gluon_rnn.py --verbose --capture=no --junit-xml=result_test_gluon_rnn.xml --junit-prefix=result_test_gluon_rnn"
 eval $cmd
 
 ## Unit tests test_image.py
