@@ -137,15 +137,38 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
     .set_attr<nnvm::FListOutputNames>("FListOutputNames",
                                       DefaultSubgraphOpListOutputs)
     .set_attr<FCreateOpState>("FCreateOpState", CreateNgraphSubgraphOpState)
-    .set_attr<nnvm::FInferShape>("FInferShape", DefaultSubgraphOpShape)
+    .set_attr<nnvm::FInferShape>(
+        "FInferShape",
+        [](const nnvm::NodeAttrs& attrs, std::vector<nnvm::TShape>* in_attrs,
+           std::vector<nnvm::TShape>* out_attrs) -> bool {
+          auto graph = get_ngraph(attrs);
+          std::vector<nnvm::TShape> shapes;
+          std::vector<int> dtypes;
+          for (auto output : graph->outputs_) {
+            shapes.push_back(output->shape_);
+            dtypes.push_back(output->dtype_);
+          }
+          (*out_attrs) = shapes;
+          return true;
+        })
     .set_attr<nnvm::FInferType>("FInferType", DefaultSubgraphOpType)
     .set_attr<FInferStorageType>("FInferStorageType",
                                  DefaultSubgraphOpStorageType)
     .set_attr<FStatefulComputeEx>("FStatefulComputeEx<cpu>",
                                   NgraphSubgraphOpForward)
     .set_attr<nnvm::FGradient>("FGradient", NgraphSubgraphGradient)
-    .set_attr<nnvm::FMutateInputs>("FMutateInputs",
-                                   DefaultSubgraphOpMutableInputs)
+    .set_attr<nnvm::FMutateInputs>(
+        "FMutateInputs",
+        [](const nnvm::NodeAttrs& attrs) {
+          auto graph = get_ngraph(attrs);
+          std::vector<uint32_t> mutate_vars;
+          for (size_t i = 0; i < graph->inputs_.size(); ++i) {
+            if (graph->inputs_[i]->type_ == NodeType::kAux) {
+              mutate_vars.emplace_back(i);  // graph->inputs[i]->name);
+            }
+          }
+          return mutate_vars;
+        })
     .set_attr<FResourceRequest>("FResourceRequest",
                                 DefaultSubgraphOpResourceRequest)
     .set_attr<std::string>("key_var_num_args", "num_args")
