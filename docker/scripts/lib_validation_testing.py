@@ -290,7 +290,7 @@ def runResnetI1KScript(script=None,          # Script to run
         print("The Command for Resnet is: {}".format(cmd))
     else:
         cmd = ("{} {} --network {} --batch-size {} --num-layers {} --num-epochs {} --num-classes {} --num-examples {} --image-shape {} --pad-size {} --lr {} --lr-step-epochs {} --data-train=/dataset/mxnet_imagenet/train.rec --data-val=/dataset/mxnet_imagenet/val.rec".format(python_lib.strip(), script, "resnet", trainBatchSize, trainNumLayers,
-        trainEpochs, trainNumClasses, trainNumExamples, str(trainImageShape).strip(), trainPadSize, trainLr, str(trainLrStepEpochs).strip(), dataDirectory.strip(), dataDirectory.strip()))
+        trainEpochs, trainNumClasses, trainNumExamples, str(trainImageShape).strip(), trainPadSize, trainLr, str(trainLrStepEpochs).strip(), str(dataDirectory).strip(), str(dataDirectory).strip()))
         print("The Command for Resnet is: {}".format(cmd))
 
     # Hook for testing results detection without having to run multi-hour
