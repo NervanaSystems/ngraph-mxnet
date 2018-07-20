@@ -18,6 +18,7 @@
 #define MXNET_NGRAPH_NGRAPH_SUBGRAPH_H_
 
 #include "../operator/subgraph/default_subgraph_op.h"
+#include "ngraph_nnvm_ops.h"
 
 namespace ngraph_bridge {
 using namespace nnvm;
@@ -53,7 +54,9 @@ class SgNgraphProperty : public SubgraphProperty {
     nnvm::NodePtr n = nnvm::Node::Create();
     n->attrs.op = Op::Get("_ngraph_subgraph_op");
     n->attrs.name = "_ngraph_subgraph_op" + std::to_string(subgraph_id);
-    n->attrs.parsed = sym;
+    auto tmpnode = sym.outputs[0].node.get();
+    n->attrs.parsed =
+        nnvm::get<ngraph_bridge::NGraphParam>(tmpnode->attrs.parsed);
     return n;
   }
   virtual SubgraphSelectorPtr CreateSubgraphSelector() const override {

@@ -24,12 +24,9 @@ using namespace nnvm;
 using namespace mxnet;
 using namespace mxnet::op;
 
-#define SUBGRAPH_DEBUG 1
-
-std::shared_ptr<ngraph_bridge::Graph>& get_ngraph(const NodeAttrs& attrs) {
-  const Symbol& subgraph_sym = nnvm::get<Symbol>(attrs.parsed);
-  auto n = subgraph_sym.outputs[0].node.get();
-  return nnvm::get<ngraph_bridge::NGraphParam>(n->attrs.parsed).g;
+std::shared_ptr<ngraph_bridge::Graph> get_ngraph(const NodeAttrs& attrs) {
+  auto& g = nnvm::get<ngraph_bridge::NGraphParam>(attrs.parsed).g;
+  return g;
 }
 
 class NgraphSubgraphOperator {
@@ -67,17 +64,13 @@ void NgraphSubgraphOperator::Backward(const OpContext& ctx,
 OpStatePtr CreateNgraphSubgraphOpState(const NodeAttrs& attrs, Context ctx,
                                        const std::vector<TShape>& in_shapes,
                                        const std::vector<int>& in_types) {
-  const Symbol& subgraph_sym = nnvm::get<Symbol>(attrs.parsed);
-  auto n = subgraph_sym.outputs[0].node.get();
-  return OpStatePtr::Create<NgraphSubgraphOperator>(
-      nnvm::get<ngraph_bridge::NGraphParam>(n->attrs.parsed).g);
+  return OpStatePtr::Create<NgraphSubgraphOperator>(get_ngraph(attrs));
 }
 
 OpStatePtr CreateNgraphBackwardOpState(const NodeAttrs& attrs, Context ctx,
                                        const std::vector<TShape>& in_shapes,
                                        const std::vector<int>& in_types) {
-  return OpStatePtr::Create<NgraphSubgraphOperator>(
-      nnvm::get<ngraph_bridge::NGraphParam>(attrs.parsed).g);
+  return OpStatePtr::Create<NgraphSubgraphOperator>(get_ngraph(attrs));
 }
 
 void NgraphSubgraphOpForward(const OpStatePtr& state_ptr, const OpContext& ctx,
@@ -117,10 +110,8 @@ std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
     p->inputs.insert(p->inputs.end(), ograds.begin(), ograds.end());
   }
   p->inputs.insert(p->inputs.end(), n->inputs.begin(), n->inputs.end());
-  const Symbol& subgraph_sym = nnvm::get<Symbol>(n.get()->attrs.parsed);
-  auto tmpnode = subgraph_sym.outputs[0].node.get();
   p->attrs.parsed =
-      std::move(nnvm::get<ngraph_bridge::NGraphParam>(tmpnode->attrs.parsed));
+      nnvm::get<ngraph_bridge::NGraphParam>(n.get()->attrs.parsed);
   std::vector<nnvm::NodeEntry> ret;
   for (unsigned i = 0; i < p->num_outputs(); ++i) {
     ret.emplace_back(nnvm::NodeEntry{p, i, 0});
@@ -130,12 +121,34 @@ std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
 
 NNVM_REGISTER_OP(_ngraph_subgraph_op)
     .describe(R"code(_ngraph_subgraph_op)code" ADD_FILELINE)
-    .set_num_inputs(DefaultSubgraphOpNumInputs)
-    .set_num_outputs(DefaultSubgraphOpNumOutputs)
+    .set_num_inputs([](const NodeAttrs& attrs) {
+      auto graph = get_ngraph(attrs);
+      return graph->inputs_.size();
+    })
+    .set_num_outputs([](const NodeAttrs& attrs) {
+      auto graph = get_ngraph(attrs);
+      return graph->outputs_.size();
+    })
     .set_attr<nnvm::FListInputNames>("FListInputNames",
-                                     DefaultSubgraphOpListInputs)
+                                     [](const nnvm::NodeAttrs& attrs) {
+                                       auto graph = get_ngraph(attrs);
+                                       std::vector<std::string> input_names;
+
+                                       for (auto n : graph->inputs_) {
+                                         input_names.emplace_back(n->name_);
+                                       }
+                                       return input_names;
+                                     })
     .set_attr<nnvm::FListOutputNames>("FListOutputNames",
-                                      DefaultSubgraphOpListOutputs)
+                                      [](const nnvm::NodeAttrs& attrs) {
+                                        auto graph = get_ngraph(attrs);
+                                        std::vector<std::string> _names;
+
+                                        for (auto n : graph->outputs_) {
+                                          _names.emplace_back(n->name_);
+                                        }
+                                        return _names;
+                                      })
     .set_attr<FCreateOpState>("FCreateOpState", CreateNgraphSubgraphOpState)
     .set_attr<nnvm::FInferShape>(
         "FInferShape",
@@ -143,45 +156,63 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
            std::vector<nnvm::TShape>* out_attrs) -> bool {
           auto graph = get_ngraph(attrs);
           std::vector<nnvm::TShape> shapes;
-          std::vector<int> dtypes;
           for (auto output : graph->outputs_) {
             shapes.push_back(output->shape_);
-            dtypes.push_back(output->dtype_);
           }
           (*out_attrs) = shapes;
           return true;
         })
-    .set_attr<nnvm::FInferType>("FInferType", DefaultSubgraphOpType)
-    .set_attr<FInferStorageType>("FInferStorageType",
-                                 DefaultSubgraphOpStorageType)
+    .set_attr<nnvm::FInferType>("FInferType",
+                                [](const nnvm::NodeAttrs& attrs,
+                                   std::vector<int>* iattr,
+                                   std::vector<int>* oattr) -> bool {
+                                  auto graph = get_ngraph(attrs);
+                                  std::vector<int> dtypes;
+                                  for (auto output : graph->outputs_) {
+                                    dtypes.push_back(output->dtype_);
+                                  }
+                                  for (size_t i = 0; i < dtypes.size(); ++i) {
+                                    mxnet::op::type_assign(&((*oattr)[i]),
+                                                           dtypes[i]);
+                                  }
+                                  return true;
+                                })
+    .set_attr<FInferStorageType>(
+        "FInferStorageType",
+        [](const nnvm::NodeAttrs& attrs, const int dev_mask,
+           mxnet::DispatchMode* dispatch_mode, std::vector<int>* in_attrs,
+           std::vector<int>* out_attrs) {
+          return mxnet::op::storage_type_assign(
+              out_attrs, mxnet::kDefaultStorage, dispatch_mode,
+              mxnet::DispatchMode::kFComputeEx);
+        })
     .set_attr<FStatefulComputeEx>("FStatefulComputeEx<cpu>",
                                   NgraphSubgraphOpForward)
     .set_attr<nnvm::FGradient>("FGradient", NgraphSubgraphGradient)
-    .set_attr<nnvm::FMutateInputs>(
-        "FMutateInputs",
-        [](const nnvm::NodeAttrs& attrs) {
-          auto graph = get_ngraph(attrs);
-          std::vector<uint32_t> mutate_vars;
-          for (size_t i = 0; i < graph->inputs_.size(); ++i) {
-            if (graph->inputs_[i]->type_ == NodeType::kAux) {
-              mutate_vars.emplace_back(i);  // graph->inputs[i]->name);
-            }
-          }
-          return mutate_vars;
-        })
-    .set_attr<FResourceRequest>("FResourceRequest",
-                                DefaultSubgraphOpResourceRequest)
+    .set_attr<nnvm::FMutateInputs>("FMutateInputs",
+                                   [](const nnvm::NodeAttrs& attrs) {
+                                     auto graph = get_ngraph(attrs);
+                                     std::vector<uint32_t> mutate_vars;
+                                     for (size_t i = 0;
+                                          i < graph->inputs_.size(); ++i) {
+                                       if (graph->inputs_[i]->type_ ==
+                                           NodeType::kAux) {
+                                         mutate_vars.emplace_back(i);
+                                       }
+                                     }
+                                     return mutate_vars;
+                                   })
     .set_attr<std::string>("key_var_num_args", "num_args")
     .set_attr<FExecType>("FExecType", DefaultSubgraphOpExecType)
     .add_argument("data", "NDArray-or-Symbol[]", "input data list");
 
 NNVM_REGISTER_OP(_backward_ngraph_subgraph_op)
     .set_num_inputs([](const NodeAttrs& attrs) {
-      auto graph = nnvm::get<ngraph_bridge::NGraphParam>(attrs.parsed).g;
+      auto graph = get_ngraph(attrs);
       return graph->num_adjoints_ + graph->inputs_.size();
     })
     .set_num_outputs([](const NodeAttrs& attrs) {
-      auto graph = nnvm::get<ngraph_bridge::NGraphParam>(attrs.parsed).g;
+      auto graph = get_ngraph(attrs);
       return graph->inputs_.size();
     })
     .set_attr<bool>("TIsBackward", true)
