@@ -165,8 +165,7 @@ def test_resnet_cifar10_daily_validation():
         #                           'test_resnet_cifar_jenkins.log'))
         writeJenkinsDescription(ngraphResults, os.path.join(lDir,'test_resnet_cifar10_cpu_jenkins_oneline.log'), trainEpochs)
 
-    print
-    print '----- RESNET_CIFAR10 Testing Summary ----------------------------------------'
+    print("----- RESNET_CIFAR10 Testing Summary ----------------------------------------")
 
 
     summaryLog = None
@@ -177,23 +176,22 @@ def test_resnet_cifar10_daily_validation():
 
     # Report commands
     logOut.line()
-    #logOut.line('Run with default CPU: %s' % referenceResults['command'])
-    logOut.line('Run with NGraph CPU: %s' % ngraphResults['command'])
+    logOut.line("Run with NGraph CPU: {}".format(ngraphResults['command']))
 
     # Report parameters -- NEED TO DO
     logOut.line()
-    logOut.line('Batch size:       %d (fixed)' % trainBatchSize)
-    logOut.line('Epoch  :       %d (fixed)' % trainEpochs)
-    logOut.line('Data directory:   %s' % dataDir)
-    logOut.line('useNGraph: true')
-    logOut.line('Num Layers :       %d (fixed)' % trainNumLayers)
-    logOut.line('NumClasses :       %d (fixed)' % trainNumClasses)
-    logOut.line('Num Examples :       %d (fixed)' % trainNumExamples)
-    logOut.line('Image Shape :       %s (fixed)' % str(trainImageShape))
-    logOut.line('Pad Size :       %d (fixed)' % trainPadSize)
-    logOut.line('Lr :       %f (fixed)' % trainLr)
-    logOut.line('Step Epochs:       %s (fixed)' % str(trainLrStepEpochs))
-    logOut.line('with NNP:       %s (fixed)' % str(trainWithNPP))
+    logOut.line("Batch size:       {} (fixed)".format(trainBatchSize))
+    logOut.line("Epoch  :       {} (fixed)".format(trainEpochs))
+    logOut.line("Data directory:   {}".format(dataDir))
+    logOut.line("useNGraph: true")
+    logOut.line("Num Layers :       {} (fixed)".format(trainNumLayers))
+    logOut.line("NumClasses :       {} (fixed)".format(trainNumClasses))
+    logOut.line("Num Examples :       {} (fixed)".format(trainNumExamples))
+    logOut.line("Image Shape :       {} (fixed)".format(str(trainImageShape)))
+    logOut.line("Pad Size :       {} (fixed)".format(trainPadSize))
+    logOut.line("Lr :       {} (fixed)".format(trainLr))
+    logOut.line("Step Epochs:       {} (fixed)".format(str(trainLrStepEpochs)))
+    logOut.line("with NNP:       {} (fixed)".format(str(trainWithNPP)))
 
     #refAccPercent = tmp_refAccPercent * 100.0
     ngAccPercent = float(ngraphResults['accuracy']) * 100.0
@@ -206,7 +204,7 @@ def test_resnet_cifar10_daily_validation():
     #deltaAccuracy = abs(float(refAccPercent) - ngAccPercent)
     logOut.line()
     #logOut.line('Run with default CPU accuracy: %7.4f%%' % float(refAccPercent))
-    logOut.line('Run with NGraph CPU accuracy: %7.4f%%' % ngAccPercent)
+    logOut.line("Run with NGraph CPU accuracy: {}".format(ngAccPercent))
     #logOut.line('Accuracy delta: %6.4f%%' % deltaAccuracy)
     #logOut.line('Acceptable accuracy delta is <= %6.4f%%'
     #            % float(acceptableAccuracy))
@@ -223,8 +221,7 @@ def test_resnet_cifar10_daily_validation():
         
     # Report on times
     logOut.line()
-    logOut.line('Run with NGraph CPU took: %f seconds'
-                % ngraphResults['wallclock'])
+    logOut.line("Run with NGraph CPU took: {} seconds".format(ngraphResults['wallclock']))
 # End: test_mlp_mnist_cpu_backend()
 
 
@@ -249,23 +246,23 @@ def processOutput(log):
             if command == None:
                 lArray = line.split('"')
                 command = str(lArray[1].strip('"'))
-                print 'Found command = [%s]' % command
+                print("Found command = [{}]".format(command))
             else:
-                raise Exception('Multiple command-is lines found')
+                raise Exception("Multiple command-is lines found")
 
         if re.match('Accuracy:', line):
             if accuracy == None:
                 lArray = line.split()
                 accuracy = float(lArray[1].strip())
-                print 'Found accuracy = %f' % accuracy
+                print("Found accuracy = {}".format(accuracy))
             else:
-                raise Exception('Multiple accuracy lines found')
+                raise Exception("Multiple accuracy lines found")
                 
         if re.match('Run length:', line):
             if wallclock == None:
                 lArray = line.split()
                 wallclock = float(lArray[2].strip())
-                print 'Found wallclock = %f' % wallclock
+                print("Found wallclock = {}".format(float(wallclock)))
             else:
                 raise Exception('Multiple time-elapsed lines found')
 
@@ -285,7 +282,7 @@ def processOutput(log):
 def writeJenkinsDescription(ngResults, fileName, trainEpochs):
 #def writeJenkinsDescription(refResults, ngResults, fileName):
 
-    print 'Jenkins description written to %s' % fileName
+    print("Jenkins description written to {}".format(fileName))
 
     try: 
 
@@ -298,12 +295,11 @@ def writeJenkinsDescription(ngResults, fileName, trainEpochs):
         #            % (refAccPercent, ngAccPercent,
         #               abs(refAccPercent - ngAccPercent),
         #               (ngResults['wallclock']/refResults['wallclock'])))
-        fOut.write( 'RESNET-CIFAR10 accuracy - ngraph: %5.2f%%; ngraph speed %4.2f; %d steps'
-                    % (ngResults['accuracy'], ngResults['wallclock'], trainEpochs))
+        fOut.write("RESNET-CIFAR10 accuracy - ngraph: {}; ngraph speed ={}; {} steps".format(ngResults['accuracy'], ngResults['wallclock'], trainEpochs))
 
         fOut.close()
 
     except Exception as e:
-        print 'Unable to write Jenkins description file - %s' % e
+        print("Unable to write Jenkins description file - {}".format(e))
 
 # End: writeJenkinsDescription()
