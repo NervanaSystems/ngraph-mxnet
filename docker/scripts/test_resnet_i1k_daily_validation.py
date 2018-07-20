@@ -119,8 +119,6 @@ def test_resnet_i1k_daily_validation():
     TEST_I1K_DATA_DIR=os.environ.get('TEST_RESNET_I1K_LOG_DIR', None)
     
     dataDir = os.environ.get('TEST_RESNET_I1K_DATA_DIR', None)
-    process = subprocess.check_output(["pwd"],shell=True)
-    print("The output = {}".format(process.decode('utf-8')))
     VT.checkScript("/dataset/mxnet_imagenet/train.rec")
     # Run with NGraph CPU backend, saving timing and accuracy
     ngraphLog = VT.runResnetI1KScript(logID=' nGraph',
