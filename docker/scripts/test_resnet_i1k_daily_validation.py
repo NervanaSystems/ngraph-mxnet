@@ -149,8 +149,7 @@ def test_resnet_i1k_daily_validation():
         # Write Jenkins description, for quick perusal of results
         writeJenkinsDescription(ngraphResults, os.path.join(lDir,'test_resnet_i1k_cpu_jenkins_oneline.log'), trainEpochs)
 
-    print
-    print "----- RESNET_I1K Testing Summary ----------------------------------------"
+    print("----- RESNET_I1K Testing Summary ----------------------------------------")
 
     summaryLog = None
     if lDir != None:
