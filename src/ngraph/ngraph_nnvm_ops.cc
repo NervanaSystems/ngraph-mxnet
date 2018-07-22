@@ -193,7 +193,7 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
 // check if last node in graph is an op that doesnt need head-gradient
 bool check_zero_grad(const std::shared_ptr<Graph> &graph) {
-  auto size = graph->nodes_.size();
+  auto size = graph->ngraph_forward[0]->get_ops().size();
   if (size < 1) return false;
 
   // if all of the outputs of the graph don't need gradient calculation,

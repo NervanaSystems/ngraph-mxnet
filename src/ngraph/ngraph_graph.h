@@ -207,6 +207,19 @@ class Graph : public Node {
     is_reuse_mem = false;
   }
 
+  ~Graph() {
+    // Clean up nGraph's compilation cache so we don't have a memory leak
+    auto backend = GetBackendFromContext(context_);
+    for (int i = 0; i < kGraphExeModeCount; ++i) {
+      if (ngraph_forward[i]) {
+        backend->remove_compiled_function(ngraph_forward[i]);
+      }
+      if (ngraph_backward[i]) {
+        backend->remove_compiled_function(ngraph_backward[i]);
+      }
+    }
+  }
+
   std::string createNodeLabel() override {
     std::ostringstream stream;
     stream << name_ << this << " [label = \"" << name_ << this << shape_
