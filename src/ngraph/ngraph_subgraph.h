@@ -29,18 +29,16 @@ class SgNgraphSelector : public SubgraphSelector {
  public:
   SgNgraphSelector() {}
 
-  virtual bool Select(const nnvm::Node &n) override {
+  bool Select(const nnvm::Node &n) override {
     bool match = !n.is_variable() && (n.attrs.name.substr(0, 6) == "ngraph");
     return match;
   }
 
-  virtual bool SelectInput(const nnvm::Node &n,
-                           const nnvm::Node &new_node) override {
+  bool SelectInput(const nnvm::Node &n, const nnvm::Node &new_node) override {
     return false;
   }
 
-  virtual bool SelectOutput(const nnvm::Node &n,
-                            const nnvm::Node &new_node) override {
+  bool SelectOutput(const nnvm::Node &n, const nnvm::Node &new_node) override {
     return false;
   }
 };
@@ -59,12 +57,12 @@ class SgNgraphProperty : public SubgraphProperty {
         nnvm::get<ngraph_bridge::NGraphParam>(tmpnode->attrs.parsed);
     return n;
   }
-  virtual SubgraphSelectorPtr CreateSubgraphSelector() const override {
+  SubgraphSelectorPtr CreateSubgraphSelector() const override {
     auto selector = std::make_shared<SgNgraphSelector>();
     return selector;
   }
 };
 
-}  // ngraph_bridge
+}  // namespace ngraph_bridge
 
 #endif  // MXNET_NGRAPH_NGRAPH_SUBGRAPH_H_

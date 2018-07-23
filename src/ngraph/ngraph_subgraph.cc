@@ -203,7 +203,6 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
                                      return mutate_vars;
                                    })
     .set_attr<std::string>("key_var_num_args", "num_args")
-    /* .set_attr<FExecType>("FExecType", DefaultSubgraphOpExecType) */
     .add_argument("data", "NDArray-or-Symbol[]", "input data list");
 
 NNVM_REGISTER_OP(_backward_ngraph_subgraph_op)
@@ -216,7 +215,6 @@ NNVM_REGISTER_OP(_backward_ngraph_subgraph_op)
       return graph->inputs_.size();
     })
     .set_attr<bool>("TIsBackward", true)
-    /* .set_attr<FExecType>("FExecType", DefaultSubgraphOpExecType) */
     .set_attr<FCreateOpState>("FCreateOpState", CreateNgraphBackwardOpState)
     .set_attr<FStatefulComputeEx>("FStatefulComputeEx<cpu>",
                                   NgraphSubgraphOpBackward)
