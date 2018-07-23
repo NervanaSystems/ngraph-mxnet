@@ -25,8 +25,7 @@ using namespace mxnet;
 using namespace mxnet::op;
 
 std::shared_ptr<ngraph_bridge::Graph> get_ngraph(const NodeAttrs& attrs) {
-  auto& g = nnvm::get<ngraph_bridge::NGraphParam>(attrs.parsed).g;
-  return g;
+  return nnvm::get<ngraph_bridge::NGraphParam>(attrs.parsed).g;
 }
 
 class NgraphSubgraphOperator {
@@ -91,12 +90,13 @@ void NgraphSubgraphOpBackward(const OpStatePtr& state_ptr, const OpContext& ctx,
 
 std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
     const nnvm::NodePtr& n, const std::vector<nnvm::NodeEntry>& ograds) {
-  auto graph = get_ngraph(n.get()->attrs);
+  auto graph = get_ngraph(n->attrs);
   const bool zero_grad = check_zero_grad(graph);
   graph->zero_grad = zero_grad;
   bool is_loss = graph->is_loss;
   auto p = nnvm::Node::Create();
   p->attrs.op = nnvm::Op::Get("_backward_ngraph_subgraph_op");
+  p->attrs.parsed = n->attrs.parsed;
   if (!is_loss && zero_grad && p->num_outputs() == 1) {
     return mxnet::op::MakeZeroGradNodes(n, ograds);
   }
@@ -110,8 +110,6 @@ std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
     p->inputs.insert(p->inputs.end(), ograds.begin(), ograds.end());
   }
   p->inputs.insert(p->inputs.end(), n->inputs.begin(), n->inputs.end());
-  p->attrs.parsed =
-      nnvm::get<ngraph_bridge::NGraphParam>(n.get()->attrs.parsed);
   std::vector<nnvm::NodeEntry> ret;
   for (unsigned i = 0; i < p->num_outputs(); ++i) {
     ret.emplace_back(nnvm::NodeEntry{p, i, 0});
