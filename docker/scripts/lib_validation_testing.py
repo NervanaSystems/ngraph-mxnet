@@ -164,7 +164,6 @@ def runMnistScript(script=None,          # Script to run
 
 # End: def runMnistScript()
 
-
 def runResnetScript(script=None,          # Script to run
                     useNGraph=True,       # False->reference, True->nGraph++
                     dataDirectory=None,   # --data_dir, where MNIST data is
@@ -235,6 +234,77 @@ def runResnetScript(script=None,          # Script to run
     return runLog
 
 # End: def runResnetScript()
+
+def runResnetI1KScript(script=None,          # Script to run
+                    useNGraph=True,       # False->reference, True->nGraph++
+                    dataDirectory=None,   # --data_dir, where MNIST data is
+                    trainEpochs=None,          # Epochs to run
+                    trainBatchSize=None,        # Batch size for training
+                    python=None,          # Which python to use
+                    verbose=False,        # If True, enable log_device_placement
+                    logID='',
+                    trainNumLayers = None,
+                    trainNumClasses = None,
+                    trainNumExamples=None,
+                    trainImageShape = None,
+                    trainPadSize = None,
+                    trainLr = None,
+                    trainLrStepEpochs = None,
+                    trainWithNPP = None):            # Log line prefix
+
+    print("")
+    print("Resnet I1K script being run with:")
+    print("   script:         {}".format(str(script)))
+    print("    useNGraph:     {}".format(str(useNGraph)))
+    print("    dataDirectory:  {}".format(str(dataDirectory)))
+    print("    trainEpochs:         {}".format(str(trainEpochs)))
+    print("    trainBatchSize:  {}".format(str(trainBatchSize)))
+    print("    python:         {}".format(str(python)))
+    print("    logID:          {}".format(str(logID)))
+    print("    trainNumLayers:         {}".format(str(trainNumLayers)))
+    print("    trainNumClasses:          {}".format(str(trainNumClasses)))
+    print("    trainNumExamples:          {}".format(str(trainNumExamples)))  
+    print("    trainImageShape:         {}".format(str(trainImageShape)))
+    print("    trainPadSize:          {}".format(str(trainPadSize)))
+    print("    trainLr:         {}".format(str(trainLr)))
+    print("    trainLrStepEpochs:          {}".format(str(trainLrStepEpochs)))
+    print("    trainWithNPP:          {}".format(str(trainWithNPP)))
+
+    if trainEpochs is None or int(trainEpochs) == 0:
+        raise Exception("runResnetScript() called without parameter num_epochs")
+
+    if trainBatchSize is None:
+        raise Exception("runResnetScript() called without parameter batch_size")
+
+    #which python
+    process = subprocess.Popen(['which','python'], stdout=subprocess.PIPE)
+    python_lib, err = process.communicate()
+    if (python_lib == ""):
+        python_lib = "python"
+
+    # -u puts python in unbuffered mode
+    #check trainWithNPP
+    if (trainWithNPP == "1"):
+        cmd = ("{} {} --network {} --batch-size {} --num-layers {} --num-epochs {} --num-classes {} --num-examples {} --image-shape {} --pad-size {} --lr {} --lr-step-epochs {} --data-train={}/train.rec --data-val={}/val.rec --with-nnp".format(python_lib.strip(), script, "resnet", trainBatchSize, trainNumLayers, 
+        trainEpochs, trainNumClasses, trainNumExamples, str(trainImageShape).strip(), trainPadSize, trainLr, str(trainLrStepEpochs).strip(), dataDirectory.strip(), dataDirectory.strip()))
+        print("The Command for Resnet is: {}".format(cmd))
+    else:
+        cmd = ("{} {} --network {} --batch-size {} --num-layers {} --num-epochs {} --num-classes {} --num-examples {} --image-shape {} --pad-size {} --lr {} --lr-step-epochs {} --data-train=/dataset/mxnet_imagenet/train.rec --data-val=/dataset/mxnet_imagenet/val.rec".format(python_lib.strip(), script, "resnet", trainBatchSize, trainNumLayers,
+        trainEpochs, trainNumClasses, trainNumExamples, str(trainImageShape).strip(), trainPadSize, trainLr, str(trainLrStepEpochs).strip(), str(dataDirectory).strip(), str(dataDirectory).strip()))
+        print("The Command for Resnet is: {}".format(cmd))
+
+    # Hook for testing results detection without having to run multi-hour
+    # Framework+Dataset tests
+    print("MX_NG_DO_NOT_RUN = {}".format(os.environ['MX_NG_DO_NOT_RUN']))
+    if (os.environ.has_key('MX_NG_DO_NOT_RUN')
+        and (os.environ['MX_NG_DO_NOT_RUN'] == "1")):
+        runLog = runFakeCommand(command=cmd, logID=logID)
+    else:
+        runLog = runCommand(command=cmd, logID=logID)
+
+    return runLog
+
+# End: def runResnetI1KScript()
 
 
 def runBenchmarkScoreScript(script=None,          # Script to run
