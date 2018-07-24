@@ -64,33 +64,6 @@ if [ -z "${MX_NG_MODEL}" ] ; then
     exit
 fi
 
-## RESNET : Parameters and its default values
-#network = 'resnet'
-#num_layers = 110
-#num_classes = 10
-#num_examples = 50000
-#image_shape = '3,28,28'
-#pad_size = 4
-#batch_size = 128
-#num_epochs = 1
-#lr = .05
-#lr_step_epochs = '200,250'
-#--with-nnp : False
-
-## MLP_MNIST : Parameters and its default values.
-#gpus = None
-#batch_size = 64
-#disp_batches = 100
-#num_epochs = 20
-#lr = .05
-#lr_step_epochs = 10
-#--num-examples type=int, default=60000
-#--num-classes type=int default=10
-#--with-nnp : False
-#--add_stn : False
-
-## NEED TO DO. 
-
 docker run --rm \
        --env RUN_UID="$(id -u)" \
        --env RUN_CMD="${docker_mx_dir}/docker/scripts/${script}" \
@@ -104,6 +77,7 @@ docker run --rm \
        --env MX_NG_RESNET_IMAGE_SHAPE="${MX_NG_RESNET_NUM_IMAGE_SHAPE}" \
        --env MX_NG_RESNET_PAD_SIZE="${MX_NG_RESNET_PAD_SIZE}" \
        --env MX_NG_RESNET_BATCH_SIZE="${MX_NG_RESNET_BATCH_SIZE}" \
+       --env MX_NG_RESNET_DATA_DIR="${MX_NG_RESNET_DATA_DIR}" \
        --env MX_NG_RESNET_LR="${MX_NG_RESNET_LR}" \
        --env MX_NG_RESNET_LR_STEP_EPOCHS="${MX_NG_RESNET_LR_STEP_EPOCHS}" \
        --env MX_NG_RESNET_WITH_NNP="${MX_NG_RESNET_WITH_NNP}" \
@@ -111,4 +85,5 @@ docker run --rm \
        --env http_proxy=http://proxy-fm.intel.com:911 \
        --env https_proxy=http://proxy-fm.intel.com:912 \
        -v "${ngraph_mx_dir}:${docker_mx_dir}" \
+       -v "/dataset/mxnet_imagenet/:/dataset/mxnet_imagenet/" \
        "${IMAGE_NAME}:${IMAGE_ID}" /home/run-as-user.sh
