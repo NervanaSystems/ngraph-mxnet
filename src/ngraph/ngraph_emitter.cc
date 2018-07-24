@@ -124,7 +124,6 @@ NgraphNodePtr Emitter::ReduceAxes(
 void Emitter::CreateUnaryOps() {
   ngraph_op_funcs_["Activation"] = [this](const NodePtr node) {
     auto act_type = node->orig_node_->attrs.dict["act_type"];
-    std::cout << act_type << std::endl;
     return ngraph_op_funcs_[act_type](node);
   };
   ngraph_op_funcs_["LeakyReLU"] = [this](const NodePtr& node) {
