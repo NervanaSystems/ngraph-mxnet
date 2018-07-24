@@ -3,10 +3,10 @@
 Indicate your preferred configuration. Then, follow the customized commands to install *MXNet*.
 
   <div class="dropdown">
-    <button class="btn current-version btn-primary dropdown-toggle" type="button" data-toggle="dropdown">v1.2.0
+    <button class="btn current-version btn-primary dropdown-toggle" type="button" data-toggle="dropdown">v1.2.1
     <span class="caret"></span></button>
     <ul class="dropdown-menu opt-group">
-      <li class="opt active versions"><a href="#">v1.2.0</a></li>
+      <li class="opt active versions"><a href="#">v1.2.1</a></li>
       <li class="opt versions"><a href="#">v1.1.0</a></li>
       <li class="opt versions"><a href="#">v1.0.0</a></li>
       <li class="opt versions"><a href="#">v0.12.1</a></li>
@@ -95,7 +95,7 @@ $ sudo apt-get install -y wget python gcc
 $ wget https://bootstrap.pypa.io/get-pip.py && sudo python get-pip.py
 ```
 
-<div class="v1-2-0">
+<div class="v1-2-1">
 
 **Step 2** Install MXNet with OpenBLAS acceleration.
 
@@ -116,7 +116,7 @@ pip install graphviz
 $ pip install mxnet-mkl
 ```
 
-</div> <!-- End of v1-2-0 -->
+</div> <!-- End of v1-2-1 -->
 
 <div class="v1-1-0">
 
@@ -289,7 +289,7 @@ Installing *MXNet* with pip requires a latest version of `pip`. Install the late
 $ pip install --upgrade pip
 ```
 
-<div class="v1-2-0">
+<div class="v1-2-1">
 
 Install *MXNet* with OpenBLAS acceleration.
 
@@ -297,7 +297,7 @@ Install *MXNet* with OpenBLAS acceleration.
 $ pip install mxnet
 ```
 
-</div> <!-- End of v1-2-0-->
+</div> <!-- End of v1-2-1-->
 
 <div class="v1-1-0">
 
@@ -511,7 +511,7 @@ $ sudo apt-get install -y wget python
 $ wget https://bootstrap.pypa.io/get-pip.py && sudo python get-pip.py
 ```
 
-<div class="v1-2-0">
+<div class="v1-2-1">
 
 **Step 2**  Install *MXNet* with GPU support using CUDA 9.2
 
@@ -543,7 +543,7 @@ pip install graphviz
 $ pip install mxnet-cu90mkl
 ```
 
-</div> <!-- End of v1-2-0-->
+</div> <!-- End of v1-2-1-->
 
 
 <div class="v1-1-0">
@@ -709,7 +709,7 @@ Installing *MXNet* with pip requires a latest version of `pip`. Install the late
 ```
 
 
-<div class="v1-2-0">
+<div class="v1-2-1">
 
 **Important**: Make sure your installed CUDA version matches the CUDA version in the pip package.
 Check your CUDA version with the following command:
@@ -728,7 +728,7 @@ Install *MXNet* with GPU support using CUDA 9.2:
 
 Refer to [pypi for older packages](https://pypi.org/project/mxnet/).
 
-</div> <!-- End of v1-2-0-->
+</div> <!-- End of v1-2-1-->
 
 
 <div class="v1-1-0">
@@ -939,58 +939,13 @@ pip install graphviz
 <div class="r">
 <div class="cpu">
 
-<br/>
+The default version of R that is installed with `apt-get` is insufficient. You will need to first [install R v3.4.4+ and build MXNet from source](ubuntu_setup.html#install-the-mxnet-package-for-r).
 
-Building *MXNet* from source is a 2 step process.
-1. Build the *MXNet* core shared library, `libmxnet.so`, from the C++ sources.
-2. Build the language specific bindings.
-
-**Minimum Requirements**
-1. [GCC 4.8](https://gcc.gnu.org/gcc-4.8/) or later to compile C++ 11.
-2. [GNU Make](https://www.gnu.org/software/make/)
-
-<br/>
-
-**Build the MXNet core shared library**
-
-**Step 1** Install build tools and git.
-```bash
-$ sudo apt-get update
-$ sudo apt-get install -y build-essential git
-```
-
-**Step 2** Install OpenBLAS.
-
-*MXNet* uses [BLAS](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms) and [LAPACK](https://en.wikipedia.org/wiki/LAPACK) libraries for accelerated numerical computations on CPU machine. There are several flavors of BLAS/LAPACK libraries - [OpenBLAS](http://www.openblas.net/), [ATLAS](http://math-atlas.sourceforge.net/) and [MKL](https://software.intel.com/en-us/intel-mkl). In this step we install OpenBLAS. You can choose to install ATLAS or MKL.
-```bash
-$ sudo apt-get install -y libopenblas-dev liblapack-dev
-```
-
-**Step 3** Install OpenCV.
-
-*MXNet* uses [OpenCV](http://opencv.org/) for efficient image loading and augmentation operations.
-```bash
-$ sudo apt-get install -y libopencv-dev
-```
-
-**Step 4** Download MXNet sources and build MXNet core shared library. You can clone the repository as described in the following code block, or you may try the <a href="download.html">download links</a> for your desired MXNet version.
+After you have setup R v3.4.4+ and MXNet, you can build and install the MXNet R bindings with the following, assuming that `incubator-mxnet` is the source directory you used to build MXNet as follows:
 
 ```bash
-$ git clone --recursive https://github.com/apache/incubator-mxnet
 $ cd incubator-mxnet
-$ make -j $(nproc) USE_OPENCV=1 USE_BLAS=openblas
-```
-
-*Note* - USE_OPENCV and USE_BLAS are make file flags to set compilation options to use OpenCV and BLAS library. You can explore and use more compilation options in `make/config.mk`.
-
-<br/>
-
-**Build and install the MXNet R binding**
-
-
-```bash
 $ make rpkg
-$ R CMD INSTALL mxnet_current_r.tar.gz
 ```
 
 </div> <!-- END of CPU -->
@@ -998,70 +953,13 @@ $ R CMD INSTALL mxnet_current_r.tar.gz
 
 <div class="gpu">
 
-The following installation instructions have been tested on Ubuntu 14.04 and 16.04.
+The default version of R that is installed with `apt-get` is insufficient. You will need to first [install R v3.4.4+ and build MXNet from source](ubuntu_setup.html#install-the-mxnet-package-for-r).
 
-
-**Prerequisites**
-
-Install the following NVIDIA libraries to setup *MXNet* with GPU support:
-
-1. Install CUDA 9.0 following the NVIDIA's [installation guide](http://docs.nvidia.com/cuda/cuda-installation-guide-linux/).
-2. Install cuDNN 7 for CUDA 9.0 following the NVIDIA's [installation guide](https://developer.nvidia.com/cudnn). You may need to register with NVIDIA for downloading the cuDNN library.
-
-**Note:** Make sure to add CUDA install path to `LD_LIBRARY_PATH`.
-
-Example - *export LD_LIBRARY_PATH=/usr/local/cuda/lib64/:$LD_LIBRARY_PATH*
-
-<br/>
-
-Building *MXNet* from source is a 2 step process.
-1. Build the *MXNet* core shared library, `libmxnet.so`, from the C++ sources.
-2. Build the language specific bindings.
-
-**Minimum Requirements**
-1. [GCC 4.8](https://gcc.gnu.org/gcc-4.8/) or later to compile C++ 11.
-2. [GNU Make](https://www.gnu.org/software/make/)
-
-<br/>
-
-**Build the MXNet core shared library**
-
-**Step 1** Install build tools and git.
-```bash
-$ sudo apt-get update
-$ sudo apt-get install -y build-essential git
-```
-**Step 2** Install OpenBLAS.
-
-*MXNet* uses [BLAS](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms) and [LAPACK](https://en.wikipedia.org/wiki/LAPACK) libraries for accelerated numerical computations on CPU machine. There are several flavors of BLAS/LAPACK libraries - [OpenBLAS](http://www.openblas.net/), [ATLAS](http://math-atlas.sourceforge.net/) and [MKL](https://software.intel.com/en-us/intel-mkl). In this step we install OpenBLAS. You can choose to install ATLAS or MKL.
-```bash
-$ sudo apt-get install -y libopenblas-dev liblapack-dev
-```
-
-**Step 3** Install OpenCV.
-
-*MXNet* uses [OpenCV](http://opencv.org/) for efficient image loading and augmentation operations.
-```bash
-$ sudo apt-get install -y libopencv-dev
-```
-
-**Step 4** Download MXNet sources and build MXNet core shared library. You can clone the repository as described in the following code block, or you may try the <a href="download.html">download links</a> for your desired MXNet version.
+After you have setup R v3.4.4+ and MXNet, you can build and install the MXNet R bindings with the following, assuming that `incubator-mxnet` is the source directory you used to build MXNet as follows:
 
 ```bash
-$ git clone --recursive https://github.com/apache/incubator-mxnet
 $ cd incubator-mxnet
-$ make -j $(nproc) USE_OPENCV=1 USE_BLAS=openblas USE_CUDA=1 USE_CUDA_PATH=/usr/local/cuda USE_CUDNN=1
-```
-
-*Note* - USE_OPENCV, USE_BLAS, USE_CUDA, USE_CUDA_PATH AND USE_CUDNN are make file flags to set compilation options to use OpenCV, OpenBLAS, CUDA and cuDNN libraries. You can explore and use more compilation options in `make/config.mk`. Make sure to set USE_CUDA_PATH to right CUDA installation path. In most cases it is - */usr/local/cuda*.
-
-<br/>
-
-**Build and install the MXNet R binding**
-
-```bash
 $ make rpkg
-$ R CMD INSTALL mxnet_current_r.tar.gz
 ```
 
 </div> <!-- END of GPU -->
@@ -1070,6 +968,10 @@ $ R CMD INSTALL mxnet_current_r.tar.gz
 
 <div class="scala">
 <div class="gpu">
+
+You can use the Maven packages defined in the following `dependency` to include MXNet in your Scala project. Please refer to the <a href="scala_setup.html">MXNet-Scala setup guide</a> for a detailed set of instructions to help you with the setup process.
+
+<a href="https://mvnrepository.com/artifact/org.apache.mxnet/mxnet-full_2.11-linux-x86_64-gpu"><img src="https://img.shields.io/badge/org.apache.mxnet-linux gpu-green.svg" alt="maven badge"/></a>
 
 ```html
 <dependency>
@@ -1081,6 +983,10 @@ $ R CMD INSTALL mxnet_current_r.tar.gz
 </div> <!-- End of gpu -->
 
 <div class="cpu">
+
+You can use the Maven packages defined in the following `dependency` to include MXNet in your Scala project. Please refer to the <a href="scala_setup.html">MXNet-Scala setup guide</a> for a detailed set of instructions to help you with the setup process.
+
+<a href="https://mvnrepository.com/artifact/org.apache.mxnet/mxnet-full_2.11-linux-x86_64-cpu"><img src="https://img.shields.io/badge/org.apache.mxnet-linux cpu-green.svg" alt="maven badge"/></a>
 
 ```html
 <dependency>
@@ -1143,14 +1049,14 @@ $ pip install --upgrade pip
 $ pip install --upgrade setuptools
 ```
 
-<div class="v1-2-0">
+<div class="v1-2-1">
 
 Then use pip to install MXNet:
 
 ```bash
 $ pip install mxnet
 ```
-</div> <!-- End of v1-2-0 -->
+</div> <!-- End of v1-2-1 -->
 
 
 <div class="v1-1-0">
@@ -1272,7 +1178,7 @@ Installing *MXNet* with pip requires a latest version of `pip`. Install the late
 (mxnet)$ pip install --upgrade setuptools
 ```
 
-<div class="v1-2-0">
+<div class="v1-2-1">
 
 Install *MXNet* with OpenBLAS acceleration.
 
@@ -1280,7 +1186,7 @@ Install *MXNet* with OpenBLAS acceleration.
 (mxnet)$ pip install mxnet
 ```
 
-</div> <!-- End of v1-2-0-->
+</div> <!-- End of v1-2-1-->
 
 <div class="v1-1-0">
 
@@ -1508,7 +1414,8 @@ Alternatively, you may follow the [CUDA installation instructions for macOS](htt
 <div class="r">
 <div class="cpu">
 
-The CPU version of MXNet R package can be installed in R like other packages
+Install the latest version (3.5.1+) of R from [CRAN](https://cran.r-project.org/bin/macosx/).
+You can [build MXNet-R from source](osx_setup.html#install-the-mxnet-package-for-r), or you can use a pre-built binary:
 
 ```r
 cran <- getOption("repos")
@@ -1529,6 +1436,10 @@ Will be available soon.
 
 <div class="scala">
 <div class="cpu">
+
+You can use the Maven packages defined in the following `dependency` to include MXNet in your Scala project. Please refer to the <a href="scala_setup.html">MXNet-Scala setup guide</a> for a detailed set of instructions to help you with the setup process.
+
+<a href="https://mvnrepository.com/artifact/org.apache.mxnet/mxnet-full_2.11-osx-x86_64-cpu"><img src="https://img.shields.io/badge/org.apache.mxnet-mac cpu-green.svg" alt="maven badge"/></a>
 
 ```html
 <dependency>
@@ -1580,7 +1491,7 @@ Follow the installation instructions [in this guide](./osx_setup.md) to set up M
 
 [Anaconda](https://www.anaconda.com/download/) is recommended.
 
-<div class="v1-2-0">
+<div class="v1-2-1">
 
 **Step 2**  Install *MXNet*.
 
@@ -1588,7 +1499,7 @@ Follow the installation instructions [in this guide](./osx_setup.md) to set up M
 $ pip install mxnet
 ```
 
-</div> <!-- End of v1-2-0-->
+</div> <!-- End of v1-2-1-->
 
 <div class="v1-1-0">
 
@@ -1671,7 +1582,7 @@ Follow the installation instructions [in this guide](./windows_setup.md) to set 
 [Anaconda](https://www.anaconda.com/download/) is recommended.
 
 
-<div class="v1-2-0">
+<div class="v1-2-1">
 
 **Step 2**  Install *MXNet* with GPU support using CUDA 9.2.
 
@@ -1690,7 +1601,7 @@ $ pip install mxnet-cu92
 
 Refer to [pypi for older packages](https://pypi.org/project/mxnet/).
 
-</div> <!-- End of v1-2-0-->
+</div> <!-- End of v1-2-1-->
 
 <div class="v1-1-0">
 
@@ -1872,8 +1783,8 @@ Next, we install the ```graphviz``` library that we use for visualizing network 
 <div class="r">
 <div class="cpu">
 
-The CPU version of MXNet R package can be installed in R like other packages
-
+Install the latest version (3.5.1+) of R from [CRAN](https://cran.r-project.org/bin/windows/).
+You can [build MXNet-R from source](windows_setup.html#install-the-mxnet-package-for-r), or you can use a pre-built binary:
 
 ```r
 cran <- getOption("repos")
@@ -1886,8 +1797,7 @@ install.packages("mxnet")
 
 <div class="gpu">
 
-The GPU version of MXNet R package can be installed in R like other packages
-
+You can [build MXNet-R from source](windows_setup.html#install-the-mxnet-package-for-r), or you can use a pre-built binary:
 
 ```r
 cran <- getOption("repos")
@@ -1895,8 +1805,6 @@ cran["dmlc"] <- "https://apache-mxnet.s3-accelerate.dualstack.amazonaws.com/R/CR
 options(repos = cran)
 install.packages("mxnet")
 ```
-
-Alternatively, You can also follow the installation instructions [in this guide](./windows_setup.md) to build MXNet from source.
 
 </div> <!-- END of GPU -->
 </div> <!-- END - Windows R -->
@@ -2460,6 +2368,14 @@ b <- a * 2 + 1
 b
 ```
 
+You should see the following output:
+
+```r
+[,1] [,2] [,3]
+[1,]    3    3    3
+[2,]    3    3    3
+```
+
 </div>
 </div>
 </div>
@@ -2479,6 +2395,14 @@ b <- a * 2 + 1
 b
 ```
 
+You should see the following output:
+
+```r
+[,1] [,2] [,3]
+[1,]    3    3    3
+[2,]    3    3    3
+```
+
 </div>
 </div>
 </div>
@@ -2488,7 +2412,7 @@ b
 <div class="linux">
   <div class="scala">
     <div class="cpu gpu">
-      Refer to the <a href="scala_setup.html">MXNet-Scala setup guide</a>.
+      Run the <a href="https://github.com/apache/incubator-mxnet/tree/master/scala-package/mxnet-demo">MXNet-Scala demo project</a> to validate your Maven package installation.
     </div>
   </div>
 
@@ -2504,7 +2428,7 @@ Will be available soon.
 <div class="macos">
   <div class="scala">
     <div class="cpu gpu">
-      Refer to the <a href="scala_setup.html">MXNet-Scala setup guide</a>.
+      Run the <a href="https://github.com/apache/incubator-mxnet/tree/master/scala-package/mxnet-demo">MXNet-Scala demo project</a> to validate your Maven package installation.
     </div>
   </div>
   <div class="julia perl cpp">
