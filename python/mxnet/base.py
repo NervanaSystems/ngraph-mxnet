@@ -24,7 +24,6 @@ import atexit
 import ctypes
 import inspect
 import os
-import psutil
 import sys
 import warnings
 
@@ -186,7 +185,7 @@ def classproperty(func):
 def _load_lib():
     """Load library by searching possible path."""
     lib_path = libinfo.find_lib_path()
-    lib = ctypes.CDLL(lib_path[0], ctypes.RTLD_GLOBAL)
+    lib = ctypes.CDLL(lib_path[0], ctypes.RTLD_LOCAL)
     # DMatrix functions
     lib.MXGetLastError.restype = ctypes.c_char_p
     return lib
@@ -194,9 +193,6 @@ def _load_lib():
 
 # version number
 __version__ = libinfo.__version__
-
-_update_env_vars()
-
 # library instance of mxnet
 _LIB = _load_lib()
 
