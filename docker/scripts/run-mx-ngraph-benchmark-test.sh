@@ -56,7 +56,7 @@ run_benchmark_score() {
     PS2='prompt-more> '
     virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
     source "${venv_dir}/bin/activate"
-    cd python && pip install -e . && pip install psutil && pip install pytest && cd ../
+    cd python && pip install -e . && pip install psutil pytest scipy && cd ../
     xtime="$(date)"
     echo  ' '
     echo  "===== Running Ngraph Mxnet Daily Validation on CPU-Backend at ${xtime} ====="
