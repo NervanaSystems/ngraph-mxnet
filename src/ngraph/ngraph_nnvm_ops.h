@@ -27,10 +27,6 @@
 #include "ngraph_graph.h"
 
 namespace ngraph_bridge {
-// function for returning nnvm::Op corresponding to a subgraph
-nnvm::Op* get_subgraph_op(std::shared_ptr<Graph> graph);
-// function for registering subgraph operation with nnvm
-void register_subgraph(std::shared_ptr<Graph> graph);
 // function for computing forward on ngraph
 void compute_forward(const mxnet::OpContext& ctx, std::shared_ptr<Graph> graph,
                      const std::vector<mxnet::NDArray>& inputs,
@@ -49,16 +45,9 @@ struct NGraphParam {
   std::vector<std::string> inputs;
   std::vector<std::string> outputs;
   void Init(const nnvm::NodeAttrs& attrs) {}
-  // Clean up the graph when this param is deleted
-  // if we have 3 or fewer references left
-  // i.e., forward & backward computes and this param object
-  ~NGraphParam() {
-    if (g != nullptr && g.use_count() <= 3) {
-      g->CleanUp();
-    }
-  }
   std::shared_ptr<ngraph_bridge::Graph> g;
 };
+bool check_zero_grad(const std::shared_ptr<Graph>& graph);
 
 }  // namespace ngraph_bridge
 #endif  // MXNET_NGRAPH_NGRAPH_NNVM_OPS_H_

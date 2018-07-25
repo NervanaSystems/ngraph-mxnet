@@ -39,7 +39,7 @@ nnvm::NodePtr CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
   auto node = nnvm::Node::Create();
   node->attrs.name = subgraph->name_;
   // get the registered operation for the node
-  node->attrs.op = get_subgraph_op(subgraph);
+  node->attrs.op = nnvm::Op::Get("_ngraph_subgraph_op");
   // setup the inputs to the node
   for (auto input : subgraph->inputs_)
     if (input->type_ == NodeType::kOutput) {
@@ -228,7 +228,7 @@ void Compiler::CreateSubgraphNNVMNodes() {
       }
 
       // register compiled subgraph with nnvm
-      register_subgraph(sg);
+      // register_subgraph(sg);
 
       // add subgraph to stats tracker
       if (ngraph_log_timer()) {

@@ -436,7 +436,8 @@ inline void PushFComputeEx(const FComputeEx& fn,
       }
     };
 
-  if (exec_type == ExecType::kCrossDeviceCopy) {
+  if (exec_type == ExecType::kCrossDeviceCopy
+      || exec_type == ExecType::kSubgraphExec) {
     run(RunContext{ctx, nullptr});
   } else {
     CHECK(exec_type == ExecType::kSync);
@@ -963,13 +964,13 @@ inline void CreateEngineOpSeg(
     seg_execs.push_back(exec);
 
     auto& seg = (*opr_segs)[nid];
-    if (is_async) {
-      seg = EngineOprSeg{false, nid + 1};
-      seg.opr.reset(CreateEngineOp(default_ctx, seg_execs));
+    if (!valid) {
+      seg = EngineOprSeg{false, nid + 1, nullptr};
       seg_execs.clear();
       seg_start = nid + 1;
-    } else if (!valid) {
-      seg = EngineOprSeg{false, nid + 1, nullptr};
+    } else if (is_async) {
+      seg = EngineOprSeg{false, nid + 1};
+      seg.opr.reset(CreateEngineOp(default_ctx, seg_execs));
       seg_execs.clear();
       seg_start = nid + 1;
     }
