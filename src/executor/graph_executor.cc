@@ -37,6 +37,8 @@
 #if MXNET_USE_NGRAPH == 1
 #include "../ngraph/ngraph_compiler.h"
 #include "../ngraph/ngraph_utils.h"
+#include "../operator/subgraph/default_subgraph_op.h"
+#include "../ngraph/ngraph_subgraph.h"
 #endif
 
 namespace mxnet {
@@ -586,6 +588,10 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
       default_ctx);
   if (!multi_context && !grad_sparse) {
     g = compiler.Compile();
+    mxnet::op::SubgraphPropertyPtr property
+        = std::make_shared<ngraph_bridge::SgNgraphProperty>();
+    g.attrs["subgraph_property"] = std::make_shared<nnvm::any>(std::move(property));
+    g = ApplyPass(std::move(g), "PartitionGraph");
 
     // create "device" and "context" attrs for the graph
     Symbol sym;
@@ -1071,6 +1077,10 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
       default_ctx);
   if (!multi_context && !grad_sparse) {
     g = compiler.Compile();
+    mxnet::op::SubgraphPropertyPtr property
+        = std::make_shared<ngraph_bridge::SgNgraphProperty>();
+    g.attrs["subgraph_property"] = std::make_shared<nnvm::any>(std::move(property));
+    g = ApplyPass(std::move(g), "PartitionGraph");
 
     // modify shape / dtype with ngraph version
     arg_shape_map = compiler.GetNgraphShape();

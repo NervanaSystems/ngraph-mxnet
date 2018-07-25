@@ -39,6 +39,7 @@
 #include "../operator/tensor/matrix_op-inl.h"
 #include "../operator/tensor/init_op.h"
 #include "../operator/nn/mkldnn/mkldnn_base-inl.h"
+#include "../engine/engine_impl.h"
 
 #if MXNET_USE_OPENCV
 #include <opencv2/opencv.hpp>
@@ -107,9 +108,6 @@ struct ChunkMem {
 #if MXNET_USE_MKLDNN == 1
   std::shared_ptr<MKLDNNMemory> mem;
 #endif
-#if MXNET_USE_NGRAPH == 1
-    std::shared_ptr<ngraph::runtime::TensorView> *tensor_view_;
-#endif
 };
 
 NDArray::Chunk::~Chunk() {
@@ -121,10 +119,6 @@ NDArray::Chunk::~Chunk() {
   // We want to delete mkldnn memory after deleting the variable.
   mem.mem = this->mkl_mem_;
 #endif
-#if MXNET_USE_NGRAPH == 1
-  // invalidate tensor_view
-  mem.tensor_view_ = &this->tensor_view_;
-#endif
   Engine::Get()->DeleteVariable([mem, skip_free](RunContext s) {
     if (skip_free == false) {
 #if MXNET_USE_MKLDNN == 1
@@ -132,9 +126,6 @@ NDArray::Chunk::~Chunk() {
         CHECK_LE(mem.mem->GetSize(), mem.h.size);
         CHECK_EQ(mem.mem->GetDataHandle(), mem.h.dptr);
       }
-#endif
-#if MXNET_USE_NGRAPH == 1
-      *mem.tensor_view_ = nullptr;
 #endif
       if (mem.h.size > 0) Storage::Get()->Free(mem.h);
       for (size_t i = 0; i < mem.aux_h.size(); i++) {
@@ -2006,6 +1997,7 @@ void NDArray::SyncCheckFormat(const bool full_check) const {
           << "less than the size of first dimension and in ascending order";
   CHECK_EQ(err, kNormalErr) << "Check the validity of this sparse NDArray";
 }
+
 
 #if MXNET_PREDICT_ONLY == 0
 // register API function

@@ -180,11 +180,19 @@ void Emitter::CreateUnaryOps() {
     return (one / (one + std::make_shared<ngraph::op::Exp>(
                              -op_map_[node->inputs_[0]])));
   };
+  ngraph_op_funcs_["softsign"] = [this](const NodePtr& node) {
+    auto one = makeConstant(node, "1");
+    auto x = op_map_[node->inputs_[0]];
+    return x / (one + std::make_shared<ngraph::op::Abs>(x));
+  };
   ngraph_op_funcs_["softmax"] = [this](const NodePtr& node) {
     auto axis =
         get_default_transformed_axis(node, "axis", 1, node->shape_.ndim());
-    return std::make_shared<ngraph::op::Softmax>(op_map_[node->inputs_[0]],
-                                                 ngraph::AxisSet{axis});
+    auto temp = get_default(node, "temperature", std::string("1"));
+
+    return std::make_shared<ngraph::op::Softmax>(
+        op_map_[node->inputs_[0]] / makeConstant(node, temp),
+        ngraph::AxisSet{axis});
   };
   // };
   // ngraph_op_funcs_["log_softmax"] = [this](const NodePtr& node){

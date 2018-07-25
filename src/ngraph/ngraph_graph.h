@@ -204,7 +204,20 @@ class Graph : public Node {
         context_(context),
         enable_fprop_cache(enable_fprop_cache) {
     fprop_cache = std::make_shared<ngraph::FpropCache>();
-    is_reuse_mem = false;
+    is_reuse_mem = context.dev_type != mxnet::Context::kNNP;
+  }
+
+  ~Graph() {
+    // Clean up nGraph's compilation cache so we don't have a memory leak
+    auto backend = GetBackendFromContext(context_);
+    for (int i = 0; i < kGraphExeModeCount; ++i) {
+      if (ngraph_forward[i]) {
+        backend->remove_compiled_function(ngraph_forward[i]);
+      }
+      if (ngraph_backward[i]) {
+        backend->remove_compiled_function(ngraph_backward[i]);
+      }
+    }
   }
 
   std::string createNodeLabel() override {
@@ -213,26 +226,6 @@ class Graph : public Node {
            << " \n sg=" << subgraph_ << " index=" << multi_output_index_
            << "\", fillcolor = green, style = filled];";
     return stream.str();
-  }
-  // Delete the ngraph objects so we don't have a large memory leak
-  // when running multiple graphs back to back
-  void CleanUp() {
-    auto backend = GetBackendFromContext(context_);
-    for (int i = 0; i < kGraphExeModeCount; ++i) {
-      cached_values[i].clear();
-      cached_aux_values[i].clear();
-      cached_aux_positions[i].clear();
-      if (ngraph_forward[i])
-        backend->remove_compiled_function(ngraph_forward[i]);
-      if (ngraph_backward[i])
-        backend->remove_compiled_function(ngraph_backward[i]);
-      ngraph_forward[i] = nullptr;
-      ngraph_backward[i] = nullptr;
-    }
-    fprop_cache = nullptr;
-    inputs_.clear();
-    outputs_.clear();
-    output_elements_.clear();
   }
 
   // TODO(mbrookhart): We're carrying a map of NodeEntry to bridge nodes
