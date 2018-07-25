@@ -86,7 +86,7 @@ def test_mlp_mnist_cpu_backend():
     ngraphResults = processOutput(ngraphLog)
     
     lDir = None
-    if os.environ.has_key('TEST_MLP_MNIST_LOG_DIR'):
+    if (os.environ['TEST_MLP_MNIST_LOG_DIR'] != ""):
         lDir = os.path.abspath(os.environ['TEST_MLP_MNIST_LOG_DIR'])
         VT.writeLogToFile(ngraphLog,
                           os.path.join(lDir, 'test_mlp_mnist_cpu_ngraph.log'))
