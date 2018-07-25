@@ -142,7 +142,7 @@ def test_resnet_i1k_daily_validation():
     ## Need to update the refAccPercent from the paper.
     #tmp_refAccPercent = 3.4
 
-    if os.environ.has_key('TEST_RESNET_I1K_LOG_DIR'):
+    if (os.environ.get('TEST_RESNET_I1K_LOG_DIR') != ''):
         lDir = os.path.abspath(os.environ['TEST_RESNET_I1K_LOG_DIR'])
         VT.writeLogToFile(ngraphLog,
                           os.path.join(lDir, 'test_resnet_i1k_cpu_ngraph.log'))
