@@ -108,6 +108,10 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
   assert(graph->ngraph_forward[mode] != nullptr);
   append_cached_to_forward(&results, graph, mode);
+#if 0
+    std::cout << "compute_forward inputs " << inputs.size() << "outputs "
+              << outputs.size() << "results " << results.size() << std::endl;
+#endif
   backend->call(graph->ngraph_forward[mode], results, placeholders);
 
   result_to_NDArray(results, req, outputs, !graph->is_reuse_mem);
@@ -180,6 +184,10 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                       graph->cached_values[mode].end());
 
   CHECK(graph->ngraph_backward[mode]);
+#if 0
+    std::cout << "compute_backward inputs " << inputs.size() << "outputs "
+              << outputs.size() << "results " << results.size() << std::endl;
+#endif
   backend->call(graph->ngraph_backward[mode], results, placeholders);
   // reset the forward training compute flag to ensure backward always have
   // updated data from forward
