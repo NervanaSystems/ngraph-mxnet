@@ -596,7 +596,7 @@ def checkAccuracyResult(logFile):
                     data[field] = itemMap
                     for k, v in data[field].items():
                         print("INFO: Found {} in the itemMap {} {}".format(field, k, v))
-                    if data["accuracy_inference_result"].get("accuracy").strip() != "ok":
+                    if data["accuracy_inference_result"].get("accuracy").strip() == "ok":
                         accuracyResult = False
     # Check for missing information
     for field in patterns:
