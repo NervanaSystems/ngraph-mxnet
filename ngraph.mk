@@ -118,9 +118,6 @@ ngraph:
   endif
 
   # Set NGRAPH_LDFLAGS ...
-  # Note: The '$$$$' is to cause RPATH to be the actual string '$ORIGIN'.
-  # The double-escaping is needed because we have two layers of substitution happening:
-  # First GnuMake's ($$$$ --> $$) and then the shell's ($$ --> $).NGRAPH_LDFLAGS
   NGRAPH_LDFLAGS = \
     "-L$(MXNET_LIB_DIR)" \
     -Wl,-rpath='$${ORIGIN}'
