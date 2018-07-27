@@ -62,6 +62,7 @@ docker run --rm \
       --env MX_NG_KMP_BLOCKTIME="${MX_NG_KMP_BLOCKTIME}" \
       --env MX_NG_BATCH_SIZE="${MX_NG_BATCH_SIZE}" \
       --env MX_NG_KMP_AFFINITY="${MX_NG_KMP_AFFINITY}" \
+      --env MX_NG_DEEPMARK_TYPE="${MX_NG_DEEPMARK_TYPE}" \
       --env http_proxy=http://proxy-fm.intel.com:911 \
       --env https_proxy=http://proxy-fm.intel.com:912 \
       -v "${ngraph_mx_dir}:${docker_mx_dir}" \

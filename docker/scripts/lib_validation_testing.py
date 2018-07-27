@@ -337,7 +337,8 @@ def runInceptionV4Script(sourceDir=None,
                    ompNumThreads=None,
                    kmpAff=None,
                    kmpBlocktime=None,
-                   batchsize=None):            # Log line prefix
+                   batchsize=None,
+                   checkAccurary=None):            # Log line prefix
 
     print("DeepMark script being run with:")
     print("    script:         {}".format(str(script)))
@@ -347,8 +348,12 @@ def runInceptionV4Script(sourceDir=None,
     print("The Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
     process = subprocess.check_output(["which python"],shell=True)
     python_lib = process.decode('utf-8').split()[0]
-    cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network inception-v4 --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
-    print("The command for deepmark script is: {}".format(cmd))
+    if checkAccurary:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network inception-v4 --batch-size {} --accuracy-check".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference accuracy is: {}".format(cmd))
+    else:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network inception-v4 --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference performance is: {}".format(cmd))
     runLog = runCommand(command=cmd, logID=logID)
     return runLog
 
