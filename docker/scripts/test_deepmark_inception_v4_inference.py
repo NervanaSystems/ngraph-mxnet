@@ -102,7 +102,7 @@ def test_deepmark_inception_v4_cpu_backend():
     else:
         VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_inception_v4_accuracy_cpu_ngraph.log'))
         VT.checkScript(os.path.join(lDir, 'test_deepmark_inception_v4_accuracy_cpu_ngraph.log'))
-        assert VT.checkAccuracyResult(os.path.join(lDir, 'test_deepmark_inception_v4_accuracy_cpu_ngraph.log')) == True
+        #assert VT.checkAccuracyResult(os.path.join(lDir, 'test_deepmark_inception_v4_accuracy_cpu_ngraph.log')) == True
 
         print("----- Deepmark INCEPTION V4 Inference Perfomance Testing Summary ------")
 
@@ -126,6 +126,11 @@ def test_deepmark_inception_v4_cpu_backend():
     logOut.line("Batch size:       {} (fixed)".format(batchsize))
     logOut.line("OMP_NUM_THREADS:       {} (fixed)".format(ompNumThreads))
     logOut.line("KMP_AFFINITY:       {} (fixed)".format(kmpAff))
+
+    if checkAccurary:
+        return VT.checkAccuracyResult(os.path.join(lDir, 'test_deepmark_inception_v4_accuracy_cpu_ngraph.log'))
+    else:
+        return True
 
 # End: test_deepmark_inception_v4_cpu_backend()
 
