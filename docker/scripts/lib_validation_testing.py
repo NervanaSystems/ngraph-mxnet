@@ -366,7 +366,8 @@ def runResnet50DeepMarkScript(sourceDir=None,
                    ompNumThreads=None,
                    kmpAff=None,
                    kmpBlocktime=None,
-                   batchsize=None):            # Log line prefix
+                   batchsize=None,
+                   checkAccurary=None):            # Log line prefix
 
     print("DeepMark script being run with:")
     print("    script:         {}".format(str(script)))
@@ -376,8 +377,12 @@ def runResnet50DeepMarkScript(sourceDir=None,
     print("The Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
     process = subprocess.check_output(["which python"],shell=True)
     python_lib = process.decode('utf-8').split()[0]
-    cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network resnet-50 --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
-    print("The command for deepmark script is: {}".format(cmd))
+    if checkAccurary:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network resnet-50 --batch-size {} --accuracy-check".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference accuracy is: {}".format(cmd))
+    else:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network resnet-50 --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference performance is: {}".format(cmd))
     runLog = runCommand(command=cmd, logID=logID)
     return runLog
 
@@ -389,7 +394,8 @@ def runA3CDeepMarkScript(sourceDir=None,
                    ompNumThreads=None,
                    kmpAff=None,
                    kmpBlocktime=None,
-                   batchsize=None):            # Log line prefix
+                   batchsize=None,
+                   checkAccurary=None):            # Log line prefix
 
     print("DeepMark script being run with:")
     print("    script:         {}".format(str(script)))
@@ -399,8 +405,12 @@ def runA3CDeepMarkScript(sourceDir=None,
     print("The Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
     process = subprocess.check_output(["which python"],shell=True)
     python_lib = process.decode('utf-8').split()[0]
-    cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network a3c --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
-    print("The command for deepmark script is: {}".format(cmd))
+    if checkAccurary:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network a3c --batch-size {} --accuracy-check".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference accuracy is: {}".format(cmd))
+    else:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network a3c --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference performance is: {}".format(cmd))
     runLog = runCommand(command=cmd, logID=logID)
     return runLog
 
@@ -412,7 +422,8 @@ def runWideDeepDeepMarkScript(sourceDir=None,
                    ompNumThreads=None,
                    kmpAff=None,
                    kmpBlocktime=None,
-                   batchsize=None):            # Log line prefix
+                   batchsize=None,
+                   checkAccurary=None):            # Log line prefix
 
     print("DeepMark script being run with:")
     print("    script:         {}".format(str(script)))
@@ -422,8 +433,12 @@ def runWideDeepDeepMarkScript(sourceDir=None,
     print("The Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
     process = subprocess.check_output(["which python"],shell=True)
     python_lib = process.decode('utf-8').split()[0]
-    cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network wide-deep --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
-    print("The command for deepmark script is: {}".format(cmd))
+    if checkAccurary:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network wide-deep --batch-size {} --accuracy-check".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference accuracy is: {}".format(cmd))
+    else:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network wide-deep --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference performance is: {}".format(cmd))
     runLog = runCommand(command=cmd, logID=logID)
     return runLog
 
@@ -435,7 +450,8 @@ def runMobilenetDeepMarkScript(sourceDir=None,
                    ompNumThreads=None,
                    kmpAff=None,
                    kmpBlocktime=None,
-                   batchsize=None):            # Log line prefix
+                   batchsize=None,
+                   checkAccurary=None):            # Log line prefix
 
     print("DeepMark script being run with:")
     print("    script:         {}".format(str(script)))
@@ -445,8 +461,12 @@ def runMobilenetDeepMarkScript(sourceDir=None,
     print("The Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
     process = subprocess.check_output(["which python"],shell=True)
     python_lib = process.decode('utf-8').split()[0]
-    cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network mobilenet --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
-    print("The command for deepmark script is: {}".format(cmd))
+    if checkAccurary:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network mobilenet --batch-size {} --accuracy-check".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference accuracy is: {}".format(cmd))
+    else:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network mobilenet --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference performance is: {}".format(cmd))
     runLog = runCommand(command=cmd, logID=logID)
     return runLog
 
@@ -458,7 +478,8 @@ def runDensenet121DeepMarkScript(sourceDir=None,
                    ompNumThreads=None,
                    kmpAff=None,
                    kmpBlocktime=None,
-                   batchsize=None):            # Log line prefix
+                   batchsize=None,
+                   checkAccurary=None):            # Log line prefix
 
     print("DeepMark script being run with:")
     print("    script:         {}".format(str(script)))
@@ -468,8 +489,12 @@ def runDensenet121DeepMarkScript(sourceDir=None,
     print("The Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
     process = subprocess.check_output(["which python"],shell=True)
     python_lib = process.decode('utf-8').split()[0]
-    cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network densenet121 --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
-    print("The command for deepmark script is: {}".format(cmd))
+    if checkAccurary:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network densenet121 --batch-size {} --accuracy-check".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference accuracy is: {}".format(cmd))
+    else:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network densenet121 --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference performance is: {}".format(cmd))
     runLog = runCommand(command=cmd, logID=logID)
     return runLog
 
@@ -481,7 +506,8 @@ def runFasterRCNNDeepMarkScript(sourceDir=None,
                    ompNumThreads=None,
                    kmpAff=None,
                    kmpBlocktime=None,
-                   batchsize=None):            # Log line prefix
+                   batchsize=None,
+                   checkAccurary=None):            # Log line prefix
 
     print("DeepMark script being run with:")
     print("    script:         {}".format(str(script)))
@@ -491,8 +517,12 @@ def runFasterRCNNDeepMarkScript(sourceDir=None,
     print("The Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
     process = subprocess.check_output(["which python"],shell=True)
     python_lib = process.decode('utf-8').split()[0]
-    cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network Faster-RCNN --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
-    print("The command for deepmark script is: {}".format(cmd))
+    if checkAccurary:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network Faster-RCNN --batch-size {} --accuracy-check".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference accuracy is: {}".format(cmd))
+    else: 
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network Faster-RCNN --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference performance is: {}".format(cmd))
     runLog = runCommand(command=cmd, logID=logID)
     return runLog
 
@@ -504,7 +534,8 @@ def runSqueezenetDeepMarkScript(sourceDir=None,
                    ompNumThreads=None,
                    kmpAff=None,
                    kmpBlocktime=None,
-                   batchsize=None):            # Log line prefix
+                   batchsize=None,
+                   checkAccurary=None):            # Log line prefix
 
     print("DeepMark script being run with:")
     print("    script:         {}".format(str(script)))
@@ -514,8 +545,12 @@ def runSqueezenetDeepMarkScript(sourceDir=None,
     print("The Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
     process = subprocess.check_output(["which python"],shell=True)
     python_lib = process.decode('utf-8').split()[0]
-    cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network squeezenet1.1 --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
-    print("The command for deepmark script is: {}".format(cmd))
+    if checkAccurary:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network squeezenet1.1 --batch-size {} --accuracy-check".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference accuracy is: {}".format(cmd))
+    else:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network squeezenet1.1 --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference performance is: {}".format(cmd))
     runLog = runCommand(command=cmd, logID=logID)
     return runLog
 
@@ -527,7 +562,8 @@ def runDCGANDeepMarkScript(sourceDir=None,
                    ompNumThreads=None,
                    kmpAff=None,
                    kmpBlocktime=None,
-                   batchsize=None):            # Log line prefix
+                   batchsize=None,
+                   checkAccurary=None):            # Log line prefix
 
     print("DeepMark script being run with:")
     print("    script:         {}".format(str(script)))
@@ -537,8 +573,12 @@ def runDCGANDeepMarkScript(sourceDir=None,
     print("The Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
     process = subprocess.check_output(["which python"],shell=True)
     python_lib = process.decode('utf-8').split()[0]
-    cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} MXNET_NGRAPH_GLUON=1 {} {} --network DCGAN-G --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
-    print("The command for deepmark script is: {}".format(cmd))
+    if checkAccurary:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} MXNET_NGRAPH_GLUON=1 {} {} --network DCGAN-G --batch-size {} --accuracy-check".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference accuracy is: {}".format(cmd))
+    else:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} MXNET_NGRAPH_GLUON=1 {} {} --network DCGAN-G --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference performance is: {}".format(cmd))
     runLog = runCommand(command=cmd, logID=logID)
     return runLog
 
@@ -550,7 +590,8 @@ def runSockeyeTransformerDeepMarkScript(sourceDir=None,
                    ompNumThreads=None,
                    kmpAff=None,
                    kmpBlocktime=None,
-                   batchsize=None):            # Log line prefix
+                   batchsize=None,
+                   checkAccurary=None):            # Log line prefix
 
     print("DeepMark script being run with:")
     print("    script:         {}".format(str(script)))
@@ -560,8 +601,12 @@ def runSockeyeTransformerDeepMarkScript(sourceDir=None,
     print("The Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
     process = subprocess.check_output(["which python"],shell=True)
     python_lib = process.decode('utf-8').split()[0]
-    cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network sockeye-transformer --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
-    print("The command for deepmark script is: {}".format(cmd))
+    if checkAccurary:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network sockeye-transformer --batch-size {} --accuracy-check".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference accuracy is: {}".format(cmd))
+    else:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network sockeye-transformer --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference performance is: {}".format(cmd))
     runLog = runCommand(command=cmd, logID=logID)
     return runLog
 
@@ -594,9 +639,7 @@ def checkAccuracyResult(logFile):
                     itemMap = {}
                     itemMap = is_match.groupdict()
                     data[field] = itemMap
-                    for k, v in data[field].items():
-                        print("INFO: Found {} in the itemMap {} {}".format(field, k, v))
-                    if data["accuracy_inference_result"].get("accuracy").strip() == "ok":
+                    if data["accuracy_inference_result"].get("accuracy").strip() != "ok":
                         accuracyResult = False
     # Check for missing information
     for field in patterns:

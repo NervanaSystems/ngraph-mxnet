@@ -98,13 +98,12 @@ def test_deepmark_inception_v4_cpu_backend():
     if (not checkAccurary):
         VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_inception_v4_cpu_ngraph.log'))
         VT.checkScript(os.path.join(lDir, 'test_deepmark_inception_v4_cpu_ngraph.log'))
-        print("----- Deepmark INCEPTION V4 Inference Accuracy Testing Summary ------")
+        print("----- Deepmark INCEPTION V4 Inference Perfomance Testing Summary ------")
     else:
         VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_inception_v4_accuracy_cpu_ngraph.log'))
         VT.checkScript(os.path.join(lDir, 'test_deepmark_inception_v4_accuracy_cpu_ngraph.log'))
         assert VT.checkAccuracyResult(os.path.join(lDir, 'test_deepmark_inception_v4_accuracy_cpu_ngraph.log')) == True
-
-        print("----- Deepmark INCEPTION V4 Inference Perfomance Testing Summary ------")
+        print("----- Deepmark INCEPTION V4 Inference Accuracy Testing Summary ------")
 
     #writeJenkinsDescription(ngraphLog, os.path.join(lDir, 'test_deepmark_inception_v4_jenkins_oneline.log'))
 
