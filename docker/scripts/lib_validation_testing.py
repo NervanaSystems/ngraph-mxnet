@@ -572,6 +572,7 @@ def runSockeyeTransformerDeepMarkScript(sourceDir=None,
 # =========================================
 def checkAccuracyResult(logFile):
     retCode = None
+    data = {}
     accuracyResult = True
     fIn = open(logFile, 'r')
     lines = fIn.readlines()
@@ -591,7 +592,6 @@ def checkAccuracyResult(logFile):
             else:
                 if is_match:
                     itemMap = {}
-                    data = { }
                     itemMap = is_match.groupdict()
                     data[field] = itemMap
                     for k, v in data[field].items():
