@@ -591,6 +591,7 @@ def checkAccuracyResult(logFile):
             else:
                 if is_match:
                     itemMap = {}
+                    data = { }
                     itemMap = is_match.groupdict()
                     data[field] = itemMap
                     for k, v in data[field].items():
