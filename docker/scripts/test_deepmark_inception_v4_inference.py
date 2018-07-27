@@ -95,13 +95,15 @@ def test_deepmark_inception_v4_cpu_backend():
     lDir = None
 
     lDir = os.path.abspath(os.environ['TEST_DEEPMARK_LOG_DIR'])
-    if (checkAccurary):
+    if (not checkAccurary):
         VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_inception_v4_cpu_ngraph.log'))
         VT.checkScript(os.path.join(lDir, 'test_deepmark_inception_v4_cpu_ngraph.log'))
         print("----- Deepmark INCEPTION V4 Inference Accuracy Testing Summary ------")
     else:
         VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_inception_v4_accuracy_cpu_ngraph.log'))
         VT.checkScript(os.path.join(lDir, 'test_deepmark_inception_v4_accuracy_cpu_ngraph.log'))
+        assert (VT.checkAccuracyResult(os.path.join(lDir, 'test_deepmark_inception_v4_accuracy_cpu_ngraph.log')))
+
         print("----- Deepmark INCEPTION V4 Inference Perfomance Testing Summary ------")
 
     #writeJenkinsDescription(ngraphLog, os.path.join(lDir, 'test_deepmark_inception_v4_jenkins_oneline.log'))
@@ -126,9 +128,6 @@ def test_deepmark_inception_v4_cpu_backend():
     logOut.line("KMP_AFFINITY:       {} (fixed)".format(kmpAff))
 
 # End: test_deepmark_inception_v4_cpu_backend()
-
-
-# Returns array of captured stdout/stderr lines, for post-processing
 
 
 # Returns dictionary with results extracted from the run:

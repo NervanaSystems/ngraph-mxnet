@@ -567,6 +567,46 @@ def runSockeyeTransformerDeepMarkScript(sourceDir=None,
 
 # End: def runSockeyeTransformerDeepMarkScript()
 
+# ===== checkAccuracyResult ========== 
+# Return: True/False. 
+# =========================================
+def checkAccuracyResult(logFile):
+    retCode = None
+    accuracyResult = True
+    fIn = open(logFile, 'r')
+    lines = fIn.readlines()
+    fIn.close()
+    ## Define pattern:
+    patterns = {'command':     "Command\s+is\:(.*)$",
+        'accuracy_inference_result': "^.*network:.*?(?P<network>.+[^,\s]).*?type:.*?(?P<type>\S+[^,\s]).*?\s+batch_size:.*?(?P<batch_size>\d+).*?accuracy:.*?(?P<accuracy>\S+)"
+    }
+    for line in lines:
+        for field in patterns:
+            is_match = re.match(patterns[field], line)
+            if field == "command":
+                if is_match and is_match.groups():
+                    value = str(is_match.group(1))
+                    data[field] = value
+                    print("INFO: Found {} {}".format(field, value))
+            else:
+                if is_match:
+                    itemMap = {}
+                    itemMap = is_match.groupdict()
+                    data[field] = itemMap
+                    for k, v in data[field].items():
+                        print("INFO: Found {} in the itemMap {} {}".format(field, k, v))
+                    if data["accuracy_inference_result"].get("accuracy").strip() != "ok":
+                        accuracyResult = False
+    # Check for missing information
+    for field in patterns:
+        if data[field] == None:
+            print("ERROR: checkAccuracyResult() could not find {} in log output".format(field))
+            assert retCode == 0  # Trigger a formal assertion
+
+    return accuracyResult
+
+#End: def checkAccuracyResult()
+
 
 def runCommand(command=None,  # Script to run
                logID=""):     # Log line prefix
