@@ -87,7 +87,8 @@ def test_deepmark_Faster_RCNN_cpu_backend():
                                 ompNumThreads=ompNumThreads,
                                 kmpAff=kmpAff,
                                 kmpBlocktime=kmpBlocktime,
-                                batchsize=batchsize)
+                                batchsize=batchsize,
+                                checkAccurary=checkAccurary)
     ngraphResults = processOutput(ngraphLog)
     
     lDir = None
