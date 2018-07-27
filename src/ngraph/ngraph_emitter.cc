@@ -30,6 +30,7 @@
 #include "ngraph_sgcompiler_utils.h"
 #include "ops/batchnorm.h"
 #include "ops/deconvolution.h"
+#include "ops/pooling.h"
 #include "ops/slice.h"
 
 namespace ngraph_bridge {
@@ -832,41 +833,6 @@ void Emitter::CreateBinaryOps() {
   };
 }
 
-struct PoolingParams {
-  PoolingParams(const NodePtr& node, const NgraphNodePtr& input) {
-    pooling_convention =
-        get_default(node, "pooling_convention", std::string("valid"));
-    global_pool = get_default(node, "global_pool", false);
-
-    auto input_shape = input->get_shape();
-    // first two tensor axes are batch and channel, rest are image channels
-    // get the number of image channels for pooling
-    auto pool_dim = input_shape.size() - 2;
-    auto default_ones = std::vector<size_t>(pool_dim, 1);
-    auto default_zeros = std::vector<size_t>(pool_dim, 0);
-
-    kernel = get_default(node, "kernel", default_ones);
-    stride = get_default(node, "stride", default_ones);
-    pad = get_default(node, "pad", default_zeros);
-
-    // if global pooling is true, reset the pooling kernel to the
-    // input image size
-    if (global_pool) {
-      kernel = std::vector<size_t>();
-      // get all of the image dimensions for kernel
-      for (size_t i = 2; i < input_shape.size(); ++i) {
-        kernel.push_back(input_shape[i]);
-      }
-    }
-  }
-
-  std::string pooling_convention;
-  bool global_pool;
-  std::vector<size_t> kernel;
-  std::vector<size_t> stride;
-  std::vector<size_t> pad;
-};
-
 // MXNet high level ops generating function
 void Emitter::CreateLayerOps() {
   // In mxnet, split takes a tensor and creates multiple tensors from
@@ -1340,79 +1306,11 @@ void Emitter::CreateLayerOps() {
     }
     return conv;
   };
-  ngraph_op_funcs_["Pooling"] = [this](const NodePtr& node) -> NgraphNodePtr {
-    NgraphNodePtr op;
-    std::string type = get_default(node, "pool_type", std::string("max"));
-    if (type == "max") {
-      op = ngraph_op_funcs_["max_pooling"](node);
-    } else if (type == "avg") {
-      op = ngraph_op_funcs_["avg_pooling"](node);
-    } else if (type == "sum") {
-      op = ngraph_op_funcs_["sum_pooling"](node);
-    }
-    return op;
+
+  ngraph_op_funcs_["Pooling"] = [this](const NodePtr& node) {
+    return create_pooling(node, op_map_[node->inputs_[0]]);
   };
 
-  auto asymetric_padding = [](ngraph::Shape input_shape, PoolingParams params) {
-    auto top_pad = params.pad;
-    if (params.pooling_convention == "full") {
-      for (size_t i = 2; i < input_shape.size(); ++i) {
-        size_t padded_dim = input_shape[i] + 2 * top_pad[i - 2];
-        size_t stride = params.stride[i - 2];
-        // calculate extra padding
-        auto num_strides = static_cast<size_t>(
-            ceil(static_cast<float>(padded_dim - params.kernel[i - 2]) /
-                 static_cast<float>(stride)));
-        size_t extra_pad =
-            num_strides * stride + params.kernel[i - 2] - padded_dim;
-        top_pad[i - 2] += extra_pad;
-      }
-    }
-    return top_pad;
-  };
-
-  ngraph_op_funcs_["max_pooling"] = [this,
-                                     &asymetric_padding](const NodePtr& node) {
-    auto input = op_map_[node->inputs_[0]];
-    auto params = PoolingParams(node, input);
-
-    return std::make_shared<ngraph::op::MaxPool>(
-        input, params.kernel, params.stride, params.pad,
-        asymetric_padding(input->get_shape(), params));
-  };
-  ngraph_op_funcs_["avg_pooling"] = [this,
-                                     &asymetric_padding](const NodePtr& node) {
-    auto input = op_map_[node->inputs_[0]];
-    auto params = PoolingParams(node, input);
-
-    return std::make_shared<ngraph::op::AvgPool>(
-        input, params.kernel, params.stride, params.pad,
-        asymetric_padding(input->get_shape(), params), true);
-  };
-  ngraph_op_funcs_["sum_pooling"] = [this,
-                                     &asymetric_padding](const NodePtr& node) {
-    auto input = op_map_[node->inputs_[0]];
-    auto params = PoolingParams(node, input);
-
-    // Compute the sum-pool by first computing the avg-pool, and then
-    // element-wise multiply (the resulting vector by each element of the
-    // resulting tensor) with (the number of elements in the pooling window).
-    // We do this because nGraph++ doesn't directly support sum-pooling.
-
-    const size_t num_window_elements = ngraph::shape_size(params.kernel);
-
-    const auto avg_pool_op = std::make_shared<ngraph::op::AvgPool>(
-        input, params.kernel, params.stride, params.pad,
-        asymetric_padding(input->get_shape(), params), true);
-
-    const auto coeff_op = ngraph_bridge::makeConstant(
-        avg_pool_op->get_element_type(), avg_pool_op->get_shape(),
-        std::to_string(num_window_elements));
-
-    auto mul_op = std::make_shared<ngraph::op::Multiply>(avg_pool_op, coeff_op);
-
-    return mul_op;
-  };
   ngraph_op_funcs_["SequenceReverse"] =
       [this](const NodePtr& node) -> NgraphNodePtr {
     auto data = op_map_[node->inputs_[0]];
