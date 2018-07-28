@@ -83,6 +83,7 @@ class Node {
   nnvm::TShape shape_;
   int dtype_ = 0;
   int stype_ = 0;
+  mxnet::Context ctx_;
 
   // information to store graph parsing in
   size_t multi_output_index_ = 0;
@@ -156,28 +157,24 @@ extern std::unordered_map<std::string,
                           std::shared_ptr<ngraph::runtime::Backend>>
     backends;
 
-//inline std::string get_backend_name(const mxnet::Context &context) {
-//  if (context.dev_type == mxnet::Context::NNP().dev_type) {
-//    return "NNP";
-//#if MXNET_USE_CUDA
-//  } else if (context.dev_type == mxnet::Context::GPU().dev_type) {
-//    return "GPU";
-//#endif
-//  } else if (context.dev_type == mxnet::Context::CPU().dev_type) {
-//#ifdef MXNET_USE_NGRAPH_IE
-//    return "IE";
-//#else
-//    return "CPU";
-//#endif
-//  } else {
-//    return "INTERPRETER";
-//  }
-//}
+inline std::string get_backend_name(const mxnet::Context &context) {
+#if MXNET_USE_CUDA
+  if (context.dev_type == mxnet::Context::kGPU) {
+    return "GPU";
+  }
+#endif
+  // user specified ngraph backend
+  if (context.dev_type == mxnet::Context::kNGraph) {
+    return context.dev_subtype;
+  }
+  // "CPU" is fallback backend
+  return "CPU";
+}
 
 inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
     const mxnet::Context &context) {
-  auto backend_name = get_backend_name(context);
-  auto backend_key = backend_name + ":" + std::to_string(context.dev_id);
+  auto backend_key =
+      get_backend_name(context) + ":" + std::to_string(context.dev_id);
   if (backends.count(backend_key) == 0) {
     auto backend = ngraph::runtime::Backend::create(backend_key);
     backends[backend_key] = backend;

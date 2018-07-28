@@ -459,6 +459,9 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 }
 
 bool bad_type(const NodePtr& node) {
+  if (!ngraph_context_fallback() &&
+      node->ctx_.dev_type != mxnet::Context::kNGraph)
+    return true;
   return node->dtype_ == mshadow::kFloat16 ||
          node->dtype_ == mshadow::kFloat64 ||
          node->stype_ != mxnet::kDefaultStorage;
@@ -570,12 +573,14 @@ void Compiler::ParseNnvmGraph() {
   const auto inferred_dtypes = graph_.GetAttr<std::vector<int>>("dtype");
   const auto& inferred_stypes =
       graph_.GetAttr<mxnet::StorageTypeVector>("storage_type");
+  const auto& vctx = graph_.GetAttr<std::vector<Context>>("context");
   for (auto node : this->ngraph_.nodes_) {
     const uint32_t nid = idx.node_id(node->orig_node_.get());
     const uint32_t eid = idx.entry_id(nid, node->multi_output_index_);
     node->shape_ = inferred_shapes[eid];
     node->dtype_ = inferred_dtypes[eid];
     node->stype_ = inferred_stypes[eid];
+    node->ctx_ = vctx[eid];
   }
 }
 

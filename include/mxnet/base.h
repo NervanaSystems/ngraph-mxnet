@@ -34,7 +34,6 @@
 #include <nnvm/op.h>
 #include <nnvm/tuple.h>
 #include <nnvm/symbolic.h>
-#include <algorithm>
 #include <string>
 
 /*!
@@ -177,7 +176,7 @@ struct Context {
    * \return whether dev mask and id are same
    */
   inline bool operator==(const Context &b) const {
-    return dev_type == b.dev_type  && dev_subtype == b.dev_subtype && dev_id == b.dev_id;
+    return dev_type == b.dev_type && dev_id == b.dev_id;
   }
   /*!
    * \brief check if current context not equals another one
@@ -246,7 +245,7 @@ struct Context {
    * \param dev_id the device id for corresponding nGraph instance.
    * \return nGraph context.
    */
-  inline static Context nGraph(const std::string & nGraph_backend_name, int32_t dev_id = 0);
+  inline static Context nGraph(const std::string nGraph_backend_name="CPU", int32_t dev_id = 0);
   /*!
    * Create a CPU shared memory context.
    * \param dev_id dummy device id.
@@ -292,27 +291,11 @@ struct RunContext {
 namespace mxnet {
 // implementing Context
 inline bool Context::operator<(const Context &b) const {
-  if (dev_type < b.dev_type) {
-    return true;
+  if (dev_type == b.dev_type) {
+    return dev_id < b.dev_id;
+  } else {
+    return dev_type < b.dev_type;
   }
-  else if (dev_type > b.dev_type) {
-    return false;
-  }
-
-  if (std::lexical_compare(dev_subtype, b.dev_subtype)) {
-    return true;
-  }
-  else if (std::lexical_compare(b.dev_subtype, dev_subtype)) {
-    return false;
-  }
-
-  if (dev_id < b.dev_id) {
-    return true;
-  }
-  else if (dev_id > b.dev_id) {
-    return false;
-  }
-
 }
 inline Context Context::Create(DeviceType dev_type, int32_t dev_id,
       const std::string dev_subtype) {
@@ -364,7 +347,7 @@ inline int32_t Context::GetGPUCount() {
 }
 
 #if MXNET_USE_NGRAPH
-inline Context Context::nGraph(const std::string & nGraph_backend_name, int32_t dev_id) {
+inline Context Context::nGraph(const std::string nGraph_backend_name, int32_t dev_id) {
   // FIXME: Decide role of dev_id.  Does nGraph support multiple back-ends instances  in a single
   // process space?
   return Create(kNGraph, dev_id, nGraph_backend_name);
