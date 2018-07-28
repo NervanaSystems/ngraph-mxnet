@@ -161,7 +161,7 @@ struct Context {
    * \brief Returns dev_id for kGPU, 0 otherwise
    */
   inline int real_dev_id() const {
-    if (dev_type == kGPU) return dev_id;
+    if (dev_type == kGPU || dev_type == kNGraph) return dev_id;
     return 0;
   }
   /*!
@@ -194,7 +194,6 @@ struct Context {
     strm->Write(&dev_type, sizeof(dev_type));
     strm->Write(&dev_id, sizeof(dev_id));
 
-    //strm->Write(dev_subtype.c_str(), dev_subtype.size()+1);
     strm->Write(dev_subtype);
   }
   /*!
@@ -348,8 +347,6 @@ inline int32_t Context::GetGPUCount() {
 
 #if MXNET_USE_NGRAPH
 inline Context Context::nGraph(const std::string nGraph_backend_name, int32_t dev_id) {
-  // FIXME: Decide role of dev_id.  Does nGraph support multiple back-ends instances  in a single
-  // process space?
   return Create(kNGraph, dev_id, nGraph_backend_name);
 }
 #endif // MXNET_USE_NGRAPH
