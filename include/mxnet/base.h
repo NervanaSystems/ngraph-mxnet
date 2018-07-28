@@ -146,7 +146,7 @@ struct Context {
   /*! \brief device id we are going to run it on */
   int32_t dev_id;
   /*! \brief String providing additional detail required for some device types. */
-  std::string dev_subtype;
+  std::array<char, 20> dev_subtype;
   /*! \brief default constructor */
   Context() : dev_type(kCPU), dev_id(0) {}
   /*!
@@ -193,8 +193,7 @@ struct Context {
   inline void Save(dmlc::Stream *strm) const {
     strm->Write(&dev_type, sizeof(dev_type));
     strm->Write(&dev_id, sizeof(dev_id));
-
-    strm->Write(dev_subtype);
+    if (dev_type == kNGraph) strm->Write(dev_subtype.data(), dev_subtype.size());
   }
   /*!
    * \brief load the content from binary stream
@@ -204,7 +203,7 @@ struct Context {
   inline bool Load(dmlc::Stream *strm) {
     if (strm->Read(&dev_type, sizeof(dev_type)) != sizeof(dev_type)) return false;
     if (strm->Read(&dev_id, sizeof(int32_t)) != sizeof(int32_t)) return false;
-    strm->Read(&dev_subtype);
+    if (dev_type == kNGraph) strm->Read(dev_subtype.data(), dev_subtype.size());
     return true;
   }
   /*! \brief the maximal device type */
@@ -240,11 +239,11 @@ struct Context {
    */
   inline static Context CPUPinned(int32_t dev_id = -1);
   /*!
-   * Create an nGraph context.
-   * \param dev_id the device id for corresponding nGraph instance.
-   * \return nGraph context.
+   * Create an NGraph context.
+   * \param dev_id the device id for corresponding NGraph instance.
+   * \return NGraph context.
    */
-  inline static Context nGraph(const std::string nGraph_backend_name="CPU", int32_t dev_id = 0);
+  inline static Context NGraph(const std::string nGraph_backend_name="CPU", int32_t dev_id = 0);
   /*!
    * Create a CPU shared memory context.
    * \param dev_id dummy device id.
@@ -300,7 +299,7 @@ inline Context Context::Create(DeviceType dev_type, int32_t dev_id,
       const std::string dev_subtype) {
   Context ctx;
   ctx.dev_type = dev_type;
-  ctx.dev_subtype = dev_subtype;
+  strcpy(ctx.dev_subtype.data(), dev_subtype.c_str());
   if (dev_id < 0) {
     ctx.dev_id = 0;
     if (dev_type & kGPU) {
@@ -346,7 +345,7 @@ inline int32_t Context::GetGPUCount() {
 }
 
 #if MXNET_USE_NGRAPH
-inline Context Context::nGraph(const std::string nGraph_backend_name, int32_t dev_id) {
+inline Context Context::NGraph(const std::string nGraph_backend_name, int32_t dev_id) {
   return Create(kNGraph, dev_id, nGraph_backend_name);
 }
 #endif // MXNET_USE_NGRAPH
@@ -357,7 +356,7 @@ inline Context Context::FromString(const std::string& str) {
     const std::string::size_type l = str.find('(');
     CHECK_NE(l, std::string::npos);
     const std::string::size_type r = str.find(')');
-    CHECK_EQ(r, str.length()-1);
+    CHECK_EQ(r, str.length()-2);
 
     const std::string type = str.substr(0, l);
     int id = std::stoi(str.substr(l+1, r-l-1));
@@ -370,7 +369,7 @@ inline Context Context::FromString(const std::string& str) {
 #if MXNET_USE_NGRAPH
     } else if (type.find("ngraph:") == 0) {
       const std::string nGraph_backend_name = str.substr(type.find(7), l);
-      ret = nGraph(nGraph_backend_name, id);
+      ret = NGraph(nGraph_backend_name, id);
 #endif // MXNET_USE_NGRAPH
     } else if (type == "cpu_shared") {
       ret = CPUShared(id);
@@ -392,7 +391,9 @@ inline std::ostream& operator<<(std::ostream &out, const Context &ctx) {
     out << "cpu_pinned(";
 #if MXNET_USE_NGRAPH
   } else if (ctx.dev_type == Context::kNGraph) {
-    out << "nGraph:" << ctx.dev_subtype << "(";
+    out << "ngraph:";
+    for (auto &c: ctx.dev_subtype) out << c;
+    out << "(";
 #endif // MXNET_USE_NGRAPH
   } else if (ctx.dev_type == Context::kCPUShared) {
     out << "cpu_shared(";

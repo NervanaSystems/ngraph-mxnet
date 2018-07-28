@@ -580,7 +580,7 @@ void Compiler::ParseNnvmGraph() {
     node->shape_ = inferred_shapes[eid];
     node->dtype_ = inferred_dtypes[eid];
     node->stype_ = inferred_stypes[eid];
-    node->ctx_ = vctx[eid];
+    node->ctx_ = vctx[nid];
   }
 }
 

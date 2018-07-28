@@ -103,7 +103,7 @@ TEST_F(NGRAPH_IMPERATIVE, CACHE_OP) {
   attrs_op2.op = nnvm::Op::Get("_zeros");
   auto op_key2 = get_ngiop_key(attrs_op2, mxnet::Context::CPU(), inputs);
   EXPECT_NE(op_key, op_key2);
-  auto op_key3 = get_ngiop_key(attrs, mxnet::Context::NNP(), inputs);
+  auto op_key3 = get_ngiop_key(attrs, mxnet::Context::NGraph(), inputs);
   EXPECT_NE(op_key, op_key3);
 
   static thread_local NGIOpCache ngicache;
