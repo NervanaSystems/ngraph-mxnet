@@ -69,7 +69,7 @@ class Context(with_metaclass(_MXClassPropertyMetaClass, object)):
     """
     # static class variable
     _default_ctx = threading.local()
-    devtype2str = {1: 'cpu', 2: 'gpu', 4: 'ngraph', 3: 'cpu_pinned', 5: 'cpu_shared'}
+    devtype2str = {1: 'cpu', 2: 'gpu', 3: 'cpu_pinned', 4: 'ngraph', 5: 'cpu_shared'}
     devstr2type = {'cpu': 1, 'gpu': 2, 'cpu_pinned': 3, 'ngraph': 4, 'cpu_shared': 5}
     def __init__(self, device_type, device_id=0):
         if isinstance(device_type, Context):
