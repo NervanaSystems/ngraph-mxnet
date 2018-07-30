@@ -114,7 +114,10 @@ class Context(with_metaclass(_MXClassPropertyMetaClass, object)):
             self.device_subtype == other.device_subtype
 
     def __str__(self):
-        return '%s(%d) %s' % (self.device_type, self.device_id, self.device_subtype)
+        if (Context.devtype2str[self.device_typeid] == "ngraph"):
+            return '%s:%s(%d)' % (self.device_type,self.device_subtype, self.device_id)
+        else:
+            return '%s(%d)' % (self.device_type, self.device_id)
 
     def __repr__(self):
         return self.__str__()
@@ -244,7 +247,7 @@ def gpu(device_id=0):
     """
     return Context('gpu', device_id)
 
-def ngraph(device_id=0, device_subtype="CPU"):
+def ngraph(device_subtype="CPU", device_id=0):
     """Returns a Neural Network Processor context.
 
     This function is a short cut for Context('ngraph:backend', device_id).

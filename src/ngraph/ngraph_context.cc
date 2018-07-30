@@ -18,14 +18,15 @@
 #include <unordered_map>
 #include <utility>
 
-#include "<mxnet/ngraph_context.h>"
+#include <mxnet/ngraph_context.h>
+#include <dmlc/logging.h>
 
 namespace ngraph_bridge {
 
 std::unordered_map<std::string, int32_t> SwapMapKeyValue(
     std::unordered_map<int32_t, std::string> input) {
   std::unordered_map<std::string, int32_t> output;
-  for (kv : input) output.insert({kv.second, kv.first});
+  for (auto kv : input) output.insert({kv.second, kv.first});
   return output;
 }
 
@@ -40,7 +41,7 @@ static const std::unordered_map<int32_t, std::string> backends {
 };
 
 static const std::unordered_map<std::string, int32_t> backend_positions =
-    SwapMapKeyValue(backend_positions);
+    SwapMapKeyValue(backends);
 
 int32_t DevIDFromNGraphContext(std::string backend_name, int32_t device_num) {
   int32_t backend_num = 0;
@@ -56,7 +57,7 @@ int32_t DevIDFromNGraphContext(std::string backend_name, int32_t device_num) {
 std::pair<std::string, int32_t> NGraphContextFromDevID(int32_t dev_id) {
   int32_t backend_num = dev_id >> 16;
   int32_t device_num = dev_id - (backend_num << 16);
-  return {backends(backend_num), device_num};
+  return {backends.at(backend_num), device_num};
 }
 
 }  // namespace ngraph_bridge

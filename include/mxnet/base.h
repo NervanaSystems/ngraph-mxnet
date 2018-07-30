@@ -292,6 +292,7 @@ inline bool Context::operator<(const Context &b) const {
   }
 }
 inline Context Context::Create(DeviceType dev_type, int32_t dev_id) {
+  CHECK(false);
   Context ctx;
   ctx.dev_type = dev_type;
   if (dev_id < 0) {
@@ -387,7 +388,7 @@ inline std::ostream& operator<<(std::ostream &out, const Context &ctx) {
     out << "cpu_pinned(";
 #if MXNET_USE_NGRAPH
   } else if (ctx.dev_type == Context::kNGraph) {
-    out << "ngraph(";
+    out << "ngraph";
 #endif  // MXNET_USE_NGRAPH
   } else if (ctx.dev_type == Context::kCPUShared) {
     out << "cpu_shared(";
