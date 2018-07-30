@@ -460,8 +460,9 @@ void Compiler::DeepCopy(const nnvm::Graph& graph) {
 
 bool bad_type(const NodePtr& node) {
   if (!ngraph_context_fallback() &&
-      node->ctx_.dev_type != mxnet::Context::kNGraph)
+      node->ctx_.dev_type != mxnet::Context::kNGraph) {
     return true;
+  }
   return node->dtype_ == mshadow::kFloat16 ||
          node->dtype_ == mshadow::kFloat64 ||
          node->stype_ != mxnet::kDefaultStorage;

@@ -247,7 +247,7 @@ def gpu(device_id=0):
 def ngraph(device_id=0, device_subtype="CPU"):
     """Returns a Neural Network Processor context.
 
-    This function is a short cut for Context('ngraph:backedn', device_id).
+    This function is a short cut for Context('ngraph:backend', device_id).
     Currently unsure if we have the flexibility to choose specific
     nodes through LakeCrest.
 

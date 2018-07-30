@@ -165,7 +165,8 @@ inline std::string get_backend_name(const mxnet::Context &context) {
 #endif
   // user specified ngraph backend
   if (context.dev_type == mxnet::Context::kNGraph) {
-    return std::string(context.dev_subtype.data());
+    auto backend = NGraphContextFromDevID(context.dev_id);
+    return backend.first + ":" + std::to_string(backend.second);
   }
   // "CPU" is fallback backend
   return "CPU";
@@ -201,9 +202,7 @@ class Graph : public Node {
         context_(context),
         enable_fprop_cache(enable_fprop_cache) {
     fprop_cache = std::make_shared<ngraph::FpropCache>();
-    is_reuse_mem = context.dev_type == mxnet::Context::kNGraph
-                       ? !std::strcmp(context.dev_subtype.data(), "NNP")
-                       : true;
+    is_reuse_mem = context.dev_type == mxnet::Context::kNGraph ? false : true;
   }
 
   ~Graph() {

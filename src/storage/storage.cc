@@ -54,7 +54,7 @@ class StorageImpl : public Storage {
       case Context::kCPUPinned:
 #if MXNET_USE_NGRAPH
       case Context::kNGraph:
-#endif // MXNET_USE_NGRAPH
+#endif  // MXNET_USE_NGRAPH
         break;
       case Context::kCPUShared: {
 #if defined(ANDROID) || defined(__ANDROID__)
@@ -146,7 +146,7 @@ void StorageImpl::Alloc(Storage::Handle* handle) {
             ptr = new storage::NaiveStorageManager<storage::CPUDeviceStorage>();
             break;
           }
-#endif // MXNET_USE_NGRAPH
+#endif  // MXNET_USE_NGRAPH
           default: LOG(FATAL) <<  "Unimplemented device " << handle->ctx.dev_type;
         }
         return ptr;

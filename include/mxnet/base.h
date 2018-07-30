@@ -34,6 +34,8 @@
 #include <nnvm/op.h>
 #include <nnvm/tuple.h>
 #include <nnvm/symbolic.h>
+// ngraph context
+#include <mxnet/ngraph_context.h>
 #include <string>
 
 /*!
@@ -138,15 +140,13 @@ struct Context {
     kCPUPinned = 3,
 #if MXNET_USE_NGRAPH
     kNGraph = 4,
-#endif // MXNET_USE_NGRAPH
+#endif  // MXNET_USE_NGRAPH
     kCPUShared = 5,
   };
   /*! \brief the device type we run the op on */
   DeviceType dev_type;
   /*! \brief device id we are going to run it on */
   int32_t dev_id;
-  /*! \brief String providing additional detail required for some device types. */
-  std::array<char, 20> dev_subtype;
   /*! \brief default constructor */
   Context() : dev_type(kCPU), dev_id(0) {}
   /*!
@@ -193,7 +193,6 @@ struct Context {
   inline void Save(dmlc::Stream *strm) const {
     strm->Write(&dev_type, sizeof(dev_type));
     strm->Write(&dev_id, sizeof(dev_id));
-    if (dev_type == kNGraph) strm->Write(dev_subtype.data(), dev_subtype.size());
   }
   /*!
    * \brief load the content from binary stream
@@ -203,7 +202,6 @@ struct Context {
   inline bool Load(dmlc::Stream *strm) {
     if (strm->Read(&dev_type, sizeof(dev_type)) != sizeof(dev_type)) return false;
     if (strm->Read(&dev_id, sizeof(int32_t)) != sizeof(int32_t)) return false;
-    if (dev_type == kNGraph) strm->Read(dev_subtype.data(), dev_subtype.size());
     return true;
   }
   /*! \brief the maximal device type */
@@ -214,11 +212,8 @@ struct Context {
    * \brief Create a new context.
    * \param dev_type device type.
    * \param dev_id device id. -1 for current device.
-   * \param dev_subtype For device types that need it, a string providing additional details about
-   *   the device for which a context is being created.
    */
-  inline static Context Create(DeviceType dev_type, int32_t dev_id = -1,
-      const std::string dev_subtype = "");
+  inline static Context Create(DeviceType dev_type, int32_t dev_id = -1);
   /*! \return CPU Context */
   inline static Context CPU(int32_t dev_id = 0);
   /*!
@@ -243,7 +238,8 @@ struct Context {
    * \param dev_id the device id for corresponding NGraph instance.
    * \return NGraph context.
    */
-  inline static Context NGraph(const std::string nGraph_backend_name="CPU", int32_t dev_id = 0);
+  inline static Context NGraph(const std::string nGraph_backend_name = "CPU",
+                               int32_t dev_id = 0);
   /*!
    * Create a CPU shared memory context.
    * \param dev_id dummy device id.
@@ -251,7 +247,7 @@ struct Context {
    */
   inline static Context CPUShared(int32_t dev_id = 0);
   /*!
-   * Create a context from string of the format [cpu|gpu|cpu_pinned|nnp](n)
+   * Create a context from string of the format [cpu|gpu|cpu_pinned|ngraph)
    * \param str the string pattern
    * \return Context
    */
@@ -295,11 +291,9 @@ inline bool Context::operator<(const Context &b) const {
     return dev_type < b.dev_type;
   }
 }
-inline Context Context::Create(DeviceType dev_type, int32_t dev_id,
-      const std::string dev_subtype) {
+inline Context Context::Create(DeviceType dev_type, int32_t dev_id) {
   Context ctx;
   ctx.dev_type = dev_type;
-  strcpy(ctx.dev_subtype.data(), dev_subtype.c_str());
   if (dev_id < 0) {
     ctx.dev_id = 0;
     if (dev_type & kGPU) {
@@ -344,11 +338,13 @@ inline int32_t Context::GetGPUCount() {
 #endif
 }
 
-#if MXNET_USE_NGRAPH
 inline Context Context::NGraph(const std::string nGraph_backend_name, int32_t dev_id) {
-  return Create(kNGraph, dev_id, nGraph_backend_name);
+#if MXNET_USE_NGRAPH
+  return Create(kNGraph, ngraph_bridge::DevIDFromNGraphContext(nGraph_backend_name, dev_id));
+#else
+  CHECK(false) << "NGRAPH: " << "This version of MXNet was not compiled with nGraph."
+#endif  // MXNET_USE_NGRAPH
 }
-#endif // MXNET_USE_NGRAPH
 
 inline Context Context::FromString(const std::string& str) {
   Context ret;
@@ -370,7 +366,7 @@ inline Context Context::FromString(const std::string& str) {
     } else if (type.find("ngraph:") == 0) {
       const std::string nGraph_backend_name = str.substr(type.find(7), l);
       ret = NGraph(nGraph_backend_name, id);
-#endif // MXNET_USE_NGRAPH
+#endif  // MXNET_USE_NGRAPH
     } else if (type == "cpu_shared") {
       ret = CPUShared(id);
     } else {
@@ -391,10 +387,8 @@ inline std::ostream& operator<<(std::ostream &out, const Context &ctx) {
     out << "cpu_pinned(";
 #if MXNET_USE_NGRAPH
   } else if (ctx.dev_type == Context::kNGraph) {
-    out << "ngraph:";
-    for (auto &c: ctx.dev_subtype) out << c;
-    out << "(";
-#endif // MXNET_USE_NGRAPH
+    out << "ngraph(";
+#endif  // MXNET_USE_NGRAPH
   } else if (ctx.dev_type == Context::kCPUShared) {
     out << "cpu_shared(";
   } else {
