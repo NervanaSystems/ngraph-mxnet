@@ -174,8 +174,7 @@ inline std::string get_backend_name(const mxnet::Context &context) {
 
 inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
     const mxnet::Context &context) {
-  auto backend_key =
-      get_backend_name(context) + ":" + std::to_string(context.dev_id);
+  auto backend_key = get_backend_name(context);
   if (backends.count(backend_key) == 0) {
     auto backend = ngraph::runtime::Backend::create(backend_key);
     backends[backend_key] = backend;

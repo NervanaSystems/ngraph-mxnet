@@ -33,6 +33,7 @@
 #include <mxnet/operator.h>
 #include <mxnet/io.h>
 #include <mxnet/c_api.h>
+#include <mxnet/ngraph_context.h>
 #include <mxnet/kvstore.h>
 #include <mxnet/rtc.h>
 #include <mxnet/storage.h>
@@ -1343,5 +1344,11 @@ int MXNDArrayCreateFromSharedMem(int shared_pid, int shared_id, const mx_uint *s
                                  mx_uint ndim, int dtype, NDArrayHandle *out) {
   API_BEGIN();
   *out = new NDArray(shared_pid, shared_id, TShape(shape, shape + ndim), dtype);
+  API_END();
+}
+
+int MXDevIDFromNGraphContext(const char* device_name, int device_num, int* dev_id) {
+  API_BEGIN();
+  *dev_id = ngraph_bridge::DevIDFromNGraphContext(device_name, device_num);
   API_END();
 }

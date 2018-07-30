@@ -22,7 +22,7 @@ import threading
 import warnings
 import ctypes
 from .base import classproperty, with_metaclass, _MXClassPropertyMetaClass
-from .base import _LIB
+from .base import _LIB, c_str
 from .base import check_call
 
 
@@ -75,12 +75,14 @@ class Context(with_metaclass(_MXClassPropertyMetaClass, object)):
         if isinstance(device_type, Context):
             self.device_typeid = device_type.device_typeid
             self.device_id = device_type.device_id
-            self.device_subtype = device_type.device_subtype
         else:
             device_type, device_subtype = ('ngraph', device_type[7:]) if 'ngraph' in device_type else (device_type,'')
             self.device_typeid = Context.devstr2type[device_type]
             self.device_id = device_id
-            self.device_subtype = device_subtype
+            if (device_type == "ngraph"):
+                ref = ctypes.c_int(0)
+                _LIB.MXDevIDFromNGraphContext(c_str(device_subtype), ctypes.c_int(device_id), ctypes.byref(ref))
+                self.device_id = ref.value
         self._old_ctx = None
 
     @property
@@ -102,7 +104,7 @@ class Context(with_metaclass(_MXClassPropertyMetaClass, object)):
 
     def __hash__(self):
         """Compute hash value of context for dictionary lookup"""
-        return hash((self.device_typeid, self.device_id, self.device_subtype))
+        return hash((self.device_typeid, self.device_id))
 
     def __eq__(self, other):
         """Compares two contexts. Two contexts are equal if they
@@ -110,14 +112,10 @@ class Context(with_metaclass(_MXClassPropertyMetaClass, object)):
         """
         return isinstance(other, Context) and \
             self.device_typeid == other.device_typeid and \
-            self.device_id == other.device_id and \
-            self.device_subtype == other.device_subtype
+            self.device_id == other.device_id
 
     def __str__(self):
-        if (Context.devtype2str[self.device_typeid] == "ngraph"):
-            return '%s:%s(%d)' % (self.device_type,self.device_subtype, self.device_id)
-        else:
-            return '%s(%d)' % (self.device_type, self.device_id)
+        return '%s(%d)' % (self.device_type, self.device_id)
 
     def __repr__(self):
         return self.__str__()

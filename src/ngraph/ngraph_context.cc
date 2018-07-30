@@ -44,6 +44,7 @@ static const std::unordered_map<std::string, int32_t> backend_positions =
     SwapMapKeyValue(backends);
 
 int32_t DevIDFromNGraphContext(std::string backend_name, int32_t device_num) {
+  std::cout << "DevIDFromNGraphContext " << backend_name << " " << device_num << " " << std::endl;
   int32_t backend_num = 0;
   try {
     backend_num = backend_positions.at(backend_name);
@@ -51,12 +52,14 @@ int32_t DevIDFromNGraphContext(std::string backend_name, int32_t device_num) {
     CHECK(false) << "NGRAPH_BRIDGE: "
                  << "Unsupported backend " << backend_name;
   }
+  std::cout << "DevIDFromNGraphContext " << backend_name << " " << device_num << " " << device_num + (backend_num << 16) << std::endl;
   return device_num + (backend_num << 16);
 }
 
 std::pair<std::string, int32_t> NGraphContextFromDevID(int32_t dev_id) {
   int32_t backend_num = dev_id >> 16;
   int32_t device_num = dev_id - (backend_num << 16);
+  std::cout << "NGraphContextfromDevID " << backends.at(backend_num) << " " << device_num << " " << dev_id << std::endl;
   return {backends.at(backend_num), device_num};
 }
 
