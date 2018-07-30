@@ -26,27 +26,7 @@ using namespace std;
 
 namespace ngraph_bridge {
 
-std::ostream& operator<<(std::ostream& os, const ngraph::Shape& s) {
-  return container_to_debug_stream(os, s);
-}
-
 std::ostream& operator<<(std::ostream& os, const nnvm::TShape& s) {
-  return container_to_debug_stream(os, s);
-}
-
-std::ostream& operator<<(std::ostream& os, const ngraph::AxisSet& s) {
-  return container_to_debug_stream(os, s, ", ", "{", "}");
-}
-
-std::ostream& operator<<(std::ostream& os, const ngraph::AxisVector& s) {
-  return container_to_debug_stream(os, s);
-}
-
-std::ostream& operator<<(std::ostream& os, const ngraph::Strides& s) {
-  return container_to_debug_stream(os, s);
-}
-
-std::ostream& operator<<(std::ostream& os, const ngraph::CoordinateDiff& s) {
   return container_to_debug_stream(os, s);
 }
 
