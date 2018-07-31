@@ -52,10 +52,10 @@ class StorageImpl : public Storage {
     switch (ctx.dev_type) {
       case Context::kCPU:
       case Context::kCPUPinned:
+        break;
 #if MXNET_USE_NGRAPH
       case Context::kNGraph:
 #endif  // MXNET_USE_NGRAPH
-        break;
       case Context::kCPUShared: {
 #if defined(ANDROID) || defined(__ANDROID__)
         LOG(FATAL) << "Unimplemented device";

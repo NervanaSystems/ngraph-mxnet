@@ -363,6 +363,9 @@ inline Context Context::FromString(const std::string& str) {
     } else if (type == "cpu_pinned") {
       ret = CPUPinned(id);
 #if MXNET_USE_NGRAPH
+    } else if (type == "ngraph") {
+      auto kv = ngraph_bridge::NGraphContextFromDevID(id);
+      ret = NGraph(kv.first, kv.second);
     } else if (type.find("ngraph:") == 0) {
       const std::string nGraph_backend_name = str.substr(type.find(7), l);
       ret = NGraph(nGraph_backend_name, id);
