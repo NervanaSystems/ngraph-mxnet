@@ -203,7 +203,7 @@ class Graph : public Node {
     fprop_cache = std::make_shared<ngraph::FpropCache>();
     is_reuse_mem = context.dev_type == mxnet::Context::kCPU ||
                    context.dev_type == mxnet::Context::kGPU ||
-                   (context.dev_type == mxnet::Context::kNGraph && 
+                   (context.dev_type == mxnet::Context::kNGraph &&
                     NGraphContextFromDevID(context.dev_id).first == "CPU");
   }
 

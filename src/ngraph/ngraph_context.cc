@@ -14,12 +14,12 @@
 * limitations under the License.
 *******************************************************************************/
 
+#include <mxnet/ngraph_context.h>
+#include <dmlc/logging.h>
+
 #include <string>
 #include <unordered_map>
 #include <utility>
-
-#include <mxnet/ngraph_context.h>
-#include <dmlc/logging.h>
 
 namespace ngraph_bridge {
 

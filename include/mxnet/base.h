@@ -34,8 +34,12 @@
 #include <nnvm/op.h>
 #include <nnvm/tuple.h>
 #include <nnvm/symbolic.h>
+
+#if MXNET_USE_NGRAPH
 // ngraph context
 #include <mxnet/ngraph_context.h>
+#endif
+
 #include <string>
 
 /*!
@@ -138,9 +142,7 @@ struct Context {
     kCPU = cpu::kDevMask,
     kGPU = gpu::kDevMask,
     kCPUPinned = 3,
-#if MXNET_USE_NGRAPH
     kNGraph = 4,
-#endif  // MXNET_USE_NGRAPH
     kCPUShared = 5,
   };
   /*! \brief the device type we run the op on */
@@ -342,7 +344,8 @@ inline Context Context::NGraph(const std::string nGraph_backend_name, int32_t de
 #if MXNET_USE_NGRAPH
   return Create(kNGraph, ngraph_bridge::DevIDFromNGraphContext(nGraph_backend_name, dev_id));
 #else
-  CHECK(false) << "NGRAPH: " << "This version of MXNet was not compiled with nGraph."
+  CHECK(false) << "NGRAPH: " << "This version of MXNet was not compiled with nGraph.";
+  return Create(kCPU, dev_id);
 #endif  // MXNET_USE_NGRAPH
 }
 
