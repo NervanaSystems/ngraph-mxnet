@@ -50,6 +50,7 @@ run_inference_topologies() {
     export TEST_KMP_BLOCKTIME="${MX_NG_KMP_BLOCKTIME}"
     export TEST_BATCH_SIZE="${MX_NG_BATCH_SIZE}"
     export TEST_KMP_AFFINITY="${MX_NG_KMP_AFFINITY}"
+    export TEST_DEEPMARK_TYPE="${MX_NG_DEEPMARK_TYPE}"
 
     # Run the inception_v4
     cmd="pytest -s docker/scripts/test_deepmark_inception_v4_inference.py --junit-xml=validation_test_deepmark_inception_v4_inference.xml --junit-prefix=inference_deepmark_inception_v4_cpu"
