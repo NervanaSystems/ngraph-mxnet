@@ -201,8 +201,10 @@ class Graph : public Node {
         context_(context),
         enable_fprop_cache(enable_fprop_cache) {
     fprop_cache = std::make_shared<ngraph::FpropCache>();
-    is_reuse_mem = context.dev_type == mxnet::Context::CPU().dev_type ||
-                   context.dev_type == mxnet::Context::GPU().dev_type;
+    is_reuse_mem = context.dev_type == mxnet::Context::kCPU ||
+                   context.dev_type == mxnet::Context::kGPU ||
+                   (context.dev_type == mxnet::Context::kNGraph && 
+                    NGraphContextFromDevID(context.dev_id).first == "CPU");
   }
 
   ~Graph() {
