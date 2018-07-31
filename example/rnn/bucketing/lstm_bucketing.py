@@ -106,7 +106,7 @@ if __name__ == '__main__':
     if args.gpus:
         contexts = [mx.gpu(int(i)) for i in args.gpus.split(',')]
     elif args.is_nnp:
-        contexts = mx.nnp(0)
+        contexts = mx.ngraph("NNP")
     else:
         contexts = mx.cpu(0)
 
