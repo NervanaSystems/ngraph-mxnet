@@ -56,12 +56,19 @@ if (os.environ.get('TEST_BATCH_SIZE') != ''):
 else:
     batchsize = 128
 
-
 # TEST_KMP_AFFINITY
 if (os.environ.get('TEST_KMP_AFFINITY') != ''):
     kmpAff= os.environ.get('TEST_KMP_AFFINITY')
 else:
     kmpAff = "granularity=fine,compact,1,0"
+
+if (os.environ.get('TEST_DEEPMARK_TYPE') == "Accuracy"):
+    checkAccurary = True
+elif (os.environ.get('TEST_DEEPMARK_TYPE') == "Performance"):
+    checkAccurary = False
+else:
+    print("Invalid input. Either Accuracy or Performane ... Exiting")
+    sys.exit()
 
 benchmarkScriptPath = "benchmark.py"
 # Python program to run script.  This should just be "python" (or "python2"),
@@ -80,24 +87,32 @@ def test_deepmark_Faster_RCNN_cpu_backend():
                                 ompNumThreads=ompNumThreads,
                                 kmpAff=kmpAff,
                                 kmpBlocktime=kmpBlocktime,
-                                batchsize=batchsize)
+                                batchsize=batchsize,
+                                checkAccurary=checkAccurary)
     ngraphResults = processOutput(ngraphLog)
     
     lDir = None
 
     lDir = os.path.abspath(os.environ['TEST_DEEPMARK_LOG_DIR'])
+    if (not checkAccurary):
+        VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_Faster_RCNN_cpu_ngraph.log'))
+        VT.checkScript(os.path.join(lDir, 'test_deepmark_Faster_RCNN_cpu_ngraph.log'))
+    else:
+        VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_Faster_RCNN_accuracy_cpu_ngraph.log'))
+        VT.checkScript(os.path.join(lDir, 'test_deepmark_Faster_RCNN_accuracy_cpu_ngraph.log'))
+        assert VT.checkAccuracyResult(os.path.join(lDir, 'test_deepmark_Faster_RCNN_accuracy_cpu_ngraph.log')) == True
 
-    VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_Faster_RCNN_cpu_ngraph.log'))
-    VT.checkScript(os.path.join(lDir, 'test_deepmark_Faster_RCNN_cpu_ngraph.log'))
-
-    writeJenkinsDescription(ngraphLog, os.path.join(lDir, 'test_deepmark_Faster_RCNN_jenkins_oneline.log'))
+    #writeJenkinsDescription(ngraphLog, os.path.join(lDir, 'test_deepmark_Faster_RCNN_jenkins_oneline.log'))
 
 
     print("----- Deepmark Faster-RCNN Testing Summary ----------------------------------------")
 
     summaryLog = None
     if lDir != None:
-        summaryLog = os.path.join(lDir, 'test_deepmark_Faster_RCNN_cpu_summary.log')
+        if checkAccurary:
+            summaryLog = os.path.join(lDir, 'test_deepmark_Faster_RCNN_accuracy_cpu_summary.log')
+        else:
+            summaryLog = os.path.join(lDir, 'test_deepmark_Faster_RCNN_cpu_summary.log')
 
     logOut = VT.LogAndOutput(logFile=summaryLog)
 
