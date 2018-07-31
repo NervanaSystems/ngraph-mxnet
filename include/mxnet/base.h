@@ -352,7 +352,7 @@ inline Context Context::FromString(const std::string& str) {
     const std::string::size_type l = str.find('(');
     CHECK_NE(l, std::string::npos);
     const std::string::size_type r = str.find(')');
-    CHECK_EQ(r, str.length()-2);
+    CHECK_EQ(r, str.length()-1);
 
     const std::string type = str.substr(0, l);
     int id = std::stoi(str.substr(l+1, r-l-1));
