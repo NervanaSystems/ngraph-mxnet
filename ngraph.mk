@@ -81,6 +81,12 @@ ngraph:
 
 	@# All of the following commands must run in the same subshell, because we want the 'cd'
 	@# directory to be in effect for all of them.  Thus our use of ';' ...
+	@if echo "$(NGRAPH_EXTRA_CMAKE_FLAGS)" | grep -q -e '-DCMAKE_INSTALL_PREFIX='; then \
+	  echo; \
+	  echo "It looks like NGRAPH_EXTRA_CMAKE_FLAGS is specifying a CMAKE_INSTALL_PREFIX value. This is not supported." >&2; \
+	  echo; \
+	  exit 1; \
+	  fi
 	cd "$(NGRAPH_BUILD_DIR)"; \
 	cmake "$(NGRAPH_SRC_DIR)" \
 	  -DCMAKE_INSTALL_PREFIX="$(NGRAPH_INSTALL_DIR)" \
