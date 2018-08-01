@@ -1615,15 +1615,6 @@ void Emitter::UnsupportedOps() {
   for (auto kv : ngraph_op_funcs_) {
     supported_ops[kv.first] = [](const NodePtr& node) { return true; };
   }
-  supported_ops["BatchNorm"] = [](const NodePtr& node) {
-    bool out = true;
-    auto shape = TShape_to_NShape(node->inputs_[0]->shape_);
-    if (shape[1] % 8 != 0) {
-      // MXNet outperforms nGraph in this case.
-      out = false;
-    }
-    return out;
-  };
   supported_ops["LeakyReLU"] = [](const NodePtr& node) {
     bool out = true;
     // We haven't yet implemented all activation functions for
