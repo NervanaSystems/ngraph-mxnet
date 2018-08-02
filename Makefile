@@ -106,7 +106,7 @@ LDFLAGS =
 
 ifeq ($(USE_NGRAPH),1)
     CFLAGS += $(NGRAPH_CFLAGS)
-    LDFLAGS += $(NGRAPH_LDFLAGS)
+    #LDFLAGS += $(NGRAPH_LDFLAGS)
 endif
 
 LDFLAGS += -pthread $(MSHADOW_LDFLAGS) $(DMLC_LDFLAGS)
@@ -502,10 +502,20 @@ lib/libmxnet.a: $(ALLX_DEP)
 	@mkdir -p $(@D)
 	ar crv $@ $(filter %.o, $?)
 
+ifeq ($(USE_NGRAPH), 1)
+  LIBMXNET_SO_NGRAPH_LINKAGE_FLAGS := \
+    $(NGRAPH_LDFLAGS) \
+    -Wl,-rpath='$${ORIGIN}'
+else
+  LIBMXNET_SO_NGRAPH_LINKAGE_FLAGS :=
+endif
+
 lib/libmxnet.so: $(ALLX_DEP)
 	@mkdir -p $(@D)
-	$(CXX) $(CFLAGS) -shared -o $@ $(filter-out %libnnvm.a, $(filter %.o %.a, $^)) $(LDFLAGS) \
-	-Wl,${WHOLE_ARCH} $(filter %libnnvm.a, $^) -Wl,${NO_WHOLE_ARCH}
+	$(CXX) $(CFLAGS) -shared -o $@ $(filter-out %libnnvm.a, $(filter %.o %.a, $^)) \
+	  $(LDFLAGS) \
+	  $(LIBMXNET_SO_NGRAPH_LINKAGE_FLAGS) \
+ 	  -Wl,${WHOLE_ARCH} $(filter %libnnvm.a, $^) -Wl,${NO_WHOLE_ARCH}
 ifeq ($(USE_MKLDNN), 1)
 ifeq ($(UNAME_S), Darwin)
 	install_name_tool -change '@rpath/libmklml.dylib' '@loader_path/libmklml.dylib' $@
@@ -531,9 +541,20 @@ $(NNVM_PATH)/lib/libnnvm.a: $(NNVM_INC) $(NNVM_SRC)
 
 bin/im2rec: tools/im2rec.cc $(ALLX_DEP)
 
+ifeq ($(USE_NGRAPH), 1)
+  IM2REC_NGRAPH_LINKAGE_FLAGS := \
+    $(NGRAPH_LDFLAGS) \
+    -Wl,-rpath='$${ORIGIN}/../lib'
+else
+  IM2REC_NGRAPH_LINKAGE_FLAGS :=
+endif
+
 $(BIN) :
 	@mkdir -p $(@D)
-	$(CXX) $(CFLAGS) -std=c++11  -o $@ $(filter %.cpp %.o %.c %.a %.cc, $^) $(LDFLAGS)
+	$(CXX) $(CFLAGS) -std=c++11  -o $@ $(filter %.cpp %.o %.c %.a %.cc, $^) \
+	  $(LDFLAGS) \
+	  $(IM2REC_NGRAPH_LINKAGE_FLAGS)
+
 
 # CPP Package
 ifeq ($(USE_CPP_PACKAGE), 1)

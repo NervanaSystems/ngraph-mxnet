@@ -123,33 +123,21 @@ ngraph:
       -DMXNET_USE_NGRAPH_DISTRIBUTED=1
   endif
 
-  # Set NGRAPH_LDFLAGS ...
+  # These following libraries are part of ngraph, and provide symbols required by nGraph's
+  # public-interface header files, BUT are not reported as dependencies in libngraph.so's
+  # ELF header.  We enumerate them here so we can make sure they get linked in appropriately.
+  NGRAPH_HELPER_LIBS_LDFLAGS = \
+    -lcpu_backend
+
   NGRAPH_LDFLAGS = \
-    "-L$(MXNET_LIB_DIR)" \
-    -Wl,-rpath='$${ORIGIN}'
-
-  # This is a workaround for a bug in Gnu's 'ld' linker, in which it fails to properly interpret
-  # RPATH=$ORIGIN. The bug is now fixed, but present in Ubuntu 16.04's version of 'ld'.
-  NGRAPH_LDFLAGS += \
-    "-Wl,-rpath-link=$(MXNET_LIB_DIR)"
-
-  ifeq ($(USE_NGRAPH_IE),1)
-    NGRAPH_LDFLAGS += \
-      -lngraph \
-      -Wl,--as-needed
-  else
-    NGRAPH_LDFLAGS += \
-      -liomp5 \
-      -lcpu_backend \
-      -lngraph \
-      -lmklml_intel \
-      -Wl,--as-needed
-  endif
+    -Wl,-rpath-link=$(MXNET_LIB_DIR) \
+    -L$(MXNET_LIB_DIR) \
+    -lngraph $(NGRAPH_HELPER_LIBS_LDFLAGS)
 
   ifeq ($(USE_NGRAPH_DISTRIBUTED), 1)
-    MPI_LINK_FLAGS = $(shell mpicxx --showme:link)
-    NGRAPH_LDFLAGS += $(MPI_LINK_FLAGS)
+    NGRAPH_LDFLAGS += $(shell mpicxx --showme:link)
   endif
+
 else
   #-------------------------------------------------------------------------------------------------
   # USE_NGRAPH != 1
