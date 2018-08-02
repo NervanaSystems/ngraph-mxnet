@@ -39,9 +39,6 @@ export BUILD_MX_WITH_CCACHE=0
 # sets this up.
 cd "$HOME/ng-mx"
 
-# ngraph_dist (with libmkldnn.so) is expected to be at top of ngraph-mxnet
-export LD_LIBRARY_PATH="$HOME/ng-mx/ngraph_dist/lib"
-
 echo "In $(basename ${0}):"
 echo "  HOME=${HOME}"
 echo "  PYTHON_VERSION_NUMBER=${PYTHON_VERSION_NUMBER}"
