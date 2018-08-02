@@ -40,7 +40,7 @@ else
 	echo "Success to install 3rdparty Ngraph."
 fi	
 
-if [ ! -f "$LD_LIBRARY_PATH/libmxnet.so" ] ; then
+if [ ! -f "./lib/libmxnet.so" ] ; then
   ( >&2 echo "FATAL ERROR: Can not found libmxnet.so. Exiting ...." )
   exit 1
 else

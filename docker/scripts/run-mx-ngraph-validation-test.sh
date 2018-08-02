@@ -156,14 +156,11 @@ export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
 # sets this up.
 cd "$HOME/ng-mx"
 
-export LD_LIBRARY_PATH="$HOME/ng-mx/ngraph_dist/lib"
-
 echo "In $(basename ${0}):"
 echo "  ng_mx_model=${ng_mx_model}"
 echo "  HOME=${HOME}"
 echo "  PYTHON_VERSION_NUMBER=${PYTHON_VERSION_NUMBER}"
 echo "  PYTHON_BIN_PATH=${PYTHON_BIN_PATH}"
-echo "  LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
 
 # ----- Install ngraph_dist ----------------------------------------------------
 cd "$HOME/ng-mx/docker/scripts/"
@@ -179,18 +176,6 @@ export PIP_INSTALL_FROM_SUDO=1
 export PIP_INSTALL_EXTRA_ARGS="--proxy=$http_proxy --proxy=$https_proxy"
 ./build-install-mx.sh 2>&1 | tee ../mx-build.log
 echo "===== Build & Install Pipeline Exited with $? and endtime ${xtime} ===="
-
-# ----- Sanity Checks ----------------------------------------------------------
-
-if [ ! -f "$LD_LIBRARY_PATH/libngraph.so" ] ; then
-  ( >&2 echo "FATAL ERROR: libngraph.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
-  exit 1
-fi
-
-if [ ! -f "$LD_LIBRARY_PATH/libmkldnn.so" ] ; then
-  ( >&2 echo "FATAL ERROR: libmkldnn.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
-  exit 1
-fi
 
 # ----- Run Models ----------------------------------
 cd "$HOME/ng-mx/"
