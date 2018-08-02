@@ -16,9 +16,16 @@
 # under the License.
 
 TEST_SRC = $(shell find tests/cpp/ -name "*.cc")
-ifneq ($(USE_NGRAPH),1)
+
+ifeq ($(USE_NGRAPH),1)
+    TEST_NGRAPH_LDFLAGS := \
+	$(NGRAPH_LDFLAGS) \
+	-Wl,-rpath='$${ORIGIN}/../../../lib'
+else
     TEST_SRC := $(foreach f,$(TEST_SRC),$(if $(findstring tests/cpp/ngraph,$f),,$f))
+    TEST_NGRAPH_LDFLAGS :=
 endif
+
 TEST_OBJ = $(patsubst %.cc, build/%.o, $(TEST_SRC))
 TEST = build/tests/cpp/mxnet_unit_tests
 
@@ -29,7 +36,8 @@ GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
                 $(GTEST_DIR)/include/gtest/internal/*.h
 
 TEST_CFLAGS = -Itests/cpp/include -Isrc $(CFLAGS)
-TEST_LDFLAGS = $(LDFLAGS) -Llib -lmxnet
+TEST_LDFLAGS = $(LDFLAGS) -Llib -lmxnet \
+    $(TEST_NGRAPH_LDFLAGS)
 
 ifeq ($(USE_BREAKPAD), 1)
 TEST_CFLAGS  += -I/usr/local/include/breakpad
@@ -70,7 +78,7 @@ build/tests/cpp/ngraph/%.o : tests/cpp/ngraph/%.cc | ngraph
 	$(CXX) -c -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -o build/tests/cpp/ngraph/$*.o $(filter %.cc %.a, $^)
 
 $(TEST): $(TEST_OBJ) lib/libmxnet.so gtest.a
-	$(CXX) -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -o $@ $^ $(TEST_LDFLAGS)
+	$(CXX) -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -o $@ $^ $(TEST_LDFLAGS) $(NGRAPH_AS_DIRECT_LINKAGE_LDFLAGS)
 
 runtest: $(TEST)
 	LD_LIBRARY_PATH=$(shell pwd)/lib:$(LD_LIBRARY_PATH) $(TEST)

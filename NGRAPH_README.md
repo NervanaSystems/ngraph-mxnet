@@ -91,20 +91,6 @@ Please see the files `ngraph.mk` and `make/config.mk` for more details.
    make USE_NGRAPH=1 USE_CUDA=0 DEBUG=0 -j
    ```
 
-1. **Update `LD_LIBRARY_PATH`**
-
-   Programs using nGraph-enabled MXNet will typically be dynamically linked to
-   `libmxnet.so`, as well as the libraries provided by nGraph: `libngraph.so`,
-   etc.
-
-   Ensure that for any program using nGraph-enabled MXNet, the `LD_LIBRARY_PATH`
-   environment variable is set appropriately so that the dynamic linker can find
-   the required libraries.
-
-   For example, using the definition of `NGRAPH_INSTALL` described above:
-     ``` sh
-     export LD_LIBRARY_PATH=NGRAPH_INSTALL/lib:${LD_LIBRARY_PATH}
-     ```
 1. **(Optional) Install the MXNet Python bindings**
 
    Once `libmxnet.so` has been built, one can optionally install Python bindings
