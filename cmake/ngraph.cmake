@@ -2,7 +2,7 @@ include(ExternalProject)
 
 add_library(ngraph_interface_lib INTERFACE)
 
-set(EXTERNAL_NGRAPH_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/ngraph)
+set(EXTERNAL_NGRAPH_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/ngraph)
 set(EXTERNAL_NGRAPH_SOURCE_DIR ${CMAKE_SOURCE_DIR}/3rdparty/ngraph)
 
 
@@ -35,10 +35,17 @@ target_link_libraries(ngraph_interface_lib INTERFACE
     ${INSTALL_DIR}/lib/libiomp5.so
     ${INSTALL_DIR}/lib/libcpu_backend.so
     ${INSTALL_DIR}/lib/libcodegen.so
-    ${INSTALL_DIR}/lib/libmklml.so
+    ${INSTALL_DIR}/lib/libmklml_intel.so
 )
 
 set(NGRAPH_INCLUDE_DIR ${EXTERNAL_NGRAPH_INSTALL_DIR}/include)
+install(DIRECTORY
+    ${EXTERNAL_NGRAPH_INSTALL_PREFIX}/include/
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/include/ngraph
+)
+include_directories(
+    ${EXTERNAL_NGRAPH_INSTALL_PREFIX}/src/ext_ngraph-build/mkldnn/src/external/mkl/include
+)
 
 install(DIRECTORY
 	${EXTERNAL_NGRAPH_INSTALL_PREFIX}/lib/

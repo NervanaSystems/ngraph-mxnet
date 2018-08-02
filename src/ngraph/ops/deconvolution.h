@@ -17,7 +17,7 @@
 #ifndef MXNET_NGRAPH_OPS_DECONVOLUTION_H_
 #define MXNET_NGRAPH_OPS_DECONVOLUTION_H_
 
-#include "ngraph_emitter.h"
+#include "../ngraph_emitter.h"
 
 namespace ngraph_bridge {
 NgraphNodePtr create_deconvolution(const NgraphNodePtr& data,

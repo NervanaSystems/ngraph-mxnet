@@ -19,7 +19,7 @@
 
 #include <tuple>
 
-#include "ngraph_emitter.h"
+#include "../ngraph_emitter.h"
 
 namespace ngraph_bridge {
 

@@ -15,12 +15,12 @@
 *******************************************************************************/
 #include <vector>
 
-#include "ops/deconvolution.h"
+#include "deconvolution.h"
 #include "../../operator/nn/deconvolution-inl.h"
 
-#include "ngraph_emitter.h"
-#include "ngraph_emitter_utils.h"
-#include "ngraph_utils.h"
+#include "../ngraph_emitter.h"
+#include "../ngraph_emitter_utils.h"
+#include "../ngraph_utils.h"
 
 namespace ngraph_bridge {
 
