@@ -30,7 +30,8 @@ echo "**************************************************************************
 cd "${MX_DIR}"
 git submodule update --init --recursive
 make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 -j $(nproc)
-export LD_LIBRARY_PATH=${MX_DIR}/3rdparty/ngraph/install/lib:${LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=${MX_DIR}"/3rdparty/ngraph/install/lib:"${LD_LIBRARY_PATH}
+echo ${LD_LIBRARY_PATH}
 
 if [ ! -f "$LD_LIBRARY_PATH/libngraph.so" ] ; then
 	( >&2 echo "FATAL ERROR: Can not found libngraph.so. Exiting ...." )
