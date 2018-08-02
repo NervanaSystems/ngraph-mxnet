@@ -106,15 +106,6 @@ fi
 echo "Copying ngraph_dist to $HOME/ngraph_dist"
 cp -r ngraph_dist "$HOME/ngraph_dist"
 
-# ----- Install Ngraph_Mxnet ---------------------------------------------------
-cd "$HOME/ng-mx/docker/scripts/"
-xtime="$(date)"
-echo  ' '
-echo  "===== Configuring Mxnet Build at ${xtime} ====="
-echo  ' '
-./config-mx.sh 2>&1 | tee ../mx-config.log
-echo  "===== Configuring Mxnet Build Exited with $? ====="
-
 cd "$HOME/ng-mx/docker/scripts/"
 
 xtime="$(date)"

@@ -166,25 +166,6 @@ echo "  PYTHON_BIN_PATH=${PYTHON_BIN_PATH}"
 echo "  LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
 
 # ----- Install ngraph_dist ----------------------------------------------------
-
-# Copy ngraph_dist into home directory, since right now ngraph-tensorflow-1.3
-# is hard-coded to look for it in the home directory
-if [ -d "$HOME/ngraph_dist" ] ; then
-    ( >&2 echo "Directory $HOME/ngraph_dist already exists.  Removing it before installing the new version." )
-    rm -fr "$HOME/ngraph_dist"
-fi
-echo "Copying ngraph_dist to $HOME/ngraph_dist"
-cp -r ngraph_dist "$HOME/ngraph_dist"
-
-# ----- Install Ngraph_Mxnet ---------------------------------------------------
-cd "$HOME/ng-mx/docker/scripts/"
-xtime="$(date)"
-echo  ' '
-echo  "===== Configuring Mxnet Build at ${xtime} ====="
-echo  ' '
-./config-mx.sh 2>&1 | tee ../mx-config.log
-echo  "===== Configuring Mxnet Build Exited with $? ====="
-
 cd "$HOME/ng-mx/docker/scripts/"
 
 xtime="$(date)"
