@@ -25,5 +25,5 @@ cd python && sudo -E pip install -e . && cd ../
 
 ## Unit tests test_operator.py 
 #cmd="OMP_NUM_THREADS=4 pytest -s tests/python/unittest/test_operator.py --verbose --capture=no --junit-xml=result_test_operator.xml --junit-prefix=result_test_operator"
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_contrib_krprod.py --verbose --capture=no --junit-xml=result_test_contrib_krprod.xml --junit-prefix=result_test_contrib_krprod"
+cmd="OMP_NUM_THREADS=4 pytest -s tests/python/unittest/test_contrib_krprod.py --verbose --capture=no --junit-xml=result_test_contrib_krprod.xml --junit-prefix=result_test_contrib_krprod"
 eval $cmd
