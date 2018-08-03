@@ -22,7 +22,6 @@
 
 # This script is used to verify 2 models in image classicfications. 
 
-
 if [ ! -z "${MX_NG_MODEL}" ] ; then
     ng_mx_model="${MX_NG_MODEL}"
 fi

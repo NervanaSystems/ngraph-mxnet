@@ -109,13 +109,10 @@ export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
 # sets this up.
 cd "$HOME/ng-mx"
 
-export LD_LIBRARY_PATH="$HOME/ng-mx/ngraph_dist/lib"
-
 echo "In $(basename ${0}):"
 echo "  HOME=${HOME}"
 echo "  PYTHON_VERSION_NUMBER=${PYTHON_VERSION_NUMBER}"
 echo "  PYTHON_BIN_PATH=${PYTHON_BIN_PATH}"
-echo "  LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
 
 # ----- Run Models ----------------------------------
 cd "$HOME/ng-mx/"
