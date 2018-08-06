@@ -34,11 +34,13 @@ class SgNgraphSelector : public SubgraphSelector {
     return match;
   }
 
-  bool SelectInput(const nnvm::Graph &g, const nnvm::Node &n, const nnvm::Node &new_node) override {
+  bool SelectInput(const nnvm::Graph &g, const nnvm::Node &n,
+                   const nnvm::Node &new_node) override {
     return false;
   }
 
-  bool SelectOutput(const nnvm::Graph &g, const nnvm::Node &n, const nnvm::Node &new_node) override {
+  bool SelectOutput(const nnvm::Graph &g, const nnvm::Node &n,
+                    const nnvm::Node &new_node) override {
     return false;
   }
 };

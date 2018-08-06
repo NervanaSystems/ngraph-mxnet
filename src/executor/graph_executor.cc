@@ -1376,8 +1376,8 @@ Graph GraphExecutor::InitGraph(nnvm::Symbol symbol,
                                const std::vector<OpReqType>& grad_req_types) {
   // parition given symbol graph using shape & types.
   nnvm::Graph g;
+  g.outputs = symbol.outputs;
   if (ctx_map.size() == 0) {
-    g.outputs = symbol.outputs;
     auto num_forward_outputs = symbol.outputs.size();
     auto num_forward_inputs = symbol.ListInputs(nnvm::Symbol::kAll).size();
     g = AssignContext(g, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
@@ -1397,12 +1397,15 @@ Graph GraphExecutor::InitGraph(nnvm::Symbol symbol,
     // setup gradient
     g = InitFullGraph(sym, grad_req_types);
   } else {
+#if MXNET_USE_NGRAPH == 0
     // setup gradient
     g = InitFullGraph(symbol, grad_req_types);
+#endif
   }
 
+#if MXNET_USE_NGRAPH == 0
   // create "device" and "context" attrs for the graph
-  gp = AssignContext(gp, default_ctx, ctx_map,
+  g = AssignContext(g, default_ctx, ctx_map,
                     in_arg_ctxes,
                     arg_grad_ctxes,
                     aux_state_ctxes,
@@ -1410,7 +1413,7 @@ Graph GraphExecutor::InitGraph(nnvm::Symbol symbol,
                     num_forward_inputs_,
                     num_forward_outputs_);
 
-  const auto& idx = gp.indexed_graph();
+  const auto& idx = g.indexed_graph();
   // get number of nodes used in forward pass
   num_forward_nodes_ = 0;
   for (size_t i = 0; i < num_forward_outputs_; ++i) {
@@ -1418,7 +1421,7 @@ Graph GraphExecutor::InitGraph(nnvm::Symbol symbol,
         num_forward_nodes_, static_cast<size_t>(idx.outputs()[i].node_id + 1));
   }
 #endif
-  return gp;
+  return g;
 }
 
 // initialize the memory of each entries
