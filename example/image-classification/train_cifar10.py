@@ -31,6 +31,11 @@ def download_cifar10():
     download_file('http://data.mxnet.io/data/cifar10/cifar10_train.rec', fnames[0])
     return fnames
 
+def set_cifar_aug(aug):
+    aug.set_defaults(rgb_mean='125.307,122.961,113.8575', rgb_std='51.5865,50.847,51.255')
+    aug.set_defaults(random_mirror=1, pad=4, fill_value=0, random_crop=1)
+    aug.set_defaults(min_random_size=32, max_random_size=32)
+
 if __name__ == '__main__':
     # download data
     (train_fname, val_fname) = download_cifar10()
@@ -42,8 +47,8 @@ if __name__ == '__main__':
     fit.add_fit_args(parser)
     data.add_data_args(parser)
     data.add_data_aug_args(parser)
-    parser.set_defaults(random_crop=1, random_mirror=1,
-                        max_random_h=36, max_random_s=50, max_random_l=50)
+    # uncomment to set standard cifar augmentations
+    # set_cifar_aug(parser)
     parser.set_defaults(
         # network
         network        = 'resnet',
