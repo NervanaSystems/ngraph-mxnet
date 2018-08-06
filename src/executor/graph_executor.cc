@@ -1132,6 +1132,10 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                          std::unordered_map<std::string, NDArray>* shared_buffer,
                          Executor* shared_exec,
                          const nnvm::NodeEntryMap<NDArray>& feed_dict) {
+  // make copies so that ngraph compilation can modify shape / dtype
+  std::unordered_map<std::string, TShape> arg_shape_map = arg_shape_mapRef;
+  std::unordered_map<std::string, int> arg_dtype_map = arg_dtype_mapRef;
+  std::unordered_map<std::string, int> arg_stype_mapn = arg_stype_map;
   nnvm::ShapeVector sym_arg_shapes;
   nnvm::DTypeVector sym_arg_dtypes;
   StorageTypeVector sym_arg_stypes;
@@ -1140,6 +1144,37 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   nnvm::Graph g = InitGraph(symbol, default_ctx, ctx_map, in_arg_ctxes,
                             arg_grad_ctxes, aux_state_ctxes, &sym_arg_shapes,
                             &sym_arg_dtypes, &sym_arg_stypes, grad_req_types);
+
+#if MXNET_USE_NGRAPH == 1
+  // TODO(mbrookhart): Remove this when hetr can handle multiple contexts
+  auto multi_context = multi_context_check(default_ctx, in_arg_ctxes,
+                                           arg_grad_ctxes, aux_state_ctxes);
+  const auto grad_sparse = ngraph_bridge::sparse_check(*arg_grad_vec);
+  ngraph_bridge::SimpleBindArg simplebind(num_forward_inputs_, arg_shape_map,
+                                          arg_dtype_map, arg_stype_mapn);
+  ngraph_bridge::Compiler compiler(
+      g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), simplebind,
+      default_ctx);
+  if (!multi_context && !grad_sparse) {
+    g = compiler.Compile();
+
+    // modify shape / dtype with ngraph version
+    arg_shape_map = compiler.GetNgraphShape();
+    arg_dtype_map = compiler.GetNgraphDtype();
+    arg_stype_mapn = compiler.GetNgraphStype();
+
+    // create "device" and "context" attrs for the graph
+    Symbol sym;
+    sym.outputs = g.outputs;
+    g = InitFullGraph(sym, grad_req_types);
+  } else {
+    g = InitFullGraph(symbol, grad_req_types);
+  }
+    g = AssignContext(g, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
+                      aux_state_ctxes, grad_req_types, num_forward_inputs_,
+                      num_forward_outputs_);
+#endif
+
   // The following code of shape and dtype inferences and argument
   // initialization is for simple_bind only. Regular bind operation
   // should do this differently.
@@ -1364,16 +1399,11 @@ Graph GraphExecutor::InitGraph(nnvm::Symbol symbol,
   sym.outputs = gp.outputs;
 
   // setup gradient
-  nnvm::Graph g = InitFullGraph(sym, grad_req_types);
-
-  nnvm::Graph g;
-  g.outputs = symbol.outputs;
-  // setup gradient
 #if MXNET_USE_NGRAPH == 0
-  g = InitFullGraph(symbol,
+  gp = InitFullGraph(sym,
                     grad_req_types);
   // create "device" and "context" attrs for the graph
-  g = AssignContext(g, default_ctx, ctx_map,
+  gp = AssignContext(gp, default_ctx, ctx_map,
                     in_arg_ctxes,
                     arg_grad_ctxes,
                     aux_state_ctxes,
@@ -1381,7 +1411,7 @@ Graph GraphExecutor::InitGraph(nnvm::Symbol symbol,
                     num_forward_inputs_,
                     num_forward_outputs_);
 
-  const auto& idx = g.indexed_graph();
+  const auto& idx = gp.indexed_graph();
   // get number of nodes used in forward pass
   num_forward_nodes_ = 0;
   for (size_t i = 0; i < num_forward_outputs_; ++i) {
@@ -1389,7 +1419,7 @@ Graph GraphExecutor::InitGraph(nnvm::Symbol symbol,
         num_forward_nodes_, static_cast<size_t>(idx.outputs()[i].node_id + 1));
   }
 #endif
-  return g;
+  return gp;
 }
 
 // initialize the memory of each entries
