@@ -126,38 +126,52 @@ ngraph:
   # These following libraries are part of ngraph, and provide symbols required by nGraph's
   # public-interface header files, BUT are not reported as dependencies in libngraph.so's
   # ELF header.  We enumerate them here so we can make sure they get linked in appropriately.
-  NGRAPH_HELPER_LIBS_LDFLAGS = \
+  NGRAPH_HELPER_LIBS_LDFLAGS_ = \
     -L$(MXNET_LIB_DIR) \
     -lcpu_backend
 
   # nGraph provides some libraries that may compete with other libraries already installed
   # on the system. This provides the link-flags that, if provided early enough on the static-linker
   # command line, should ensure that the nGraph-supplied version is preferred.
-  NGRAPH_COMMON_LIBRARY_LDFLAGS = \
-    -Wl,-rpath-link=$(MXNET_LIB_DIR) \
+  NGRAPH_COMMON_LIBRARY_LDFLAGS_ = \
+    -Wl,-rpath-link=$(MXNET_LIB_DIR_) \
     -L$(MXNET_LIB_DIR) \
     -ltbb \
     -liomp5 \
     -lmklml_intel \
     -lmkldnn
 
-  NGRAPH_LDFLAGS = \
-    $(NGRAPH_COMMON_LIBRARY_LDFLAGS) \
+  NGRAPH_LDFLAGS_ = \
+    $(NGRAPH_COMMON_LIBRARY_LDFLAGS_) \
     -Wl,-rpath-link=$(MXNET_LIB_DIR) \
     -L$(MXNET_LIB_DIR) \
     -lngraph \
-    $(NGRAPH_HELPER_LIBS_LDFLAGS)
+    $(NGRAPH_HELPER_LIBS_LDFLAGS_)
 
   ifeq ($(USE_NGRAPH_DISTRIBUTED), 1)
-    NGRAPH_LDFLAGS += $(shell mpicxx --showme:link)
+    NGRAPH_LDFLAGS_ += $(shell mpicxx --showme:link)
   endif
+
+  # The static-link-time flags for creating .so files that will dynamically link to nGraph's libs
+  # at runtime.
+  NGRAPH_LDFLAGS_FOR_SHARED_LIBS := \
+    $(NGRAPH_LDFLAGS_) \
+    -Wl,-rpath='$${ORIGIN}'
+
+  # The static-link-time flags for creating .so files that will dynamically link to nGraph's libs
+  # at runtime.
+  # We don't specify '-Wl,-rpath' for this usage scenario because MXnet does not places its
+  # shared objects in the same directory as its executable programs.
+  NGRAPH_LDFLAGS_FOR_PROGS := \
+    $(NGRAPH_LDFLAGS_)
 
 else
   #-------------------------------------------------------------------------------------------------
   # USE_NGRAPH != 1
   #-------------------------------------------------------------------------------------------------
-  NGRAPH_CFLAGS=
-  NGRAPH_LDFLAGS=
+  NGRAPH_CFLAGS :=
+  NGRAPH_LDFLAGS_FOR_SHARED_LIBS :=
+  NGRAPH_LDFLAGS_FOR_PROGS :=
 
   # The 'ngraph' target is a no-op.
 ngraph:
