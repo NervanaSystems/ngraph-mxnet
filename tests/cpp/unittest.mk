@@ -17,13 +17,8 @@
 
 TEST_SRC = $(shell find tests/cpp/ -name "*.cc")
 
-ifeq ($(USE_NGRAPH),1)
-    TEST_NGRAPH_LDFLAGS := \
-	$(NGRAPH_LDFLAGS) \
-	-Wl,-rpath='$${ORIGIN}/../../../lib'
-else
-    TEST_SRC := $(foreach f,$(TEST_SRC),$(if $(findstring tests/cpp/ngraph,$f),,$f))
-    TEST_NGRAPH_LDFLAGS :=
+ifneq ($(USE_NGRAPH),1)
+   TEST_SRC := $(foreach f,$(TEST_SRC),$(if $(findstring tests/cpp/ngraph,$f),,$f))
 endif
 
 TEST_OBJ = $(patsubst %.cc, build/%.o, $(TEST_SRC))
@@ -36,8 +31,12 @@ GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
                 $(GTEST_DIR)/include/gtest/internal/*.h
 
 TEST_CFLAGS = -Itests/cpp/include -Isrc $(CFLAGS)
-TEST_LDFLAGS = $(LDFLAGS) -Llib -lmxnet \
-    $(TEST_NGRAPH_LDFLAGS)
+
+TEST_LDFLAGS = $(LDFLAGS)
+ifeq ($(USE_NGRAPH), 1)
+    TEST_LDFLAGS += $(NGRAPH_LDFLAGS_FOR_CPP_UNIT_TESTS_PROG)
+endif
+TEST_LDFLAGS += -Llib -lmxnet
 
 ifeq ($(USE_BREAKPAD), 1)
 TEST_CFLAGS  += -I/usr/local/include/breakpad

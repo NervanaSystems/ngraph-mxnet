@@ -532,12 +532,13 @@ $(NNVM_PATH)/lib/libnnvm.a: $(NNVM_INC) $(NNVM_SRC)
 
 bin/im2rec: tools/im2rec.cc $(ALLX_DEP)
 
+MXNET_RELATIVE_PATH_TO_RUNTIME_LIB_DIR := "../lib"
+
 $(BIN) :
 	@mkdir -p $(@D)
 	$(CXX) $(CFLAGS) -std=c++11  -o $@ $(filter %.cpp %.o %.c %.a %.cc, $^) \
 	  $(LDFLAGS) \
-	  $(NGRAPH_LDFLAGS_FOR_PROGS)
-
+	  $(NGRAPH_LDFLAGS_FOR_PROGS_IN_BIN)
 
 # CPP Package
 ifeq ($(USE_CPP_PACKAGE), 1)

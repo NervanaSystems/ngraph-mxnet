@@ -123,28 +123,25 @@ ngraph:
       -DMXNET_USE_NGRAPH_DISTRIBUTED=1
   endif
 
-  # These following libraries are part of ngraph, and provide symbols required by nGraph's
-  # public-interface header files, BUT are not reported as dependencies in libngraph.so's
-  # ELF header.  We enumerate them here so we can make sure they get linked in appropriately.
-  NGRAPH_HELPER_LIBS_LDFLAGS_ = \
-    -L$(MXNET_LIB_DIR) \
-    -lcpu_backend
-
   # nGraph provides some libraries that may compete with other libraries already installed
   # on the system. This provides the link-flags that, if provided early enough on the static-linker
   # command line, should ensure that the nGraph-supplied version is preferred.
-  NGRAPH_COMMON_LIBRARY_LDFLAGS_ = \
-    -Wl,-rpath-link=$(MXNET_LIB_DIR_) \
-    -L$(MXNET_LIB_DIR) \
+  NGRAPH_COMMON_LIBRARY_LDFLAGS_ := \
     -ltbb \
     -liomp5 \
     -lmklml_intel \
     -lmkldnn
 
-  NGRAPH_LDFLAGS_ = \
-    $(NGRAPH_COMMON_LIBRARY_LDFLAGS_) \
-    -Wl,-rpath-link=$(MXNET_LIB_DIR) \
+  # These following libraries are part of ngraph, and provide symbols required by nGraph's
+  # public-interface header files, BUT are not reported as dependencies in libngraph.so's
+  # ELF header.  We enumerate them here so we can make sure they get linked in appropriately.
+  NGRAPH_HELPER_LIBS_LDFLAGS_ := \
+    -lcpu_backend
+
+  NGRAPH_LDFLAGS_ := \
     -L$(MXNET_LIB_DIR) \
+    -Wl,-rpath-link=$(MXNET_LIB_DIR) \
+    $(NGRAPH_COMMON_LIBRARY_LDFLAGS_) \
     -lngraph \
     $(NGRAPH_HELPER_LIBS_LDFLAGS_)
 
@@ -158,11 +155,13 @@ ngraph:
     $(NGRAPH_LDFLAGS_) \
     -Wl,-rpath='$${ORIGIN}'
 
-  # The static-link-time flags for creating .so files that will dynamically link to nGraph's libs
-  # at runtime.
-  NGRAPH_LDFLAGS_FOR_PROGS := \
+  NGRAPH_LDFLAGS_FOR_PROGS_IN_BIN := \
     $(NGRAPH_LDFLAGS_) \
     -Wl,-rpath='$${ORIGIN}/../lib'
+
+  NGRAPH_LDFLAGS_FOR_CPP_UNIT_TESTS_PROG := \
+    $(NGRAPH_LDFLAGS_) \
+    -Wl,-rpath='$${ORIGIN}/../../../lib'
 
 else
   #-------------------------------------------------------------------------------------------------
@@ -170,7 +169,8 @@ else
   #-------------------------------------------------------------------------------------------------
   NGRAPH_CFLAGS :=
   NGRAPH_LDFLAGS_FOR_SHARED_LIBS :=
-  NGRAPH_LDFLAGS_FOR_PROGS :=
+  NGRAPH_LDFLAGS_FOR_PROGS_IN_BIN :=
+  NGRAPH_LDFLAGS_FOR_CPP_UNIT_TESTS_PROG :=
 
   # The 'ngraph' target is a no-op.
 ngraph:
