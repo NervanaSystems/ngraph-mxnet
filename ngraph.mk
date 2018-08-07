@@ -127,12 +127,26 @@ ngraph:
   # public-interface header files, BUT are not reported as dependencies in libngraph.so's
   # ELF header.  We enumerate them here so we can make sure they get linked in appropriately.
   NGRAPH_HELPER_LIBS_LDFLAGS = \
+    -L$(MXNET_LIB_DIR) \
     -lcpu_backend
 
-  NGRAPH_LDFLAGS = \
+  # nGraph provides some libraries that may compete with other libraries already installed
+  # on the system. This provides the link-flags that, if provided early enough on the static-linker
+  # command line, should ensure that the nGraph-supplied version is preferred.
+  NGRAPH_COMMON_LIBRARY_LDFLAGS = \
     -Wl,-rpath-link=$(MXNET_LIB_DIR) \
     -L$(MXNET_LIB_DIR) \
-    -lngraph $(NGRAPH_HELPER_LIBS_LDFLAGS)
+    -ltbb \
+    -liomp5 \
+    -lmklml_intel \
+    -lmkldnn
+
+  NGRAPH_LDFLAGS = \
+    $(NGRAPH_COMMON_LIBRARY_LDFLAGS) \
+    -Wl,-rpath-link=$(MXNET_LIB_DIR) \
+    -L$(MXNET_LIB_DIR) \
+    -lngraph \
+    $(NGRAPH_HELPER_LIBS_LDFLAGS)
 
   ifeq ($(USE_NGRAPH_DISTRIBUTED), 1)
     NGRAPH_LDFLAGS += $(shell mpicxx --showme:link)
