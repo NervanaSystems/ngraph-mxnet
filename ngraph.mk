@@ -160,10 +160,9 @@ ngraph:
 
   # The static-link-time flags for creating .so files that will dynamically link to nGraph's libs
   # at runtime.
-  # We don't specify '-Wl,-rpath' for this usage scenario because MXnet does not places its
-  # shared objects in the same directory as its executable programs.
   NGRAPH_LDFLAGS_FOR_PROGS := \
-    $(NGRAPH_LDFLAGS_)
+    $(NGRAPH_LDFLAGS_) \
+    -Wl,-rpath='$${ORIGIN}/../lib'
 
 else
   #-------------------------------------------------------------------------------------------------

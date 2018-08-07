@@ -106,7 +106,6 @@ LDFLAGS =
 
 ifeq ($(USE_NGRAPH),1)
     CFLAGS += $(NGRAPH_CFLAGS)
-    #LDFLAGS += $(NGRAPH_LDFLAGS)
 endif
 
 LDFLAGS += -pthread $(MSHADOW_LDFLAGS) $(DMLC_LDFLAGS)
@@ -530,6 +529,8 @@ NNVM_INC = $(wildcard $(NNVM_PATH)/include/*/*.h)
 NNVM_SRC = $(wildcard $(NNVM_PATH)/src/*/*/*.cc $(NNVM_PATH)/src/*/*.cc $(NNVM_PATH)/src/*.cc)
 $(NNVM_PATH)/lib/libnnvm.a: $(NNVM_INC) $(NNVM_SRC)
 	+ cd $(NNVM_PATH); $(MAKE) lib/libnnvm.a DMLC_CORE_PATH=$(DMLC_CORE); cd $(ROOTDIR)
+
+bin/im2rec: tools/im2rec.cc $(ALLX_DEP)
 
 $(BIN) :
 	@mkdir -p $(@D)
