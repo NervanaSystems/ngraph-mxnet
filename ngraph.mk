@@ -44,12 +44,6 @@
 #===================================================================================================
 
 # Check for some configuration problems...
-ifeq ($(USE_NGRAPH), 1)
-  ifeq ($(USE_MKLDNN), 1)
-    $(error "Cannot have both USE_NGRAPH=1 and USE_MKLDNN=1: they require different MKLDNN versions.")
-  endif
-endif
-
 ifneq ($(NGRAPH_DIR),)
   $(warning "WARNING: MXnet's build system ignores the value of NGRAPH_DIR.")
 endif
@@ -60,6 +54,7 @@ NGRAPH_SRC_DIR := $(ROOTDIR)/3rdparty/ngraph
 NGRAPH_BUILD_DIR := $(ROOTDIR)/3rdparty/ngraph/build
 NGRAPH_INSTALL_DIR := $(ROOTDIR)/3rdparty/ngraph/install
 MXNET_LIB_DIR := $(ROOTDIR)/lib
+NGRAPH_DEPENDENCIES :=
 
 # The 'clean' target should remove nGraph-related generated files, regardless of whether or not
 # the current Make invocation has USE_NGRAPH=1 ...
@@ -71,9 +66,15 @@ ngraph_clean:
 
 ifeq ($(USE_NGRAPH), 1)
 
+  ifeq ($(USE_MKLDNN), 1)
+    NGRAPH_EXTRA_CMAKE_FLAGS += "-DMKLDNN_INCLUDE_DIR=$(ROOTDIR)/3rdparty/mkldnn/install/include"
+    NGRAPH_EXTRA_CMAKE_FLAGS += "-DMKLDNN_LIB_DIR=$(ROOTDIR)/3rdparty/mkldnn/install/lib"
+    NGRAPH_DEPENDENCIES += mkldnn
+  endif
+
 .PHONY: ngraph
 all: ngraph
-ngraph:
+ngraph: $(NGRAPH_DEPENDENCIES)
 	mkdir -p "$(NGRAPH_BUILD_DIR)"
 	@echo
 	@echo ABOUT TO CONFIGURE AND BUILD 3rdparty/ngraph...
