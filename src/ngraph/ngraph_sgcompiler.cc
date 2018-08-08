@@ -103,10 +103,12 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
     if (fprop_cache.node_param_map->exists(result->get_argument(0))) {
       auto cloned_result = fmap.get(result);
       auto bf_param = fprop_cache.node_param_map->get(result->get_argument(0));
-      auto cloned_bf_param = bfmap.get(bf_param);
-      auto layout =
-          cloned_result->get_output_tensor_view()->get_tensor_view_layout();
-      cloned_bf_param->get_output_tensor_view()->set_tensor_view_layout(layout);
+      if (bfmap.get_node_map().count(bf_param) != 0) {
+        auto cloned_bf_param = bfmap.get(bf_param);
+        auto layout =
+            cloned_result->get_output_tensor_view()->get_tensor_view_layout();
+        cloned_bf_param->get_output_tensor_view()->set_tensor_view_layout(layout);
+      }
     }
   }
 
