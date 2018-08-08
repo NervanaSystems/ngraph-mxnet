@@ -19,9 +19,9 @@ mxnet_option(USE_SSE              "Build with x86 SSE instruction support" ON IF
 mxnet_option(USE_F16C             "Build with x86 F16C instruction support" ON) # autodetects support if ON
 mxnet_option(USE_LAPACK           "Build with lapack support" ON)
 mxnet_option(USE_NGRAPH           "Build with nGraph support" ON)
-mxnet_option(USE_MKL_IF_AVAILABLE "Use MKL if found" ON AND (NOT USE_NGRAPH))
-mxnet_option(USE_MKLML_MKL        "Use MKLDNN variant of MKL (if MKL found)" ON IF USE_MKL_IF_AVAILABLE AND (NOT APPLE) AND (NOT USE_NGRAPH))
-mxnet_option(USE_MKLDNN           "Use MKLDNN variant of MKL (if MKL found)" ON IF USE_MKL_IF_AVAILABLE AND (NOT APPLE) AND (NOT USE_NGRAPH))
+mxnet_option(USE_MKL_IF_AVAILABLE "Use MKL if found" ON)
+mxnet_option(USE_MKLML_MKL        "Use MKLDNN variant of MKL (if MKL found)" ON IF USE_MKL_IF_AVAILABLE AND (NOT APPLE))
+mxnet_option(USE_MKLDNN           "Use MKLDNN variant of MKL (if MKL found)" ON IF USE_MKL_IF_AVAILABLE AND (NOT APPLE))
 mxnet_option(USE_OPERATOR_TUNING  "Enable auto-tuning of operators" ON IF NOT MSVC)
 mxnet_option(USE_GPERFTOOLS       "Build with GPerfTools support (if found)" ON)
 mxnet_option(USE_JEMALLOC         "Build with Jemalloc support"   ON)
@@ -178,6 +178,9 @@ if(USE_NGRAPH)
   add_definitions(-DCUB_MKL=1)
   add_definitions(-DMXNET_USE_NGRAPH=1)
   list(APPEND mxnet_LINKER_LIBS ngraph_interface_lib)
+  if(USE_NGRAPH_DISTRIBUTED)
+    list(APPEND mxnet_LINKER_LIBS ${MPI_CXX_LIBRARIES})
+  endif(USE_NGRAPH_DISTRIBUTED)
 endif()
 
 if(USE_GPROF)
@@ -437,6 +440,15 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/mshadow/cmake)
 endif()
 FILE(GLOB_RECURSE SOURCE "src/*.cc" "src/*.h" "include/*.h")
 FILE(GLOB_RECURSE CUDA "src/*.cu" "src/*.cuh")
+
+#remove unneded nGraph files
+if(NOT USE_NGRAPH)
+  FOREACH(item ${SOURCE})
+    IF(${item} MATCHES "src/ngraph")
+      LIST(REMOVE_ITEM SOURCE ${item})
+    ENDIF(${item} MATCHES "src/ngraph")
+  ENDFOREACH(item)
+endif()
 
 # add nnvm to source
 FILE(GLOB_RECURSE NNVMSOURCE
