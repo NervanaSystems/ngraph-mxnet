@@ -14,11 +14,6 @@ list(APPEND NGRAPH_EXTRA_CMAKE_FLAGS "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
 list(APPEND NGRAPH_EXTRA_CMAKE_FLAGS "-DCMAKE_INSTALL_PREFIX=${NGRAPH_INSTALL_PREFIX}")
 list(APPEND NGRAPH_EXTRA_CMAKE_FLAGS "-DNGRAPH_USE_PREBUILT_LLVM=1")
 
-#if(USE_MKLDNN)
-#  list(APPEND NGRAPH_EXTRA_CMAKE_FLAGS "-DMKLDNN_INCLUDE_DIR=${CMAKE_SOURCE_DIR}/3rdparty/mkldnn/include")
-#  list(APPEND NGRAPH_EXTRA_CMAKE_FLAGS "-DMKLDNN_LIB_DIR=${CMAKE_BINARY_DIR}/3rdparty/mkldnn/src")
-#endif(USE_MKLDNN)
-
 if(USE_NGRAPH_IE)
   add_definitions(-DMXNET_USE_NGRAPH_IE=1)
 endif(USE_NGRAPH_IE)
@@ -44,13 +39,10 @@ ExternalProject_Add(
 )
 
 add_dependencies(ngraph_interface_lib ext_ngraph)
-if(USE_MKLDNN)
-    add_dependencies(ext_ngraph mkldnn)
-else()
-  include_directories(
-    ${NGRAPH_INSTALL_PREFIX}/src/ext_ngraph-build/mkldnn/src/external/mkl/include
-  )
-endif(USE_MKLDNN)
+
+include_directories(
+  ${NGRAPH_INSTALL_PREFIX}/src/ext_ngraph-build/mkldnn/src/external/mkl/include
+)
 
 ExternalProject_Get_Property(ext_ngraph SOURCE_DIR INSTALL_DIR)
 
