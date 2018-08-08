@@ -92,22 +92,45 @@ USE_OPENCV = 1
 
 #whether use libjpeg-turbo for image decode without OpenCV wrapper
 USE_LIBJPEG_TURBO = 0
+
 #add the path to libjpeg-turbo library
 USE_LIBJPEG_TURBO_PATH = NONE
 
 # use openmp for parallelization
 USE_OPENMP = 1
 
-# set USE_NGRAPH = 1 to compile with nGraph.
-USE_NGRAPH = 0
-# set USE_NGRAPH_DISTRIBUTED = 1 to add nGraph distributed support.
-USE_NGRAPH_DISTRIBUTED = 0
-# when USE_NGRAPH = 1
-# optional: path to installed nGraph libraries
-# e.g. NGRAPH_DIR = <path>/ngraph/install (containing lib and include dirs)
-# if not specified nGraph will be cloned/built/installed during make
-NGRAPH_DIR =
+# The following variables influence if/how MXnet is built with nGraph support:
+#
+# USE_NGRAPH - If 1, then MXnet will built with nGraph support.
+#
+# USE_NGRAPH_IE - If 1, then if/when nGraph is built it will contain support for inference-engine
+#   processing.
+#
+# USE_NGRAPH_DISTRIBUTED - If 1, then if/when nGraph is built it will contain support for
+#   distributed processing.
+#
+# NGRAPH_EXTRA_CMAKE_FLAGS - Additional command-line arguments passed to the 'cmake' invocation
+#   used to configure the nGraph build.
+#
+# NGRAPH_EXTRA_MAKE_FLAGS - Additional command-line arugments passed to the 'make' invocation
+#   used to build nGraph.
+#
+# ADD_NGRAPH_LIBDIR_TO_MXNET_RPATH - If USE_NGRAPH=1 and ADD_NGRAPH_LIBDIR_TO_MXNET_RPATH=1, then
+#   'libmxnet.so' will be linked with linker option `-rpath=D`, where "D" is whatever directory
+#   contains the copy of `libngraph.so` used by MXnet's build system.
 
+USE_NGRAPH = 0
+USE_NGRAPH_IE = 0
+USE_NGRAPH_DISTRIBUTED = 0
+ADD_NGRAPH_LIBDIR_TO_MXNET_RPATH=1
+NGRAPH_EXTRA_MAKE_FLAGS="VERBOSE=1"
+
+LSB_RELEASE_UBUNTU_1604 := $(shell /usr/bin/lsb_release -a 2>/dev/null | grep "Ubuntu 16.04" )
+ifneq ($(LSB_RELEASE_UBUNTU_1604),)
+  NGRAPH_EXTRA_CMAKE_FLAGS="-DNGRAPH_USE_PREBUILT_LLVM=1"
+else
+  NGRAPH_EXTRA_CMAKE_FLAGS="-DNGRAPH_USE_PREBUILT_LLVM=0"
+endif
 
 # whether use NNPACK library
 USE_NNPACK = 0

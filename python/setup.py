@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 import os
 import sys
+
 # need to use distutils.core for correct placement of cython dll
 kwargs = {}
 if "--inplace" in sys.argv:
@@ -43,7 +44,7 @@ libinfo_py = os.path.join(CURRENT_DIR, 'mxnet/libinfo.py')
 libinfo = {'__file__': libinfo_py}
 exec(compile(open(libinfo_py, "rb").read(), libinfo_py, 'exec'), libinfo, libinfo)
 
-LIB_PATH = libinfo['find_lib_path']()
+LIB_PATHS = libinfo['find_lib_path']()
 __version__ = libinfo['__version__']
 
 sys.path.insert(0, CURRENT_DIR)
@@ -98,12 +99,11 @@ def config_cython():
         print("WARNING: Cython is not installed, will compile without cython module")
         return []
 
-
 setup(name='mxnet',
       version=__version__,
       description=open(os.path.join(CURRENT_DIR, 'README.md')).read(),
       packages=find_packages(),
-      data_files=[('mxnet', [LIB_PATH[0]])],
+      data_files=[('mxnet', LIB_PATHS)],
       url='https://github.com/apache/incubator-mxnet',
       ext_modules=config_cython(),
       classifiers=[

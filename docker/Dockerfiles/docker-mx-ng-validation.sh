@@ -32,8 +32,6 @@ if [ -z "${2}" ] ; then
 else
     export PYTHON_VERSION_NUMBER="${2}"
 fi
-echo "======PYTHON_VERSION_NUMBER========"
-echo " PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
 
 # Note that the docker image must have been previously built using the
 # make-docker-mx-ngraph-base.sh script (in the same directory as this script).
@@ -48,9 +46,7 @@ fi
 set -u  # No unset variables
 
 ngraph_mx_dir="$(realpath ../..)"
-
 docker_mx_dir="/home/dockuser/ng-mx"
-
 script='run-mx-ngraph-validation-test.sh'
 
 # Parameters:
