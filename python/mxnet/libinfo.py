@@ -136,7 +136,11 @@ def find_lib_path():
     lib_path = lib_path[0:1]
 
     mxnet_lib_dir = os.path.dirname(lib_path[0])
-    lib_path += _get_ngraph_shared_lib_paths(mxnet_lib_dir)
+
+    # This is only needed when we add support for building Pip Wheels enabled
+    # with nGraph.  For now we disable this because it breaks non-nGraph
+    # builds.
+    #lib_path += _get_ngraph_shared_lib_paths(mxnet_lib_dir)
 
     return lib_path
 
