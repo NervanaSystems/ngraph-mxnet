@@ -137,6 +137,7 @@ def find_lib_path():
 
     mxnet_lib_dir = os.path.dirname(lib_path[0])
 
+    # TODO:
     # This is only needed when we add support for building Pip Wheels enabled
     # with nGraph.  For now we disable this because it breaks non-nGraph
     # builds.

@@ -24,8 +24,17 @@
 #
 # - Assuming no error is noticed:
 #   - Sets the following variables (perhaps to the empty string):
+#
 #     NGRAPH_CFLAGS  - Compiler args needed to build the MXnet-nGraph bridge code.
-#     NGRAPH_LDFLAGS - Linker args needed to build the MXnet-nGraph bridge code.
+#
+#     NGRAPH_LDFLAGS_FOR_SHARED_LIBS - Static-linker flags for MXnet shared object(s) that
+#        potentially require libngraph.so at runtime, and which reside in MXnet's 'lib' directory.
+#
+#     NGRAPH_LDFLAGS_FOR_PROGS_IN_BIN - Static-linker flags for MXnet executables that
+#        potentially require libngraph.so at runtime, and which reside in MXnet's 'bin' directory.
+#
+#     NGRAPH_LDFLAGS_FOR_CPP_UNIT_TESTS_PROG - Static-linker flags for the program
+#        build/tests/cpp/mxnet_unit_tests
 #
 #   - In whatever way is appropriate, defines new goals and adds them as
 #     dependencies of the 'all' and/or 'clean' targets.
