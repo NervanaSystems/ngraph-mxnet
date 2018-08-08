@@ -1422,6 +1422,10 @@ void Emitter::CreateLayerOps() {
     if (use_sequence_length) {
       const int batch_axis = 1;
       NgraphNodePtr sequence_length = op_map_[node->inputs_[1]];
+      if (sequence_length->get_element_type() != ngraph::element::i32) {
+        sequence_length = std::make_shared<ngraph::op::Convert>(
+            sequence_length, ngraph::element::i32);
+      }
       return std::make_shared<ngraph::op::ReverseSequence>(
           data, sequence_length, batch_axis, seq_axis);
     } else {
