@@ -73,7 +73,6 @@ MXNET_LIB_DIR := $(ROOTDIR)/lib
 # The 'clean' target should remove nGraph-related generated files, regardless of whether or not
 # the current Make invocation has USE_NGRAPH=1 ...
 .PHONY: ngraph_clean
-clean: ngraph_clean
 ngraph_clean:
 	$(RM) -r "$(NGRAPH_BUILD_DIR)"
 	$(RM) -r "$(NGRAPH_INSTALL_DIR)"
