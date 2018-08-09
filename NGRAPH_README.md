@@ -115,9 +115,6 @@ Please see the files `ngraph.mk` and `make/config.mk` for more details.
         pip install -e .
         ```
    1. *(Optional)  Verify functionality of installed Python bindings*
-        1. Ensure that the `LD_LIBRARY_PATH` includes the two directories
-           containing the `libmxnet.so`, `libngraph.so`, and related
-           shared object files as discussed above.
         1. If the `pip install -e .` command (see above) installed the
            Python bindings into a Python virtual environment, ensure that
            Python virtual environment is currently activated.
@@ -140,7 +137,7 @@ Here's an example to run ResNet-50 on two nodes:
 
 ``` sh
 export MXNET_NGRAPH_GLUON=1
-mpirun -map-by node -x MXNET_NGRAPH_GLUON -x LD_LIBRARY_PATH -hostfile hosts -np 2 python MXNET_ROOT/example/image-classification/train_cifar10.py --network resnet --num-layers 50 --kv-store ngraph
+mpirun -map-by node -x MXNET_NGRAPH_GLUON -hostfile hosts -np 2 python MXNET_ROOT/example/image-classification/train_cifar10.py --network resnet --num-layers 50 --kv-store ngraph
 ```
 
 ## Runtime environment variables

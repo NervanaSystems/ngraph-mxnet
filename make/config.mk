@@ -99,6 +99,9 @@ USE_LIBJPEG_TURBO_PATH = NONE
 # use openmp for parallelization
 USE_OPENMP = 1
 
+# whether use MKL-DNN library
+USE_MKLDNN = 0
+
 # The following variables influence if/how MXnet is built with nGraph support:
 #
 # USE_NGRAPH - If 1, then MXnet will built with nGraph support.
