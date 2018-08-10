@@ -504,8 +504,8 @@ lib/libmxnet.a: $(ALLX_DEP)
 lib/libmxnet.so: $(ALLX_DEP)
 	@mkdir -p $(@D)
 	$(CXX) $(CFLAGS) -shared -o $@ $(filter-out %libnnvm.a, $(filter %.o %.a, $^)) \
-	  $(LDFLAGS) \
 	  $(NGRAPH_LDFLAGS_FOR_SHARED_LIBS) \
+	  $(LDFLAGS) \
  	  -Wl,${WHOLE_ARCH} $(filter %libnnvm.a, $^) -Wl,${NO_WHOLE_ARCH}
 ifeq ($(USE_MKLDNN), 1)
 ifeq ($(UNAME_S), Darwin)
