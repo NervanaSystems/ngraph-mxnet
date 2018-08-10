@@ -29,16 +29,37 @@ echo "**************************************************************************
 
 cd "${MX_DIR}"
 git submodule update --init --recursive
-make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 -j $(nproc)
+echo "The make variable is: ${MAKE_VARIABLES}"
+
+case "${MAKE_VARIABLES}" in
+	USE_NGRAPH)
+		echo "Building MXnet with experimental nGraph integration enabled. Engine: CPU + MKLDNN"
+		make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 -j $(nproc)
+		;;
+	USE_NGRAPH_DISTRIBUTED)
+		echo "Building MXnet with experimental nGraph distributed support enabled. Engine: CPU + MKLDNN"
+		make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 USE_NGRAPH_DISTRIBUTED=1 -j $(nproc)
+	USE_CUDA)
+		#make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=1 DEBUG=0 -j $(nproc)
+		echo "Building MXnet with experimental nGraph distributed support enabled. Engine: GPU"
+		echo "TODO"
+		break
+		;;
+	USE_MKLDNN)
+		echo "Building MXnet with MKLDNN, and non-nGraph. Engine: CPU + MKLDNN"
+		make USE_NGRAPH=0 USE_MKLDNN=1 DEBUG=0 -j $(nproc)
+		;;
+	*)
+		echo "Building MXnet with non-MKLDNN, and non-nGraph. Engine: CPU"
+		make USE_NGRAPH=0 USE_MKLDNN=0 DEBUG=0 -j $(nproc)
+		;;
+esac
+
+
 export LD_LIBRARY_PATH="${MX_DIR}/3rdparty/ngraph/install/lib"
 echo ${LD_LIBRARY_PATH}
 
-if [ ! -f "$LD_LIBRARY_PATH/libngraph.so" ] ; then
-	( >&2 echo "FATAL ERROR: Can not found libngraph.so. Exiting ...." )
-  	exit 1
-else
-	echo "Success to install 3rdparty Ngraph."
-fi	
+echo "Verify the installation of Mxnet"
 
 if [ ! -f "./lib/libmxnet.so" ] ; then
   ( >&2 echo "FATAL ERROR: Can not found libmxnet.so. Exiting ...." )
@@ -47,7 +68,42 @@ else
    echo "Success to install ngraph-mxnet."
 fi
 
-if [ ! -f "$LD_LIBRARY_PATH/libmkldnn.so" ] ; then
-  ( >&2 echo "FATAL ERROR: libmkldnn.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
-  exit 1
+echo "Verify the installation of 3rdparty Ngraph"
+
+if [ "${MAKE_VARIABLES}" == "USE_NGRAPH" ] && [ "${MAKE_VARIABLES}" == "USE_NGRAPH_DISTRIBUTED" ]; then
+	if [ ! -f "$LD_LIBRARY_PATH/libngraph.so" ] ; then
+		( >&2 echo "FATAL ERROR: Can not found libngraph.so. Exiting ...." )
+  		exit  
+	else
+		echo "Success to install 3rdparty Ngraph."
+	fi	
+
+	if [ ! -f "$LD_LIBRARY_PATH/libmkldnn.so" ] ; then
+  		( >&2 echo "FATAL ERROR: libmkldnn.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
+  		exit 1
+	fi
+elif [ "${MAKE_VARIABLES}" == "USE_MKLDNN" ]; then
+	if [ ! -f "./lib/libmkldnn.so" ] ; then
+		( >&2 echo "FATAL ERROR: libmkldnn.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
+  		exit 1
+  	else
+  		echo "Success to install MKLDNN."
+  	fi
+
+  	if [ -d "${MX_DIR}/3rdparty/ngraph/install" ]; then
+  		( >&2 echo "FATAL ERROR: the directory 3rdparty/ngraph/install found in ${MX_DIR}/3rdparty/ngraph" )
+  		exit 1
+  	else
+  		echo "PASS. Directory 3rdparty/ngraph/install is not existed!"
+  	fi
+else
+	if [ -f "./lib/libmkldnn.so" ] ; then
+		( >&2 echo "FATAL ERROR: libmkldnn.so should not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
+	fi
+
+  	if [ -d "${MX_DIR}/3rdparty/ngraph/install" ]; then
+  		( >&2 echo "FATAL ERROR: the directory 3rdparty/ngraph/install found in ${MX_DIR}/3rdparty/ngraph" )
+  		exit 1
+  	fi
+
 fi
