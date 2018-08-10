@@ -57,7 +57,7 @@ run_inference_topologies() {
     eval $cmd
 
     # Run the inception_v3
-    cmd="pytest -s docker/scripts/test_deepmark_inception_v3_inference.py --junit-xml=validation_test_deepmark_inception_v3_inference.xml --junit-prefix=inference_deepmark_inception_v4_cpu"
+    cmd="pytest -s docker/scripts/test_deepmark_inception_v3_inference.py --junit-xml=validation_test_deepmark_inception_v3_inference.xml --junit-prefix=inference_deepmark_inception_v3_cpu"
     eval $cmd
 
     # Run the inception_resnet_v2
