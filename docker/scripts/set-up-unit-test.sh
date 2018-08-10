@@ -39,28 +39,10 @@ export BUILD_MX_WITH_CCACHE=0
 # sets this up.
 cd "$HOME/ng-mx"
 
-# ngraph_dist (with libmkldnn.so) is expected to be at top of ngraph-mxnet
-export LD_LIBRARY_PATH="$HOME/ng-mx/ngraph_dist/lib"
-
 echo "In $(basename ${0}):"
 echo "  HOME=${HOME}"
 echo "  PYTHON_VERSION_NUMBER=${PYTHON_VERSION_NUMBER}"
 echo "  PYTHON_BIN_PATH=${PYTHON_BIN_PATH}"
-echo "  LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
-
-# ----- Sanity Checks ----------------------------------------------------------
-
-if [ ! -f "$LD_LIBRARY_PATH/libngraph.so" ] ; then
-  ( >&2 echo "FATAL ERROR: libngraph.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
-  exit 1
-fi
-
-if [ ! -f "$LD_LIBRARY_PATH/libmkldnn.so" ] ; then
-  ( >&2 echo "FATAL ERROR: libmkldnn.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
-  exit 1
-fi
-
-# --------------------------------------------------------------------------------
 
 xtime="$(date)"
 echo  ' '

@@ -26,3 +26,7 @@
 [submodule "3rdparty/tvm"]
 	path = 3rdparty/tvm
 	url = https://github.com/dmlc/tvm
+[submodule "3rdparty/ngraph"]
+	path = 3rdparty/ngraph
+	url = https://github.com/NervanaSystems/ngraph.git
+	branch = master

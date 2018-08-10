@@ -21,24 +21,33 @@ set -e
 
 declare SCRIPT_NAME="$(basename "${0}")"
 declare THIS_SCRIPT_DIR="$( cd $(dirname "${BASH_SOURCE[0]}") && pwd )"
-declare NGRAPH_INSTALL_DIR="${HOME}/ngraph_dist"
 declare MX_DIR="$(cd "${THIS_SCRIPT_DIR}/../.." && pwd)"
 
 echo "****************************************************************************************"
-echo "Build and install MXnet..."
+echo "Build and install Ngraph_MXnet..."
 echo "****************************************************************************************"
-
-if [[ -z "${NGRAPH_INSTALL_DIR:-}" ]]; then
-    export LD_LIBRARY_PATH="${HOME}/ng_mx/ngraph_dist/lib/"
-fi
 
 cd "${MX_DIR}"
 git submodule update --init --recursive
-make USE_NGRAPH=1 NGRAPH_DIR=${NGRAPH_INSTALL_DIR} -j $(nproc)
+make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 -j $(nproc)
+export LD_LIBRARY_PATH="${MX_DIR}/3rdparty/ngraph/install/lib"
+echo ${LD_LIBRARY_PATH}
+
+if [ ! -f "$LD_LIBRARY_PATH/libngraph.so" ] ; then
+	( >&2 echo "FATAL ERROR: Can not found libngraph.so. Exiting ...." )
+  	exit 1
+else
+	echo "Success to install 3rdparty Ngraph."
+fi	
 
 if [ ! -f "./lib/libmxnet.so" ] ; then
   ( >&2 echo "FATAL ERROR: Can not found libmxnet.so. Exiting ...." )
   exit 1
 else
    echo "Success to install ngraph-mxnet."
+fi
+
+if [ ! -f "$LD_LIBRARY_PATH/libmkldnn.so" ] ; then
+  ( >&2 echo "FATAL ERROR: libmkldnn.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
+  exit 1
 fi
