@@ -161,15 +161,18 @@ ngraph:
   # at runtime.
   NGRAPH_LDFLAGS_FOR_SHARED_LIBS := \
     $(NGRAPH_LDFLAGS_) \
-    -Wl,-rpath='$${ORIGIN}'
+    -Wl,-rpath='$${ORIGIN}' \
+    -Wl,--as-needed
 
   NGRAPH_LDFLAGS_FOR_PROGS_IN_BIN := \
     $(NGRAPH_LDFLAGS_) \
-    -Wl,-rpath='$${ORIGIN}/../lib'
+    -Wl,-rpath='$${ORIGIN}/../lib' \
+    -Wl,--as-needed
 
   NGRAPH_LDFLAGS_FOR_CPP_UNIT_TESTS_PROG := \
     $(NGRAPH_LDFLAGS_) \
-    -Wl,-rpath='$${ORIGIN}/../../../lib'
+    -Wl,-rpath='$${ORIGIN}/../../../lib' \
+    -Wl,--as-needed
 
 else
   #-------------------------------------------------------------------------------------------------
