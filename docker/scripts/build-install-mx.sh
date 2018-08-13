@@ -39,6 +39,7 @@ case "${MAKE_VARIABLES}" in
 	USE_NGRAPH_DISTRIBUTED)
 		echo "Building MXnet with experimental nGraph distributed support enabled. Engine: CPU + MKLDNN"
 		make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 USE_NGRAPH_DISTRIBUTED=1 -j $(nproc)
+		;;
 	USE_CUDA)
 		#make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=1 DEBUG=0 -j $(nproc)
 		echo "Building MXnet with experimental nGraph distributed support enabled. Engine: GPU"
