@@ -15,7 +15,7 @@
 # ********************************************************************************
 # Author:  Lam Nguyen
 
-#!  /bin/bash
+#!/bin/bash
 
 # This script is designed to be called from within a docker container.
 # It is installed into a docker image.  It will not run outside the container.
@@ -52,7 +52,9 @@ echo  ' '
 # Make sure pip install uses sudo, for installing into system
 # In addition, pip seems to ignore http_proxy env vars, so
 # explicitly set them here
+cd "${HOME}"
 export PIP_INSTALL_FROM_SUDO=1
 export PIP_INSTALL_EXTRA_ARGS="--proxy=$http_proxy --proxy=$https_proxy"
-./build-install-mx.sh 2>&1 | tee ../mx-build.log
+sh build-install-mx.sh 2>&1 | tee ../mx-build.log
+
 echo "===== Build & Install Pipeline Exited with $? and endtime ${xtime} ===="
