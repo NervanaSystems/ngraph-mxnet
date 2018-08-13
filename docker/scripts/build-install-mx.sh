@@ -71,7 +71,7 @@ fi
 
 echo "Verify the installation of 3rdparty Ngraph"
 
-if [ "${MAKE_VARIABLES}" == "USE_NGRAPH" ] && [ "${MAKE_VARIABLES}" == "USE_NGRAPH_DISTRIBUTED" ]; then
+if [ "${MAKE_VARIABLES}" == "USE_NGRAPH" ] || [ "${MAKE_VARIABLES}" == "USE_NGRAPH_DISTRIBUTED" ]; then
 	if [ ! -f "$LD_LIBRARY_PATH/libngraph.so" ] ; then
 		( >&2 echo "FATAL ERROR: Can not found libngraph.so. Exiting ...." )
   		exit  
