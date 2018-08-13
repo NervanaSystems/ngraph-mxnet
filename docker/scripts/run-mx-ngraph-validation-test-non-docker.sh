@@ -31,39 +31,13 @@ fi
 if [ -z "${ng_mx_model}" ] ; then
     ( >&2 echo "SYNTAX ERROR: First and only parameter should be ng_mx_model." )
     ( >&2 echo "Supported ng_mx_model ( Ngraph MXNET model/network) combinations are:")
-    ( >&2 echo "    mlp-mnist  resnet110-cifar10")
+    ( >&2 echo " resnet110-cifar10  resnet-i1k ")
     exit 1
 fi
 
 set -e  # Make sure we exit on any command that returns non-zero
 set -u  # No unset variables
 set -o pipefail # Make sure cmds in pipe that are non-zero also fail immediately
-
-# ===== run_MLP_MNIST() ========== 
-# Function to run the example/image-classification/train_mnist.py
-# Note:  read_data() will automatic download data from http://yann.lecun.com/exdb/mnist/ (train-images-idx3-ubyte.gz, t10k-images-idx3-ubyte.gz)
-run_MLP_MNIST() {
-    # Make sure the bash shell prompt variables are set, as virtualenv crashes
-    # if PS2 is not set.
-    PS1='prompt> '
-    PS2='prompt-more> '
-    virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
-    source "${venv_dir}/bin/activate"
-    cd python && pip install -e . && pip install psutil && pip install pytest && pip install mpi4py && cd ../
-    xtime="$(date)"
-    echo  ' '
-    echo  "===== Running Ngraph Mxnet Daily Validation on CPU-Backend at ${xtime} ====="
-    echo  ' '
-    echo  "===== PWD is $PWD ====="
-    # In train_mnist.py script, OMP_NUM_THREADS (omp_max_thread) and KMP_AFFINITY are explicitly
-    # set only for the nGraph run by default. NUM_EPOCHS = 20 
-    # Test parameters
-    export TEST_MLP_MNIST_LOG_DIR="${HOME}/ng-mx"
-    # Run the test
-    pytest -s docker/scripts/test_mnist_cpu_daily_validation.py --junit-xml=validation_tests_mnist_mlp_cpu.xml --junit-prefix=daily_validation_mnist_mlp_cpu
-    echo "===== Daily Validation CPU-Backend Pipeline Exited with $? ====="
-
-}  # run_MLP_MNIST()
 
 # ===== run_RESNET110_CIFAR10() NEED TO DO ========== 
 # Function to run the example/image-classification/train_cifar10.py
@@ -85,7 +59,8 @@ run_RESNET110_CIFAR10() {
     # In train_cifar10.py script, OMP_NUM_THREADS (omp_max_thread) and KMP_AFFINITY are explicitly
     # set only for the nGraph run.  Thus, they are not set here.
     # Test parameters
-    export TEST_RESNET_CIFAR10_LOG_DIR="${HOME}/ng-mx"
+    HOME=`pwd`
+    export TEST_RESNET_CIFAR10_LOG_DIR="${HOME}\ngraph-mxnet"
     export TEST_MX_NG_RESNET_NUM_LAYERS="${MX_NG_RESNET_NUM_LAYERS}"
     export TEST_MX_RESNET_NUM_CLASSES="${MX_NG_RESNET_NUM_CLASSES}"
     export TEST_MX_NG_RESNET_NUM_EXAMPLES="${MX_NG_RESNET_NUM_EXAMPLES}"
@@ -97,6 +72,7 @@ run_RESNET110_CIFAR10() {
     export TEST_MX_NG_RESNET_WITH_NNP="${MX_NG_RESNET_WITH_NNP}"
     export TEST_RESNET110_CIFAR10_EPOCHS="${MX_NG_EPOCHS:-}"
     export TEST_MX_NG_RESNET_ACCEPTABLE_ACCURACY="${MX_NG_RESNET_ACCEPTABLE_ACCURACY}"
+    export TEST_MAKE_VARIABLES="${MAKE_VARIABLES}"
     if [ -z "${TEST_RESNET110_CIFAR10_EPOCHS}" ] ; then
         export TEST_RESNET110_CIFAR10_EPOCHS=1  # Default is 300 epoches
     fi
@@ -170,9 +146,6 @@ xtime="$(date)"
 cd "$HOME/ng-mx/"
 
 case "${ng_mx_model}" in
-mlp-mnist)  # Multi-Layer Perceptron (MLP) with MNIST dataset
-    run_MLP_MNIST
-    ;;
 resnet110-cifar10)  # Resnet110 with CIFAR10 dataset
     run_RESNET110_CIFAR10
     ;;
