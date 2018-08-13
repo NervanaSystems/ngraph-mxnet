@@ -38,13 +38,12 @@ export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
 # HOME is expected to be /home/dockuser.  See script run-as-user.sh, which
 # sets this up.
 
+HOME=`pwd`
 echo "In $(basename ${0}):"
 echo "  HOME=${HOME}"
 echo "  PYTHON_VERSION_NUMBER=${PYTHON_VERSION_NUMBER}"
 echo "  PYTHON_BIN_PATH=${PYTHON_BIN_PATH}"
 echo "  MAKE_VARIABLES=${MAKE_VARIABLES}"
-
-cd "$HOME/ngraph-mxnet/docker/scripts/"
 
 xtime="$(date)"
 echo  ' '
