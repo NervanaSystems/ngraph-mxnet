@@ -15,7 +15,7 @@
 # ********************************************************************************
 # Author:  Lam Nguyen
 
-#!  /bin/bash
+#!/bin/bash
 
 # This script is designed to be called from within a docker container.
 # It is installed into a docker image.  It will not run outside the container.
