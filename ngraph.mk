@@ -67,7 +67,7 @@ endif
 
 NGRAPH_SRC_DIR := $(ROOTDIR)/3rdparty/ngraph
 NGRAPH_BUILD_DIR := $(ROOTDIR)/3rdparty/ngraph/build
-NGRAPH_INSTALL_DIR := $(ROOTDIR)/3rdparty/ngraph/build
+NGRAPH_INSTALL_DIR := $(ROOTDIR)/3rdparty/ngraph/install
 MXNET_LIB_DIR := $(ROOTDIR)/lib
 
 # The 'clean' target should remove nGraph-related generated files, regardless of whether or not

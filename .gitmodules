@@ -30,3 +30,4 @@
 	path = 3rdparty/ngraph
 	url = https://github.com/NervanaSystems/ngraph.git
 	branch = master
+	ignore = untracked
