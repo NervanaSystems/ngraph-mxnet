@@ -108,6 +108,7 @@ ngraph:
 	@echo
 	mkdir -p "$(MXNET_LIB_DIR)"
 	cd "$(NGRAPH_INSTALL_DIR)/lib"; tar c --to-stdout . | tar x --dereference --directory "$(MXNET_LIB_DIR)"
+	cd "$(NGRAPH_BUILD_DIR)/tvm/lib"; tar c --to-stdout . | tar x --dereference --directory "$(MXNET_LIB_DIR)"
 
 	@echo
 	@echo 3rdparty/ngraph INTERNAL BUILD/INSTALLATION SUCCESSFUL
