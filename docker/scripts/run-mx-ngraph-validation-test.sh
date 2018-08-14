@@ -22,7 +22,6 @@
 
 # This script is used to verify 2 models in image classicfications. 
 
-
 if [ ! -z "${MX_NG_MODEL}" ] ; then
     ng_mx_model="${MX_NG_MODEL}"
 fi
@@ -156,35 +155,13 @@ export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
 # sets this up.
 cd "$HOME/ng-mx"
 
-export LD_LIBRARY_PATH="$HOME/ng-mx/ngraph_dist/lib"
-
 echo "In $(basename ${0}):"
 echo "  ng_mx_model=${ng_mx_model}"
 echo "  HOME=${HOME}"
 echo "  PYTHON_VERSION_NUMBER=${PYTHON_VERSION_NUMBER}"
 echo "  PYTHON_BIN_PATH=${PYTHON_BIN_PATH}"
-echo "  LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
 
 # ----- Install ngraph_dist ----------------------------------------------------
-
-# Copy ngraph_dist into home directory, since right now ngraph-tensorflow-1.3
-# is hard-coded to look for it in the home directory
-if [ -d "$HOME/ngraph_dist" ] ; then
-    ( >&2 echo "Directory $HOME/ngraph_dist already exists.  Removing it before installing the new version." )
-    rm -fr "$HOME/ngraph_dist"
-fi
-echo "Copying ngraph_dist to $HOME/ngraph_dist"
-cp -r ngraph_dist "$HOME/ngraph_dist"
-
-# ----- Install Ngraph_Mxnet ---------------------------------------------------
-cd "$HOME/ng-mx/docker/scripts/"
-xtime="$(date)"
-echo  ' '
-echo  "===== Configuring Mxnet Build at ${xtime} ====="
-echo  ' '
-./config-mx.sh 2>&1 | tee ../mx-config.log
-echo  "===== Configuring Mxnet Build Exited with $? ====="
-
 cd "$HOME/ng-mx/docker/scripts/"
 
 xtime="$(date)"
@@ -198,18 +175,6 @@ export PIP_INSTALL_FROM_SUDO=1
 export PIP_INSTALL_EXTRA_ARGS="--proxy=$http_proxy --proxy=$https_proxy"
 ./build-install-mx.sh 2>&1 | tee ../mx-build.log
 echo "===== Build & Install Pipeline Exited with $? and endtime ${xtime} ===="
-
-# ----- Sanity Checks ----------------------------------------------------------
-
-if [ ! -f "$LD_LIBRARY_PATH/libngraph.so" ] ; then
-  ( >&2 echo "FATAL ERROR: libngraph.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
-  exit 1
-fi
-
-if [ ! -f "$LD_LIBRARY_PATH/libmkldnn.so" ] ; then
-  ( >&2 echo "FATAL ERROR: libmkldnn.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
-  exit 1
-fi
 
 # ----- Run Models ----------------------------------
 cd "$HOME/ng-mx/"

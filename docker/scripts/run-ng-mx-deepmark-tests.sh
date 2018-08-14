@@ -56,6 +56,14 @@ run_inference_topologies() {
     cmd="pytest -s docker/scripts/test_deepmark_inception_v4_inference.py --junit-xml=validation_test_deepmark_inception_v4_inference.xml --junit-prefix=inference_deepmark_inception_v4_cpu"
     eval $cmd
 
+    # Run the inception_v3
+    cmd="pytest -s docker/scripts/test_deepmark_inception_v3_inference.py --junit-xml=validation_test_deepmark_inception_v3_inference.xml --junit-prefix=inference_deepmark_inception_v3_cpu"
+    eval $cmd
+
+    # Run the inception_resnet_v2
+    cmd="pytest -s docker/scripts/test_deepmark_inception_resnet_v2_inference.py --junit-xml=validation_test_deepmark_inception_resnet_v2_inference.xml --junit-prefix=inference_deepmark_inception_resnet_v2_cpu"
+    eval $cmd
+
     # Run the resnet_50
     cmd="pytest -s docker/scripts/test_deepmark_resnet_50_inference.py --junit-xml=validation_test_deepmark_resnet_50_inference.xml --junit-prefix=inference_deepmark_resnet_50_cpu"
     eval $cmd
@@ -109,13 +117,10 @@ export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
 # sets this up.
 cd "$HOME/ng-mx"
 
-export LD_LIBRARY_PATH="$HOME/ng-mx/ngraph_dist/lib"
-
 echo "In $(basename ${0}):"
 echo "  HOME=${HOME}"
 echo "  PYTHON_VERSION_NUMBER=${PYTHON_VERSION_NUMBER}"
 echo "  PYTHON_BIN_PATH=${PYTHON_BIN_PATH}"
-echo "  LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
 
 # ----- Run Models ----------------------------------
 cd "$HOME/ng-mx/"
