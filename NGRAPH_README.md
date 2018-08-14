@@ -138,8 +138,7 @@ Here's an example of a typical build command for distributed training:
 
 ``` sh
 cd MXNET_ROOT
-make USE_NGRAPH=1 USE_NGRAPH_DISTRIBUTED=1 
-NGRAPH_EXTRA_CMAKE_FLAGS=-DNGRAPH_DISTRIBUTED_ENABLE=1 USE_CUDA=0 DEBUG=0 -j
+make USE_NGRAPH=1 USE_NGRAPH_DISTRIBUTED=1 NGRAPH_EXTRA_CMAKE_FLAGS=-DNGRAPH_DISTRIBUTED_ENABLE=1 USE_CUDA=0 DEBUG=0 -j
 ```
 
 Here's an example to run ResNet-50 on two nodes:
@@ -147,9 +146,7 @@ Here's an example to run ResNet-50 on two nodes:
 ``` sh
 export MXNET_NGRAPH_GLUON=1
 export MXNET_ENGINE_TYPE=NaiveEngine
-mpirun -map-by node -x MXNET_NGRAPH_GLUON -x MXNET_ENGINE_TYPE -hostfile hosts 
--np 2 python MXNET_ROOT/example/image-classification/train_cifar10.py --network resnet
---num-layers 50 --kv-store ngraph
+mpirun -map-by node -x MXNET_NGRAPH_GLUON -x MXNET_ENGINE_TYPE -hostfile hosts -np 2 python MXNET_ROOT/example/image-classification/train_cifar10.py --network resnet --num-layers 50 --kv-store ngraph
 ```
 
 ## Runtime environment variables
