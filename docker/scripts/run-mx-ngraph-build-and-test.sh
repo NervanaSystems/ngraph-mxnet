@@ -37,33 +37,10 @@ export BUILD_MX_WITH_CCACHE=0
 # sets this up.
 cd "$HOME/ng-mx"
 
-# ngraph_dist (with libmkldnn.so) is expected to be at top of ngraph-mxnet
-export LD_LIBRARY_PATH="$HOME/ng-mx/ngraph_dist/lib"
-
 echo "In $(basename ${0}):"
 echo "  HOME=${HOME}"
 echo "  PYTHON_VERSION_NUMBER=${PYTHON_VERSION_NUMBER}"
 echo "  PYTHON_BIN_PATH=${PYTHON_BIN_PATH}"
-echo "  LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
-
-# Copy ngraph_dist into home directory
-if [ -d "$HOME/ngraph_dist" ] ; then
-    ( >&2 echo "Directory $HOME/ng-mx/ngraph_dist already exists.  Removing it before installing the new version." )
-    rm -fr "$HOME/ngraph_dist"
-fi
-
-echo "Copying ngraph_dist to $HOME/ngraph_dist"
-cp -r ngraph_dist "$HOME/ngraph_dist"
-
-if [ ! -f "$LD_LIBRARY_PATH/libngraph.so" ] ; then
-  ( >&2 echo "FATAL ERROR: libngraph.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
-  exit 1
-fi
-
-if [ ! -f "$LD_LIBRARY_PATH/libmkldnn.so" ] ; then
-  ( >&2 echo "FATAL ERROR: libmkldnn.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
-  exit 1
-fi
 
 # Make sure the Bazel cache is in /tmp, as docker images have too little space
 # in the root filesystem, where /home (and $HOME/.cache) is.  Even though we
@@ -73,14 +50,6 @@ echo "Adjusting bazel cache to be located in /tmp/bazel-cache"
 rm -fr "$HOME/.cache"
 mkdir /tmp/bazel-cache
 ln -s /tmp/bazel-cache "$HOME/.cache"
-
-cd "$HOME/ng-mx/docker/scripts/"
-xtime="$(date)"
-echo  ' '
-echo  "===== Configuring Mxnet Build at ${xtime} ====="
-echo  ' '
-./config-mx.sh 2>&1 | tee ../mx-config.log
-echo  "===== Configuring Mxnet Build Exited with $? ====="
 
 cd "$HOME/ng-mx/docker/scripts/"
 
