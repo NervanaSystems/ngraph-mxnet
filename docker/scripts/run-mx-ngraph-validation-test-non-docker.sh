@@ -37,7 +37,6 @@ fi
 
 set -e  # Make sure we exit on any command that returns non-zero
 set -u  # No unset variables
-set -o pipefail # Make sure cmds in pipe that are non-zero also fail immediately
 
 # ===== run_RESNET110_CIFAR10() NEED TO DO ========== 
 # Function to run the example/image-classification/train_cifar10.py
