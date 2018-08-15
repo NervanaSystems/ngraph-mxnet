@@ -35,6 +35,7 @@ class KVStoreNGRAPH : public KVStoreLocal {
       if (!flag) {
         MPI_Init(NULL, NULL);
       }
+      dmlc::SetEnv("MXNET_NGRAPH_DISTRIBUTED", 1);
   }
 
   virtual ~KVStoreNGRAPH() {
