@@ -224,14 +224,13 @@ def runResnetScript(script=None,          # Script to run
         trainEpochs, trainNumClasses, trainNumExamples, str(trainImageShape).strip(), trainPadSize, trainLr, str(trainLrStepEpochs).strip()))
         print("The Command for Resnet is: {}".format(cmd))
     else:
-        if str(makeVars) != "USE_NGRAPH_DISTRIBUTED"{
+        if (str(makeVars) != "USE_NGRAPH_DISTRIBUTED"):
             cmd = ("{} {} --network {} --batch-size {} --num-layers {} --num-epochs {} --num-classes {} --num-examples {} --image-shape {} --pad-size {} --lr {} --lr-step-epochs {}".format(python_lib.strip(), script, "resnet", trainBatchSize, trainNumLayers,
             trainEpochs, trainNumClasses, trainNumExamples, str(trainImageShape).strip(), trainPadSize, trainLr, str(trainLrStepEpochs).strip()))
             print("The Command for Resnet is: {}".format(cmd))
-        } else{
-            cmd = ("MXNET_ENGINE_TYPE=NaiveEngine OMP_NUM_THREADS=56 KMP_AFFINITY=granularity=fine,compact,1,0 mpirun --mca btl_tcp_if_include eno1 -np 2 -x OMP_NUM_THREADS -x KMP_AFFINITY -x MXNET_ENGINE_TYPE -H nervana-skx44,nervana-skx45 -map-by node {} {} --network {} --num-layers {} --num-epochs {} --kv-store ngraph".format(python_lib.strip(), script, "resnet", trainNumLayers, trainEpochs))
+        else:
+            cmd = ("MXNET_ENGINE_TYPE=NaiveEngine MXNET_NGRAPH_GLUON=1 OMP_NUM_THREADS=56 KMP_AFFINITY=granularity=fine,compact,1,0 mpirun --mca btl_tcp_if_include eno1 -np 2 -x OMP_NUM_THREADS -x KMP_AFFINITY -x MXNET_ENGINE_TYPE -H nervana-skx44,nervana-skx45 -map-by node {} {} --network {} --num-layers {} --num-epochs {} --kv-store ngraph".format(python_lib.strip(), script, "resnet", trainNumLayers, trainEpochs))
             print("The Command for Resnet is: {}".format(cmd))
-        }
 
     # Hook for testing results detection without having to run multi-hour
     # Framework+Dataset tests
