@@ -136,8 +136,7 @@ MPI is required for multi-CPU support. Download Open MPI from [here](https://www
 Here's an example to run ResNet-50 on two nodes:
 
 ``` sh
-export MXNET_NGRAPH_GLUON=1
-mpirun -map-by node -x MXNET_NGRAPH_GLUON -hostfile hosts -np 2 python MXNET_ROOT/example/image-classification/train_cifar10.py --network resnet --num-layers 50 --kv-store ngraph
+MXNET_NGRAPH_DISTRIBUTED=1 MXNET_NGRAPH_GLUON=1 mpirun -map-by node -x MXNET_NGRAPH_DISTRIBUTED -x MXNET_NGRAPH_GLUON -hostfile hosts -np 2 python MXNET_ROOT/example/image-classification/train_cifar10.py --network resnet --num-layers 50 --kv-store ngraph
 ```
 
 ## Runtime environment variables

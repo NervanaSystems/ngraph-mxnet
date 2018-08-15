@@ -37,6 +37,11 @@ inline bool ngraph_gluon_enable() {
   return dmlc::GetEnv("MXNET_NGRAPH_GLUON", false);
 }
 
+// enable distributed ngraph at runtime
+inline bool ngraph_distributed_enable() {
+  return dmlc::GetEnv("MXNET_NGRAPH_DISTRIBUTED", false);
+}
+
 // logging
 inline bool ngraph_log_verbose() {
   return dmlc::GetEnv("MXNET_NGRAPH_VERBOSE", false);
