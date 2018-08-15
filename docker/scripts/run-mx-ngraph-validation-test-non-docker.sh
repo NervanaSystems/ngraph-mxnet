@@ -128,7 +128,7 @@ export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
 # See script docker-run-tf-ng-build-as-user.sh
 # HOME is expected to be /home/dockuser.  See script run-as-user.sh, which
 # sets this up.
-cd "$HOME/ng-mx"
+HOME=`pwd`
 
 echo "In $(basename ${0}):"
 echo "  ng_mx_model=${ng_mx_model}"
@@ -136,14 +136,10 @@ echo "  HOME=${HOME}"
 echo "  PYTHON_VERSION_NUMBER=${PYTHON_VERSION_NUMBER}"
 echo "  PYTHON_BIN_PATH=${PYTHON_BIN_PATH}"
 
-# ----- Install ngraph_dist ----------------------------------------------------
-cd "$HOME/ng-mx/docker/scripts/"
-
+cd "$HOME/ngraph-mxnet/docker/scripts"
 xtime="$(date)"
 
 # ----- Run Models ----------------------------------
-cd "$HOME/ng-mx/"
-
 case "${ng_mx_model}" in
 resnet110-cifar10)  # Resnet110 with CIFAR10 dataset
     run_RESNET110_CIFAR10
