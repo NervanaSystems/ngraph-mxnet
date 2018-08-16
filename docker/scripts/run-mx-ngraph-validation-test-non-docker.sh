@@ -45,8 +45,8 @@ set -u  # No unset variables
 run_RESNET110_CIFAR10() {
     # Make sure the bash shell prompt variables are set, as virtualenv crashes
     # if PS2 is not set.
-    "${PYTHON_BIN_PATH}" -m venv ."${venv_dir}"
-    . ."${venv_dir}"/bin/activate
+    "${PYTHON_BIN_PATH}" -m venv "${venv_dir}"
+    . "${venv_dir}"/bin/activate
     cd python && pip install -e . && pip install psutil && pip install pytest && pip install mpi4py && cd ../
     xtime="$(date)"
     echo  ' '
@@ -120,7 +120,7 @@ run_RESNET_I1K() {
 # ===== Main ==================================================================
 echo "the Python version in run_mx_ngraph-validation.py is: PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
 export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
-export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
+export venv_dir=".venv3"
 
 # This path is dependent on where host dir-tree is mounted into docker run
 # See script docker-run-tf-ng-build-as-user.sh
