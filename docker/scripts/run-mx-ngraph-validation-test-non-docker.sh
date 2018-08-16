@@ -136,7 +136,6 @@ echo "  HOME=${HOME}"
 echo "  PYTHON_VERSION_NUMBER=${PYTHON_VERSION_NUMBER}"
 echo "  PYTHON_BIN_PATH=${PYTHON_BIN_PATH}"
 
-cd "$HOME/ngraph-mxnet/docker/scripts"
 xtime="$(date)"
 
 # ----- Run Models ----------------------------------
