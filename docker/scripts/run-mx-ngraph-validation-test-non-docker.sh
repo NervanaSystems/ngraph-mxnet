@@ -15,7 +15,7 @@
 # ********************************************************************************
 # Author:  Lam Nguyen
 
-#!  /bin/bash
+#!/bin/bash +vx
 
 # This script is designed to be called from within a docker container.
 # It is installed into a docker image.  It will not run outside the container.
@@ -45,10 +45,8 @@ set -u  # No unset variables
 run_RESNET110_CIFAR10() {
     # Make sure the bash shell prompt variables are set, as virtualenv crashes
     # if PS2 is not set.
-    PS1='prompt> '
-    PS2='prompt-more> '
-    virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
-    source "${venv_dir}/bin/activate"
+    "${PYTHON_BIN_PATH}" -m venv ."${venv_dir}"
+    . ."${venv_dir}"/bin/activate
     cd python && pip install -e . && pip install psutil && pip install pytest && pip install mpi4py && cd ../
     xtime="$(date)"
     echo  ' '
