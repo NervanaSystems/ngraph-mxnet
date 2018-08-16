@@ -45,6 +45,8 @@ set -u  # No unset variables
 run_RESNET110_CIFAR10() {
     # Make sure the bash shell prompt variables are set, as virtualenv crashes
     # if PS2 is not set.
+    PS1='prompt> '
+    PS2='prompt-more> '
     python3 -m venv .venv3
     . .venv3/bin/activate
     cd python && pip install -e . && pip install psutil && pip install pytest && pip install mpi4py && cd ../
