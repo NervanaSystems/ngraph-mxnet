@@ -50,7 +50,7 @@ run_RESNET110_CIFAR10() {
     #python3 -m venv .venv3_1
     HOME=`pwd`
     echo ${HOME}
-    cd python && pip install -e . && pip install psutil && pip install pytest && pip install mpi4py && cd ../
+    pip list
     xtime="$(date)"
     echo  ' '
     echo  "===== Running Ngraph Mxnet Daily Validation on CPU-Backend at ${xtime} ====="
@@ -76,7 +76,7 @@ run_RESNET110_CIFAR10() {
         export TEST_RESNET110_CIFAR10_EPOCHS=1  # Default is 300 epoches
     fi
     # Run the test
-    pytest -s docker/scripts/test_resnet_cifar_daily_validation.py --junit-xml=validation_tests_resnet_cifar_cpu.xml --junit-prefix=daily_validation_resnet_cifar_cpu
+    python3 -m pytest -s docker/scripts/test_resnet_cifar_daily_validation.py --junit-xml=validation_tests_resnet_cifar_cpu.xml --junit-prefix=daily_validation_resnet_cifar_cpu
     echo "===== Daily Validation CPU-Backend Pipeline Exited with $? ====="
 
 }  # run_RESNET110_CIFAR10()
