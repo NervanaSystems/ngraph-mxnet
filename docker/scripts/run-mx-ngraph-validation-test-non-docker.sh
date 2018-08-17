@@ -62,7 +62,7 @@ run_RESNET110_CIFAR10() {
     # In train_cifar10.py script, OMP_NUM_THREADS (omp_max_thread) and KMP_AFFINITY are explicitly
     # set only for the nGraph run.  Thus, they are not set here.
     # Test parameters
-    export TEST_RESNET_CIFAR10_LOG_DIR="${HOME}\ngraph-mxnet"
+    export TEST_RESNET_CIFAR10_LOG_DIR="${HOME}/"
     export TEST_MX_NG_RESNET_NUM_LAYERS="${MX_NG_RESNET_NUM_LAYERS}"
     export TEST_MX_RESNET_NUM_CLASSES="${MX_NG_RESNET_NUM_CLASSES}"
     export TEST_MX_NG_RESNET_NUM_EXAMPLES="${MX_NG_RESNET_NUM_EXAMPLES}"
