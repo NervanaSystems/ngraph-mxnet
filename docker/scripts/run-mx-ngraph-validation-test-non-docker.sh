@@ -54,6 +54,7 @@ run_RESNET110_CIFAR10() {
     export VIRTUAL_ENV
     ls ${VIRTUAL_ENV}"/bin"
     _OLD_VIRTUAL_PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games
+    PS1=${PS1}
     . ${VIRTUAL_ENV}/bin/activate
     pip list
     echo "Python lib:"
