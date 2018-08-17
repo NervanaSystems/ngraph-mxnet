@@ -30,8 +30,7 @@ void RunGraph(
     std::vector<OpReqType>&& array_reqs,
     std::vector<uint32_t>&& ref_count,
     std::vector<OpStatePtr> *p_states,
-    const DispatchModeVector &dispatch_modes,
-    bool recording) {
+    const DispatchModeVector &dispatch_modes) {
   using namespace nnvm;
   using namespace imperative;
   static auto& createop = nnvm::Op::GetAttr<FCreateOpState>("FCreateOpState");
@@ -41,6 +40,7 @@ void RunGraph(
   const auto imp = Imperative::Get();
 
   std::vector<OpStatePtr>& states = *p_states;
+  bool recording = imp->is_recording();
 
   std::vector<NDArray*> ndinputs, ndoutputs;
   ShapeVector arg_shapes;

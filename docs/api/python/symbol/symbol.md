@@ -222,8 +222,6 @@ Composite multiple symbols into a new one by an operator.
     Symbol.transpose
     Symbol.swapaxes
     Symbol.flip
-    Symbol.depth_to_space
-    Symbol.space_to_depth
 ```
 
 ### Reduce functions
@@ -411,8 +409,6 @@ Composite multiple symbols into a new one by an operator.
     transpose
     swapaxes
     flip
-    depth_to_space
-    space_to_depth
 ```
 
 ### Joining and splitting symbols

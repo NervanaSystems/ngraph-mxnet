@@ -21,7 +21,6 @@ import java.net.URL
 
 import org.apache.commons.io.FileUtils
 import org.apache.mxnet.Context
-import org.apache.mxnetexamples.Util
 import org.scalatest.{BeforeAndAfterAll, FunSuite}
 import org.slf4j.LoggerFactory
 
@@ -65,8 +64,11 @@ class CustomOpExampleSuite extends FunSuite with BeforeAndAfterAll {
         val baseUrl = "https://s3.us-east-2.amazonaws.com/mxnet-scala/scala-example-ci"
         val tempDirPath = System.getProperty("java.io.tmpdir")
         val modelDirPath = tempDirPath + File.separator + "mnist/"
-        Util.downloadUrl(baseUrl + "/mnist/mnist.zip",
-          tempDirPath + "/mnist/mnist.zip")
+        val tmpFile = new File(tempDirPath + "/mnist/mnist.zip")
+        if (!tmpFile.exists()) {
+          FileUtils.copyURLToFile(new URL(baseUrl + "/mnist/mnist.zip"),
+            tmpFile)
+        }
         // TODO: Need to confirm with Windows
         Process("unzip " + tempDirPath + "/mnist/mnist.zip -d "
           + tempDirPath + "/mnist/") !

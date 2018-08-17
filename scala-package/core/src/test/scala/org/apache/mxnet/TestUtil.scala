@@ -24,7 +24,7 @@ class TestUtil {
     * @return Data direcotry path ()may be relative)
     */
   def getDataDirectory: String = {
-    var dataDir = System.getenv("MXNET_HOME")
+    var dataDir = System.getenv("MXNET_DATA_DIR")
     if(dataDir == null) {
       dataDir = "data"
     } else {

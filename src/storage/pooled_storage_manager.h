@@ -38,7 +38,6 @@
 #include <new>
 #include "./storage_manager.h"
 #include "../common/cuda_utils.h"
-#include "../common/utils.h"
 
 
 namespace mxnet {
@@ -174,10 +173,10 @@ class GPUPooledRoundedStorageManager final : public StorageManager {
       LOG(FATAL) << "MXNET_GPU_MEM_POOL_PAGE_SIZE cannot be set to a value smaller than 32. " \
                  << "Got: " << page_size_ << ".";
     }
-    if (page_size_ != 1ul << common::ilog2ul(page_size_ - 1)) {
+    if (page_size_ != 1ul << log2_round_up(page_size_)) {
       LOG(FATAL) << "MXNET_GPU_MEM_POOL_PAGE_SIZE must be a power of 2. Got: " << page_size_ << ".";
     }
-    page_size_ = common::ilog2ul(page_size_ - 1);
+    page_size_ = log2_round_up(page_size_);
     if (cut_off_ < 20 || cut_off_ > LOG2_MAX_MEM) {
       LOG(FATAL) << "MXNET_GPU_MEM_POOL_ROUND_LINEAR_CUTOFF cannot be set to a value " \
                  << "smaller than 20 or greater than " << LOG2_MAX_MEM << ". Got: " \
@@ -206,6 +205,9 @@ class GPUPooledRoundedStorageManager final : public StorageManager {
   }
 
  private:
+  inline int log2_round_up(size_t s) {
+    return static_cast<int>(std::ceil(std::log2(s)));
+  }
   inline int div_pow2_round_up(size_t s, int divisor_log2) {
     // (1025, 10) -> 2
     // (2048, 10) -> 2
@@ -214,7 +216,7 @@ class GPUPooledRoundedStorageManager final : public StorageManager {
     return static_cast<int>(result + (s > (result << divisor_log2) ? 1 : 0));
   }
   inline int get_bucket(size_t s) {
-    int log_size = common::ilog2ul(s - 1);
+    int log_size = log2_round_up(s);
     if (log_size > static_cast<int>(cut_off_))
       return div_pow2_round_up(s, cut_off_) - 1 + cut_off_;
     else

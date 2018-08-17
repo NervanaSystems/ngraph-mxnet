@@ -995,8 +995,7 @@ void RunGraph(const bool retain_graph,
               std::vector<OpReqType>&& array_reqs,
               std::vector<uint32_t>&& ref_count,
               std::vector<OpStatePtr> *p_states,
-              const DispatchModeVector &dispatch_modes,
-              bool recording);
+              const DispatchModeVector &dispatch_modes);
 
 }  // namespace imperative
 }  // namespace mxnet

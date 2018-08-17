@@ -821,11 +821,12 @@ OpStatePtr CachedOp::DynamicForward(
 
   const auto& dispatch_modes = g.GetAttr<DispatchModeVector>("dispatch_mode");
 
-  // If we are already recording, we don't need RunGraph to record all
-  // computation again.
+  if (recording && !inlining_) Imperative::Get()->set_is_recording(false);
+
   RunGraph(false, idx, arrays, 0, idx.num_nodes(), std::move(array_reqs),
-           std::move(ref_count), &states, dispatch_modes,
-           !recording || inlining_);
+           std::move(ref_count), &states, dispatch_modes);
+
+  Imperative::Get()->set_is_recording(recording);
 
   return op_state;
 }
@@ -946,8 +947,7 @@ void CachedOp::DynamicBackward(
   const auto& dispatch_modes = g.GetAttr<DispatchModeVector>("dispatch_mode");
 
   RunGraph(retain_graph, idx, arrays, num_forward_nodes, idx.num_nodes(),
-           std::move(array_reqs), std::move(ref_count), &states, dispatch_modes,
-           Imperative::Get()->is_recording());
+           std::move(array_reqs), std::move(ref_count), &states, dispatch_modes);
 
   if (retain_graph) {
     buff.resize(num_forward_entries);

@@ -1159,7 +1159,6 @@ def check_contrib_rnn(cell_type, num_states):
 
     configs = [
             {},
-            {'inline_limit': 0},
             {'static_alloc': True},
             {'static_alloc': True, 'static_shape': True} ]
     for config in configs:
@@ -1665,5 +1664,6 @@ def test_foreach_rnn():
 
 
 if __name__ == '__main__':
-    import nose
-    nose.runmodule()
+    # import nose
+    # nose.runmodule()
+    test_cond()
