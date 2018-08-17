@@ -52,10 +52,10 @@ run_RESNET110_CIFAR10() {
     echo ${HOME}
     VIRTUAL_ENV="/dataset/jenkins/algo-lr/workspace/ngraph-mxnet-resnet-CIFAR10-IA-distributed-trainning/ngraph-mxnet/.tmp_venv3"
     export VIRTUAL_ENV
-    ls ${VIRTUAL_ENV}
-    #_OLD_VIRTUAL_PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games
-    #. ${VIRTUAL_ENV}/bin/activate
-    #pip list
+    ls ${VIRTUAL_ENV}"/bin"
+    _OLD_VIRTUAL_PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games
+    . ${VIRTUAL_ENV}/bin/activate
+    pip list
     echo "Python lib:"
     echo `which python`
     xtime="$(date)"
