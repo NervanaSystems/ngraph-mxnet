@@ -24,7 +24,9 @@ import org.kohsuke.args4j.{CmdLineParser, Option}
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
+
 import org.apache.commons.io.FileUtils
+
 import org.apache.mxnet.Symbol
 import org.apache.mxnet.DataIter
 import org.apache.mxnet.DataBatch
@@ -35,13 +37,13 @@ import org.apache.mxnet.Context
 import org.apache.mxnet.Xavier
 import org.apache.mxnet.optimizer.RMSProp
 import org.apache.mxnet.Executor
-import org.apache.mxnetexamples.Util
 
 import scala.collection.immutable.ListMap
 import scala.sys.process.Process
 
 /**
  * Example of multi-task
+ * @author Depeng Liang
  */
 object ExampleMultiTask {
   private val logger = LoggerFactory.getLogger(classOf[ExampleMultiTask])
@@ -202,8 +204,11 @@ object ExampleMultiTask {
     val baseUrl = "https://s3.us-east-2.amazonaws.com/mxnet-scala/scala-example-ci"
     val tempDirPath = System.getProperty("java.io.tmpdir")
     val modelDirPath = tempDirPath + File.separator + "multitask/"
-    Util.downloadUrl(baseUrl + "/mnist/mnist.zip",
-      tempDirPath + "/multitask/mnist.zip")
+    val tmpFile = new File(tempDirPath + "/multitask/mnist.zip")
+    if (!tmpFile.exists()) {
+      FileUtils.copyURLToFile(new URL(baseUrl + "/mnist/mnist.zip"),
+        tmpFile)
+    }
 
     // TODO: Need to confirm with Windows
     Process("unzip " + tempDirPath + "/multitask/mnist.zip -d "

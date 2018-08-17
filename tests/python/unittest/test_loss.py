@@ -64,8 +64,7 @@ def get_net(num_hidden, flatten=True):
     fc3 = mx.symbol.FullyConnected(act2, name='fc3', num_hidden=num_hidden, flatten=flatten)
     return fc3
 
-# tracked at: https://github.com/apache/incubator-mxnet/issues/11692
-@with_seed()
+@with_seed(1234)
 def test_ce_loss():
     nclass = 10
     N = 20
@@ -79,8 +78,7 @@ def test_ce_loss():
     loss = mx.sym.make_loss(loss)
     mod = mx.mod.Module(loss, data_names=('data',), label_names=('label',))
     mod.fit(data_iter, num_epoch=200, optimizer_params={'learning_rate': 0.01},
-            eval_metric=mx.metric.Loss(), optimizer='adam',
-            initializer=mx.init.Xavier(magnitude=2))
+            eval_metric=mx.metric.Loss(), optimizer='adam')
     assert mod.score(data_iter, eval_metric=mx.metric.Loss())[0][1] < 0.05
 
 

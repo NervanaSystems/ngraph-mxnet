@@ -318,9 +318,8 @@ def test_module_switch_bucket():
     assert total_bytes_after == total_bytes_before
 
 
-# roywei: Getting rid of fixed seed as flakiness could not be reproduced,
-# tracked at: https://github.com/apache/incubator-mxnet/issues/11705
-@with_seed()
+
+@with_seed(11)
 def test_module_set_params():
     # data iter
     data = mx.nd.array([[0.05, .10]]);
@@ -559,12 +558,11 @@ def test_executor_group():
     for opt in sparse_embedding_opt:
         check_shared_exec_group(opt)
 
-@with_seed()
-def test_factorization_machine_module():
+@with_seed(11)
+def test_factorization_machine_module(verbose=False):
     """ Test factorization machine model with sparse operators """
-    # this unit test is to test the flow, training accuracy is tested in another test
-    def check_factorization_machine_module(num_epochs=None):
-        print("check_factorization_machine_module")
+    def check_factorization_machine_module(optimizer=None, num_epochs=None):
+        print("check_factorization_machine_module( {} )".format(optimizer))
 
         def fm(factor_size, feature_dim, init):
             x = mx.symbol.Variable("data", stype='csr')
@@ -616,16 +614,33 @@ def test_factorization_machine_module():
         mod.bind(data_shapes=train_iter.provide_data, label_shapes=train_iter.provide_label)
         # initialize parameters by uniform random numbers
         mod.init_params(initializer=init)
-
-        # use Sparse SGD with learning rate 0.1 to train
-        sgd = mx.optimizer.SGD(momentum=0.1, clip_gradient=5.0, learning_rate=0.01,
-                               rescale_grad=1.0/batch_size)
-        mod.init_optimizer(optimizer=sgd)
-        if num_epochs is None:
-            num_epochs = 50
-        expected_accuracy = 0.02
-
-	# use accuracy as the metric
+        if optimizer == 'sgd':
+            # use Sparse SGD with learning rate 0.1 to train
+            sgd = mx.optimizer.SGD(momentum=0.1, clip_gradient=5.0, learning_rate=0.01,
+                                   rescale_grad=1.0/batch_size)
+            mod.init_optimizer(optimizer=sgd)
+            if num_epochs is None:
+                num_epochs = 10
+            expected_accuracy = 0.02
+        elif optimizer == 'adam':
+            # use Sparse Adam to train
+            adam = mx.optimizer.Adam(clip_gradient=5.0, learning_rate=0.0005,
+                                     rescale_grad=1.0/batch_size)
+            mod.init_optimizer(optimizer=adam)
+            if num_epochs is None:
+                num_epochs = 10
+            expected_accuracy = 0.05
+        elif optimizer == 'adagrad':
+            # use Sparse AdaGrad with learning rate 0.1 to train
+            adagrad = mx.optimizer.AdaGrad(clip_gradient=5.0, learning_rate=0.01,
+                                           rescale_grad=1.0/batch_size)
+            mod.init_optimizer(optimizer=adagrad)
+            if num_epochs is None:
+                num_epochs = 20
+            expected_accuracy = 0.09
+        else:
+            raise AssertionError("Unsupported optimizer type '" + optimizer + "' specified")
+        # use accuracy as the metric
         metric = mx.metric.create('MSE')
         # train 'num_epochs' epoch
         for epoch in range(num_epochs):
@@ -640,7 +655,23 @@ def test_factorization_machine_module():
         if num_epochs > 1:
             assert(metric.get()[1] < expected_accuracy)
 
-    check_factorization_machine_module()
+    if verbose is True:
+        print("============ SGD ==========================")
+        start = time.clock()
+    check_factorization_machine_module('sgd')
+    if verbose is True:
+        print("Duration: {}".format(time.clock() - start))
+        print("============ ADAM ==========================")
+        start = time.clock()
+    check_factorization_machine_module('adam')
+    if verbose is True:
+        print("Duration: {}".format(time.clock() - start))
+        print("============ ADAGRAD ==========================")
+        start = time.clock()
+    check_factorization_machine_module('adagrad')
+    if verbose is True:
+        print("Duration: {}".format(time.clock() - start))
+
 
 @with_seed()
 def test_module_initializer():

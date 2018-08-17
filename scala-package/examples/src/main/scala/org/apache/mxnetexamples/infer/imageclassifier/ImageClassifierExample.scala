@@ -119,13 +119,13 @@ object ImageClassifierExample {
       parser.parseArgument(args.toList.asJava)
 
 
-      val modelPathPrefix = if (inst.modelPathPrefix == null) System.getenv("MXNET_HOME")
+      val modelPathPrefix = if (inst.modelPathPrefix == null) System.getenv("MXNET_DATA_DIR")
       else inst.modelPathPrefix
 
-      val inputImagePath = if (inst.inputImagePath == null) System.getenv("MXNET_HOME")
+      val inputImagePath = if (inst.inputImagePath == null) System.getenv("MXNET_DATA_DIR")
       else inst.inputImagePath
 
-      val inputImageDir = if (inst.inputImageDir == null) System.getenv("MXNET_HOME")
+      val inputImageDir = if (inst.inputImageDir == null) System.getenv("MXNET_DATA_DIR")
       else inst.inputImageDir
 
       val singleOutput = runInferenceOnSingleImage(modelPathPrefix, inputImagePath, context)
