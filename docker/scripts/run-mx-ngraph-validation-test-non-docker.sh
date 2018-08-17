@@ -51,7 +51,6 @@ run_RESNET110_CIFAR10() {
     set +u
     HOME=`pwd`
     echo ${HOME}
-    set +u
     VIRTUAL_ENV="/dataset/jenkins/algo-lr/workspace/ngraph-mxnet-resnet-CIFAR10-IA-distributed-trainning/ngraph-mxnet/.tmp_venv3"
     . ${VIRTUAL_ENV}/bin/activate
     xtime="$(date)"
