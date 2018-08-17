@@ -50,7 +50,10 @@ run_RESNET110_CIFAR10() {
     #python3 -m venv .venv3_1
     HOME=`pwd`
     echo ${HOME}
+    . ${HOME}/.tmp_venv3/bin/activate
     pip list
+    echo "Python lib:"
+    echo `which python`
     xtime="$(date)"
     echo  ' '
     echo  "===== Running Ngraph Mxnet Daily Validation on CPU-Backend at ${xtime} ====="
@@ -76,7 +79,7 @@ run_RESNET110_CIFAR10() {
         export TEST_RESNET110_CIFAR10_EPOCHS=1  # Default is 300 epoches
     fi
     # Run the test
-    python3 -m pytest -s docker/scripts/test_resnet_cifar_daily_validation.py --junit-xml=validation_tests_resnet_cifar_cpu.xml --junit-prefix=daily_validation_resnet_cifar_cpu
+    #pytest -s docker/scripts/test_resnet_cifar_daily_validation.py --junit-xml=validation_tests_resnet_cifar_cpu.xml --junit-prefix=daily_validation_resnet_cifar_cpu
     echo "===== Daily Validation CPU-Backend Pipeline Exited with $? ====="
 
 }  # run_RESNET110_CIFAR10()
@@ -121,8 +124,6 @@ run_RESNET_I1K() {
 
 # ===== Main ==================================================================
 echo "the Python version in run_mx_ngraph-validation.py is: PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
-export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
-export venv_dir="/tmp/venv_python3"
 
 # This path is dependent on where host dir-tree is mounted into docker run
 # See script docker-run-tf-ng-build-as-user.sh
