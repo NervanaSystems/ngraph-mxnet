@@ -29,5 +29,5 @@
 [submodule "3rdparty/ngraph"]
 	path = 3rdparty/ngraph
 	url = https://github.com/NervanaSystems/ngraph.git
-	branch = master
+	branch = tvm
 	ignore = untracked
