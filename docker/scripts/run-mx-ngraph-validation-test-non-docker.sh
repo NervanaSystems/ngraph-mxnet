@@ -124,6 +124,8 @@ run_RESNET_I1K() {
 
 # ===== Main ==================================================================
 echo "the Python version in run_mx_ngraph-validation.py is: PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
+export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
+export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
 
 # This path is dependent on where host dir-tree is mounted into docker run
 # See script docker-run-tf-ng-build-as-user.sh
