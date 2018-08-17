@@ -53,14 +53,7 @@ run_RESNET110_CIFAR10() {
     echo ${HOME}
     set +u
     VIRTUAL_ENV="/dataset/jenkins/algo-lr/workspace/ngraph-mxnet-resnet-CIFAR10-IA-distributed-trainning/ngraph-mxnet/.tmp_venv3"
-    #export VIRTUAL_ENV
-    ls ${VIRTUAL_ENV}"/bin"
-    #_OLD_VIRTUAL_PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games
-    #PS1=${PS1}
     . ${VIRTUAL_ENV}/bin/activate
-    pip list
-    echo "Python lib:"
-    echo `which python`
     xtime="$(date)"
     echo  ' '
     echo  "===== Running Ngraph Mxnet Daily Validation on CPU-Backend at ${xtime} ====="
@@ -86,7 +79,7 @@ run_RESNET110_CIFAR10() {
         export TEST_RESNET110_CIFAR10_EPOCHS=1  # Default is 300 epoches
     fi
     # Run the test
-    #pytest -s docker/scripts/test_resnet_cifar_daily_validation.py --junit-xml=validation_tests_resnet_cifar_cpu.xml --junit-prefix=daily_validation_resnet_cifar_cpu
+    pytest -s docker/scripts/test_resnet_cifar_daily_validation.py --junit-xml=validation_tests_resnet_cifar_cpu.xml --junit-prefix=daily_validation_resnet_cifar_cpu
     echo "===== Daily Validation CPU-Backend Pipeline Exited with $? ====="
 
 }  # run_RESNET110_CIFAR10()
