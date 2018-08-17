@@ -50,7 +50,6 @@ run_RESNET110_CIFAR10() {
     #python3 -m venv .venv3_1
     HOME=`pwd`
     echo ${HOME}
-    . .tmp_venv3/bin/activate
     cd python && pip install -e . && pip install psutil && pip install pytest && pip install mpi4py && cd ../
     xtime="$(date)"
     echo  ' '
