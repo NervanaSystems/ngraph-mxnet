@@ -45,10 +45,12 @@ set -u  # No unset variables
 run_RESNET110_CIFAR10() {
     # Make sure the bash shell prompt variables are set, as virtualenv crashes
     # if PS2 is not set.
-    PS1='prompt> '
-    PS2='prompt-more> '
-    python3 -m venv .venv3_1
-    . .venv3_1/bin/activate
+    #PS1='prompt> '
+    #PS2='prompt-more> '
+    #python3 -m venv .venv3_1
+    HOME=`pwd`
+    echo ${HOME}
+    . .tmp_venv3/bin/activate
     cd python && pip install -e . && pip install psutil && pip install pytest && pip install mpi4py && cd ../
     xtime="$(date)"
     echo  ' '
@@ -58,7 +60,6 @@ run_RESNET110_CIFAR10() {
     # In train_cifar10.py script, OMP_NUM_THREADS (omp_max_thread) and KMP_AFFINITY are explicitly
     # set only for the nGraph run.  Thus, they are not set here.
     # Test parameters
-    HOME=`pwd`
     export TEST_RESNET_CIFAR10_LOG_DIR="${HOME}\ngraph-mxnet"
     export TEST_MX_NG_RESNET_NUM_LAYERS="${MX_NG_RESNET_NUM_LAYERS}"
     export TEST_MX_RESNET_NUM_CLASSES="${MX_NG_RESNET_NUM_CLASSES}"
