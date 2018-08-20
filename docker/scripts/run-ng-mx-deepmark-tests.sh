@@ -52,6 +52,14 @@ run_inference_topologies() {
     export TEST_KMP_AFFINITY="${MX_NG_KMP_AFFINITY}"
     export TEST_DEEPMARK_TYPE="${MX_NG_DEEPMARK_TYPE}"
 
+    if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
+        # Run the Faster-RCNN, --batch-size 1
+        cmd="pytest -s docker/scripts/test_deepmark_Faster_RCNN_inference.py --junit-xml=validation_test_deepmark_Faster_RCNN_inference.xml --junit-prefix=inference_deepmark_Faster_RCNN_cpu"
+        eval $cmd
+    else
+        echo "Faster-RCNN doesn't work with any --batch-size except 1."
+    fi
+
     # Run the inception_v4
     cmd="pytest -s docker/scripts/test_deepmark_inception_v4_inference.py --junit-xml=validation_test_deepmark_inception_v4_inference.xml --junit-prefix=inference_deepmark_inception_v4_cpu"
     eval $cmd
@@ -84,10 +92,6 @@ run_inference_topologies() {
     cmd="pytest -s docker/scripts/test_deepmark_densenet121_inference.py --junit-xml=validation_test_deepmark_densenet121_inference.xml --junit-prefix=inference_deepmark_densenet121_cpu"
     eval $cmd
 
-    # Run the Faster-RCNN, --batch-size 1
-    cmd="pytest -s docker/scripts/test_deepmark_Faster_RCNN_inference.py --junit-xml=validation_test_deepmark_Faster_RCNN_inference.xml --junit-prefix=inference_deepmark_Faster_RCNN_cpu"
-    eval $cmd
-
     # Run the squeezenet1.1
     cmd="pytest -s docker/scripts/test_deepmark_squeezenet_inference.py --junit-xml=validation_test_deepmark_squeezenet_inference.xml --junit-prefix=inference_deepmark_squeezenet_cpu"
     eval $cmd
@@ -98,6 +102,10 @@ run_inference_topologies() {
 
     # Run  sockeye_transformer
     cmd="pytest -s docker/scripts/test_deepmark_sockeye_transformer_inference.py --junit-xml=validation_test_deepmark_sockeye_transformer_inference.xml --junit-prefix=inference_deepmark_sockeye_transformer_cpu"
+    eval $cmd
+
+    # Run  sockeye_gnmt
+    cmd="pytest -s docker/scripts/test_deepmark_sockeye_gnmt_inference.py --junit-xml=validation_test_deepmark_sockeye_gnmt_inference.xml --junit-prefix=inference_deepmark_sockeye_gnmt_cpu"
     eval $cmd
 
     echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
