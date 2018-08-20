@@ -17,7 +17,7 @@
 #ifndef MXNET_NGRAPH_OPS_SLICE_H_
 #define MXNET_NGRAPH_OPS_SLICE_H_
 
-#include "ngraph_emitter.h"
+#include "../ngraph_emitter.h"
 
 namespace ngraph_bridge {
 

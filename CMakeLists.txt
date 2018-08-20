@@ -18,9 +18,10 @@ mxnet_option(USE_CUDNN            "Build with cudnn support"  ON) # one could se
 mxnet_option(USE_SSE              "Build with x86 SSE instruction support" ON IF NOT ARM)
 mxnet_option(USE_F16C             "Build with x86 F16C instruction support" ON) # autodetects support if ON
 mxnet_option(USE_LAPACK           "Build with lapack support" ON)
+mxnet_option(USE_NGRAPH           "Build with nGraph support" ON)
 mxnet_option(USE_MKL_IF_AVAILABLE "Use MKL if found" ON)
 mxnet_option(USE_MKLML_MKL        "Use MKLDNN variant of MKL (if MKL found)" ON IF USE_MKL_IF_AVAILABLE AND (NOT APPLE))
-mxnet_option(USE_MKLDNN           "Use MKLDNN variant of MKL (if MKL found)" ON IF USE_MKL_IF_AVAILABLE AND (NOT APPLE))
+mxnet_option(USE_MKLDNN           "Use MKLDNN variant of MKL (if MKL found)" ON IF USE_MKL_IF_AVAILABLE AND (NOT APPLE) AND (NOT USE_NGRAPH))
 mxnet_option(USE_OPERATOR_TUNING  "Enable auto-tuning of operators" ON IF NOT MSVC)
 mxnet_option(USE_GPERFTOOLS       "Build with GPerfTools support (if found)" ON)
 mxnet_option(USE_JEMALLOC         "Build with Jemalloc support"   ON)
@@ -163,6 +164,24 @@ endif(MSVC)
 if(NOT mxnet_LINKER_LIBS)
   set(mxnet_LINKER_LIBS "")
 endif(NOT mxnet_LINKER_LIBS)
+
+if(USE_NGRAPH)
+  include(cmake/ngraph.cmake)
+  if(NOT MSVC)
+    set(ARCH_OPT_FLAGS "-mtune=generic")
+  endif()
+  
+  include_directories(${CMAKE_BINARY_DIR}/3rdparty/ngraph/include)
+  include_directories($src/ngraph)
+  
+  add_definitions(-DUSE_MKL=1)
+  add_definitions(-DCUB_MKL=1)
+  add_definitions(-DMXNET_USE_NGRAPH=1)
+  list(APPEND mxnet_LINKER_LIBS ngraph_interface_lib)
+  if(USE_NGRAPH_DISTRIBUTED)
+    list(APPEND mxnet_LINKER_LIBS ${MPI_CXX_LIBRARIES})
+  endif(USE_NGRAPH_DISTRIBUTED)
+endif()
 
 if(USE_GPROF)
   message(STATUS "Using GPROF")
@@ -422,6 +441,15 @@ endif()
 FILE(GLOB_RECURSE SOURCE "src/*.cc" "src/*.h" "include/*.h")
 FILE(GLOB_RECURSE CUDA "src/*.cu" "src/*.cuh")
 
+#remove unneded nGraph files
+if(NOT USE_NGRAPH)
+  FOREACH(item ${SOURCE})
+    IF(${item} MATCHES "src/ngraph")
+      LIST(REMOVE_ITEM SOURCE ${item})
+    ENDIF(${item} MATCHES "src/ngraph")
+  ENDFOREACH(item)
+endif()
+
 # add nnvm to source
 FILE(GLOB_RECURSE NNVMSOURCE
   3rdparty/tvm/nnvm/src/c_api/*.cc
@@ -610,6 +638,19 @@ if(UNIX)
   set_target_properties(mxnet_static PROPERTIES OUTPUT_NAME mxnet)
 else()
   add_library(mxnet SHARED ${SOURCE})
+endif()
+
+if(USE_NGRAPH)
+  add_dependencies(mxnet ext_ngraph)
+  if(UNIX)
+    add_dependencies(mxnet_static ext_ngraph)
+  endif()
+else()
+  FOREACH(item ${SOURCE})
+    IF(${item} MATCHES "src/ngraph/")
+      LIST(REMOVE_ITEM SOURCE ${item})
+    ENDIF(${item} MATCHES "src/ngraph/")
+  ENDFOREACH(item)
 endif()
 
 if(USE_CUDA)
