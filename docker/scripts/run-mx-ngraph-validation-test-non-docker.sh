@@ -49,10 +49,10 @@ run_RESNET110_CIFAR10() {
     #PS2='prompt-more> '
     #python3 -m venv .venv3_1
     set +u
-    HOME=`pwd`
-    echo ${HOME}
     VIRTUAL_ENV="/dataset/jenkins/algo-lr/workspace/ngraph-mxnet-resnet-CIFAR10-IA-distributed-trainning/ngraph-mxnet/.tmp_venv3"
     . ${VIRTUAL_ENV}/bin/activate
+    echo "Print lib"
+    pip list
     xtime="$(date)"
     echo  ' '
     echo  "===== Running Ngraph Mxnet Daily Validation on CPU-Backend at ${xtime} ====="
