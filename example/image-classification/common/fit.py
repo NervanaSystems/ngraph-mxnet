@@ -199,7 +199,7 @@ def fit(args, network, data_loader,is_nnp=False, **kwargs):
         mx.gpu(int(i)) for i in args.gpus.split(',')]
 
     if is_nnp:
-        devs = mx.nnp()
+        devs = mx.ngraph("NNP")
     # learning rate
     lr, lr_scheduler = _get_lr_scheduler(args, kv)
 

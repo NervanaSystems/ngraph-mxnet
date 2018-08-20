@@ -22,7 +22,7 @@ import threading
 import warnings
 import ctypes
 from .base import classproperty, with_metaclass, _MXClassPropertyMetaClass
-from .base import _LIB
+from .base import _LIB, c_str
 from .base import check_call
 
 
@@ -41,11 +41,11 @@ class Context(with_metaclass(_MXClassPropertyMetaClass, object)):
 
     Parameters
     ----------
-    device_type : {'cpu', 'gpu', 'nnp'} or Context.
+    device_type : {'cpu', 'gpu', 'ngraph:backend'} or Context.
         String representing the device type.
 
     device_id : int (default=0)
-        The device id of the device, needed for GPU.
+        The device id of the device, needed for GPU or ngraph.
 
     Note
     ----
@@ -69,15 +69,20 @@ class Context(with_metaclass(_MXClassPropertyMetaClass, object)):
     """
     # static class variable
     _default_ctx = threading.local()
-    devtype2str = {1: 'cpu', 2: 'gpu', 3: 'cpu_pinned', 5: 'cpu_shared'}
-    devstr2type = {'cpu': 1, 'gpu': 2, 'cpu_pinned': 3, 'cpu_shared': 5}
+    devtype2str = {1: 'cpu', 2: 'gpu', 3: 'cpu_pinned', 4: 'ngraph', 5: 'cpu_shared'}
+    devstr2type = {'cpu': 1, 'gpu': 2, 'cpu_pinned': 3, 'ngraph': 4, 'cpu_shared': 5}
     def __init__(self, device_type, device_id=0):
         if isinstance(device_type, Context):
             self.device_typeid = device_type.device_typeid
             self.device_id = device_type.device_id
         else:
+            device_type, device_subtype = ('ngraph', device_type[7:]) if 'ngraph' in device_type else (device_type,'')
             self.device_typeid = Context.devstr2type[device_type]
             self.device_id = device_id
+            if (device_type == "ngraph"):
+                ref = ctypes.c_int(0)
+                _LIB.MXDevIDFromNGraphContext(c_str(device_subtype), ctypes.c_int(device_id), ctypes.byref(ref))
+                self.device_id = ref.value
         self._old_ctx = None
 
     @property
@@ -240,35 +245,37 @@ def gpu(device_id=0):
     """
     return Context('gpu', device_id)
 
-def nnp(device_id=0):
+def ngraph(device_subtype="CPU", device_id=0):
     """Returns a Neural Network Processor context.
 
-    This function is a short cut for Context('nnp', device_id).
+    This function is a short cut for Context('ngraph:backend', device_id).
     Currently unsure if we have the flexibility to choose specific
     nodes through LakeCrest.
 
     Examples
     ----------
-    >>> with mx.Context('nnp', 1):
-    ...     nnp_array = mx.nd.ones((2, 3))
-    >>> nnp_array.context
-    nnp(1)
-    >>> with mx.nnp(1):
-    ...    nnp_array = mx.nd.ones((2, 3))
-    >>> nnp_array.context
-    nnp(1)
+    >>> with mx.Context('ngraph', 1):
+    ...     ngraph_array = mx.nd.ones((2, 3))
+    >>> ngraph_array.context
+    ngraph(1)
+    >>> with mx.ngraph(1):
+    ...    ngraph_array = mx.nd.ones((2, 3))
+    >>> ngraph_array.context
+    ngraph(1)
 
     Parameters
     ----------
     device_id : int, optional
         The device id of the device, currently needed to match GPU function signature.
+    device_subtype : string, optional
+        The device subtype of the device
 
     Returns
     -------
     context : Context
-        The corresponding NNP context.
+        The corresponding ngraph context.
     """
-    return Context('nnp', device_id)
+    return Context('ngraph:'+device_subtype, device_id)
 
 
 
@@ -294,7 +301,7 @@ def current_context():
 
     By default, `mx.cpu()` is used for all the computations
     and it can be overridden by using `with mx.Context(x)` statement where
-    x can be cpu(device_id) or gpu(device_id) or nnp(device_id).
+    x can be cpu(device_id) or gpu(device_id) or ngraph(device_id).
 
     Examples
     -------

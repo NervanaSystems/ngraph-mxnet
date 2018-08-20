@@ -53,6 +53,9 @@ inline bool ngraph_log_timer() {
 inline bool ngraph_log_verbose_detail() {
   return dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_DETAIL", false);
 }
+inline bool ngraph_context_fallback() {
+  return dmlc::GetEnv("MXNET_NGRAPH_CTX_FALLBACK", true);
+}
 
 // simple timer for sequential blocks of code
 class Timer {

@@ -186,6 +186,8 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
         })
     .set_attr<FStatefulComputeEx>("FStatefulComputeEx<cpu>",
                                   NgraphSubgraphOpForward)
+    .set_attr<FStatefulComputeEx>("FStatefulComputeEx<gpu>",
+                                  NgraphSubgraphOpForward)
     .set_attr<nnvm::FGradient>("FGradient", NgraphSubgraphGradient)
     .set_attr<nnvm::FMutateInputs>("FMutateInputs",
                                    [](const nnvm::NodeAttrs& attrs) {
@@ -215,6 +217,8 @@ NNVM_REGISTER_OP(_backward_ngraph_subgraph_op)
     .set_attr<bool>("TIsBackward", true)
     .set_attr<FCreateOpState>("FCreateOpState", CreateNgraphBackwardOpState)
     .set_attr<FStatefulComputeEx>("FStatefulComputeEx<cpu>",
+                                  NgraphSubgraphOpBackward)
+    .set_attr<FStatefulComputeEx>("FStatefulComputeEx<gpu>",
                                   NgraphSubgraphOpBackward)
     .set_attr<FInferStorageType>(
         "FInferStorageType",

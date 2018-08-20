@@ -16,15 +16,15 @@
 from __future__ import print_function
 import numpy as np
 import mxnet as mx
+from mxnet.test_utils import *
 import argparse
 import sys
 
 
 
+
 def test_abc():
-    context = mx.cpu()
-    if args.is_nnp:
-        context = mx.nnp()
+    context = default_context()
     A = mx.symbol.Variable('A')
     B = mx.symbol.Variable('B')
     C = mx.symbol.Variable('C')
@@ -65,5 +65,7 @@ if __name__ == '__main__':
         sys.argv.remove('--with-nnp')
     except ValueError:
         pass
+    if args.is_nnp:
+        set_default_context(mx.ngraph("NNP"))
     import nose
     nose.runmodule()

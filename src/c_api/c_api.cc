@@ -33,6 +33,9 @@
 #include <mxnet/operator.h>
 #include <mxnet/io.h>
 #include <mxnet/c_api.h>
+#if MXNET_USE_NGRAPH
+#include <mxnet/ngraph_context.h>
+#endif
 #include <mxnet/kvstore.h>
 #include <mxnet/rtc.h>
 #include <mxnet/storage.h>
@@ -1345,5 +1348,15 @@ int MXNDArrayCreateFromSharedMem(int shared_pid, int shared_id, const mx_uint *s
                                  mx_uint ndim, int dtype, NDArrayHandle *out) {
   API_BEGIN();
   *out = new NDArray(shared_pid, shared_id, TShape(shape, shape + ndim), dtype);
+  API_END();
+}
+
+int MXDevIDFromNGraphContext(const char* device_name, int device_num, int* dev_id) {
+  API_BEGIN();
+#if MXNET_USE_NGRAPH
+  *dev_id = ngraph_bridge::DevIDFromNGraphContext(device_name, device_num);
+#else
+  LOG(FATAL) << "NGRAPH: This version of MXNet was not compiled with NGraph support";
+#endif
   API_END();
 }

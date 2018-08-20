@@ -34,6 +34,12 @@
 #include <nnvm/op.h>
 #include <nnvm/tuple.h>
 #include <nnvm/symbolic.h>
+
+#if MXNET_USE_NGRAPH
+// ngraph context
+#include <mxnet/ngraph_context.h>
+#endif
+
 #include <string>
 
 /*!
@@ -136,7 +142,7 @@ struct Context {
     kCPU = cpu::kDevMask,
     kGPU = gpu::kDevMask,
     kCPUPinned = 3,
-    kNNP = 4,
+    kNGraph = 4,
     kCPUShared = 5,
   };
   /*! \brief the device type we run the op on */
@@ -150,14 +156,14 @@ struct Context {
    * \return cpu::kDevMask or gpu::kDevMask
    */
   inline DeviceType dev_mask() const {
-    if (dev_type == kCPUPinned || dev_type == kCPUShared || dev_type == kNNP) return kCPU;
+    if (dev_type == kCPUPinned || dev_type == kCPUShared || dev_type == kNGraph) return kCPU;
     return dev_type;
   }
   /*!
    * \brief Returns dev_id for kGPU, 0 otherwise
    */
   inline int real_dev_id() const {
-    if (dev_type == kGPU) return dev_id;
+    if (dev_type == kGPU || dev_type == kNGraph) return dev_id;
     return 0;
   }
   /*!
@@ -229,12 +235,13 @@ struct Context {
    * \return Pinned CPU context. -1 for current GPU.
    */
   inline static Context CPUPinned(int32_t dev_id = -1);
-/*!
-   * Create a NNP context.
-   * \param dev_id the device id for corresponding NNP.
-   * \return NNP context.
+  /*!
+   * Create an NGraph context.
+   * \param dev_id the device id for corresponding NGraph instance.
+   * \return NGraph context.
    */
-  inline static Context NNP(int32_t dev_id = 0);
+  inline static Context NGraph(const std::string nGraph_backend_name = "CPU",
+                               int32_t dev_id = 0);
   /*!
    * Create a CPU shared memory context.
    * \param dev_id dummy device id.
@@ -242,7 +249,7 @@ struct Context {
    */
   inline static Context CPUShared(int32_t dev_id = 0);
   /*!
-   * Create a context from string of the format [cpu|gpu|cpu_pinned|nnp](n)
+   * Create a context from string of the format [cpu|gpu|cpu_pinned|ngraph)
    * \param str the string pattern
    * \return Context
    */
@@ -333,8 +340,13 @@ inline int32_t Context::GetGPUCount() {
 #endif
 }
 
-inline Context Context::NNP(int32_t dev_id) {
-  return Create(kNNP, dev_id);
+inline Context Context::NGraph(const std::string nGraph_backend_name, int32_t dev_id) {
+#if MXNET_USE_NGRAPH
+  return Create(kNGraph, ngraph_bridge::DevIDFromNGraphContext(nGraph_backend_name, dev_id));
+#else
+  CHECK(false) << "NGRAPH: " << "This version of MXNet was not compiled with nGraph.";
+  return Create(kCPU, dev_id);
+#endif  // MXNET_USE_NGRAPH
 }
 
 inline Context Context::FromString(const std::string& str) {
@@ -353,8 +365,14 @@ inline Context Context::FromString(const std::string& str) {
       ret = GPU(id);
     } else if (type == "cpu_pinned") {
       ret = CPUPinned(id);
-    } else if (type == "nnp") {
-      ret = NNP(id);
+#if MXNET_USE_NGRAPH
+    } else if (type == "ngraph") {
+      auto kv = ngraph_bridge::NGraphContextFromDevID(id);
+      ret = NGraph(kv.first, kv.second);
+    } else if (type.find("ngraph:") == 0) {
+      const std::string nGraph_backend_name = str.substr(type.find(7), l);
+      ret = NGraph(nGraph_backend_name, id);
+#endif  // MXNET_USE_NGRAPH
     } else if (type == "cpu_shared") {
       ret = CPUShared(id);
     } else {
@@ -373,8 +391,10 @@ inline std::ostream& operator<<(std::ostream &out, const Context &ctx) {
     out << "gpu(";
   } else if (ctx.dev_type == Context::kCPUPinned) {
     out << "cpu_pinned(";
-  } else if (ctx.dev_type == Context::kNNP) {
-    out << "nnp(";
+#if MXNET_USE_NGRAPH
+  } else if (ctx.dev_type == Context::kNGraph) {
+    out << "ngraph";
+#endif  // MXNET_USE_NGRAPH
   } else if (ctx.dev_type == Context::kCPUShared) {
     out << "cpu_shared(";
   } else {

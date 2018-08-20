@@ -2379,6 +2379,10 @@ MXNET_DLL int MXNDArrayCreateFromSharedMem(int shared_pid, int shared_id, const 
  * \brief Dump out nGraph specific profiler performance stats
  */
 MXNET_DLL int MXDumpNGraphProfile(const char* file_name);
+/*!
+ * \brief Get the Encoded NGraph Device Id for an nGraph context
+*/
+MXNET_DLL int MXDevIDFromNGraphContext(const char* device_name, int device_num, int *dev_id);
 
 #ifdef __cplusplus
 }
