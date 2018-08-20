@@ -48,8 +48,11 @@ run_RESNET110_CIFAR10() {
     #PS1='prompt> '
     #PS2='prompt-more> '
     #python3 -m venv .venv3_1
+    cd ../..
+    HOME=`pwd`
+    echo "HOME = ${HOME}"
     set +u
-    VIRTUAL_ENV="/dataset/jenkins/algo-lr/workspace/ngraph-mxnet-resnet-CIFAR10-IA-distributed-trainning/ngraph-mxnet/.tmp_venv3"
+    VIRTUAL_ENV="${HOME}/.tmp_venv3"
     . ${VIRTUAL_ENV}/bin/activate
     echo "Print lib"
     pip list
@@ -139,8 +142,6 @@ echo "  PYTHON_VERSION_NUMBER=${PYTHON_VERSION_NUMBER}"
 echo "  PYTHON_BIN_PATH=${PYTHON_BIN_PATH}"
 
 xtime="$(date)"
-
-cd ../..
 
 # ----- Run Models ----------------------------------
 case "${ng_mx_model}" in
