@@ -24,6 +24,12 @@ cd "$HOME/ng-mx"
 
 cd python && sudo -E pip install -e . && cd ../
 
+pip install pytest
+pip install nose
+pip install scipy==1.0.0
+
 ## Unit tests test_operator.py 
-cmd="OMP_NUM_THREADS=4 python -m pytest -s tests/python/unittest/test_operator.py --verbose --capture=no --junit-xml=result_test_operator.xml --junit-prefix=result_test_operator"
-eval $cmd
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_operator.py --verbose --capture=no --junit-xml=result_test_operator.xml --junit-prefix=result_test_operator"
+#eval $cmd
+OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_operator.py --verbose --capture=no --junit-xml=result_test_operator.xml --junit-prefix=result_test_operator
+exit $?
