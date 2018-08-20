@@ -1040,7 +1040,9 @@ void Emitter::CreateLayerOps() {
     NgraphNodePtr scale_grad;
 
 #if MXNET_USE_NGRAPH_DISTRIBUTED
-    grad = std::make_shared<ngraph::op::AllReduce>(grad);
+    if (ngraph_distributed_enable()) {
+      grad = std::make_shared<ngraph::op::AllReduce>(grad);
+    }
 #endif
     if (clip_gradient >= 0.0f) {
       scale_grad = clip(ng_rescale_grad * grad, -clip_gradient, clip_gradient);
@@ -1073,7 +1075,9 @@ void Emitter::CreateLayerOps() {
     NgraphNodePtr scale_grad;
 
 #if MXNET_USE_NGRAPH_DISTRIBUTED
-    grad = std::make_shared<ngraph::op::AllReduce>(grad);
+    if (ngraph_distributed_enable()) {
+      grad = std::make_shared<ngraph::op::AllReduce>(grad);
+    }
 #endif
     if (clip_gradient >= 0.0f) {
       scale_grad = clip(ng_rescale_grad * grad, -clip_gradient, clip_gradient);

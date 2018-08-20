@@ -30,7 +30,12 @@ namespace kvstore {
 class KVStoreNGRAPH : public KVStoreLocal {
  public:
   explicit KVStoreNGRAPH(bool use_device_comm) : KVStoreLocal(use_device_comm) {
-      MPI_Init(NULL, NULL);
+      int flag = 0;
+      MPI_Initialized(&flag);
+      if (!flag) {
+        MPI_Init(NULL, NULL);
+      }
+      dmlc::SetEnv("MXNET_NGRAPH_DISTRIBUTED", 1);
   }
 
   virtual ~KVStoreNGRAPH() {
