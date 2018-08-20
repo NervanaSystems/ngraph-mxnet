@@ -624,6 +624,14 @@ else()
 
 endif()
 
+if(NOT (USE_NGRAPH AND NOT MSVC))
+  FOREACH(item ${SOURCE})
+    IF(${item} MATCHES "src/ngraph")
+      LIST(REMOVE_ITEM SOURCE ${item})
+    ENDIF(${item} MATCHES "src/ngraph")
+  ENDFOREACH(item)
+else()
+
 set(MXNET_INSTALL_TARGETS mxnet)
 if(UNIX)
   # Create dummy file since we want an empty shared library before linking
