@@ -17,6 +17,7 @@
 #!/bin/bash
 #Author:  Lam Nguyen
 set -u
+set -o pipefail 
 #set -e
 
 cd "$HOME/ng-mx"
