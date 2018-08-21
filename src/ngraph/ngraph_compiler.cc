@@ -20,6 +20,7 @@
 #include <nnvm/pass.h>
 #include <algorithm>
 #include <atomic>
+#include <cstdlib>
 #include <sstream>
 #include <thread>
 #include "../executor/exec_pass.h"
@@ -32,6 +33,9 @@
 #include "nnvm/tuple.h"
 
 namespace ngraph_bridge {
+
+// TODO(mbrookhart): remove when DEX becomes default
+static int ngraph_dex = setenv("NGRAPH_DEX", "1", true);
 
 // Function to create an nnvm node from a ngraph subgraph
 nnvm::NodePtr CreateNNVMNode(std::shared_ptr<Graph> subgraph) {

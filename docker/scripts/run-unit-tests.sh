@@ -17,12 +17,13 @@
 #!/bin/bash
 #Author:  Lam Nguyen
 set -u
-#set -e
+set -e
 
 cd "$HOME/ng-mx"
 
-cd python && sudo -E pip install -e . && cd ../
+cd python && pip install -e . && pip install pytest nose scipy==1.0.0 &&  cd ../
 
 ## Unit tests test_operator.py 
-cmd="OMP_NUM_THREADS=4 pytest -s tests/python/unittest/test_operator.py --verbose --capture=no --junit-xml=result_test_operator.xml --junit-prefix=result_test_operator"
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_operator.py --verbose --capture=no --junit-xml=result_test_operator.xml --junit-prefix=result_test_operator"
 eval $cmd
+
