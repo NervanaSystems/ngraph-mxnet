@@ -624,13 +624,13 @@ else()
 
 endif()
 
-if(NOT (USE_NGRAPH AND NOT MSVC))
+if(NOT(USE_NGRAPH AND NOT MSVC))
   FOREACH(item ${SOURCE})
     IF(${item} MATCHES "src/ngraph")
       LIST(REMOVE_ITEM SOURCE ${item})
     ENDIF(${item} MATCHES "src/ngraph")
   ENDFOREACH(item)
-else()
+endif()
 
 set(MXNET_INSTALL_TARGETS mxnet)
 if(UNIX)
