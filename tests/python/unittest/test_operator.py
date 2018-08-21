@@ -30,7 +30,7 @@ from mxnet.base import py_str, MXNetError, _as_list
 from common import setup_module, with_seed, teardown, assert_raises_cudnn_disabled, assertRaises
 import unittest
 
-def check_rnn_consistency(cell1, cell2, T, N, I, H, grad_req):
+def check_rnn_consistency(cell1, cell2, T, N, I, H, grad_req, rtol=1e-2, atol=1e-4):
     dshape = (N, T, I)
     data = mx.sym.Variable('data')
 
@@ -53,18 +53,18 @@ def check_rnn_consistency(cell1, cell2, T, N, I, H, grad_req):
     # check inference
     mod1.forward(batch, is_train=False)
     mod2.forward(batch, is_train=False)
-    assert_allclose(mod1.get_outputs()[0].asnumpy(), mod2.get_outputs()[0].asnumpy(), rtol=1e-2, atol=1e-4)
+    assert_allclose(mod1.get_outputs()[0].asnumpy(), mod2.get_outputs()[0].asnumpy(), rtol=rtol, atol=atol)
 
     # check training
     mod1.forward(batch, is_train=True)
     mod2.forward(batch, is_train=True)
-    assert_allclose(mod1.get_outputs()[0].asnumpy(), mod2.get_outputs()[0].asnumpy(), rtol=1e-2, atol=1e-4)
+    assert_allclose(mod1.get_outputs()[0].asnumpy(), mod2.get_outputs()[0].asnumpy(), rtol=rtol, atol=atol)
 
     dy = mx.random.uniform(shape=mod1.get_outputs()[0].shape)
     mod1.backward(out_grads=[dy])
     mod2.backward(out_grads=[dy])
     if grad_req != 'null':
-        assert_allclose(mod1.get_input_grads()[0].asnumpy(), mod2.get_input_grads()[0].asnumpy(), rtol=1e-2, atol=1e-4)
+        assert_allclose(mod1.get_input_grads()[0].asnumpy(), mod2.get_input_grads()[0].asnumpy(), rtol=rtol, atol=atol)
     else:
         assert(mod1.get_input_grads()[0] == None)
         assert(mod2.get_input_grads()[0] == None)
@@ -195,9 +195,8 @@ def test_rnnrelu_sym():
     check_rnn_consistency(fused, stack, T, N, I, H, 'add')
     check_rnn_consistency(fused, stack, T, N, I, H, 'null')
 
-
-@unittest.skip("test fails intermittently. temporarily disabled till it gets fixed. tracked at https://github.com/apache/incubator-mxnet/issues/11410")
 @with_seed()
+@assert_raises_cudnn_disabled()
 def test_rnnrelu_bidirectional():
     T, N, I, H = 5, 20, 200, 200
 
@@ -214,9 +213,9 @@ def test_rnnrelu_bidirectional():
                 mx.rnn.RNNCell(H, activation='relu', prefix='r1_'),
                 output_prefix='bi_rnnrelu_1_'))
 
-    check_rnn_consistency(fused, stack, T, N, I, H, 'write')
-    check_rnn_consistency(fused, stack, T, N, I, H, 'add')
-    check_rnn_consistency(fused, stack, T, N, I, H, 'null')
+    check_rnn_consistency(fused, stack, T, N, I, H, 'write', rtol=1e-2, atol=1e-2)
+    check_rnn_consistency(fused, stack, T, N, I, H, 'add', rtol=1e-2, atol=1e-2)
+    check_rnn_consistency(fused, stack, T, N, I, H, 'null', rtol=1e-2, atol=1e-2)
 
 @with_seed()
 def test_lstm_dropout():
@@ -292,17 +291,17 @@ def check_elementwise_sum_with_shape(shape, n):
     exec1.forward(is_train=True)
     out1 = exec1.outputs[0].asnumpy()
     out = sum(a.asnumpy() for a  in arr)
-    assert_almost_equal(out, out1)
+    assert_almost_equal(out, out1, rtol=1e-5, atol=1e-5)
 
     out_grad = mx.nd.empty(shape)
     out_grad[:] = np.random.uniform(-10, 10, shape)
     # backward
     exec1.backward([out_grad])
     for a in arr_grad:
-        assert_almost_equal(a.asnumpy(), out_grad.asnumpy())
+        assert_almost_equal(a.asnumpy(), out_grad.asnumpy(), rtol=1e-5, atol=1e-5)
 
 
-@with_seed(0)
+@with_seed()
 def test_elementwise_sum():
     nrepeat = 2
     maxdim = 4
@@ -818,6 +817,37 @@ def test_prelu():
             check_symbolic_forward(y, [xa, gam_full], [ya_full], rtol=rtol, atol=atol, dtype=dtype)
             check_symbolic_backward(y, [xa, gam_full], [np.ones(shape), np.ones(gam_full.shape)],
                                     [g_xa_full, g_gam_full], rtol=rtol, atol=atol, dtype=dtype)
+
+@with_seed()
+def test_selu():
+    alpha = 1.6732632423543772848170429916717
+    lamb = 1.0507009873554804934193349852946
+    def fselu(x):
+        neg_indices = x < 0
+        out = x.copy()
+        out[neg_indices] = alpha * np.expm1(out[neg_indices])
+        return out * lamb
+    def fselu_grad(grad, x, y):
+        neg_indices = x < 0
+        out = np.ones(x.shape).astype(x.dtype)
+        out[neg_indices] = y[neg_indices] + alpha
+        return out * lamb
+
+    shape = (3, 4)
+    x = mx.sym.Variable("x")
+    y = mx.sym.LeakyReLU(data=x, act_type="selu")
+    for dtype in [np.float16, np.float32, np.float64]:
+        xa = np.random.uniform(low=-0.1,high=0.1,size=shape).astype(dtype)
+        eps, rtol, atol = (7.5e-4, 1e-1, 1e-2) if dtype is np.float16 else (1e-4, 1e-2, 1e-4)
+        if dtype is np.float16:
+            xa /= 10.0
+        xa[abs(xa) < eps] = 0.01
+        ya = fselu(xa)
+        ga = fselu_grad(np.ones(shape).astype(dtype), xa, ya)
+        check_numeric_gradient(y, [xa], numeric_eps=eps, rtol=rtol, atol=atol, dtype=dtype)
+        check_symbolic_forward(y, [xa], [ya], rtol=rtol, atol=atol, dtype=dtype)
+        check_symbolic_backward(y, [xa], [np.ones(shape)], [ga], rtol=rtol, atol=atol, dtype=dtype)
+
 
 @with_seed()
 def test_sigmoid():
@@ -2129,6 +2159,59 @@ def test_reshape():
     assert_allclose(outputs, data_npy.reshape((5, 4 * 3 * 7)))
     exe.backward(out_grads=[mx.nd.array(out_grad_npy, ctx=default_context())])
     assert_allclose(exe.grad_arrays[0].asnumpy(), out_grad_npy.reshape((5, 4, 3, 7)))
+
+
+@with_seed()
+def test_reshape_like():
+    def test_reshape_like_new(lhs_shape, rhs_shape, lbeg, lend, rbeg, rend, dst_shape):
+        lhs = mx.sym.Variable("lhs")
+        rhs = mx.sym.Variable("rhs")
+        net = mx.sym.reshape_like(lhs, rhs, lhs_begin=lbeg, lhs_end=lend, rhs_begin=rbeg, rhs_end=rend)
+        js = net.tojson()
+        net = mx.sym.load_json(js)
+        _, output_shape, __ = net.infer_shape(lhs=lhs_shape, rhs=rhs_shape)
+
+        assert output_shape[0] == dst_shape, \
+            'LHS Shape = %s, RHS Shape = %s, lhs_begin = %s, lhs_end = %s, rhs_begin= %s, rhs_end= %s'\
+            %(str(lhs_shape), str(rhs_shape), str(lbeg), str(lend), str(rbeg), str(rend))
+
+        lhs_npy = np.random.rand(*lhs_shape)
+        rhs_npy = np.random.rand(*rhs_shape)
+        grad_npy = np.random.rand(*dst_shape)
+
+        exe = net.simple_bind(default_context(), lhs=lhs_shape, rhs=rhs_shape)
+        exe.arg_dict['lhs'][:] = lhs_npy
+        exe.arg_dict['rhs'][:] = rhs_npy
+        exe.forward(is_train=True)
+        assert np.square(exe.outputs[0].asnumpy() - lhs_npy.reshape(dst_shape)).mean() < 1E-7, \
+            'LHS Shape = %s, RHS Shape = %s, lhs_begin = %s, lhs_end = %s, rhs_begin= %s, rhs_end= %s'\
+            %(str(lhs_shape), str(rhs_shape), str(lbeg), str(lend), str(rbeg), str(rend))
+        exe.backward(out_grads=mx.nd.array(grad_npy))
+        assert np.square(exe.grad_dict['lhs'].asnumpy() - grad_npy.reshape(lhs_shape)).mean() < 1E-7, \
+            'LHS Shape = %s, RHS Shape = %s, lhs_begin = %s, lhs_end = %s, rhs_begin= %s, rhs_end= %s'\
+            %(str(lhs_shape), str(rhs_shape), str(lbeg), str(lend), str(rbeg), str(rend))
+    # Test new api (Using shape)
+    test_cases = [
+        [(30,), (15,2,4), 0, None, 0, 2, (15,2)],
+        [(30,), (15,2,4), None, 1, None, 2, (15,2)],
+        [(30,7), (15,2,4), 0, 1, 0, 2, (15,2,7)],
+        [(3,5), (1,15,4), 0, 2, 1, 2, (15,)],
+        [(3,5), (1,15,4), 0, None, 1, -1, (15,)],
+        [(30,12), (4,2,2,3), -1, None, 1, None, (30,2,2,3)],
+        [(1,1,7,3,1,1), (81,1,1,21), 1, -1, 1, None, (1,1,1,21,1)]
+    ]
+    # for test_case in test_cases:
+    for test_case in test_cases:
+        test_reshape_like_new(*test_case)
+
+    # Test old api
+    lhs = mx.sym.Variable("lhs")
+    rhs = mx.sym.Variable("rhs")
+    net = mx.sym.reshape_like(lhs, rhs)
+    js = net.tojson()
+    net = mx.sym.load_json(js)
+    _, output_shape, __ = net.infer_shape(lhs=(40, 30), rhs=(30,20,2))
+    assert(output_shape[0] == (30,20,2))
 
 
 @with_seed()
@@ -5951,8 +6034,7 @@ def finite_diff_binary_op(
 # - Forward: Comparison to NumPy (several dtype)
 # - Backward: Comparison to NumPy (several dtype)
 # - Finite difference tests (only dtype = float64)
-# Seed set because the test is not robust enough to operate on random data
-@with_seed(192837465)
+@with_seed()
 def test_binary_math_operators():
     shape=(9, 10)
     dtype_l = [np.float64, np.float32, np.float16]

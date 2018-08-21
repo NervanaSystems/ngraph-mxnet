@@ -40,9 +40,9 @@
 #include "../operator/subgraph/default_subgraph_op.h"
 #include "../ngraph/ngraph_subgraph.h"
 #endif
-
 namespace mxnet {
 namespace exec {
+using namespace mxnet::common;
 
 GraphExecutor::GraphExecutor() {
   log_verbose_ = dmlc::GetEnv("MXNET_EXEC_VERBOSE_LOGGING", false);
@@ -63,30 +63,6 @@ GraphExecutor::~GraphExecutor() {
   }
 }
 
-inline NDArray InitZeros(const NDArrayStorageType stype, const TShape &shape,
-                                const Context &ctx, const int dtype) {
-  // NDArray with default storage
-  if (stype == kDefaultStorage) {
-    NDArray ret(shape, ctx, false, dtype);
-    ret = 0;
-    return ret;
-  }
-  // NDArray with non-default storage. Storage allocation is always delayed.
-  return NDArray(stype, shape, ctx, true, dtype);
-}
-
-inline void EmplaceBackZeros(const NDArrayStorageType stype, const TShape &shape,
-                             const Context &ctx, const int dtype,
-                             std::vector<NDArray> *vec) {
-  // NDArray with default storage
-  if (stype == kDefaultStorage) {
-    vec->emplace_back(shape, ctx, false, dtype);
-    vec->back() = 0;
-  } else {
-    // NDArray with non-default storage. Storage allocation is always delayed.
-    vec->emplace_back(stype, shape, ctx, true, dtype);
-  }
-}
 void GraphExecutor::Forward(bool is_train) {
   RunOps(is_train, 0, num_forward_nodes_);
 }
@@ -255,10 +231,8 @@ inline ValueType get_node_attr(
  * \brief Create the graph for backward pass.
  * This is triggered by both simple_bind and bind flows.
  */
-
-
 nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Symbol symbol,
-    const std::vector<OpReqType>& grad_req_types) {
+                                         const std::vector<OpReqType>& grad_req_types) {
   using nnvm::NodePtr;
   using nnvm::NodeEntry;
   // initial information
@@ -319,232 +293,6 @@ nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Symbol symbol,
 }
 
 /*!
- * \brief Assign context to the graph.
- * This is triggered by both simple_bind and bind flows.
- */
-static Graph AssignContext(Graph g,
-                    const Context& default_ctx,
-                    const std::map<std::string, Context>& ctx_map,
-                    const std::vector<Context>& in_arg_ctxes,
-                    const std::vector<Context>& arg_grad_ctxes,
-                    const std::vector<Context>& aux_state_ctxes,
-                    const std::vector<OpReqType>& grad_req_types,
-                    size_t num_forward_inputs,
-                    size_t num_forward_outputs) {
-  const auto& idx = g.indexed_graph();
-  const auto& mutable_nodes = idx.mutable_input_nodes();
-  // default use default context.
-  if (ctx_map.size() == 0) {
-    g.attrs["context"] = std::make_shared<nnvm::any>(
-        ContextVector(idx.num_nodes(), default_ctx));
-    for (const auto& x : in_arg_ctxes) {
-      CHECK(x == default_ctx)
-        << "Input array is in " << x << " while binding with ctx=" << default_ctx
-        << ". All arguments must be in global context (" << default_ctx
-        << ") unless group2ctx is specified for cross-device graph.";
-    }
-    for (const auto& x : arg_grad_ctxes) {
-      CHECK(x == default_ctx)
-        << "Gradient array is in " << x << " while binding with ctx="
-        << default_ctx << ". All gradients must be in global context (" << default_ctx
-        << ") unless group2ctx is specified for cross-device graph.";
-    }
-    return g;
-  }
-
-  // otherwise, use context assignment.
-  std::map<Context, int> ctx2id;  // map ctx to device id
-  std::vector<Context> ctx_list;  // index is device id
-  nnvm::DeviceVector device(idx.num_nodes(), -1);  // index is node id
-  nnvm::DeviceAssignMap device_map;  // map arg name to device id
-
-  // loop through the user input ctx_map and
-  // populate maps and lists
-  for (auto &kv : ctx_map) {
-    if (ctx2id.count(kv.second) == 0) {  // if context has no device id, create one
-      ctx2id[kv.second] = static_cast<int>(ctx_list.size());  // assign device id to ctx
-      ctx_list.push_back(kv.second);  // save ctx to the list
-    }
-    // assign device id to to the arg name with the corresponding ctx
-    device_map[kv.first] = ctx2id.at(kv.second);
-  }
-
-  // loop through all the rest of input nodes not specified
-  // in the ctx_map and populate maps and lists
-  size_t arg_top = 0, aux_top = 0;
-  for (size_t i = 0; i < num_forward_inputs; ++i) {
-    const uint32_t nid = idx.input_nodes().at(i);
-    Context ctx;
-    if (mutable_nodes.count(nid)) {  // aux node is mutable
-      CHECK_LT(aux_top, aux_state_ctxes.size());
-      ctx = aux_state_ctxes[aux_top];
-      ++aux_top;
-    } else {  // regular input node is immutable
-      CHECK_LT(arg_top, in_arg_ctxes.size());
-      ctx = in_arg_ctxes[arg_top];
-      ++arg_top;
-    }
-    if (ctx2id.count(ctx) == 0) {  // if the current ctx is not in the map of ctx and device id
-      ctx2id[ctx] = static_cast<int>(ctx_list.size());  // assign the current ctx with device id
-      ctx_list.push_back(ctx);  // save the current ctx in the list
-    }
-    device[nid] = ctx2id.at(ctx);  // assign device id to the current node
-  }
-
-  // loop through backward input nodes and populate maps and lists
-  // the backward input nodes is the gradient of the loss wrt the output
-  size_t arg_grad_offset = 0;
-  // keep an offset into the arg_grad_ctxes vector,
-  // since g.outputs exclude arg_grad whose req == null
-  CHECK_GE(grad_req_types.size(), g.outputs.size() - num_forward_outputs)
-           << "insufficient number of grad_reqs";
-  for (size_t i = num_forward_outputs; i < g.outputs.size(); ++i, ++arg_grad_offset) {
-    while (grad_req_types[arg_grad_offset] == kNullOp) ++arg_grad_offset;
-    const uint32_t nid = idx.outputs()[i].node_id;
-    Context ctx = arg_grad_ctxes[arg_grad_offset];
-    if (ctx2id.count(ctx) == 0) {
-      ctx2id[ctx] = static_cast<int>(ctx_list.size());
-      ctx_list.push_back(ctx);
-    }
-    int devid = ctx2id.at(ctx);
-    if (device[nid] != -1) {
-      CHECK_EQ(device[nid], devid) << "device of same output not equal to each other";
-    } else {
-      device[nid] = devid;
-    }
-  }
-
-  g.attrs["device"] = std::make_shared<dmlc::any>(std::move(device));
-  g = nnvm::pass::PlaceDevice(g, "__ctx_group__", device_map, "_CrossDeviceCopy");
-  const auto& assigned_device = g.GetAttr<nnvm::DeviceVector>("device");
-
-  ContextVector vcontext;
-  for (size_t i = 0; i < assigned_device.size(); ++i) {
-    if (assigned_device[i] == -1) {
-      vcontext.push_back(default_ctx);
-    } else {
-      vcontext.push_back(ctx_list[assigned_device[i]]);
-    }
-  }
-
-  // after device planning, we should check again
-  // if the assigned device of gradient node
-  // corresponds to storage of grads
-  auto &new_idx = g.indexed_graph();
-  arg_grad_offset = 0;
-  for (size_t i = num_forward_outputs; i < g.outputs.size(); ++i, ++arg_grad_offset) {
-    while (grad_req_types[arg_grad_offset] == kNullOp) ++arg_grad_offset;
-    const uint32_t nid = new_idx.outputs()[i].node_id;
-    Context ctx = arg_grad_ctxes[arg_grad_offset];
-    CHECK(ctx == vcontext[nid])
-      << "Trying to save gradient to " << ctx
-      << " while its source node \"" << new_idx[nid].source->attrs.name
-      << "\" computes it on " << vcontext[nid]
-      << ". Check your ctx in NDArray allocation.";
-  }
-
-  g.attrs["context"] = std::make_shared<nnvm::any>(std::move(vcontext));
-  return g;
-}
-
-static void HandleInferShapeError(const size_t num_forward_inputs,
-                           const nnvm::IndexedGraph& idx,
-                           const nnvm::ShapeVector& inferred_shapes) {
-  int cnt = 10;
-  std::ostringstream oss;
-  for (size_t i = 0; i < num_forward_inputs; ++i) {
-    const uint32_t nid = idx.input_nodes().at(i);
-    const uint32_t eid = idx.entry_id(nid, 0);
-    const TShape& inferred_shape = inferred_shapes[eid];
-    if (inferred_shape.ndim() == 0 || inferred_shape.Size() == 0U) {
-      const std::string& arg_name = idx[nid].source->attrs.name;
-      oss << arg_name << ": " << inferred_shape << ", ";
-      if (--cnt == 0) {
-        oss << "...";
-        break;
-      }
-    }
-  }
-  LOG(FATAL) << "InferShape pass cannot decide shapes for the following arguments "
-                "(0s means unknown dimensions). Please consider providing them as inputs:\n"
-             << oss.str();
-}
-
-static void HandleInferTypeError(const size_t num_forward_inputs,
-                          const nnvm::IndexedGraph& idx,
-                          const nnvm::DTypeVector& inferred_dtypes) {
-  int cnt = 10;
-  std::ostringstream oss;
-  for (size_t i = 0; i < num_forward_inputs; ++i) {
-    const uint32_t nid = idx.input_nodes().at(i);
-    const uint32_t eid = idx.entry_id(nid, 0);
-    const int inferred_dtype = inferred_dtypes[eid];
-    if (inferred_dtype == -1) {
-      const std::string& arg_name = idx[nid].source->attrs.name;
-      oss << arg_name << ": " << inferred_dtype << ", ";
-      if (--cnt == 0) {
-        oss << "...";
-        break;
-      }
-    }
-  }
-  LOG(FATAL) << "InferType pass cannot decide dtypes for the following arguments "
-                "(-1 means unknown dtype). Please consider providing them as inputs:\n"
-             << oss.str();
-}
-
-static void HandleInferStorageTypeError(const size_t num_forward_inputs,
-                                 const nnvm::IndexedGraph& idx,
-                                 const StorageTypeVector& inferred_stypes) {
-  int cnt = 10;
-  std::ostringstream oss;
-  for (size_t i = 0; i < num_forward_inputs; ++i) {
-    const uint32_t nid = idx.input_nodes().at(i);
-    const uint32_t eid = idx.entry_id(nid, 0);
-    const int inferred_stype = inferred_stypes[eid];
-    if (inferred_stype == -1) {
-      const std::string& arg_name = idx[nid].source->attrs.name;
-      oss << arg_name << ": " << common::stype_string(inferred_stype) << ", ";
-      if (--cnt == 0) {
-        oss << "...";
-        break;
-      }
-    }
-  }
-  LOG(FATAL) << "InferStorageType pass cannot decide storage type for the following arguments "
-                "(-1 means unknown stype). Please consider providing them as inputs:\n"
-             << oss.str();
-}
-
-#if MXNET_USE_NGRAPH == 1
-bool multi_context_check(const Context& default_ctx,
-                         const std::vector<Context>& in_arg_ctxes,
-                         const std::vector<Context>& arg_grad_ctxes,
-                         const std::vector<Context>& aux_state_ctxes) {
-  bool multi_context = false;
-  for (auto contexts : {in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes}) {
-    for (auto context : contexts) {
-      if (context != default_ctx) {
-        multi_context = true;
-      }
-    }
-  }
-  // TODO(mbrookhart): we probably need to create collapsed nodes with FCompute<gpu>
-  // Ngraph GPU support is limitted and is currently enabled iff the env. variable
-  // MXNET_NGRAPH_GPU is defined
-#if MXNET_USE_CUDA
-  static const bool ngraph_gpu_enable = dmlc::GetEnv("MXNET_NGRAPH_GPU", false);
-  if (!ngraph_gpu_enable) {
-    if (default_ctx == Context::GPU()) {
-      multi_context = true;
-    }
-  }
-#endif
-  return multi_context;
-}
-#endif
-
-/*!
  * \brief GraphExecutor initializer for regular bind flow in which
  * input arguments and gradients are provided by users. This initializer
  * uses the user provided NDArrays to populate data entries of the graph.
@@ -571,7 +319,6 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   std::transform(arg_grad_store.begin(), arg_grad_store.end(), arg_grad_ctxes.begin(), get_ctx2);
   std::vector<Context> aux_state_ctxes(aux_states.size());
   std::transform(aux_states.begin(), aux_states.end(), aux_state_ctxes.begin(), get_ctx1);
-
 
   nnvm::Graph g = InitGraph(symbol, default_ctx, ctx_map, in_arg_ctxes,
                             arg_grad_ctxes, aux_state_ctxes, grad_req_types);
@@ -604,7 +351,6 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                     aux_state_ctxes, grad_req_types, num_forward_inputs_,
                     num_forward_outputs_);
 #endif
-
   // create arg_shapes and arg_dtypes for shape and type inferences
   const auto& idx = g.indexed_graph();
 #if MXNET_USE_NGRAPH == 1
@@ -687,8 +433,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   if (!multi_context && !grad_sparse) {
     FinishInitGraph(symbol, g, shared_exec, compiler.GetFeedDict());
   } else {
-    FinishInitGraph(symbol, g, shared_exec, feed_dict);
-  }
+  FinishInitGraph(symbol, g, shared_exec, feed_dict);
+}
 #else
   FinishInitGraph(symbol, g, shared_exec, feed_dict);
 #endif
@@ -762,57 +508,6 @@ void GraphExecutor::InitArguments(const nnvm::IndexedGraph& idx,
       ++arg_top;
     }
   }
-}
-
-/*!
- * \brief If the requested ndarray's shape size is less than
- * the corresponding shared_data_array's shape size and the
- * storage type is shareable, reuse the memory allocation
- * in shared_buffer; otherwise, create a zero ndarray.
- * Shareable storages include both default storage and row_sparse storage
- * if enable_row_sparse_sharing is `True`, otherwise default storage only.
- */
-static NDArray ReshapeOrCreate(const std::string& name,
-                        const TShape& dest_arg_shape,
-                        const int dest_arg_dtype,
-                        const NDArrayStorageType dest_arg_stype,
-                        const Context& ctx,
-                        std::unordered_map<std::string, NDArray>* shared_buffer,
-                        bool enable_row_sparse_sharing) {
-  bool stype_shareable = dest_arg_stype == kDefaultStorage;
-  if (enable_row_sparse_sharing) {
-    stype_shareable = stype_shareable || dest_arg_stype == kRowSparseStorage;
-  }
-  auto it = shared_buffer->find(name);
-  if (it != shared_buffer->end()) {
-    // check if size is large enough for sharing
-    bool size_shareable = it->second.shape().Size() >= dest_arg_shape.Size();
-    if (size_shareable && stype_shareable) {  // memory can be reused
-      CHECK_EQ(it->second.dtype(), dest_arg_dtype)
-        << "Requested arg array's dtype does not match that of the reusable ndarray";
-      CHECK_EQ(it->second.storage_type(), dest_arg_stype)
-        << "Requested arg array's stype does not match that of the reusable ndarray";
-      return it->second.Reshape(dest_arg_shape);
-    } else if (stype_shareable) {
-      LOG(WARNING) << "Bucketing: data " << name << " has a shape " << dest_arg_shape
-                   << ", which is larger than already allocated shape " << it->second.shape()
-                   << ". Need to re-allocate. Consider putting default bucket key to be "
-                   << "the bucket taking the largest input for better memory sharing.";
-      // size is not large enough, creating a larger one for sharing
-      // the NDArrays in shared_buffer are guaranteed to be of shareable storages
-      it->second = InitZeros(dest_arg_stype, dest_arg_shape, ctx, dest_arg_dtype);
-      return it->second;
-    } else {
-      // not shareable storage
-      return InitZeros(dest_arg_stype, dest_arg_shape, ctx, dest_arg_dtype);
-    }
-  } else {
-    auto ret = InitZeros(dest_arg_stype, dest_arg_shape, ctx, dest_arg_dtype);
-    if (stype_shareable) {
-      shared_buffer->emplace(name, ret);
-    }
-    return ret;
-  }  // if (it != shared_buffer->end())
 }
 
 /*!
@@ -1059,7 +754,6 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   symbol_ = symbol;
   nnvm::Graph g = InitGraph(symbol, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
                             aux_state_ctxes, grad_req_types);
-
   // make copies so that ngraph compilation can modify shape / dtype
   std::unordered_map<std::string, TShape> arg_shape_map = arg_shape_mapRef;
   std::unordered_map<std::string, int> arg_dtype_map = arg_dtype_mapRef;
@@ -1098,7 +792,6 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                       aux_state_ctxes, grad_req_types, num_forward_inputs_,
                       num_forward_outputs_);
 #endif
-
   // The following code of shape and dtype inferences and argument
   // initialization is for simple_bind only. Regular bind operation
   // should do this differently.
@@ -1106,7 +799,6 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // Initialize arg_shapes and arg_dtypes for shape and type inferences.
   // It contains all in_args and aux_states' shapes and types in a certain order.
   const nnvm::IndexedGraph& idx = g.indexed_graph();
-
 #if MXNET_USE_NGRAPH == 1
   // get ngraph number of nodes used in forward pass
   num_forward_nodes_ = 0;
@@ -1114,7 +806,6 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
     num_forward_nodes_ = std::max(
         num_forward_nodes_, static_cast<size_t>(idx.outputs()[i].node_id + 1));
 #endif
-
   nnvm::ShapeVector arg_shapes(idx.input_nodes().size(), TShape());
   nnvm::DTypeVector arg_dtypes(idx.input_nodes().size(), -1);
   StorageTypeVector arg_stypes(idx.input_nodes().size(), kUndefinedStorage);
@@ -1179,8 +870,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   if (!multi_context && !grad_sparse) {
     FinishInitGraph(symbol, g, shared_exec, compiler.GetFeedDict());
   } else {
-    FinishInitGraph(symbol, g, shared_exec, feed_dict);
-  }
+  FinishInitGraph(symbol, g, shared_exec, feed_dict);
+}
 #else
   FinishInitGraph(symbol, g, shared_exec, feed_dict);
 #endif
@@ -1320,6 +1011,7 @@ Graph GraphExecutor::InitGraph(nnvm::Symbol symbol,
 #if MXNET_USE_NGRAPH == 0
   g = InitFullGraph(symbol,
                     grad_req_types);
+
   // create "device" and "context" attrs for the graph
   g = AssignContext(g, default_ctx, ctx_map,
                     in_arg_ctxes,
