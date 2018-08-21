@@ -31,11 +31,17 @@
 #include <dmlc/thread_group.h>
 #include <mxnet/kvstore.h>
 #include <stack>
-#include "./c_api_common.h"
+
 #if MXNET_USE_NGRAPH == 1
-#include "../ngraph/ngraph_stats.h"
 #include <fstream>
 #endif
+
+#include "./c_api_common.h"
+
+#if MXNET_USE_NGRAPH == 1
+#include "../ngraph/ngraph_stats.h"
+#endif
+
 #include "../profiler/profiler.h"
 
 namespace mxnet {
