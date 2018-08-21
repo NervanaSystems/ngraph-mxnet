@@ -292,6 +292,34 @@ nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Symbol symbol,
   return g;
 }
 
+#if MXNET_USE_NGRAPH == 1
+bool multi_context_check(const Context& default_ctx,
+                         const std::vector<Context>& in_arg_ctxes,
+                         const std::vector<Context>& arg_grad_ctxes,
+                         const std::vector<Context>& aux_state_ctxes) {
+  bool multi_context = false;
+  for (auto contexts : {in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes}) {
+    for (auto context : contexts) {
+      if (context != default_ctx) {
+        multi_context = true;
+      }
+    }
+  }
+  // TODO(mbrookhart): we probably need to create collapsed nodes with FCompute<gpu>
+  // Ngraph GPU support is limitted and is currently enabled iff the env. variable
+  // MXNET_NGRAPH_GPU is defined
+#if MXNET_USE_CUDA
+  static const bool ngraph_gpu_enable = dmlc::GetEnv("MXNET_NGRAPH_GPU", false);
+  if (!ngraph_gpu_enable) {
+    if (default_ctx == Context::GPU()) {
+      multi_context = true;
+    }
+  }
+#endif
+  return multi_context;
+}
+#endif
+
 /*!
  * \brief GraphExecutor initializer for regular bind flow in which
  * input arguments and gradients are provided by users. This initializer
