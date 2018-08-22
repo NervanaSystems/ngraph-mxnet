@@ -68,17 +68,11 @@ ADD_NGRAPH_LIBDIR_TO_MXNET_RPATH=1
 override NGRAPH_EXTRA_CMAKE_FLAGS += -DNGRAPH_UNIT_TEST_ENABLE=0 -DNGRAPH_TOOLS_ENABLE=0
 NGRAPH_EXTRA_MAKE_FLAGS="VERBOSE=1"
 
-LSB_RELEASE_UBUNTU_1604 := $(shell /usr/bin/lsb_release -a 2>/dev/null | grep "Ubuntu 16.04" )
-ifneq ($(LSB_RELEASE_UBUNTU_1604),)
-  override NGRAPH_EXTRA_CMAKE_FLAGS += -DNGRAPH_USE_PREBUILT_LLVM=1
-else
-  override NGRAPH_EXTRA_CMAKE_FLAGS += -DNGRAPH_USE_PREBUILT_LLVM=0
-endif
-
 NGRAPH_SRC_DIR := $(ROOTDIR)/3rdparty/ngraph_bridge
 NGRAPH_BUILD_DIR := $(ROOTDIR)/3rdparty/ngraph_bridge/build
 NGRAPH_INSTALL_DIR := $(ROOTDIR)/3rdparty/ngraph_bridge/build
 MXNET_LIB_DIR := $(ROOTDIR)/lib
+
 
 # The 'clean' target should remove nGraph-related generated files, regardless of whether or not
 # the current Make invocation has USE_NGRAPH=1 ...
@@ -122,6 +116,11 @@ ngraph:
 	@echo 3rdparty/ngraph INTERNAL BUILD/INSTALLATION SUCCESSFUL
 	@echo
 
+NGRAPH_BRIDGE_SRC = $(wildcard $(ROOTDIR)/3rdparty/ngraph_bridge/src/*.cc)
+NGRAPH_BRIDGE_SRC += $(wildcard $(ROOTDIR)/3rdparty/ngraph_bridge/src/ops/*.cc)
+NGRAPH_BRIDGE_OBJ = $(patsubst %.cc,%.cc.o,$(patsubst $(ROOTDIR)/3rdparty/ngraph_bridge/src/%,$(ROOTDIR)/3rdparty/ngraph_bridge/build/src/CMakeFiles/ngraph_bridge.dir/%,$(NGRAPH_BRIDGE_SRC)))
+
+$(NGRAPH_BRIDGE_OBJ): %.o: ngraph
 
   # Set NGRAPH_CFLAGS ...
   NGRAPH_CFLAGS = \

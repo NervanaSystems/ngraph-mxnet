@@ -399,8 +399,7 @@ else
 endif
 
 ifeq ($(USE_NGRAPH), 1)
-	EXTRA_OBJ += $(wildcard 3rdparty/ngraph_bridge/build/src/CMakeFiles/ngraph_bridge.dir/*.o)
-	EXTRA_OBJ += $(wildcard 3rdparty/ngraph_bridge/build/src/CMakeFiles/ngraph_bridge.dir/ops/*.o)
+	EXTRA_OBJ += $(NGRAPH_BRIDGE_OBJ)
 endif
 
 # plugin
