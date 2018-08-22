@@ -381,10 +381,6 @@ endif
 all: lib/libmxnet.a lib/libmxnet.so $(BIN) extra-packages
 
 SRC = $(wildcard src/*/*/*/*.cc src/*/*/*.cc src/*/*.cc src/*.cc)
-ifneq ($(USE_NGRAPH),1)
-    SRC := $(foreach f,$(SRC),$(if $(findstring src/ngraph,$f),,$f))
-endif
-
 OBJ = $(patsubst %.cc, build/%.o, $(SRC))
 CUSRC = $(wildcard src/*/*/*/*.cu src/*/*/*.cu src/*/*.cu src/*.cu)
 CUOBJ = $(patsubst %.cu, build/%_gpu.o, $(CUSRC))
@@ -400,6 +396,11 @@ else
 	EXTRA_OBJ =
 	EXTRA_CUSRC =
 	EXTRA_CUOBJ =
+endif
+
+ifeq ($(USE_NGRAPH), 1)
+	EXTRA_OBJ += $(wildcard 3rdparty/ngraph_bridge/build/src/CMakeFiles/ngraph_bridge.dir/*.o)
+	EXTRA_OBJ += $(wildcard 3rdparty/ngraph_bridge/build/src/CMakeFiles/ngraph_bridge.dir/ops/*.o)
 endif
 
 # plugin
