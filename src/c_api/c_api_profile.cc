@@ -29,12 +29,19 @@
 #include <dmlc/base.h>
 #include <dmlc/logging.h>
 #include <dmlc/thread_group.h>
-#include <fstream>
+#include <mxnet/kvstore.h>
 #include <stack>
+
+#if MXNET_USE_NGRAPH == 1
+#include <fstream>
+#endif
+
 #include "./c_api_common.h"
+
 #if MXNET_USE_NGRAPH == 1
 #include "../ngraph/ngraph_stats.h"
 #endif
+
 #include "../profiler/profiler.h"
 
 namespace mxnet {
@@ -201,6 +208,10 @@ struct PythonProfileObjects {
 };
 static PythonProfileObjects python_profile_objects;
 
+enum class ProfileProcess {
+  kWorker, kServer
+};
+
 struct ProfileConfigParam : public dmlc::Parameter<ProfileConfigParam> {
   bool profile_all;
   bool profile_symbolic;
@@ -211,6 +222,7 @@ struct ProfileConfigParam : public dmlc::Parameter<ProfileConfigParam> {
   bool continuous_dump;
   float dump_period;
   bool aggregate_stats;
+  int profile_process;
   DMLC_DECLARE_PARAMETER(ProfileConfigParam) {
     DMLC_DECLARE_FIELD(profile_all).set_default(false)
       .describe("Profile all.");
@@ -232,6 +244,13 @@ struct ProfileConfigParam : public dmlc::Parameter<ProfileConfigParam> {
     DMLC_DECLARE_FIELD(aggregate_stats).set_default(false)
       .describe("Maintain aggregate stats, required for MXDumpAggregateStats.  Note that "
       "this can have anegative performance impact.");
+    DMLC_DECLARE_FIELD(profile_process)
+      .add_enum("worker", static_cast<int>(ProfileProcess::kWorker))
+      .add_enum("server", static_cast<int>(ProfileProcess::kServer))
+      .set_default(static_cast<int>(ProfileProcess::kWorker))
+      .describe("Specifies which process to profile: "
+                "worker: this is default. for single node training it should always be worker."
+                "server: for distributed training, this profiles server process");
   }
 };
 
@@ -252,7 +271,8 @@ struct ProfileMarkerScopeParam : public dmlc::Parameter<ProfileMarkerScopeParam>
 
 DMLC_REGISTER_PARAMETER(ProfileMarkerScopeParam);
 
-int MXSetProfilerConfig(int num_params, const char* const* keys, const char* const* vals) {
+int MXSetProcessProfilerConfig(int num_params, const char* const* keys, const char* const* vals,
+                               KVStoreHandle kvstoreHandle) {
     mxnet::IgnoreProfileCallScope ignore;
   API_BEGIN();
     std::vector<std::pair<std::string, std::string>> kwargs;
@@ -264,17 +284,35 @@ int MXSetProfilerConfig(int num_params, const char* const* keys, const char* con
     }
     ProfileConfigParam param;
     param.Init(kwargs);
-    int mode = 0;
-    if (param.profile_api || param.profile_all)        { mode |= profiler::Profiler::kAPI; }
-    if (param.profile_symbolic || param.profile_all)   { mode |= profiler::Profiler::kSymbolic; }
-    if (param.profile_imperative || param.profile_all) { mode |= profiler::Profiler::kImperative; }
-    if (param.profile_memory || param.profile_all)     { mode |= profiler::Profiler::kMemory; }
-    profiler::Profiler::Get()->SetConfig(profiler::Profiler::ProfilerMode(mode),
-                                         std::string(param.filename),
-                                         param.continuous_dump,
-                                         param.dump_period,
-                                         param.aggregate_stats);
+    if (static_cast<ProfileProcess>(param.profile_process) == ProfileProcess::kServer) {
+      std::ostringstream os;
+      for (int i = 0; i < num_params; ++i) {
+        // this will be sent to the server now, those configs shouldn't have profile server again
+        if (strcmp(keys[i], "profile_process") == 0) continue;
+        os << keys[i] << ":" << vals[i];
+        if (i != num_params - 1) os << ",";
+      }
+      CHECK(kvstoreHandle) << "KVStoreHandle passed to profiler is null";
+      static_cast<KVStore*>(kvstoreHandle)->SetServerProfilerCommand(
+      mxnet::KVStoreServerProfilerCommand::kSetConfig, os.str());
+    } else {
+      int mode = 0;
+      if (param.profile_api || param.profile_all)        { mode |= profiler::Profiler::kAPI; }
+      if (param.profile_symbolic || param.profile_all)   { mode |= profiler::Profiler::kSymbolic; }
+      if (param.profile_imperative ||
+          param.profile_all) { mode |= profiler::Profiler::kImperative; }
+      if (param.profile_memory || param.profile_all)     { mode |= profiler::Profiler::kMemory; }
+      profiler::Profiler::Get()->SetConfig(profiler::Profiler::ProfilerMode(mode),
+                                           std::string(param.filename),
+                                           param.continuous_dump,
+                                           param.dump_period,
+                                           param.aggregate_stats);
+    }
   API_END();
+}
+
+int MXSetProfilerConfig(int num_params, const char* const* keys, const char* const* vals) {
+  return MXSetProcessProfilerConfig(num_params, keys, vals, nullptr);
 }
 
 int MXAggregateProfileStatsPrint(const char **out_str, int reset) {
@@ -297,19 +335,40 @@ int MXAggregateProfileStatsPrint(const char **out_str, int reset) {
 }
 
 int MXDumpProfile(int finished) {
+  return MXDumpProcessProfile(finished, static_cast<int>(ProfileProcess::kWorker), nullptr);
+}
+
+int MXDumpProcessProfile(int finished, int profile_process, KVStoreHandle kvStoreHandle) {
   mxnet::IgnoreProfileCallScope ignore;
   API_BEGIN();
+  if (static_cast<ProfileProcess>(profile_process) == ProfileProcess::kServer) {
+    CHECK(kvStoreHandle) << "Kvstore Handle passed to profiler is null";
+    static_cast<KVStore*>(kvStoreHandle)->SetServerProfilerCommand(
+      mxnet::KVStoreServerProfilerCommand::kDump,
+      std::to_string(finished));
+  } else {
     profiler::Profiler *profiler = profiler::Profiler::Get();
     CHECK(profiler->IsEnableOutput())
       << "Profiler hasn't been run. Config and start profiler first";
     profiler->DumpProfile(finished != 0);
+  }
   API_END()
 }
 
 int MXSetProfilerState(int state) {
+  return MXSetProcessProfilerState(state, static_cast<int>(ProfileProcess::kWorker), nullptr);
+}
+
+int MXSetProcessProfilerState(int state, int profile_process, KVStoreHandle kvStoreHandle) {
   mxnet::IgnoreProfileCallScope ignore;
   // state, kNotRunning: 0, kRunning: 1
   API_BEGIN();
+  if (static_cast<ProfileProcess>(profile_process) == ProfileProcess::kServer) {
+    CHECK(kvStoreHandle) << "Kvstore Handle passed to profiler is null";
+    static_cast<KVStore*>(kvStoreHandle)->SetServerProfilerCommand(
+      mxnet::KVStoreServerProfilerCommand::kState,
+      std::to_string(state));
+  } else {
     switch (state) {
       case profiler::Profiler::kNotRunning:
         profiler::vtune::vtune_pause();
@@ -319,6 +378,7 @@ int MXSetProfilerState(int state) {
         break;
     }
     profiler::Profiler::Get()->SetState(profiler::Profiler::ProfilerState(state));
+  }
   API_END();
 }
 
@@ -454,8 +514,18 @@ int MXProfileDurationStop(ProfileHandle duration_handle) {
 }
 
 int MXProfilePause(int paused) {
+  return MXProcessProfilePause(paused, static_cast<int>(ProfileProcess::kWorker), nullptr);
+}
+
+int MXProcessProfilePause(int paused, int profile_process, KVStoreHandle kvStoreHandle) {
   mxnet::IgnoreProfileCallScope ignore;
   API_BEGIN();
+  if (static_cast<ProfileProcess>(profile_process) == ProfileProcess::kServer) {
+    CHECK(kvStoreHandle) << "Kvstore Handle passed to profiler is null";
+    static_cast<KVStore*>(kvStoreHandle)->SetServerProfilerCommand(
+      mxnet::KVStoreServerProfilerCommand::kPause,
+      std::to_string(paused));
+  } else {
     if (paused) {
       profiler::vtune::vtune_pause();
       profiler::Profiler::Get()->set_paused(true);
@@ -463,6 +533,7 @@ int MXProfilePause(int paused) {
       profiler::Profiler::Get()->set_paused(false);
       profiler::vtune::vtune_resume();
     }
+  }
   API_END();
 }
 
