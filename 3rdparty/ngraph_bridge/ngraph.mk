@@ -64,10 +64,20 @@ ifneq ($(NGRAPH_DIR),)
 endif
 
 #===================================================================================================
+ADD_NGRAPH_LIBDIR_TO_MXNET_RPATH=1
+override NGRAPH_EXTRA_CMAKE_FLAGS += -DNGRAPH_UNIT_TEST_ENABLE=0 -DNGRAPH_TOOLS_ENABLE=0
+NGRAPH_EXTRA_MAKE_FLAGS="VERBOSE=1"
 
-NGRAPH_SRC_DIR := $(ROOTDIR)/3rdparty/ngraph
-NGRAPH_BUILD_DIR := $(ROOTDIR)/3rdparty/ngraph/build
-NGRAPH_INSTALL_DIR := $(ROOTDIR)/3rdparty/ngraph/install
+LSB_RELEASE_UBUNTU_1604 := $(shell /usr/bin/lsb_release -a 2>/dev/null | grep "Ubuntu 16.04" )
+ifneq ($(LSB_RELEASE_UBUNTU_1604),)
+  override NGRAPH_EXTRA_CMAKE_FLAGS += -DNGRAPH_USE_PREBUILT_LLVM=1
+else
+  override NGRAPH_EXTRA_CMAKE_FLAGS += -DNGRAPH_USE_PREBUILT_LLVM=0
+endif
+
+NGRAPH_SRC_DIR := $(ROOTDIR)/3rdparty/ngraph_bridge
+NGRAPH_BUILD_DIR := $(ROOTDIR)/3rdparty/ngraph_bridge/build
+NGRAPH_INSTALL_DIR := $(ROOTDIR)/3rdparty/ngraph_bridge/build
 MXNET_LIB_DIR := $(ROOTDIR)/lib
 
 # The 'clean' target should remove nGraph-related generated files, regardless of whether or not
@@ -97,9 +107,8 @@ ngraph:
 	  fi
 	cd "$(NGRAPH_BUILD_DIR)"; \
 	cmake "$(NGRAPH_SRC_DIR)" \
-	  -DCMAKE_INSTALL_PREFIX="$(NGRAPH_INSTALL_DIR)" \
-	  $(NGRAPH_EXTRA_CMAKE_FLAGS); \
-	$(MAKE) all install $(NGRAPH_EXTRA_MAKE_FLAGS)
+	  -DCMAKE_INSTALL_PREFIX="$(NGRAPH_INSTALL_DIR)" -DUSE_CUDA=$(USE_CUDA) -DBLAS=$(USE_BLAS) $(NGRAPH_EXTRA_CMAKE_FLAGS); \
+  $(MAKE) all $(NGRAPH_EXTRA_MAKE_FLAGS)
 
 	# Copy contents of nGraph's 'lib' directory into MXnet's lib directory, taking care to
 	# preserve the relative symlinks used to support Linux shared-object versioning.
@@ -117,7 +126,7 @@ ngraph:
   # Set NGRAPH_CFLAGS ...
   NGRAPH_CFLAGS = \
     "-I$(NGRAPH_INSTALL_DIR)/include" \
-    "-I$(ROOTDIR)/src/ngraph" \
+    "-I$(ROOTDIR)/3rdparty/ngraph_bridge/build/src" \
     -DMXNET_USE_NGRAPH=1
 
   ifeq ($(USE_NGRAPH_IE),1)
@@ -140,18 +149,11 @@ ngraph:
     -lmklml_intel \
     -lmkldnn
 
-  # These following libraries are part of ngraph, and provide symbols required by nGraph's
-  # public-interface header files, BUT are not reported as dependencies in libngraph.so's
-  # ELF header.  We enumerate them here so we can make sure they get linked in appropriately.
-  NGRAPH_HELPER_LIBS_LDFLAGS_ := \
-    -lcpu_backend
-
   NGRAPH_LDFLAGS_ := \
     -L$(MXNET_LIB_DIR) \
     -Wl,-rpath-link=$(MXNET_LIB_DIR) \
     $(NGRAPH_COMMON_LIBRARY_LDFLAGS_) \
-    -lngraph \
-    $(NGRAPH_HELPER_LIBS_LDFLAGS_)
+    -lngraph
 
   ifeq ($(USE_NGRAPH_DISTRIBUTED), 1)
     NGRAPH_LDFLAGS_ += $(shell mpicxx --showme:link)

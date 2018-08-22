@@ -80,10 +80,11 @@ ifeq ($(USE_MKLDNN), 1)
 	export USE_MKLML = 1
 endif
 
-include ngraph.mk
 
 include $(TPARTYDIR)/mshadow/make/mshadow.mk
 include $(DMLC_CORE)/make/dmlc.mk
+
+include 3rdparty/ngraph_bridge/ngraph.mk
 
 # all tge possible warning tread
 WARNFLAGS= -Wall -Wsign-compare  -Wno-comment

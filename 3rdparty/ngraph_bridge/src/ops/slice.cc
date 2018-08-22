@@ -15,7 +15,7 @@
 *******************************************************************************/
 
 #include "slice.h"
-#include "../../operator/tensor/matrix_op-inl.h"
+#include "../../../../src/operator/tensor/matrix_op-inl.h"
 #include "../ngraph_sgcompiler_utils.h"
 
 namespace ngraph_bridge {

@@ -35,10 +35,10 @@
 #include "../common/exec_utils.h"
 
 #if MXNET_USE_NGRAPH == 1
-#include "../ngraph/ngraph_compiler.h"
-#include "../ngraph/ngraph_utils.h"
+#include "../../3rdparty/ngraph_bridge/src/ngraph_compiler.h"
+#include "../../3rdparty/ngraph_bridge/src/ngraph_utils.h"
 #include "../operator/subgraph/default_subgraph_op.h"
-#include "../ngraph/ngraph_subgraph.h"
+#include "../../3rdparty/ngraph_bridge/src/ngraph_subgraph.h"
 #endif
 
 namespace mxnet {

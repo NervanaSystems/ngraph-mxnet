@@ -47,7 +47,7 @@
 
 #if MXNET_USE_NGRAPH == 1
 #include <ngraph/ngraph.hpp>
-#include "../ngraph/ngraph_nnvm_utils.h"
+#include "../../3rdparty/ngraph_bridge/src/ngraph_nnvm_utils.h"
 #endif
 
 namespace dmlc {

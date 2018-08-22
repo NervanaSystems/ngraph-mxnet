@@ -16,7 +16,7 @@
 #include <vector>
 
 #include "deconvolution.h"
-#include "../../operator/nn/deconvolution-inl.h"
+#include "../../../../src/operator/nn/deconvolution-inl.h"
 
 #include "../ngraph_emitter.h"
 #include "../ngraph_emitter_utils.h"
