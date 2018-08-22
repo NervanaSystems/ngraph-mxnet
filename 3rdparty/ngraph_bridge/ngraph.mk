@@ -124,7 +124,7 @@ $(NGRAPH_BRIDGE_OBJ): %.o: ngraph
   # Set NGRAPH_CFLAGS ...
   NGRAPH_CFLAGS = \
     "-I$(NGRAPH_INSTALL_DIR)/include" \
-    "-I$(ROOTDIR)/3rdparty/ngraph_bridge/build/src" \
+    "-I$(ROOTDIR)/3rdparty/ngraph_bridge/src" \
     -DMXNET_USE_NGRAPH=1
 
   ifeq ($(USE_NGRAPH_IE),1)

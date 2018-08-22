@@ -30,6 +30,9 @@
 #include <dmlc/logging.h>
 #include <dmlc/thread_group.h>
 #include <mxnet/kvstore.h>
+#if MXNET_USE_NGRAPH == 1
+#include <ngraph_stats.h>
+#endif
 #include <stack>
 
 #if MXNET_USE_NGRAPH == 1
@@ -38,9 +41,6 @@
 
 #include "./c_api_common.h"
 
-#if MXNET_USE_NGRAPH == 1
-#include "../../3rdparty/ngraph_bridge/src/ngraph_stats.h"
-#endif
 
 #include "../profiler/profiler.h"
 

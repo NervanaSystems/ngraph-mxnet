@@ -25,6 +25,11 @@
 #include <mxnet/base.h>
 #include <nnvm/graph.h>
 #include <nnvm/pass_functions.h>
+#if MXNET_USE_NGRAPH == 1
+#include <ngraph_compiler.h>
+#include <ngraph_utils.h>
+#include <ngraph_subgraph.h>
+#endif
 #include <vector>
 #include <algorithm>
 
@@ -35,10 +40,7 @@
 #include "../common/exec_utils.h"
 
 #if MXNET_USE_NGRAPH == 1
-#include "../../3rdparty/ngraph_bridge/src/ngraph_compiler.h"
-#include "../../3rdparty/ngraph_bridge/src/ngraph_utils.h"
 #include "../operator/subgraph/default_subgraph_op.h"
-#include "../../3rdparty/ngraph_bridge/src/ngraph_subgraph.h"
 #endif
 namespace mxnet {
 namespace exec {

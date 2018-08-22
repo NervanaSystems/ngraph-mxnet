@@ -34,6 +34,10 @@
 #if MXNET_USE_MKLDNN == 1
 #include <mkldnn.hpp>
 #endif
+#if MXNET_USE_NGRAPH == 1
+#include <ngraph/ngraph.hpp>
+#include <ngraph_nnvm_utils.h>
+#endif
 #include "./ndarray_function.h"
 #include "../common/utils.h"
 #include "../operator/tensor/matrix_op-inl.h"
@@ -45,10 +49,6 @@
 #include <opencv2/opencv.hpp>
 #endif  // MXNET_USE_OPENCV
 
-#if MXNET_USE_NGRAPH == 1
-#include <ngraph/ngraph.hpp>
-#include "../../3rdparty/ngraph_bridge/src/ngraph_nnvm_utils.h"
-#endif
 
 namespace dmlc {
 DMLC_REGISTRY_ENABLE(::mxnet::NDArrayFunctionReg);
