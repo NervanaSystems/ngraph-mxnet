@@ -23,8 +23,8 @@
 #include <cstdlib>
 #include <sstream>
 #include <thread>
-#include "../executor/exec_pass.h"
-#include "../imperative/imperative_utils.h"
+#include "../../../src/executor/exec_pass.h"
+#include "../../../src/imperative/imperative_utils.h"
 #include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
 #include "ngraph_sgcompiler_utils.h"

@@ -33,7 +33,7 @@
 #include <stack>
 #include "./c_api_common.h"
 #if MXNET_USE_NGRAPH == 1
-#include "../ngraph/ngraph_stats.h"
+#include "../../3rdparty/ngraph_bridge/src/ngraph_stats.h"
 #endif
 #include "../profiler/profiler.h"
 
