@@ -277,7 +277,7 @@ class Graph : public Node {
   bool zero_grad = false;
   // is loss is used to mark graphs as ending in loss layers to
   // handle some zero_grad errors with batch_take
-  bool is_loss = false;
+  std::vector<bool> is_loss;
   bool is_reuse_mem = true;
 };
 

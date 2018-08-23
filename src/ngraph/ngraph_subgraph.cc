@@ -93,11 +93,11 @@ std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
   auto graph = get_ngraph(n->attrs);
   const bool zero_grad = check_zero_grad(graph);
   graph->zero_grad = zero_grad;
-  bool is_loss = graph->is_loss;
+  auto is_loss = graph->is_loss;
   auto p = nnvm::Node::Create();
   p->attrs.op = nnvm::Op::Get("_backward_ngraph_subgraph_op");
   p->attrs.parsed = n->attrs.parsed;
-  if (!is_loss && zero_grad && p->num_outputs() == 1) {
+  if (std::find(begin(is_loss), end(is_loss), true) == end(is_loss) && zero_grad && p->num_outputs() == 1) {
     return mxnet::op::MakeZeroGradNodes(n, ograds);
   }
   p->attrs.name = n->attrs.name + "_backward";
@@ -107,7 +107,11 @@ std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
     p->op()->attr_parser(&(p->attrs));
   }
   if (!zero_grad) {
-    p->inputs.insert(p->inputs.end(), ograds.begin(), ograds.end());
+    for (size_t i = 0; i < ograds.size(); ++i) {
+      if (!is_loss[i]) {
+        p->inputs.push_back(ograds[i]);
+      }
+    }
   }
   p->inputs.insert(p->inputs.end(), n->inputs.begin(), n->inputs.end());
   std::vector<nnvm::NodeEntry> ret;
