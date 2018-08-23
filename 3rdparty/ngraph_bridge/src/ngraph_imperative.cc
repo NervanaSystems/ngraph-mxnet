@@ -187,6 +187,44 @@ void InitImperativeOnce() {
             }
           },
           11);
+      continue;
+    }
+
+    if (fallbackx_fn) {
+      op.set_attr<mxnet::FComputeEx>(
+          "FComputeEx<cpu>",
+          [fallbackx_fn](const nnvm::NodeAttrs &attrs,
+                         const mxnet::OpContext &ctx,
+                         const std::vector<mxnet::NDArray> &inputs,
+                         const std::vector<mxnet::OpReqType> &req,
+                         const std::vector<mxnet::NDArray> &outputs) -> void {
+            if (!compute_forward_imperative(attrs, ctx, inputs, req, outputs)) {
+              // use default mxnet compute kernel
+              fallbackx_fn(attrs, ctx, inputs, req, outputs);
+            }
+          },
+          11);
+      continue;
+    }
+    if (fallback_fn) {
+      op.set_attr<mxnet::FCompute>(
+          "FCompute<cpu>",
+          [fallback_fn](const nnvm::NodeAttrs &attrs,
+                        const mxnet::OpContext &ctx,
+                        const std::vector<mxnet::TBlob> &inputs,
+                        const std::vector<mxnet::OpReqType> &req,
+                        const std::vector<mxnet::TBlob> &outputs) -> void {
+            std::vector<mxnet::NDArray> in;
+            for (auto &i : inputs) in.emplace_back(i, ctx.run_ctx.ctx.dev_id);
+            std::vector<mxnet::NDArray> out;
+            for (auto &i : outputs) out.emplace_back(i, ctx.run_ctx.ctx.dev_id);
+            if (!compute_forward_imperative(attrs, ctx, in, req, out)) {
+              // use default mxnet compute kernel
+              fallback_fn(attrs, ctx, inputs, req, outputs);
+            }
+          },
+          11);
+      continue;
     }
     // handle legacy FStatefulCompute ops
     if (sfallback_fn) {
@@ -221,47 +259,11 @@ void InitImperativeOnce() {
             }
           },
           11);
-    }
-
-    if (fallbackx_fn) {
-      op.set_attr<mxnet::FComputeEx>(
-          "FComputeEx<cpu>",
-          [fallbackx_fn](const nnvm::NodeAttrs &attrs,
-                         const mxnet::OpContext &ctx,
-                         const std::vector<mxnet::NDArray> &inputs,
-                         const std::vector<mxnet::OpReqType> &req,
-                         const std::vector<mxnet::NDArray> &outputs) -> void {
-            if (!compute_forward_imperative(attrs, ctx, inputs, req, outputs)) {
-              // use default mxnet compute kernel
-              fallbackx_fn(attrs, ctx, inputs, req, outputs);
-            }
-          },
-          11);
-    }
-    if (fallback_fn) {
-      op.set_attr<mxnet::FCompute>(
-          "FCompute<cpu>",
-          [fallback_fn](const nnvm::NodeAttrs &attrs,
-                        const mxnet::OpContext &ctx,
-                        const std::vector<mxnet::TBlob> &inputs,
-                        const std::vector<mxnet::OpReqType> &req,
-                        const std::vector<mxnet::TBlob> &outputs) -> void {
-            std::vector<mxnet::NDArray> in;
-            for (auto &i : inputs) in.emplace_back(i, ctx.run_ctx.ctx.dev_id);
-            std::vector<mxnet::NDArray> out;
-            for (auto &i : outputs) out.emplace_back(i, ctx.run_ctx.ctx.dev_id);
-            if (!compute_forward_imperative(attrs, ctx, in, req, out)) {
-              // use default mxnet compute kernel
-              fallback_fn(attrs, ctx, inputs, req, outputs);
-            }
-          },
-          11);
+      continue;
     }
     if (ngraph_log_verbose_detail()) {
-      if (!fallback_nd && !fallbackx_fn && !fallback_fn) {
-        std::cout << "NGRAPH IMPERATIVE: not implemented -> " << op_name
-                  << std::endl;
-      }
+      std::cout << "NGRAPH IMPERATIVE: not implemented -> " << op_name
+                << std::endl;
     }
   }
 }
