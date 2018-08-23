@@ -34,7 +34,7 @@ namespace ngraph_bridge {
 
 // enable ngraph gluon at runtime.
 inline bool ngraph_gluon_enable() {
-  return dmlc::GetEnv("MXNET_NGRAPH_GLUON", false);
+  return dmlc::GetEnv("MXNET_NGRAPH_GLUON", true);
 }
 
 // enable distributed ngraph at runtime

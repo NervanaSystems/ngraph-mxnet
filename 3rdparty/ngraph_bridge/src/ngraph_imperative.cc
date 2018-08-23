@@ -34,20 +34,13 @@
 
 namespace ngraph_bridge {
 
-// NGImperative constructor for mxnet compute kernel(s)
-NGImperative::NGImperative(const nnvm::NodeAttrs &attrs,
-                           const mxnet::Context &ctx,
-                           const std::vector<mxnet::NDArray> &inputs,
-                           const std::vector<mxnet::OpReqType> *req,
-                           const std::vector<mxnet::NDArray> &outputs)
-    : Compiler(ctx) {
-  // Construct nnvm symbol to represent the computation
+nnvm::Symbol get_symbol(const nnvm::NodeAttrs &attrs, size_t num_inputs) {
+  // Construct nnvm symbol representing this op
   auto sym = nnvm::Symbol::CreateFunctor(attrs.op, attrs.dict);
   std::vector<nnvm::Symbol> sym_inputs;
-  int icount = 0;
-  for (auto i : inputs) {
-    sym_inputs.push_back(nnvm::Symbol::CreateVariable(
-        attrs.op->name + "_var_" + std::to_string(icount++)));
+  for (size_t i = 0; i < num_inputs; ++i) {
+    sym_inputs.push_back(nnvm::Symbol::CreateVariable(attrs.op->name + "_var_" +
+                                                      std::to_string(i)));
   }
 
   // Compose nnvm symbol for compute kernel
@@ -58,7 +51,17 @@ NGImperative::NGImperative(const nnvm::NodeAttrs &attrs,
   dmlc::array_view<const nnvm::Symbol *> av(psym_inputs);
   std::unordered_map<std::string, const nnvm::Symbol *> tempkwargs;
   sym.Compose(av, tempkwargs, attrs.op->name);
-
+  return std::move(sym);
+}
+// NGImperative constructor for mxnet compute kernel(s)
+NGImperative::NGImperative(const nnvm::NodeAttrs &attrs,
+                           const mxnet::Context &ctx,
+                           const std::vector<mxnet::NDArray> &inputs,
+                           const std::vector<mxnet::OpReqType> *req,
+                           const std::vector<mxnet::NDArray> &outputs)
+    : Compiler(ctx) {
+  // Construct nnvm symbol to represent the computation
+  auto sym = get_symbol(attrs, inputs.size());
   // construct single symbol nnvm graph and create ngraph
   nnvm::Graph g;
   g.outputs = sym.outputs;
@@ -129,6 +132,11 @@ bool compute_forward_imperative(const nnvm::NodeAttrs &attrs,
   return false;
 }
 
+struct StateFCompute {
+  nnvm::Symbol sym;
+  mxnet::OpStatePtr old_state;
+};
+
 // Registers ngraph operators with nnvm
 void InitImperativeOnce() {
   static auto &fcomputex_cpu =
@@ -137,6 +145,10 @@ void InitImperativeOnce() {
       nnvm::Op::GetAttr<mxnet::FCompute>("FCompute<cpu>");
   static auto &ndfunc =
       nnvm::Op::GetAttr<mxnet::FNDArrayFunction>("FNDArrayFunction");
+  static auto &fscompute_cpu =
+      nnvm::Op::GetAttr<mxnet::FStatefulCompute>("FStatefulCompute<cpu>");
+  static auto &createop =
+      nnvm::Op::GetAttr<mxnet::FCreateOpState>("FCreateOpState");
 
   for (auto unique_op : dmlc::Registry<nnvm::Op>::List()) {
     auto op_name = unique_op->name;
@@ -156,7 +168,9 @@ void InitImperativeOnce() {
     // save default mxnet compute kernel for fallback
     auto fallbackx_fn = fcomputex_cpu.get(&op, nullptr);
     auto fallback_fn = fcompute_cpu.get(&op, nullptr);
+    auto sfallback_fn = fscompute_cpu.get(&op, nullptr);
     auto fallback_nd = ndfunc.get(&op, nullptr);
+    auto fallback_st = createop.get(&op, nullptr);
 
     // use ngraph immperative, only if fallback available.
     if (fallback_nd) {
@@ -174,6 +188,41 @@ void InitImperativeOnce() {
           },
           11);
     }
+    // handle legacy FStatefulCompute ops
+    if (sfallback_fn) {
+      op.set_attr<mxnet::FCreateOpState>(
+          "FCreateOpState",
+          [fallback_st](const nnvm::NodeAttrs &attrs, mxnet::Context ctx,
+                        const std::vector<mxnet::TShape> &in_shape,
+                        const std::vector<int> &in_type) -> mxnet::OpStatePtr {
+            auto old_state = fallback_st(attrs, ctx, in_shape, in_type);
+            auto sym = get_symbol(attrs, in_type.size());
+            auto state_ptr = mxnet::OpStatePtr::Create<StateFCompute>(
+                StateFCompute{std::move(sym), old_state});
+            return state_ptr;
+          },
+          11);
+      op.set_attr<mxnet::FStatefulCompute>(
+          "FStatefulCompute<cpu>",
+          [sfallback_fn](const mxnet::OpStatePtr &state,
+                         const mxnet::OpContext &ctx,
+                         const std::vector<mxnet::TBlob> &inputs,
+                         const std::vector<mxnet::OpReqType> &req,
+                         const std::vector<mxnet::TBlob> &outputs) -> void {
+            auto &op_state = state.get_state<StateFCompute>();
+            auto &attrs = op_state.sym.outputs[0].node->attrs;
+            std::vector<mxnet::NDArray> in;
+            for (auto &i : inputs) in.emplace_back(i, ctx.run_ctx.ctx.dev_id);
+            std::vector<mxnet::NDArray> out;
+            for (auto &i : outputs) out.emplace_back(i, ctx.run_ctx.ctx.dev_id);
+            if (!compute_forward_imperative(attrs, ctx, in, req, out)) {
+              // use default mxnet compute kernel
+              sfallback_fn(op_state.old_state, ctx, inputs, req, outputs);
+            }
+          },
+          11);
+    }
+
     if (fallbackx_fn) {
       op.set_attr<mxnet::FComputeEx>(
           "FComputeEx<cpu>",
