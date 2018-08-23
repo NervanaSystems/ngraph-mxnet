@@ -119,7 +119,7 @@ NGRAPH_BRIDGE_SRC = $(wildcard $(ROOTDIR)/3rdparty/ngraph_bridge/src/*.cc)
 NGRAPH_BRIDGE_SRC += $(wildcard $(ROOTDIR)/3rdparty/ngraph_bridge/src/ops/*.cc)
 NGRAPH_BRIDGE_OBJ = $(patsubst %.cc,%.cc.o,$(patsubst $(ROOTDIR)/3rdparty/ngraph_bridge/src/%,$(ROOTDIR)/3rdparty/ngraph_bridge/build/src/CMakeFiles/ngraph_bridge.dir/%,$(NGRAPH_BRIDGE_SRC)))
 
-$(NGRAPH_BRIDGE_OBJ): %.o: ngraph
+$(NGRAPH_BRIDGE_OBJ): %.o: ngraph $(NGRAPH_BRIDGE_SRC)
 
   # Set NGRAPH_CFLAGS ...
   NGRAPH_CFLAGS = \
@@ -151,7 +151,8 @@ $(NGRAPH_BRIDGE_OBJ): %.o: ngraph
     -L$(MXNET_LIB_DIR) \
     -Wl,-rpath-link=$(MXNET_LIB_DIR) \
     $(NGRAPH_COMMON_LIBRARY_LDFLAGS_) \
-    -lngraph
+    -lngraph \
+    -lcpu_backend
 
   ifeq ($(USE_NGRAPH_DISTRIBUTED), 1)
     NGRAPH_LDFLAGS_ += $(shell mpicxx --showme:link)

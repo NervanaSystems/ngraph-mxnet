@@ -704,7 +704,6 @@ void Emitter::CreateBinaryOps() {
         get_default(node, "shape", std::vector<size_t>{})};
     ngraph::AxisSet broadcast_axes;
     ngraph::Shape proxy_shape;
-    assert(ngraph::shape_size(input_shape) == ngraph::shape_size(output_shape));
     // ngraph::op::broadcast does not allow in-place broadcast (must add a
     // new axis), so we reshape the input and eliminate axes with length 1,
     // then add these axes back with proper output length through

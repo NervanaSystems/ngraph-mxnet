@@ -184,6 +184,7 @@ if(USE_NGRAPH AND NOT MSVC)
   list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libmkldnn.so)
   list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libiomp5.so)
   list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libmklml_intel.so)
+  list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libcpu_backend.so)
   
   if(USE_NGRAPH_DISTRIBUTED)
     list(APPEND mxnet_LINKER_LIBS ${MPI_CXX_LIBRARIES})
