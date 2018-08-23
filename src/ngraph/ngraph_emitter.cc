@@ -587,9 +587,9 @@ void Emitter::CreateBinaryOps() {
   };
   ngraph_op_funcs_["reshape_like"] = [this](const NodePtr& node) {
     auto arg0 = op_map_[node->inputs_[0]];
-    auto reshape = op_map_[node->inputs_[1]]->get_shape();
+    auto out_shape = TShape_to_NShape(node->shape_);
     return std::make_shared<ngraph::op::Reshape>(
-        arg0, pyrange(arg0->get_shape().size()), reshape);
+        arg0, pyrange(arg0->get_shape().size()), out_shape);
   };
   ngraph_op_funcs_["_plus_scalar"] = [this](const NodePtr& node) {
     return CreateScalarOp<ngraph::op::Add>(node);
