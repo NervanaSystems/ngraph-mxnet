@@ -22,6 +22,9 @@
  * \file ndarray.cc
  * \brief ndarry module of mxnet
  */
+#if MXNET_USE_NGRAPH == 1
+#include <ngraph_nnvm_utils.h>
+#endif
 #include <dmlc/io.h>
 #include <dmlc/memory_io.h>
 #include <dmlc/logging.h>
@@ -31,12 +34,11 @@
 #include <mxnet/resource.h>
 #include <mxnet/imperative.h>
 #include <mshadow/tensor.h>
-#if MXNET_USE_MKLDNN == 1
-#include <mkldnn.hpp>
-#endif
 #if MXNET_USE_NGRAPH == 1
 #include <ngraph/ngraph.hpp>
-#include <ngraph_nnvm_utils.h>
+#endif
+#if MXNET_USE_MKLDNN == 1
+#include <mkldnn.hpp>
 #endif
 #include "./ndarray_function.h"
 #include "../common/utils.h"
