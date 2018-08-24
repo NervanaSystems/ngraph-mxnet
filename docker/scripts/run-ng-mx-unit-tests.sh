@@ -76,7 +76,7 @@ cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_e
 eval $cmd
 
 ## Unit tests test_gluon.py
-cmd="export MXNET_NGRAPH_GLUON=1 ; OMP_NUM_THREADS=4 $(which python) -m pytest -s -n 2 tests/python/unittest/test_gluon.py --verbose --capture=no --junit-xml=result_test_gluon.xml --junit-prefix=result_test_gluon"
+cmd="export MXNET_NGRAPH_GLUON=1 ; OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_gluon.py --verbose --capture=no --junit-xml=result_test_gluon.xml --junit-prefix=result_test_gluon"
 eval $cmd
 
 ## Unit tests test_gluon_contrib.py
@@ -187,5 +187,4 @@ eval $cmd
 
 ### tests/cpp
 make test -j$(nproc) USE_NGRAPH=1
-export LD_LIBRARY_PATH="$HOME/ng-mx/ngraph_dist/lib"
 ./build/tests/cpp/mxnet_unit_tests --gtest_output="xml:result_test_cpp.xml"
