@@ -704,7 +704,6 @@ void Emitter::CreateBinaryOps() {
         get_default(node, "shape", std::vector<size_t>{})};
     ngraph::AxisSet broadcast_axes;
     ngraph::Shape proxy_shape;
-    assert(ngraph::shape_size(input_shape) == ngraph::shape_size(output_shape));
     // ngraph::op::broadcast does not allow in-place broadcast (must add a
     // new axis), so we reshape the input and eliminate axes with length 1,
     // then add these axes back with proper output length through
@@ -1483,7 +1482,6 @@ void Emitter::CreateLossOps() {
     auto label = op_map_[node->inputs_[1]];
     bool ignore = false;
     NgraphNodePtr mask;
-
     if (label->get_shape() != softmax->get_shape()) {
       if (use_ignore) {
         ignore = true;
@@ -1493,6 +1491,7 @@ void Emitter::CreateLossOps() {
                                                 label->get_shape(),
                                                 std::to_string(ignore_label))),
                         getType(node->dtype_));
+        label = label * mask;
       }
       size_t axis = op_map_[node->inputs_[0]]->get_shape().size() - 1;
       if (get_default(node, "multi_output", false)) {
@@ -1501,7 +1500,7 @@ void Emitter::CreateLossOps() {
       label = std::make_shared<ngraph::op::OneHot>(label, softmax->get_shape(),
                                                    axis);
       if (ignore) {
-        // We need to reshape the mast so we can broadcast it with
+        // We need to reshape the mask so we can broadcast it with
         // the gradient
         ngraph::Shape new_shape = softmax->get_shape();
         new_shape[axis] = 1;
