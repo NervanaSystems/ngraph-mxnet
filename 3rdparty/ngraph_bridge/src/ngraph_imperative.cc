@@ -103,8 +103,8 @@ bool compute_forward_imperative(const nnvm::NodeAttrs &attrs,
                                 const mxnet::OpContext &ctx,
                                 const std::vector<mxnet::NDArray> &inputs,
                                 const std::vector<mxnet::OpReqType> &req,
-                                const std::vector<mxnet::NDArray> &outputs) {
-  std::shared_ptr<Graph> op_ng;
+                                const std::vector<mxnet::NDArray> &outputs,
+                                std::shared_ptr<Graph> op_ng = nullptr) {
   int mode = ctx.is_train ? static_cast<int>(GraphExeMode::kTrain)
                           : static_cast<int>(GraphExeMode::kInfer);
   if (!sparse_check(inputs) && !sparse_check(outputs)) {
@@ -140,7 +140,8 @@ bool compute_forward_imperative(const nnvm::NodeAttrs &attrs,
 }
 
 struct StateFCompute {
-  nnvm::Symbol sym;
+  std::shared_ptr<Graph> ngraph_;
+  nnvm::NodeAttrs attrs;
   mxnet::OpStatePtr old_state;
 };
 
@@ -252,9 +253,8 @@ void InitImperativeOnce() {
                         const std::vector<mxnet::TShape> &in_shape,
                         const std::vector<int> &in_type) -> mxnet::OpStatePtr {
             auto old_state = fallback_st(attrs, ctx, in_shape, in_type);
-            auto sym = get_symbol(attrs, in_type.size());
             auto state_ptr = mxnet::OpStatePtr::Create<StateFCompute>(
-                StateFCompute{std::move(sym), old_state});
+                StateFCompute{nullptr, attrs, old_state});
             return state_ptr;
           },
           11);
@@ -266,16 +266,22 @@ void InitImperativeOnce() {
                          const std::vector<mxnet::OpReqType> &req,
                          const std::vector<mxnet::TBlob> &outputs) -> void {
             auto &op_state = state.get_state<StateFCompute>();
-            auto &attrs = op_state.sym.outputs[0].node->attrs;
             std::vector<mxnet::NDArray> in;
             for (auto &i : inputs) in.emplace_back(i, ctx.run_ctx.ctx.dev_id);
             std::vector<mxnet::NDArray> out;
             for (auto &i : outputs) out.emplace_back(i, ctx.run_ctx.ctx.dev_id);
-            if (ctx.is_train ||
-                !compute_forward_imperative(attrs, ctx, in, req, out)) {
-              // use default mxnet compute kernel
-              sfallback_fn(op_state.old_state, ctx, inputs, req, outputs);
+            if (!ctx.is_train) {
+              if (!op_state.ngraph_) {
+                compute_forward_imperative(op_state.attrs, ctx, in, req, out,
+                                           op_state.ngraph_);
+              } else {
+                compute_forward(ctx, op_state.ngraph_, in, req, out);
+              }
+              // return if ngraph successful
+              if (op_state.ngraph_) return;
             }
+            // use default mxnet compute kernel
+            sfallback_fn(op_state.old_state, ctx, inputs, req, outputs);
           },
           11);
       if (ngraph_log_verbose_detail())
