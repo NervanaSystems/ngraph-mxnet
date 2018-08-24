@@ -36,7 +36,15 @@ namespace ngraph_bridge {
 
 nnvm::Symbol get_symbol(const nnvm::NodeAttrs &attrs, size_t num_inputs) {
   // Construct nnvm symbol representing this op
-  auto sym = nnvm::Symbol::CreateFunctor(attrs.op, attrs.dict);
+  nnvm::Symbol sym;
+  auto n = nnvm::Node::Create();
+  n->attrs = attrs;
+  if (n->op()->attr_parser != nullptr) {
+    n->op()->attr_parser(&(n->attrs));
+  }
+  for (uint32_t i = 0; i < n->num_outputs(); ++i) {
+    sym.outputs.emplace_back(nnvm::NodeEntry{n, i, 0});
+  }
   std::vector<nnvm::Symbol> sym_inputs;
   for (size_t i = 0; i < num_inputs; ++i) {
     sym_inputs.push_back(nnvm::Symbol::CreateVariable(attrs.op->name + "_var_" +
@@ -104,7 +112,7 @@ bool compute_forward_imperative(const nnvm::NodeAttrs &attrs,
     // this allows us to safely operate on cache object
     static thread_local NGIOpCache ngicache;
     auto op_key = get_ngiop_key(attrs, ctx.run_ctx.ctx, inputs);
-    op_ng = ngicache[op_key];
+    /* op_ng = ngicache[op_key]; */
     if (!op_ng) {
       NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
       op_ng = ngicache[op_key] = ngi.get_op_ngraph();
@@ -116,8 +124,6 @@ bool compute_forward_imperative(const nnvm::NodeAttrs &attrs,
   // op_ng can be null if sgcompiler could not create ngraph IR
   // we fallback to mxnet kernel in this case
   if (op_ng && op_ng->ngraph_forward[mode]) {
-    compute_forward(ctx, op_ng, inputs, req, outputs);
-
     if (ngraph_log_verbose_detail()) {
       LOG(INFO) << "ngraph imperative op: " << attrs.op->name << ", inputs "
                 << std::to_string(inputs.size()) << ", outputs "
@@ -127,6 +133,7 @@ bool compute_forward_imperative(const nnvm::NodeAttrs &attrs,
         LOG(INFO) << "attrs.dict[" << m.first << "] = " << m.second;
       }
     }
+    compute_forward(ctx, op_ng, inputs, req, outputs);
     return true;
   }
   return false;
@@ -187,6 +194,9 @@ void InitImperativeOnce() {
             }
           },
           11);
+      if (ngraph_log_verbose_detail())
+        std::cout << "NGRAPH IMPERATIVE: FNDArrayFunction op -> " << op_name
+                  << std::endl;
       continue;
     }
 
@@ -198,12 +208,16 @@ void InitImperativeOnce() {
                          const std::vector<mxnet::NDArray> &inputs,
                          const std::vector<mxnet::OpReqType> &req,
                          const std::vector<mxnet::NDArray> &outputs) -> void {
-            if (!compute_forward_imperative(attrs, ctx, inputs, req, outputs)) {
+            if (ctx.is_train ||
+                !compute_forward_imperative(attrs, ctx, inputs, req, outputs)) {
               // use default mxnet compute kernel
               fallbackx_fn(attrs, ctx, inputs, req, outputs);
             }
           },
           11);
+      if (ngraph_log_verbose_detail())
+        std::cout << "NGRAPH IMPERATIVE: FComputeEx op -> " << op_name
+                  << std::endl;
       continue;
     }
     if (fallback_fn) {
@@ -218,12 +232,16 @@ void InitImperativeOnce() {
             for (auto &i : inputs) in.emplace_back(i, ctx.run_ctx.ctx.dev_id);
             std::vector<mxnet::NDArray> out;
             for (auto &i : outputs) out.emplace_back(i, ctx.run_ctx.ctx.dev_id);
-            if (!compute_forward_imperative(attrs, ctx, in, req, out)) {
+            if (ctx.is_train ||
+                !compute_forward_imperative(attrs, ctx, in, req, out)) {
               // use default mxnet compute kernel
               fallback_fn(attrs, ctx, inputs, req, outputs);
             }
           },
           11);
+      if (ngraph_log_verbose_detail())
+        std::cout << "NGRAPH IMPERATIVE: FCompute op -> " << op_name
+                  << std::endl;
       continue;
     }
     // handle legacy FStatefulCompute ops
@@ -253,12 +271,16 @@ void InitImperativeOnce() {
             for (auto &i : inputs) in.emplace_back(i, ctx.run_ctx.ctx.dev_id);
             std::vector<mxnet::NDArray> out;
             for (auto &i : outputs) out.emplace_back(i, ctx.run_ctx.ctx.dev_id);
-            if (!compute_forward_imperative(attrs, ctx, in, req, out)) {
+            if (ctx.is_train ||
+                !compute_forward_imperative(attrs, ctx, in, req, out)) {
               // use default mxnet compute kernel
               sfallback_fn(op_state.old_state, ctx, inputs, req, outputs);
             }
           },
           11);
+      if (ngraph_log_verbose_detail())
+        std::cout << "NGRAPH IMPERATIVE: FStatefulCompute op -> " << op_name
+                  << std::endl;
       continue;
     }
     if (ngraph_log_verbose_detail()) {
