@@ -14,13 +14,13 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "ops/batchnorm.h"
+#include "batchnorm.h"
 
 #include <ngraph/op/get_output_element.hpp>
 
-#include "ngraph_emitter.h"
-#include "ngraph_sgcompiler_utils.h"
-#include "ngraph_utils.h"
+#include "../ngraph_emitter.h"
+#include "../ngraph_sgcompiler_utils.h"
+#include "../ngraph_utils.h"
 
 using std::make_shared;
 using ngraph::builder::make_with_numpy_broadcast;

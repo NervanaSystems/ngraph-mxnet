@@ -29,8 +29,3 @@
 [submodule "3rdparty/onnx-tensorrt"]
 	path = 3rdparty/onnx-tensorrt
 	url = https://github.com/onnx/onnx-tensorrt.git
-[submodule "3rdparty/ngraph"]
-	path = 3rdparty/ngraph
-	url = https://github.com/NervanaSystems/ngraph.git
-	branch = master
-	ignore = untracked

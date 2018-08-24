@@ -27,3 +27,7 @@ cd python && pip install -e . && pip install pytest nose scipy==1.0.0 &&  cd ../
 cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_operator.py --verbose --capture=no --junit-xml=result_test_operator.xml --junit-prefix=result_test_operator"
 eval $cmd
 
+if [ ! -f "$HOME/ng-mx/result_test_operator.xml" ]; then 
+	(>&2 echo "ERROR: Not pass python unit tests." )
+	exit 1
+fi
