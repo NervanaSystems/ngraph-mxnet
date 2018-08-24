@@ -642,6 +642,7 @@ class DataParallelExecutorGroup(object):
         """Internal utility function to bind the i-th executor.
         This function utilizes simple_bind python interface.
         """
+        print("bind", i)
         shared_exec = None if shared_group is None else shared_group.execs[i]
         context = self.contexts[i]
         shared_data_arrays = self.shared_data_arrays[i]

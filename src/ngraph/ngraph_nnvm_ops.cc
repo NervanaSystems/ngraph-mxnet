@@ -87,6 +87,13 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                      const std::vector<mxnet::NDArray> &inputs,
                      const std::vector<mxnet::OpReqType> &req,
                      const std::vector<mxnet::NDArray> &outputs) {
+  std::cout << "forward before" << std::endl;
+  for (size_t i = 0; i < inputs.size(); i++) {
+      std::cout << i << ": " << inputs[i].data().dptr<float>()[0] << std::endl;
+  }
+  for (size_t i = 0; i < outputs.size(); i++) {
+      std::cout << i << ": " << outputs[i].data().dptr<float>()[0] << std::endl;
+  }
   auto backend = GetBackendFromContext(graph->context_);
   auto placeholders =
       get_tensor_views(inputs, backend, nullptr, graph->is_reuse_mem);
@@ -120,6 +127,13 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     }
     update_aux_vals(graph, inputs, mode);
   }
+  std::cout << "forward after" << std::endl;
+  for (size_t i = 0; i < inputs.size(); i++) {
+      std::cout << i << ": " << inputs[i].data().dptr<float>()[0] << std::endl;
+  }
+  for (size_t i = 0; i < outputs.size(); i++) {
+      std::cout << i << ": " << outputs[i].data().dptr<float>()[0] << std::endl;
+  }
 }
 
 // function for computing backward on ngraph
@@ -127,6 +141,14 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                       const std::vector<mxnet::NDArray> &inputs,
                       const std::vector<mxnet::OpReqType> &req,
                       const std::vector<mxnet::NDArray> &outputs) {
+
+  std::cout << "backward before" << std::endl;
+  for (size_t i = 0; i < inputs.size(); i++) {
+      std::cout << i << ": " << inputs[i].data().dptr<float>()[0] << std::endl;
+  }
+  for (size_t i = 0; i < outputs.size(); i++) {
+      std::cout << i << ": " << outputs[i].data().dptr<float>()[0] << std::endl;
+  }
   // only expect backward is called in training mode
   assert(ctx.is_train);
   auto backend = GetBackendFromContext(graph->context_);
@@ -161,8 +183,17 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   std::vector<mxnet::NDArray> adjoints(inputs.begin(),
                                        inputs.begin() + graph->num_adjoints_);
 
-  auto placeholders =
-      get_tensor_views(inputs, backend, nullptr, graph->is_reuse_mem);
+//  auto placeholders =
+//      get_tensor_views(inputs, backend, nullptr, graph->is_reuse_mem);
+  TensorViewVector placeholders;
+  for (size_t i = 0; i < inputs.size(); ++i) {
+//    if (!graph->is_reuse_mem)
+//      placeholders.push_back(
+//          NDArray_to_TensorView(inputs[0], backend, true));
+//    else
+      placeholders.push_back(
+          const_cast<mxnet::NDArray&>(inputs[0]).create_tensor_view());
+  }
 
   if (graph->zero_grad) {
     for (size_t i = 0; i < graph->num_adjoints_; ++i) {
@@ -176,6 +207,14 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
 
   auto results = get_tensor_views(outputs, backend, &req, graph->is_reuse_mem);
 
+  std::cout << "cached values: " << std::endl;
+  for (auto tv : graph->cached_values[mode]) {
+    size_t element_count = ngraph::shape_size(tv->get_shape());
+    size_t size = element_count * sizeof(float);
+    std::vector<float> rc(element_count);
+    tv->read(rc.data(), 0, size);
+    std::cout << ngraph::vector_to_string(rc) << std::endl;
+  }
   placeholders.insert(placeholders.end(), graph->cached_values[mode].begin(),
                       graph->cached_values[mode].end());
 
@@ -189,6 +228,14 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   // overwrite aux data if they exist
   // aux result outputs mapped to inputs
   update_aux_vals(graph, inputs, mode, graph->num_adjoints_);
+  std::cout << "backward after" << std::endl;
+  for (size_t i = 0; i < inputs.size(); i++) {
+      std::cout << i << ": " << inputs[i].data().dptr<float>()[0] << std::endl;
+  }
+  for (size_t i = 0; i < outputs.size(); i++) {
+      std::cout << i << ": " << outputs[i].data().dptr<float>()[0] << std::endl;
+  }
+
 }
 
 // check if last node in graph is an op that doesnt need head-gradient

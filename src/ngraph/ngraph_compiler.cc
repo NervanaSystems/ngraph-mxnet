@@ -35,7 +35,7 @@
 namespace ngraph_bridge {
 
 // TODO(mbrookhart): remove when DEX becomes default
-static int ngraph_dex = setenv("NGRAPH_DEX", "1", true);
+//static int ngraph_dex = setenv("NGRAPH_DEX", "1", true);
 
 // Function to create an nnvm node from a ngraph subgraph
 nnvm::NodePtr CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
