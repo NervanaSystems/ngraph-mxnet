@@ -59,6 +59,7 @@ void Emitter::ClearOpMap() {
   // delete the temporary storage
   op_map_.clear();
   placeholder_order_.clear();
+  multi_output_map_.clear();
 }
 
 /**
@@ -880,6 +881,11 @@ void Emitter::CreateLayerOps() {
     bool squeeze_axis = get_default(node, "squeeze_axis", false);
 
     auto input = op_map_[node->inputs_[0]];
+
+    if (index < 0) {
+      return input;
+    }
+
     auto input_shape = input->get_shape();
     size_t slice_step = input_shape[axis] / num_outputs;
     return slice_data_on_axis(input, index * slice_step, slice_step, axis,
@@ -1127,6 +1133,10 @@ void Emitter::CreateLayerOps() {
 
   // batch norm operation
   ngraph_op_funcs_["BatchNorm"] = [this](const NodePtr& node) -> NgraphNodePtr {
+    if (node->multi_output_index_ >= 0) {
+      return multi_output_map_.at(node->inputs_[0])
+          .at(node->multi_output_index_);
+    }
     enum InputName { kData = 0, kGamma, kBeta, kMovingMean, kMovingVar };
     NgraphNodePtr ng_in_data = op_map_[node->inputs_[kData]];
     NgraphNodePtr ng_in_gamma = op_map_[node->inputs_[kGamma]];
@@ -1196,6 +1206,9 @@ void Emitter::CreateLayerOps() {
           ng_in_moving_var * ng_momentum +
           ng_batch_var * (ng_one - ng_momentum);
 
+      multi_output_map_[node] = {ng_normalized_data, ng_batch_mean,
+                                 ng_batch_var};
+
       return ng_normalized_data;
     }
 
@@ -1216,6 +1229,8 @@ void Emitter::CreateLayerOps() {
                 eps, ng_actual_gamma, ng_in_beta, ng_in_data, ng_in_moving_mean,
                 ng_in_moving_var, true);
 
+        multi_output_map_[node] = {ng_normalized_data, ng_in_moving_mean,
+                                   ng_in_moving_var};
         return ng_normalized_data;
       } else {
         // NOTE: This call is intentionally the same as another call below.  The
@@ -1228,6 +1243,8 @@ void Emitter::CreateLayerOps() {
                 eps, ng_maybe_gamma, ng_in_beta, ng_in_data, ng_in_moving_mean,
                 ng_in_moving_var, channel_axis);
 
+        multi_output_map_[node] = {ng_normalized_data, ng_in_moving_mean,
+                                   ng_in_moving_var};
         return ng_normalized_data;
       }
     }
@@ -1242,6 +1259,8 @@ void Emitter::CreateLayerOps() {
                 eps, ng_actual_gamma, ng_in_beta, ng_in_data, ng_in_moving_mean,
                 ng_in_moving_var, false);
 
+        multi_output_map_[node] = {ng_normalized_data, ng_in_moving_mean,
+                                   ng_in_moving_var};
         return ng_normalized_data;
       } else {
         const NgraphNodePtr ng_normalized_data =
@@ -1249,6 +1268,8 @@ void Emitter::CreateLayerOps() {
                 eps, ng_maybe_gamma, ng_in_beta, ng_in_data, ng_in_moving_mean,
                 ng_in_moving_var, channel_axis);
 
+        multi_output_map_[node] = {ng_normalized_data, ng_in_moving_mean,
+                                   ng_in_moving_var};
         return ng_normalized_data;
       }
     }
