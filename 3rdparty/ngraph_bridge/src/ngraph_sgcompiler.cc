@@ -107,7 +107,8 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
         auto cloned_bf_param = bfmap.get(bf_param);
         auto layout =
             cloned_result->get_output_tensor_view()->get_tensor_view_layout();
-        cloned_bf_param->get_output_tensor_view()->set_tensor_view_layout(layout);
+        cloned_bf_param->get_output_tensor_view()->set_tensor_view_layout(
+            layout);
       }
     }
   }
