@@ -266,11 +266,12 @@ void InitImperativeOnce() {
                          const std::vector<mxnet::OpReqType> &req,
                          const std::vector<mxnet::TBlob> &outputs) -> void {
             auto &op_state = state.get_state<StateFCompute>();
-            std::vector<mxnet::NDArray> in;
-            for (auto &i : inputs) in.emplace_back(i, ctx.run_ctx.ctx.dev_id);
-            std::vector<mxnet::NDArray> out;
-            for (auto &i : outputs) out.emplace_back(i, ctx.run_ctx.ctx.dev_id);
             if (!ctx.is_train) {
+              std::vector<mxnet::NDArray> in;
+              for (auto &i : inputs) in.emplace_back(i, ctx.run_ctx.ctx.dev_id);
+              std::vector<mxnet::NDArray> out;
+              for (auto &i : outputs)
+                out.emplace_back(i, ctx.run_ctx.ctx.dev_id);
               if (!op_state.ngraph_) {
                 compute_forward_imperative(op_state.attrs, ctx, in, req, out,
                                            op_state.ngraph_);
