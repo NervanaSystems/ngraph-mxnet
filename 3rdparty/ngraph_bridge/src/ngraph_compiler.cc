@@ -469,34 +469,17 @@ bool bad_type(const NodePtr& node) {
          node->stype_ != mxnet::kDefaultStorage;
 }
 
-bool Compiler::IsInNGraph(
-    const NodePtr& node,
-    std::unordered_set<std::string>* unsupported_op_names) {
+bool Compiler::IsInNGraph(const NodePtr& node) {
   bool in_ngraph_ = false;
-  if (node->type_ == NodeType::kOp || node->type_ == NodeType::kGraph ||
+  if (bad_type(node)) {
+    return false;
+  } else if (std::find_if(node->inputs_.begin(), node->inputs_.end(),
+                         bad_type) != node->inputs_.end()) {
+    return false;
+  } else if (node->type_ == NodeType::kOp || node->type_ == NodeType::kGraph ||
       node->type_ == NodeType::kOutput) {
     if (compiler_.supported_ops.count(node->operation_)) {
       in_ngraph_ = compiler_.supported_ops[node->operation_](node);
-      // nGraph doesn't yet support float16 or sparse storage.
-      if (bad_type(node)) {
-        in_ngraph_ = false;
-      } else {
-        if (std::find_if(node->inputs_.begin(), node->inputs_.end(),
-                         bad_type) != node->inputs_.end()) {
-          in_ngraph_ = false;
-        }
-      }
-
-    } else {
-      if (ngraph_log_verbose()) {
-        unsupported_op_names->insert(node->operation_);
-      }
-      if (ngraph_log_verbose_detail()) {
-        std::cout << "NGRAPH_BRIDGE: Unsupported Op instance (verbose):"
-                  << std::endl;
-        node->printOpDetails(std::cout);
-        std::cout << std::endl;
-      }
     }
   }
   return in_ngraph_;
@@ -506,7 +489,18 @@ bool Compiler::IsInNGraph(
 void Compiler::CheckInNgraph() {
   std::unordered_set<std::string> unsupported_op_names;
   for (const std::shared_ptr<ngraph_bridge::Node>& node : ngraph_.nodes_) {
-    node->in_ngraph_ = IsInNGraph(node, &unsupported_op_names);
+    node->in_ngraph_ = IsInNGraph(node);
+    if (!node->in_ngraph_) {
+      if (ngraph_log_verbose()) {
+        unsupported_op_names.insert(node->operation_);
+      }
+      if (ngraph_log_verbose_detail()) {
+        std::cout << "NGRAPH_BRIDGE: Unsupported Op instance (verbose):"
+                  << std::endl;
+        node->printOpDetails(std::cout);
+        std::cout << std::endl;
+      }
+    }
   }
   for (const auto& name : unsupported_op_names) {
     std::cout << "NGRAPH_BRIDGE: Unsupported Op: " << name << std::endl;
@@ -515,28 +509,45 @@ void Compiler::CheckInNgraph() {
 
 // Function that parses an nnvm Graph into an intermediary graph
 void Compiler::ParseNnvmGraph() {
+  // get the shape, data and storage types of all of the nodes
+  const auto& idx = graph_.indexed_graph();
+  const auto inferred_shapes =
+      graph_.GetAttr<std::vector<nnvm::TShape>>("shape");
+  const auto inferred_dtypes = graph_.GetAttr<std::vector<int>>("dtype");
+  const auto& inferred_stypes =
+      graph_.GetAttr<mxnet::StorageTypeVector>("storage_type");
+  auto get_type = [&idx, &inferred_shapes, &inferred_dtypes, &inferred_stypes](NodePtr node) {
+    const uint32_t nid = idx.node_id(node->orig_node_.get());
+    const uint32_t eid = idx.entry_id(nid, node->multi_output_index_);
+    node->shape_ = inferred_shapes[eid];
+    node->dtype_ = inferred_dtypes[eid];
+    node->stype_ = inferred_stypes[eid];
+  };
+
+
   // Use NNVM's depth first search to trace the tree and construct the
   // intermediary graph
-  nnvm::DFSVisit(graph_.outputs, [this](const nnvm::NodePtr node) {
+  nnvm::DFSVisit(graph_.outputs, [this, &get_type](const nnvm::NodePtr node) {
     const auto& idx = this->graph_.indexed_graph();
-
     const auto& mutable_nodes = idx.mutable_input_nodes();
     const uint32_t nid = idx.node_id(node.get());
     if (mutable_nodes.count(nid) != 0) {
       // add an auxillary node to the graph
-      this->ngraph_.AddNode(std::make_shared<AuxNode>(node, node->attrs.name));
+      auto tmpnode = std::make_shared<AuxNode>(node, node->attrs.name);
+      get_type(tmpnode);
+      this->ngraph_.AddNode(tmpnode);
     } else if (node->is_variable()) {
       // add variable to the graph
-      this->ngraph_.AddNode(
-          std::make_shared<VariableNode>(node, node->attrs.name));
+      auto tmpnode = std::make_shared<VariableNode>(node, node->attrs.name);
+      get_type(tmpnode);
+      this->ngraph_.AddNode(tmpnode);
     } else {
       // create operation node
       auto op_name = clean_opname(node->op()->name);
       auto op_node = std::make_shared<OpNode>(node, node->attrs.name, op_name);
-
+      get_type(op_node);
       if (node->num_outputs() > 1) {
-        std::unordered_set<std::string> unsupported_op_names;
-        if (IsInNGraph(op_node, &unsupported_op_names)) {
+        if (IsInNGraph(op_node)) {
           // set up a subgraph for the multi-output op
           auto tmpGraph = std::make_shared<Graph>(node->attrs.name,
                                                   ngraph_.context_, true, node);
@@ -546,10 +557,12 @@ void Compiler::ParseNnvmGraph() {
           tmpGraph->multi_output_index_ = -1;
 
           tmpGraph->num_outputs_ = tmpGraph->outputs_.size();
+          get_type(tmpGraph);
           this->ngraph_.AddNode(tmpGraph);
           for (size_t i = 0; i < node->num_outputs(); ++i) {
             tmpGraph->outputs_.push_back(op_node);
             auto output = std::make_shared<OutputElement>(tmpGraph, i);
+            get_type(output);
             output->name_ = output->name_ + "_" + std::to_string(i);
             output->operation_ = op_name;
             tmpGraph->output_elements_.push_back(output);
@@ -560,7 +573,7 @@ void Compiler::ParseNnvmGraph() {
             auto tmpop = std::make_shared<OpNode>(
                 op_node->orig_node_, op_node->name_ + "_" + std::to_string(i),
                 op_node->operation_);
-
+            get_type(tmpop);            
             for (auto input : op_node->inputs_) tmpop->inputs_.push_back(input);
             tmpop->multi_output_index_ = i;
 
@@ -594,22 +607,9 @@ void Compiler::ParseNnvmGraph() {
   for (auto e : graph_.outputs) {
     ngraph_.outputs_.push_back(ngraph_[e]);
   }
-
-  // get the shape, data and storage types of all of the nodes
-  const auto& idx = graph_.indexed_graph();
-  const auto inferred_shapes =
-      graph_.GetAttr<std::vector<nnvm::TShape>>("shape");
-  const auto inferred_dtypes = graph_.GetAttr<std::vector<int>>("dtype");
-  const auto& inferred_stypes =
-      graph_.GetAttr<mxnet::StorageTypeVector>("storage_type");
+  // set the shapes on multi-output nodes
   for (auto node : this->ngraph_.nodes_) {
-    const uint32_t nid = idx.node_id(node->orig_node_.get());
-    const uint32_t eid = idx.entry_id(nid, node->multi_output_index_);
-    node->shape_ = inferred_shapes[eid];
-    node->dtype_ = inferred_dtypes[eid];
-    node->stype_ = inferred_stypes[eid];
-  }
-  for (auto node : this->ngraph_.nodes_) {
+    get_type(node);
     if (node->type_ == NodeType::kGraph) {
       node->shape_ = node->inputs_[0]->shape_;
     }
