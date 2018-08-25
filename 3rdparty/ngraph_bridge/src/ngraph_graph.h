@@ -76,7 +76,7 @@ class Node {
   // basic information about node
   const NodeType type_;
   const nnvmNodePtr orig_node_;
-  const std::string name_;
+  std::string name_;
   std::vector<NodePtr> inputs_;
 
   // mxnet type information
@@ -85,7 +85,7 @@ class Node {
   int stype_ = 0;
 
   // information to store graph parsing in
-  size_t multi_output_index_ = 0;
+  int multi_output_index_ = 0;
 
   /// Indicates that this node is permitted to be part of a subgraph that's
   /// compiled by nGraph.
@@ -199,8 +199,8 @@ class Graph : public Node {
   // Graph with optional fprop cache
   Graph(const std::string &name = "",
         const mxnet::Context &context = mxnet::Context::CPU(),
-        const bool enable_fprop_cache = true)
-      : Node(NodeType::kGraph, nullptr, name),
+        const bool enable_fprop_cache = true, nnvmNodePtr orig_node = nullptr)
+      : Node(NodeType::kGraph, orig_node, name),
         context_(context),
         enable_fprop_cache(enable_fprop_cache) {
     fprop_cache = std::make_shared<ngraph::FpropCache>();

@@ -216,6 +216,7 @@ class Compiler {
   // parse and process graph
   void ProcessGraph(const NDArrayMap& feed_dict);
   // check nodes against ngraph operations
+  bool IsInNGraph(const NodePtr& node, std::unordered_set<std::string>* unsupported_op_names);
   void CheckInNgraph();
   // make a deep copy of the graph and graph nodes
   void DeepCopy(const nnvm::Graph& graph);
