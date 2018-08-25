@@ -153,10 +153,6 @@ void InitImperativeOnce() {
       nnvm::Op::GetAttr<mxnet::FCompute>("FCompute<cpu>");
   static auto &ndfunc =
       nnvm::Op::GetAttr<mxnet::FNDArrayFunction>("FNDArrayFunction");
-  static auto &fscompute_cpu =
-      nnvm::Op::GetAttr<mxnet::FStatefulCompute>("FStatefulCompute<cpu>");
-  static auto &createop =
-      nnvm::Op::GetAttr<mxnet::FCreateOpState>("FCreateOpState");
 
   for (auto unique_op : dmlc::Registry<nnvm::Op>::List()) {
     auto op_name = unique_op->name;
@@ -176,9 +172,7 @@ void InitImperativeOnce() {
     // save default mxnet compute kernel for fallback
     auto fallbackx_fn = fcomputex_cpu.get(&op, nullptr);
     auto fallback_fn = fcompute_cpu.get(&op, nullptr);
-    auto sfallback_fn = fscompute_cpu.get(&op, nullptr);
     auto fallback_nd = ndfunc.get(&op, nullptr);
-    auto fallback_st = createop.get(&op, nullptr);
 
     // use ngraph immperative, only if fallback available.
     if (fallback_nd) {
@@ -200,7 +194,6 @@ void InitImperativeOnce() {
                   << std::endl;
       continue;
     }
-
     if (fallbackx_fn) {
       op.set_attr<mxnet::FComputeEx>(
           "FComputeEx<cpu>",
@@ -242,51 +235,6 @@ void InitImperativeOnce() {
           11);
       if (ngraph_log_verbose_detail())
         std::cout << "NGRAPH IMPERATIVE: FCompute op -> " << op_name
-                  << std::endl;
-      continue;
-    }
-    // handle legacy FStatefulCompute ops
-    if (sfallback_fn) {
-      op.set_attr<mxnet::FCreateOpState>(
-          "FCreateOpState",
-          [fallback_st](const nnvm::NodeAttrs &attrs, mxnet::Context ctx,
-                        const std::vector<mxnet::TShape> &in_shape,
-                        const std::vector<int> &in_type) -> mxnet::OpStatePtr {
-            auto old_state = fallback_st(attrs, ctx, in_shape, in_type);
-            auto state_ptr = mxnet::OpStatePtr::Create<StateFCompute>(
-                StateFCompute{nullptr, attrs, old_state});
-            return state_ptr;
-          },
-          11);
-      op.set_attr<mxnet::FStatefulCompute>(
-          "FStatefulCompute<cpu>",
-          [sfallback_fn](const mxnet::OpStatePtr &state,
-                         const mxnet::OpContext &ctx,
-                         const std::vector<mxnet::TBlob> &inputs,
-                         const std::vector<mxnet::OpReqType> &req,
-                         const std::vector<mxnet::TBlob> &outputs) -> void {
-            auto &op_state = state.get_state<StateFCompute>();
-            if (!ctx.is_train) {
-              std::vector<mxnet::NDArray> in;
-              for (auto &i : inputs) in.emplace_back(i, ctx.run_ctx.ctx.dev_id);
-              std::vector<mxnet::NDArray> out;
-              for (auto &i : outputs)
-                out.emplace_back(i, ctx.run_ctx.ctx.dev_id);
-              if (!op_state.ngraph_) {
-                compute_forward_imperative(op_state.attrs, ctx, in, req, out,
-                                           op_state.ngraph_);
-              } else {
-                compute_forward(ctx, op_state.ngraph_, in, req, out);
-              }
-              // return if ngraph successful
-              if (op_state.ngraph_) return;
-            }
-            // use default mxnet compute kernel
-            sfallback_fn(op_state.old_state, ctx, inputs, req, outputs);
-          },
-          11);
-      if (ngraph_log_verbose_detail())
-        std::cout << "NGRAPH IMPERATIVE: FStatefulCompute op -> " << op_name
                   << std::endl;
       continue;
     }
