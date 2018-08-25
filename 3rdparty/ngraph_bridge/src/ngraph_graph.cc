@@ -305,6 +305,12 @@ bool IdentifyOneSubgraph(Graph* graph, const std::function<bool(NodePtr)>& func,
     if (subgraph_nodes.size() > 0) {
       for (auto node : subgraph_nodes) {
         node->subgraph_ = current_subgraph_num;
+        if (node->type_ == NodeType::kGraph) {
+          for (auto output :
+               std::dynamic_pointer_cast<Graph>(node)->output_elements_) {
+            output->subgraph_ = current_subgraph_num;
+          }
+        }
       }
       CollapseSubgraph(graph, current_subgraph_num);
       found_subgraph = true;
@@ -345,6 +351,8 @@ void IdentifySubgraphs(Graph* graph, const std::function<bool(NodePtr)>& func) {
 // Function to collapse the intermediary graph into a graph
 // with subgraphs for nodes
 void CollapseSubgraph(Graph* graph, int subgraph_num) {
+  std::unordered_set<NodePtr> orig_nodes(begin(graph->nodes_),
+                                         end(graph->nodes_));
   // loop variable for undefined number of subgraphs
   auto tmpGraph = std::make_shared<Graph>(
       graph->name_ + "_subgraph_" + std::to_string(subgraph_num),
@@ -426,9 +434,9 @@ void CollapseSubgraph(Graph* graph, int subgraph_num) {
     // delete all the nodes we're replacing with the subgraph
     graph->nodes_.erase(
         std::remove_if(graph->nodes_.begin(), graph->nodes_.end(),
-                       [](NodePtr n) -> bool {
-                         return ((n->subgraph_ > 0) &&
-                                 (n->type_ == NodeType::kOp));
+                       [subgraph_num, orig_nodes](NodePtr n) -> bool {
+                         return (n->subgraph_ == subgraph_num &&
+                                 orig_nodes.count(n));
                        }),
         graph->nodes_.end());
 
