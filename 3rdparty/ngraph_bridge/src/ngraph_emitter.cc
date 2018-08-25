@@ -1503,6 +1503,18 @@ void Emitter::CreateLossOps() {
     auto label = op_map_[node->inputs_[1]];
     bool ignore = false;
     NgraphNodePtr mask;
+
+    if (get_default(node, "multi_output", false)) {
+      ngraph::Shape new_shape{label->get_shape()[0]};
+      new_shape.insert(new_shape.end(), begin(softmax->get_shape()) + 2,
+                       end(softmax->get_shape()));
+      if (shape_size(new_shape) != shape_size(label->get_shape())) {
+        new_shape.insert(begin(new_shape) + 1, shape_size(label->get_shape()) /
+                                                   shape_size(new_shape));
+      }
+      label = std::make_shared<ngraph::op::Reshape>(
+          label, pyrange(label->get_shape().size()), new_shape);
+    }
     if (label->get_shape() != softmax->get_shape()) {
       if (use_ignore) {
         ignore = true;
