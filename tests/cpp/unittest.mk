@@ -16,6 +16,7 @@
 # under the License.
 
 TEST_SRC = $(shell find tests/cpp/ -name "*.cc")
+
 TEST_OBJ = $(patsubst %.cc, build/%.o, $(TEST_SRC))
 TEST = build/tests/cpp/mxnet_unit_tests
 
@@ -26,7 +27,9 @@ GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
                 $(GTEST_DIR)/include/gtest/internal/*.h
 
 TEST_CFLAGS = -Itests/cpp/include -Isrc $(CFLAGS)
-TEST_LDFLAGS = $(LDFLAGS) -Llib -lmxnet
+
+TEST_LDFLAGS = $(LDFLAGS)
+TEST_LDFLAGS += -Llib -lmxnet
 
 ifeq ($(USE_BREAKPAD), 1)
 TEST_CFLAGS  += -I/usr/local/include/breakpad
@@ -41,28 +44,28 @@ gtest-all.o : $(GTEST_SRCS_)
 gtest.a : gtest-all.o
 	$(AR) $(ARFLAGS) $@ $^
 
-build/tests/cpp/%.o : tests/cpp/%.cc
+build/tests/cpp/%.o : tests/cpp/%.cc | mkldnn ngraph
 	@mkdir -p $(@D)
 	$(CXX) -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -MM -MT tests/cpp/$* $< > build/tests/cpp/$*.d
 	$(CXX) -c -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -o build/tests/cpp/$*.o $(filter %.cc %.a, $^)
 
-build/tests/cpp/operator/%.o : tests/cpp/operator/%.cc
+build/tests/cpp/operator/%.o : tests/cpp/operator/%.cc | mkldnn ngraph
 	@mkdir -p $(@D)
 	$(CXX) -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -MM -MT tests/cpp/operator/$* $< > build/tests/cpp/operator/$*.d
 	$(CXX) -c -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -o build/tests/cpp/operator/$*.o $(filter %.cc %.a, $^)
 
-build/tests/cpp/storage/%.o : tests/cpp/storage/%.cc
+build/tests/cpp/storage/%.o : tests/cpp/storage/%.cc | mkldnn ngraph
 	@mkdir -p $(@D)
 	$(CXX) -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -MM -MT tests/cpp/storage/$* $< > build/tests/cpp/storage/$*.d
 	$(CXX) -c -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -o build/tests/cpp/storage/$*.o $(filter %.cc %.a, $^)
 
-build/tests/cpp/engine/%.o : tests/cpp/engine/%.cc
+build/tests/cpp/engine/%.o : tests/cpp/engine/%.cc | mkldnn ngraph
 	@mkdir -p $(@D)
 	$(CXX) -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -MM -MT tests/cpp/engine/$* $< > build/tests/cpp/engine/$*.d
 	$(CXX) -c -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -o build/tests/cpp/engine/$*.o $(filter %.cc %.a, $^)
 
 $(TEST): $(TEST_OBJ) lib/libmxnet.so gtest.a
-	$(CXX) -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -o $@ $^ $(TEST_LDFLAGS)
+	$(CXX) -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -o $@ $^ $(TEST_LDFLAGS) $(NGRAPH_LDFLAGS_FOR_CPP_UNIT_TESTS_PROG)
 
 runtest: $(TEST)
 	LD_LIBRARY_PATH=$(shell pwd)/lib:$(LD_LIBRARY_PATH) $(TEST)

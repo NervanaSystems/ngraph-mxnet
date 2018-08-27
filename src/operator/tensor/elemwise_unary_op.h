@@ -476,6 +476,34 @@ void HardSigmoidBackward(const nnvm::NodeAttrs& attrs,
   });
 }
 
+struct ReshapeLikeParam : public dmlc::Parameter<ReshapeLikeParam> {
+  dmlc::optional<int> lhs_begin, rhs_begin, lhs_end, rhs_end;
+  DMLC_DECLARE_PARAMETER(ReshapeLikeParam) {
+    DMLC_DECLARE_FIELD(lhs_begin)
+        .set_default(dmlc::optional<int>())
+        .describe(
+            "Defaults to 0. "
+            "The beginning index along which the lhs dimensions are to be "
+            "reshaped. Supports negative indices.");
+    DMLC_DECLARE_FIELD(lhs_end)
+        .set_default(dmlc::optional<int>())
+        .describe("Defaults to None. "
+                  "The ending index along which the lhs dimensions are to be "
+                  "used for reshaping. Supports negative indices.");
+    DMLC_DECLARE_FIELD(rhs_begin)
+        .set_default(dmlc::optional<int>())
+        .describe("Defaults to 0. "
+                  "The beginning index along which the rhs dimensions are to "
+                  "be used for "
+                  "reshaping. Supports negative indices.");
+    DMLC_DECLARE_FIELD(rhs_end)
+        .set_default(dmlc::optional<int>())
+        .describe("Defaults to None. "
+                  "The ending index along which the rhs dimensions are to be "
+                  "used for reshaping. Supports negative indices.");
+  }
+};
+
 /*! \brief Unary compute */
 #define MXNET_OPERATOR_REGISTER_UNARY(__name$)                      \
   NNVM_REGISTER_OP(__name$)                                         \
@@ -492,6 +520,7 @@ void HardSigmoidBackward(const nnvm::NodeAttrs& attrs,
 /*! \brief Unary compute, with FComputeEx for csr and rsp available  */
 #define MXNET_OPERATOR_REGISTER_UNARY_WITH_RSP_CSR(__name$, __xpu$, __kernel$)                     \
   MXNET_OPERATOR_REGISTER_UNARY(__name$)                                                           \
+  MXNET_ADD_SPARSE_OP_ALIAS(__name$)                                                               \
   .set_attr<FInferStorageType>("FInferStorageType", ElemwiseStorageType<1, 1, false, true, true>)  \
   .set_attr<FCompute>("FCompute<" #__xpu$ ">", UnaryOp::Compute<__xpu$, __kernel$>)                \
   .set_attr<FComputeEx>("FComputeEx<" #__xpu$ ">", UnaryOp::ComputeEx<__xpu$, __kernel$>)
@@ -499,6 +528,7 @@ void HardSigmoidBackward(const nnvm::NodeAttrs& attrs,
 /*! \brief Unary compute, with FComputeEx for rsp available  */
 #define MXNET_OPERATOR_REGISTER_UNARY_WITH_RSP(__name$, __xpu$, __kernel$)                         \
   MXNET_OPERATOR_REGISTER_UNARY(__name$)                                                           \
+  MXNET_ADD_SPARSE_OP_ALIAS(__name$)                                                               \
   .set_attr<FInferStorageType>("FInferStorageType", ElemwiseStorageType<1, 1, false, true, false>) \
   .set_attr<FCompute>("FCompute<" #__xpu$ ">", UnaryOp::Compute<__xpu$, __kernel$>)                \
   .set_attr<FComputeEx>("FComputeEx<" #__xpu$ ">", UnaryOp::ComputeEx<__xpu$, __kernel$>)

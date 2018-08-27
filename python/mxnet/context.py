@@ -41,7 +41,7 @@ class Context(with_metaclass(_MXClassPropertyMetaClass, object)):
 
     Parameters
     ----------
-    device_type : {'cpu', 'gpu'} or Context.
+    device_type : {'cpu', 'gpu', 'nnp'} or Context.
         String representing the device type.
 
     device_id : int (default=0)
@@ -240,6 +240,37 @@ def gpu(device_id=0):
     """
     return Context('gpu', device_id)
 
+def nnp(device_id=0):
+    """Returns a Neural Network Processor context.
+
+    This function is a short cut for Context('nnp', device_id).
+    Currently unsure if we have the flexibility to choose specific
+    nodes through LakeCrest.
+
+    Examples
+    ----------
+    >>> with mx.Context('nnp', 1):
+    ...     nnp_array = mx.nd.ones((2, 3))
+    >>> nnp_array.context
+    nnp(1)
+    >>> with mx.nnp(1):
+    ...    nnp_array = mx.nd.ones((2, 3))
+    >>> nnp_array.context
+    nnp(1)
+
+    Parameters
+    ----------
+    device_id : int, optional
+        The device id of the device, currently needed to match GPU function signature.
+
+    Returns
+    -------
+    context : Context
+        The corresponding NNP context.
+    """
+    return Context('nnp', device_id)
+
+
 
 def num_gpus():
     """Query CUDA for the number of GPUs present.
@@ -263,7 +294,7 @@ def current_context():
 
     By default, `mx.cpu()` is used for all the computations
     and it can be overridden by using `with mx.Context(x)` statement where
-    x can be cpu(device_id) or gpu(device_id).
+    x can be cpu(device_id) or gpu(device_id) or nnp(device_id).
 
     Examples
     -------

@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 import os
 import sys
+
 # need to use distutils.core for correct placement of cython dll
 kwargs = {}
 if "--inplace" in sys.argv:
@@ -28,7 +29,7 @@ if "--inplace" in sys.argv:
 else:
     from setuptools import setup
     from setuptools.extension import Extension
-    kwargs = {'install_requires': ['numpy<=1.15.0,>=1.8.2', 'requests<2.19.0,>=2.18.4', 'graphviz<0.9.0,>=0.8.1'], 'zip_safe': False}
+    kwargs = {'install_requires': ['numpy<=1.15.0,>=1.8.2', 'requests<2.19.0,>=2.18.4', 'graphviz<0.9.0,>=0.8.1', 'psutil>=5.4.3'], 'zip_safe': False}
 from setuptools import find_packages
 
 with_cython = False
@@ -43,7 +44,7 @@ libinfo_py = os.path.join(CURRENT_DIR, 'mxnet/libinfo.py')
 libinfo = {'__file__': libinfo_py}
 exec(compile(open(libinfo_py, "rb").read(), libinfo_py, 'exec'), libinfo, libinfo)
 
-LIB_PATH = libinfo['find_lib_path']()
+LIB_PATHS = libinfo['find_lib_path']()
 __version__ = libinfo['__version__']
 
 sys.path.insert(0, CURRENT_DIR)
@@ -89,7 +90,7 @@ def config_cython():
             ret.append(Extension(
                 "mxnet/%s/.%s" % (subdir, fn[:-4]),
                 ["mxnet/cython/%s" % fn],
-                include_dirs=["../include/", "../3rdparty/nnvm/include"],
+                include_dirs=["../include/", "../3rdparty/tvm/nnvm/include"],
                 library_dirs=library_dirs,
                 libraries=libraries,
                 language="c++"))
@@ -98,12 +99,35 @@ def config_cython():
         print("WARNING: Cython is not installed, will compile without cython module")
         return []
 
-
 setup(name='mxnet',
       version=__version__,
       description=open(os.path.join(CURRENT_DIR, 'README.md')).read(),
       packages=find_packages(),
-      data_files=[('mxnet', [LIB_PATH[0]])],
+      data_files=[('mxnet', LIB_PATHS)],
       url='https://github.com/apache/incubator-mxnet',
       ext_modules=config_cython(),
+      classifiers=[
+          # https://pypi.org/pypi?%3Aaction=list_classifiers
+          'Development Status :: 5 - Production/Stable',
+          'Intended Audience :: Developers',
+          'Intended Audience :: Education',
+          'Intended Audience :: Science/Research',
+          'License :: OSI Approved :: Apache Software License',
+          'Programming Language :: C++',
+          'Programming Language :: Cython',
+          'Programming Language :: Other',  # R, Scala
+          'Programming Language :: Perl',
+          'Programming Language :: Python',
+          'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3.4',
+          'Programming Language :: Python :: 3.5',
+          'Programming Language :: Python :: 3.6',
+          'Programming Language :: Python :: Implementation :: CPython',
+          'Topic :: Scientific/Engineering',
+          'Topic :: Scientific/Engineering :: Artificial Intelligence',
+          'Topic :: Scientific/Engineering :: Mathematics',
+          'Topic :: Software Development',
+          'Topic :: Software Development :: Libraries',
+          'Topic :: Software Development :: Libraries :: Python Modules',
+      ],
       **kwargs)

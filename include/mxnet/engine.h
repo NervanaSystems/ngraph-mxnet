@@ -105,7 +105,9 @@ enum class FnProperty {
   /*! \brief Asynchronous function call */
   kAsync,
   /*! \brief Delete variable call */
-  kDeleteVar
+  kDeleteVar,
+  /*! \brief Prioritized sync operation on GPU */
+  kGPUPrioritized
 };  // enum class FnProperty
 
 /*!

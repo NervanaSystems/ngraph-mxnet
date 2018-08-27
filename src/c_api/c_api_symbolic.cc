@@ -28,6 +28,9 @@
 #include <nnvm/pass.h>
 #include <nnvm/pass_functions.h>
 #include <nnvm/symbolic.h>
+#if MXNET_USE_NGRAPH == 1
+#include <ngraph_imperative.h>
+#endif
 #include "./c_api_common.h"
 #include "../operator/operator_common.h"
 #include "../executor/exec_pass.h"
@@ -76,6 +79,10 @@ int MXListAllOpNames(nn_uint *out_size,
                      const char ***out_array) {
   mxnet::op::RegisterLegacyOpProp();
   mxnet::op::RegisterLegacyNDFunc();
+#if MXNET_USE_NGRAPH == 1
+  // ngraph imperative interface
+  ngraph_bridge::InitImperative();
+#endif
   return NNListAllOpNames(out_size, out_array);
 }
 
@@ -343,6 +350,77 @@ int MXSymbolGetAtomicSymbolName(AtomicSymbolCreator creator,
   Op *e = static_cast<Op *>(creator);
   *out = e->name.c_str();
   API_END();
+}
+
+namespace mxnet {
+
+extern std::vector<nnvm::Symbol *> GetInputSymbols(const nnvm::Symbol &sym);
+extern bool CutGraphInputs(const std::vector<nnvm::NodeEntry *> &input_entries,
+                           bool skip_var, std::vector<nnvm::NodeEntry> *orig_entries);
+
+}
+
+int MXSymbolGetInputSymbols(SymbolHandle sym, SymbolHandle **input_arr, int *input_size) {
+  API_BEGIN();
+  nnvm::Symbol *s = static_cast<nnvm::Symbol*>(sym);
+  std::vector<nnvm::Symbol *> input_syms = mxnet::GetInputSymbols(*s);
+  *input_size = input_syms.size();
+
+  MXAPIThreadLocalEntry *ret = MXAPIThreadLocalStore::Get();
+  ret->ret_handles.clear();
+  ret->ret_handles.reserve(*input_size);
+  for (int i = 0; i < *input_size; ++i) ret->ret_handles.push_back(input_syms[i]);
+  *input_arr = reinterpret_cast<SymbolHandle*>(dmlc::BeginPtr(ret->ret_handles));
+  API_END_HANDLE_ERROR();
+}
+
+int MXSymbolCutSubgraph(SymbolHandle sym, SymbolHandle **input_symbols,
+                        int *input_size) {
+  // Given a graph, we want to fetch the nodes that have been marked as part of
+  // a subgraph.
+  API_BEGIN();
+  nnvm::Symbol *s = static_cast<nnvm::Symbol*>(sym);
+  const std::string subg_attr = "__subgraph_name__";
+  auto out_node = s->outputs[0].node;
+  auto it = out_node->attrs.dict.find(subg_attr);
+  if (it != out_node->attrs.dict.end()) {
+    const std::string &subg_name = it->second;
+    std::vector<nnvm::NodeEntry *> input_entries;
+    DFSVisit(s->outputs, [&subg_attr, &subg_name, &input_entries]
+             (nnvm::NodePtr n) {
+      // If the node itself isn't in the subgraph, we ignore it.
+      auto it = n->attrs.dict.find(subg_attr);
+      if (it == n->attrs.dict.end() || it->second != subg_name)
+        return;
+
+      // We search for nodes whose node entries aren't in the subgraph.
+      for (size_t j = 0; j < n->inputs.size(); j++) {
+        auto in_node = n->inputs[j].node;
+        auto it = in_node->attrs.dict.find(subg_attr);
+        if (it == in_node->attrs.dict.end() || it->second != subg_name)
+          input_entries.push_back(&n->inputs[j]);
+      }
+    });
+
+    std::vector<nnvm::NodeEntry> orig_entries;
+    CutGraphInputs(input_entries, false, &orig_entries);
+    std::vector<nnvm::Symbol *> input_syms(orig_entries.size());
+    for (size_t i = 0; i < input_syms.size(); i++) {
+      input_syms[i] = new nnvm::Symbol();
+      input_syms[i]->outputs.push_back(orig_entries[i]);
+    }
+    *input_size = input_syms.size();
+
+    MXAPIThreadLocalEntry *ret = MXAPIThreadLocalStore::Get();
+    ret->ret_handles.clear();
+    ret->ret_handles.reserve(*input_size);
+    for (int i = 0; i < *input_size; ++i) ret->ret_handles.push_back(input_syms[i]);
+    *input_symbols = reinterpret_cast<SymbolHandle*>(dmlc::BeginPtr(ret->ret_handles));
+  } else {
+    *input_size = 0;
+  }
+
+  API_END_HANDLE_ERROR();
 }
 
 int MXSymbolCreateFromFile(const char *fname, SymbolHandle *out) {

@@ -136,6 +136,7 @@ struct Context {
     kCPU = cpu::kDevMask,
     kGPU = gpu::kDevMask,
     kCPUPinned = 3,
+    kNNP = 4,
     kCPUShared = 5,
   };
   /*! \brief the device type we run the op on */
@@ -149,7 +150,7 @@ struct Context {
    * \return cpu::kDevMask or gpu::kDevMask
    */
   inline DeviceType dev_mask() const {
-    if (dev_type == kCPUPinned || dev_type == kCPUShared) return kCPU;
+    if (dev_type == kCPUPinned || dev_type == kCPUShared || dev_type == kNNP) return kCPU;
     return dev_type;
   }
   /*!
@@ -223,11 +224,25 @@ struct Context {
    */
   inline static int32_t GetGPUCount();
   /*!
+   * \brief get the free and total available memory on a GPU
+   * \param dev the GPU number to query
+   * \param free_mem pointer to the integer holding free GPU memory
+   * \param total_mem pointer to the integer holding total GPU memory
+   * \return No return value
+   */
+  inline static void GetGPUMemoryInformation(int dev, int *free, int *total);
+  /*!
    * Create a pinned CPU context.
    * \param dev_id the device id for corresponding GPU.
    * \return Pinned CPU context. -1 for current GPU.
    */
   inline static Context CPUPinned(int32_t dev_id = -1);
+/*!
+   * Create a NNP context.
+   * \param dev_id the device id for corresponding NNP.
+   * \return NNP context.
+   */
+  inline static Context NNP(int32_t dev_id = 0);
   /*!
    * Create a CPU shared memory context.
    * \param dev_id dummy device id.
@@ -235,7 +250,7 @@ struct Context {
    */
   inline static Context CPUShared(int32_t dev_id = 0);
   /*!
-   * Create a context from string of the format [cpu|gpu|cpu_pinned](n)
+   * Create a context from string of the format [cpu|gpu|cpu_pinned|nnp](n)
    * \param str the string pattern
    * \return Context
    */
@@ -326,6 +341,39 @@ inline int32_t Context::GetGPUCount() {
 #endif
 }
 
+inline void Context::GetGPUMemoryInformation(int dev, int *free_mem,
+                                             int *total_mem) {
+#if MXNET_USE_CUDA
+
+  size_t memF, memT;
+  cudaError_t e;
+
+  int curDevice;
+  e = cudaGetDevice(&curDevice);
+  CHECK_EQ(e, cudaSuccess) << " CUDA: " << cudaGetErrorString(e);
+
+  e = cudaSetDevice(dev);
+  CHECK_EQ(e, cudaSuccess) << " CUDA: " << cudaGetErrorString(e);
+
+  e = cudaMemGetInfo(&memF, &memT);
+  CHECK_EQ(e, cudaSuccess) << " CUDA: " << cudaGetErrorString(e);
+
+  e = cudaSetDevice(curDevice);
+  CHECK_EQ(e, cudaSuccess) << " CUDA: " << cudaGetErrorString(e);
+
+  *free_mem = static_cast<int>(memF);
+  *total_mem = static_cast<int>(memT);
+
+#else
+  LOG(FATAL)
+      << "This call is only supported for MXNet built with CUDA support.";
+#endif
+}
+
+inline Context Context::NNP(int32_t dev_id) {
+  return Create(kNNP, dev_id);
+}
+
 inline Context Context::FromString(const std::string& str) {
   Context ret;
   try {
@@ -342,6 +390,8 @@ inline Context Context::FromString(const std::string& str) {
       ret = GPU(id);
     } else if (type == "cpu_pinned") {
       ret = CPUPinned(id);
+    } else if (type == "nnp") {
+      ret = NNP(id);
     } else if (type == "cpu_shared") {
       ret = CPUShared(id);
     } else {
@@ -360,6 +410,8 @@ inline std::ostream& operator<<(std::ostream &out, const Context &ctx) {
     out << "gpu(";
   } else if (ctx.dev_type == Context::kCPUPinned) {
     out << "cpu_pinned(";
+  } else if (ctx.dev_type == Context::kNNP) {
+    out << "nnp(";
   } else if (ctx.dev_type == Context::kCPUShared) {
     out << "cpu_shared(";
   } else {

@@ -72,6 +72,7 @@ if __name__ == '__main__':
                         help='the number of training examples')
 
     parser.add_argument('--add_stn',  action="store_true", default=False, help='Add Spatial Transformer Network Layer (lenet only)')
+    parser.add_argument('--with-nnp',  action="store_true", default=False, dest="is_nnp")
 
     fit.add_fit_args(parser)
     parser.set_defaults(
@@ -93,4 +94,4 @@ if __name__ == '__main__':
     sym = net.get_symbol(**vars(args))
 
     # train
-    fit.fit(args, sym, get_mnist_iter)
+    fit.fit(args, sym, get_mnist_iter,args.is_nnp)

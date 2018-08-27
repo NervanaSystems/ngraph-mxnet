@@ -138,6 +138,10 @@ void StorageImpl::Alloc(Storage::Handle* handle) {
 #endif  // MXNET_USE_CUDA
             break;
           }
+          case Context::kNNP: {
+            ptr = new storage::NaiveStorageManager<storage::CPUDeviceStorage>();
+            break;
+          }
           default: LOG(FATAL) <<  "Unimplemented device " << handle->ctx.dev_type;
         }
         return ptr;

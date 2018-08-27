@@ -22,6 +22,9 @@
  * \file ndarray.cc
  * \brief ndarry module of mxnet
  */
+#if MXNET_USE_NGRAPH == 1
+#include <ngraph_nnvm_utils.h>
+#endif
 #include <dmlc/io.h>
 #include <dmlc/memory_io.h>
 #include <dmlc/logging.h>
@@ -31,6 +34,9 @@
 #include <mxnet/resource.h>
 #include <mxnet/imperative.h>
 #include <mshadow/tensor.h>
+#if MXNET_USE_NGRAPH == 1
+#include <ngraph/ngraph.hpp>
+#endif
 #if MXNET_USE_MKLDNN == 1
 #include <mkldnn.hpp>
 #endif
@@ -44,6 +50,7 @@
 #if MXNET_USE_OPENCV
 #include <opencv2/opencv.hpp>
 #endif  // MXNET_USE_OPENCV
+
 
 namespace dmlc {
 DMLC_REGISTRY_ENABLE(::mxnet::NDArrayFunctionReg);
@@ -483,7 +490,7 @@ const mkldnn::memory *NDArray::GetMKLDNNData(
   if (mem->get_primitive_desc() == desc
       || (desc1.data.format == GetDefaultFormat(desc1)
         && desc2.data.format == GetDefaultFormat(desc2))) {
-    return GetMKLDNNExact(ptr_->mkl_mem_->GetRaw(), desc);
+    return GetMKLDNNExact(mem, desc);
   } else {
     return nullptr;
   }
@@ -639,7 +646,6 @@ void NDArray::CopyFrom(const mkldnn::memory &mem) {
 
   CHECK(mem.get_primitive_desc().get_size() == shape().Size() * GetTypeSize(dtype_))
       << "The size of NDArray doesn't match the requested MKLDNN memory desc";
-  MKLDNNStream *stream = MKLDNNStream::Get();
   // If this array uses MKLDNN layout, we have to make sure it's not a view.
   // Otherwise, we'll have to change the layout inside the array.
 
@@ -647,74 +653,7 @@ void NDArray::CopyFrom(const mkldnn::memory &mem) {
     ptr_->Reorder2Default();
 
   const mkldnn::memory *this_mem = GetMKLDNNData();
-  mkldnn::memory::primitive_desc from_pd = mem.get_primitive_desc();
-  mkldnn::memory::desc from_desc = from_pd.desc();
-  mkldnn::memory::primitive_desc this_pd = this_mem->get_primitive_desc();
-  mkldnn::memory::desc this_desc = this_pd.desc();
-  mkldnn_memory_format_t from_def_format = GetDefaultFormat(from_desc);
-  mkldnn_memory_format_t this_def_format = GetDefaultFormat(this_desc);
-  if (IsView()) {
-    // Sliced array must use the default layout.
-    CHECK_EQ(GetDefaultFormat(this_desc), this_desc.data.format);
-  }
-  // It's possible that the memory and the NDArray don't have the same shape.
-  if (!same_shape(this_desc, from_desc)
-      // If the source memory uses the default layout, we can reshape directly.
-      && from_def_format == from_desc.data.format) {
-    // In this case, we can simply create a new MKLDNN memory for the required
-    // shape.
-    mkldnn::memory::dims dims(this_desc.data.dims,
-                              this_desc.data.dims + this_desc.data.ndims);
-    auto this_dtype = static_cast<mkldnn::memory::data_type>(this_desc.data.data_type);
-    auto this_format = static_cast<mkldnn::memory::format>(GetDefaultFormat(this_desc));
-    mkldnn::memory::desc data_md(dims, this_dtype, this_format);
-    mkldnn::memory::primitive_desc pd(data_md, from_pd.get_engine());
-    mkldnn_mem_ptr tmp_mem(new mkldnn::memory(pd, mem.get_data_handle()));
-    stream->RegisterMem(tmp_mem);
-    stream->RegisterPrim(mkldnn::reorder(*tmp_mem, *this_mem));
-  } else if (!same_shape(this_desc, from_desc)) {
-    // In this case, the source memory stores data in a customized layout. We
-    // need to reorganize the data in memory before we can reshape.
-    mkldnn::memory::primitive_desc def_pd = GetPrimitiveDesc(from_pd, from_def_format);
-    mkldnn::memory *def_mem = TmpMemMgr::Get()->Alloc(def_pd);
-    stream->RegisterPrim(mkldnn::reorder(mem, *def_mem));
-    // Now we can reshape it
-    mkldnn::memory::dims dims(this_desc.data.dims,
-                              this_desc.data.dims + this_desc.data.ndims);
-    auto this_dtype = static_cast<mkldnn::memory::data_type>(this_desc.data.data_type);
-    auto this_format = static_cast<mkldnn::memory::format>(GetDefaultFormat(this_desc));
-    mkldnn::memory::desc data_md(dims, this_dtype, this_format);
-    mkldnn::memory::primitive_desc pd(data_md, from_pd.get_engine());
-    mkldnn_mem_ptr tmp_mem(new mkldnn::memory(pd, def_mem->get_data_handle()));
-    stream->RegisterMem(tmp_mem);
-    stream->RegisterPrim(mkldnn::reorder(*tmp_mem, *this_mem));
-  } else if (from_pd == this_pd) {
-    // If the layout is the same, we can just copy data.
-    stream->RegisterPrim(mkldnn::reorder(mem, *this_mem));
-  } else {
-    // If both are not using the default layouts. There isn't much we can do,
-    // other than reorder data layout directly.
-    if (this_def_format != this_desc.data.format
-        && from_def_format != from_desc.data.format) {
-      stream->RegisterPrim(mkldnn::reorder(mem, *this_mem));
-    } else if (this_def_format == this_desc.data.format) {
-      // If the dest mem uses the default memory layout, we can simply use
-      // the default format of the source memory to improve perf of reorder.
-      mkldnn::memory::primitive_desc pd = GetPrimitiveDesc(from_pd,
-                                                           from_def_format);
-      mkldnn_mem_ptr tmp_mem(new mkldnn::memory(pd, this_mem->get_data_handle()));
-      stream->RegisterMem(tmp_mem);
-      stream->RegisterPrim(mkldnn::reorder(mem, *tmp_mem));
-    } else {
-      // If the src mem uses the default memory layout, we can use
-      // the default format of the source memory to improve perf.
-      mkldnn::memory::primitive_desc pd = GetPrimitiveDesc(this_pd,
-                                                           this_def_format);
-      mkldnn_mem_ptr tmp_mem(new mkldnn::memory(pd, mem.get_data_handle()));
-      stream->RegisterMem(tmp_mem);
-      stream->RegisterPrim(mkldnn::reorder(*tmp_mem, *this_mem));
-    }
-  }
+  MKLDNNCopy(mem, this_mem);
 }
 
 mkldnn::memory *NDArray::CreateMKLDNNData(const mkldnn::memory::primitive_desc &desc) {
@@ -762,6 +701,24 @@ mkldnn::memory *NDArray::CreateMKLDNNData(const mkldnn::memory::primitive_desc &
   ptr_->mkl_mem_.reset(new MKLDNNMemory(desc, ptr_->shandle.dptr));
   MKLDNNStream::Get()->RegisterMem(ptr_->mkl_mem_->GetMem());
   return ptr_->mkl_mem_->GetRaw();
+}
+#endif
+
+#if MXNET_USE_NGRAPH == 1
+std::shared_ptr<ngraph::runtime::TensorView> &NDArray::get_tensor_view() {
+  return ptr_->tensor_view_;
+}
+std::shared_ptr<ngraph::runtime::TensorView> &NDArray::create_tensor_view() {
+  if (ptr_->tensor_view_ == nullptr ||
+      ptr_->tensor_view_->get_shape() !=
+          ngraph_bridge::TShape_to_NShape(shape_)) {
+    auto backend = ngraph_bridge::GetBackendFromContext(ctx());
+    CHECK(backend != nullptr);
+    ptr_->tensor_view_ = backend->create_tensor(
+        ngraph_bridge::getType(dtype_), ngraph_bridge::TShape_to_NShape(shape_),
+        storage_handle().dptr);
+  }
+  return ptr_->tensor_view_;
 }
 #endif
 
@@ -1178,7 +1135,8 @@ void CopyFromToImpl(const NDArray& from, const NDArray& to,
   const Context to_ctx = to.ctx();
   bool is_train = Imperative::Get()->is_training();
 
-  OpContext opctx{is_train,
+  OpContext opctx{Imperative::Get()->is_recording(),
+                  is_train,
                   rctx,
                   engine::CallbackOnComplete(),
                   requested};
@@ -1212,7 +1170,7 @@ void CopyFromToImpl(const NDArray& from, const NDArray& to,
   }
 }
 
-void CopyFromTo(const NDArray& from, const NDArray& to, int priority) {
+void CopyFromTo(const NDArray& from, const NDArray& to, int priority, bool is_opr) {
   if (from.var() == to.var() && from.byte_offset() == to.byte_offset()) {
     // skip to copy to itself
     return;
@@ -1293,7 +1251,7 @@ void CopyFromTo(const NDArray& from, const NDArray& to, int priority) {
           on_complete();
         }, from.ctx(), const_vars, mutable_vars,
         from.dtype() != to.dtype() ? FnProperty::kNormal : FnProperty::kCopyFromGPU,
-        priority, "CopyGPU2GPU");
+        priority, is_opr ? "_copyto_GPU2GPU" : "CopyGPU2GPU");
     } else {
       LOG(FATAL) << "unknown device mask";
     }
@@ -2074,7 +2032,7 @@ void CopyFromToSimple(
     const std::vector<NDArray>& inputs,
     const std::vector<OpReqType>& req,
     const std::vector<NDArray>& outputs) {
-  CopyFromTo(inputs[0], outputs[0], 0);
+  CopyFromTo(inputs[0], outputs[0], 0, true);
 }
 
 // copy function is special

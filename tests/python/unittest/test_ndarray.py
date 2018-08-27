@@ -17,6 +17,7 @@
 
 import mxnet as mx
 import numpy as np
+from distutils.version import LooseVersion
 import os
 import pickle as pkl
 import unittest
@@ -27,6 +28,7 @@ from mxnet.test_utils import assert_almost_equal, assert_exception
 from mxnet.test_utils import default_context
 from mxnet.test_utils import np_reduce
 from mxnet.test_utils import same
+from mxnet.test_utils import random_sample, rand_shape_nd
 from numpy.testing import assert_allclose
 import mxnet.autograd
 
@@ -513,12 +515,11 @@ def test_reduce():
 def test_broadcast():
     sample_num = 1000
     def test_broadcast_to():
-        for i in range(sample_num):
+        for _ in range(sample_num):
             ndim = np.random.randint(1, 6)
             target_shape = np.random.randint(1, 11, size=ndim)
             shape = target_shape.copy()
             axis_flags = np.random.randint(0, 2, size=ndim)
-            axes = []
             for (axis, flag) in enumerate(axis_flags):
                 if flag:
                     shape[axis] = 1
@@ -530,7 +531,28 @@ def test_broadcast():
             assert (ndarray_ret.shape == target_shape).all()
             err = np.square(ndarray_ret - numpy_ret).mean()
             assert err < 1E-8
+
+    def test_broadcast_like():
+        for _ in range(sample_num):
+            ndim = np.random.randint(1, 6)
+            target_shape = np.random.randint(1, 11, size=ndim)
+            target = mx.nd.ones(shape=tuple(target_shape))
+            shape = target_shape.copy()
+            axis_flags = np.random.randint(0, 2, size=ndim)
+            for (axis, flag) in enumerate(axis_flags):
+                if flag:
+                    shape[axis] = 1
+            dat = np.random.rand(*shape) - 0.5
+            numpy_ret = dat
+            ndarray_ret = mx.nd.array(dat).broadcast_like(target)
+            if type(ndarray_ret) is mx.ndarray.NDArray:
+                ndarray_ret = ndarray_ret.asnumpy()
+            assert (ndarray_ret.shape == target_shape).all()
+            err = np.square(ndarray_ret - numpy_ret).mean()
+            assert err < 1E-8
+
     test_broadcast_to()
+    test_broadcast_like()
 
 
 @with_seed()
@@ -639,106 +661,187 @@ def test_order():
     # values, making it hard to generate a numpy 'golden copy' to compare against
     # the mxnet operator.  The 'mask' function is particularly hard to test given that
     # equal values might span the 'k' boundary.  Issue exposed with seed 1405838964.
-    def get_values(ensure_unique):
-        while True:
-            data = np.float32(np.random.normal(size=(dat_size, dat_size, dat_size, dat_size)))
-            if not ensure_unique:
-                return data
-            num_unique_values = len(set(data.flatten()))
-            if data.size == num_unique_values:
-                return data
+    def get_values(ensure_unique, dtype):
+        if dtype == np.int16 or dtype == np.int32 or dtype == np.int64:
+            return np.arange(dat_size ** 4, dtype=dtype).reshape((dat_size, dat_size, dat_size, dat_size))
+        elif dtype == np.float32 or dtype == np.float64:
+            while True:
+                data = np.random.normal(size=(dat_size, dat_size, dat_size, dat_size)).astype(dtype)
+                if not ensure_unique:
+                    return data
+                num_unique_values = len(set(data.flatten()))
+                if data.size == num_unique_values:
+                    return data
+        else:
+            raise NotImplementedError
 
-    a_npy = get_values(ensure_unique=True)
-    a_nd = mx.nd.array(a_npy, ctx=ctx)
+    # Produce a large matrix (256, 300096) as the input data, to cover the case which
+    # has a large size of matrix (exceed the express range by float precisly), but
+    # the number of elements in each dimension could be expressed by float precisly.
+    def get_large_matrix():
+        data = np.array([np.arange(300096).astype(np.float32)])
+        data = np.repeat(data, 100, axis=0)
+        np.apply_along_axis(np.random.shuffle, 1, data)
+        return data
 
-    # test for ret_typ=indices
-    nd_ret_topk = mx.nd.topk(a_nd, axis=1, ret_typ="indices", k=3, is_ascend=True).asnumpy()
-    gt = gt_topk(a_npy, axis=1, ret_typ="indices", k=3, is_ascend=True)
-    assert_almost_equal(nd_ret_topk, gt)
-    nd_ret_topk = mx.nd.topk(a_nd, axis=3, ret_typ="indices", k=2, is_ascend=False).asnumpy()
-    gt = gt_topk(a_npy, axis=3, ret_typ="indices", k=2, is_ascend=False)
-    assert_almost_equal(nd_ret_topk, gt)
-    nd_ret_topk = mx.nd.topk(a_nd, axis=None, ret_typ="indices", k=21, is_ascend=False).asnumpy()
-    gt = gt_topk(a_npy, axis=None, ret_typ="indices", k=21, is_ascend=False)
-    assert_almost_equal(nd_ret_topk, gt)
+    large_matrix_npy = get_large_matrix()
+    large_matrix_nd = mx.nd.array(large_matrix_npy, ctx=ctx)
 
-    # test for ret_typ=value
-    nd_ret_topk = mx.nd.topk(a_nd, axis=1, ret_typ="value", k=3, is_ascend=True).asnumpy()
-    gt = gt_topk(a_npy, axis=1, ret_typ="value", k=3, is_ascend=True)
-    assert_almost_equal(nd_ret_topk, gt)
-    nd_ret_topk = mx.nd.topk(a_nd, axis=3, ret_typ="value", k=2, is_ascend=False).asnumpy()
-    gt = gt_topk(a_npy, axis=3, ret_typ="value", k=2, is_ascend=False)
-    assert_almost_equal(nd_ret_topk, gt)
-    nd_ret_topk = mx.nd.topk(a_nd, axis=None, ret_typ="value", k=21, is_ascend=False).asnumpy()
-    gt = gt_topk(a_npy, axis=None, ret_typ="value", k=21, is_ascend=False)
+    nd_ret_topk = mx.nd.topk(large_matrix_nd, axis=1, ret_typ="indices", k=5, is_ascend=False).asnumpy()
+    gt = gt_topk(large_matrix_npy, axis=1, ret_typ="indices", k=5, is_ascend=False)
     assert_almost_equal(nd_ret_topk, gt)
 
-    # test for ret_typ=mask
-    nd_ret_topk = mx.nd.topk(a_nd, axis=1, ret_typ="mask", k=3, is_ascend=True).asnumpy()
-    gt = gt_topk(a_npy, axis=1, ret_typ="mask", k=3, is_ascend=True)
-    assert_almost_equal(nd_ret_topk, gt)
-    nd_ret_topk = mx.nd.topk(a_nd, axis=1, ret_typ="mask", k=2, is_ascend=False).asnumpy()
-    gt = gt_topk(a_npy, axis=1, ret_typ="mask", k=2, is_ascend=False)
-    assert_almost_equal(nd_ret_topk, gt)
-    nd_ret_topk = mx.nd.topk(a_nd, axis=None, ret_typ="mask", k=21, is_ascend=False).asnumpy()
-    gt = gt_topk(a_npy, axis=None, ret_typ="mask", k=21, is_ascend=False)
-    assert_almost_equal(nd_ret_topk, gt)
+    for dtype in [np.int16, np.int32, np.int64, np.float32, np.float64]:
+        a_npy = get_values(ensure_unique=True, dtype=dtype)
+        a_nd = mx.nd.array(a_npy, ctx=ctx)
 
-    # test for ret_typ=both
-    nd_ret_topk_val, nd_ret_topk_ind = mx.nd.topk(a_nd, axis=1, ret_typ="both", k=3, is_ascend=True)
-    nd_ret_topk_val = nd_ret_topk_val.asnumpy()
-    nd_ret_topk_ind = nd_ret_topk_ind.asnumpy()
-    gt_val = gt_topk(a_npy, axis=1, ret_typ="value", k=3, is_ascend=True)
-    gt_ind = gt_topk(a_npy, axis=1, ret_typ="indices", k=3, is_ascend=True)
-    assert_almost_equal(nd_ret_topk_val, gt_val)
-    assert_almost_equal(nd_ret_topk_ind, gt_ind)
+        # test for ret_typ=indices
+        nd_ret_topk = mx.nd.topk(a_nd, axis=1, ret_typ="indices", k=3, is_ascend=True).asnumpy()
+        gt = gt_topk(a_npy, axis=1, ret_typ="indices", k=3, is_ascend=True)
+        assert_almost_equal(nd_ret_topk, gt)
+        nd_ret_topk = mx.nd.topk(a_nd, axis=3, ret_typ="indices", k=2, is_ascend=False).asnumpy()
+        gt = gt_topk(a_npy, axis=3, ret_typ="indices", k=2, is_ascend=False)
+        assert_almost_equal(nd_ret_topk, gt)
+        nd_ret_topk = mx.nd.topk(a_nd, axis=None, ret_typ="indices", k=21, is_ascend=False).asnumpy()
+        gt = gt_topk(a_npy, axis=None, ret_typ="indices", k=21, is_ascend=False)
+        assert_almost_equal(nd_ret_topk, gt)
 
-    # test for sort
-    nd_ret_sort = mx.nd.sort(a_nd, axis=1, is_ascend=True).asnumpy()
-    gt = gt_topk(a_npy, axis=1, ret_typ="value", k=dat_size, is_ascend=True)
-    assert_almost_equal(nd_ret_sort, gt)
-    nd_ret_sort = mx.nd.sort(a_nd, axis=None, is_ascend=False).asnumpy()
-    gt = gt_topk(a_npy, axis=None, ret_typ="value",
-                 k=dat_size*dat_size*dat_size*dat_size, is_ascend=False)
-    assert_almost_equal(nd_ret_sort, gt)
+        # test for ret_typ=value
+        nd_ret_topk = mx.nd.topk(a_nd, axis=1, ret_typ="value", k=3, is_ascend=True).asnumpy()
+        gt = gt_topk(a_npy, axis=1, ret_typ="value", k=3, is_ascend=True)
+        assert_almost_equal(nd_ret_topk, gt)
+        nd_ret_topk = mx.nd.topk(a_nd, axis=3, ret_typ="value", k=2, is_ascend=False).asnumpy()
+        gt = gt_topk(a_npy, axis=3, ret_typ="value", k=2, is_ascend=False)
+        assert_almost_equal(nd_ret_topk, gt)
+        nd_ret_topk = mx.nd.topk(a_nd, axis=None, ret_typ="value", k=21, is_ascend=False).asnumpy()
+        gt = gt_topk(a_npy, axis=None, ret_typ="value", k=21, is_ascend=False)
+        assert_almost_equal(nd_ret_topk, gt)
 
-    # test for argsort
-    nd_ret_argsort = mx.nd.argsort(a_nd, axis=3, is_ascend=True).asnumpy()
-    gt = gt_topk(a_npy, axis=3, ret_typ="indices", k=dat_size, is_ascend=True)
-    assert_almost_equal(nd_ret_argsort, gt)
-    nd_ret_argsort = mx.nd.argsort(a_nd, axis=None, is_ascend=False).asnumpy()
-    gt = gt_topk(a_npy, axis=None, ret_typ="indices",
-                 k=dat_size*dat_size*dat_size*dat_size, is_ascend=False)
-    assert_almost_equal(nd_ret_argsort, gt)
+        # test for ret_typ=mask
+        nd_ret_topk = mx.nd.topk(a_nd, axis=1, ret_typ="mask", k=3, is_ascend=True).asnumpy()
+        gt = gt_topk(a_npy, axis=1, ret_typ="mask", k=3, is_ascend=True)
+        assert_almost_equal(nd_ret_topk, gt)
+        nd_ret_topk = mx.nd.topk(a_nd, axis=1, ret_typ="mask", k=2, is_ascend=False).asnumpy()
+        gt = gt_topk(a_npy, axis=1, ret_typ="mask", k=2, is_ascend=False)
+        assert_almost_equal(nd_ret_topk, gt)
+        nd_ret_topk = mx.nd.topk(a_nd, axis=None, ret_typ="mask", k=21, is_ascend=False).asnumpy()
+        gt = gt_topk(a_npy, axis=None, ret_typ="mask", k=21, is_ascend=False)
+        assert_almost_equal(nd_ret_topk, gt)
 
-    a = mx.nd.arange(0, 1024, step=1, repeat=1)
-    assert_almost_equal(a.topk(k=1024).asnumpy(), a.asnumpy()[::-1])
+        # test for ret_typ=both
+        nd_ret_topk_val, nd_ret_topk_ind = mx.nd.topk(a_nd, axis=1, ret_typ="both", k=3, is_ascend=True)
+        nd_ret_topk_val = nd_ret_topk_val.asnumpy()
+        nd_ret_topk_ind = nd_ret_topk_ind.asnumpy()
+        gt_val = gt_topk(a_npy, axis=1, ret_typ="value", k=3, is_ascend=True)
+        gt_ind = gt_topk(a_npy, axis=1, ret_typ="indices", k=3, is_ascend=True)
+        assert_almost_equal(nd_ret_topk_val, gt_val)
+        assert_almost_equal(nd_ret_topk_ind, gt_ind)
+        # test for kNullOp
+        _, nd_ret_topk_ind = mx.nd.topk(a_nd, axis=1, ret_typ="both", k=3, is_ascend=True)
+        nd_ret_topk_ind = nd_ret_topk_ind.asnumpy()
+        assert_almost_equal(nd_ret_topk_ind, gt_ind)
+        # test for kNullOp
+        nd_ret_topk_val, _ = mx.nd.topk(a_nd, axis=1, ret_typ="both", k=3, is_ascend=True)
+        nd_ret_topk_val = nd_ret_topk_val.asnumpy()
+        assert_almost_equal(nd_ret_topk_val, gt_val)
+
+        # test for sort
+        nd_ret_sort = mx.nd.sort(a_nd, axis=1, is_ascend=True).asnumpy()
+        gt = gt_topk(a_npy, axis=1, ret_typ="value", k=dat_size, is_ascend=True)
+        assert_almost_equal(nd_ret_sort, gt)
+        nd_ret_sort = mx.nd.sort(a_nd, axis=None, is_ascend=False).asnumpy()
+        gt = gt_topk(a_npy, axis=None, ret_typ="value",
+                     k=dat_size*dat_size*dat_size*dat_size, is_ascend=False)
+        assert_almost_equal(nd_ret_sort, gt)
+
+        # test for argsort
+        for idtype in [np.int32, np.float16, np.float32, np.float64]:
+            nd_ret_argsort = mx.nd.argsort(a_nd, axis=3, is_ascend=True, dtype=idtype).asnumpy()
+            gt = gt_topk(a_npy, axis=3, ret_typ="indices", k=dat_size, is_ascend=True)
+            assert_almost_equal(nd_ret_argsort, gt)
+            nd_ret_argsort = mx.nd.argsort(a_nd, axis=None, is_ascend=False, dtype=idtype).asnumpy()
+            gt = gt_topk(a_npy, axis=None, ret_typ="indices",
+                         k=dat_size*dat_size*dat_size*dat_size, is_ascend=False)
+            assert_almost_equal(nd_ret_argsort, gt)
+
+        # Repeat those tests that don't involve indices.  These should pass even with
+        # duplicated input data values (over many repeated runs with different random seeds,
+        # this will be tested).
+        a_npy = get_values(ensure_unique=False, dtype=dtype)
+        a_nd = mx.nd.array(a_npy, ctx=ctx)
+
+        # test for ret_typ=value
+        nd_ret_topk = mx.nd.topk(a_nd, axis=1, ret_typ="value", k=3, is_ascend=True).asnumpy()
+        gt = gt_topk(a_npy, axis=1, ret_typ="value", k=3, is_ascend=True)
+        assert_almost_equal(nd_ret_topk, gt)
+        nd_ret_topk = mx.nd.topk(a_nd, axis=3, ret_typ="value", k=2, is_ascend=False).asnumpy()
+        gt = gt_topk(a_npy, axis=3, ret_typ="value", k=2, is_ascend=False)
+        assert_almost_equal(nd_ret_topk, gt)
+        nd_ret_topk = mx.nd.topk(a_nd, axis=None, ret_typ="value", k=21, is_ascend=False).asnumpy()
+        gt = gt_topk(a_npy, axis=None, ret_typ="value", k=21, is_ascend=False)
+        assert_almost_equal(nd_ret_topk, gt)
+
+        # test for sort
+        nd_ret_sort = mx.nd.sort(a_nd, axis=1, is_ascend=True).asnumpy()
+        gt = gt_topk(a_npy, axis=1, ret_typ="value", k=dat_size, is_ascend=True)
+        assert_almost_equal(nd_ret_sort, gt)
+        nd_ret_sort = mx.nd.sort(a_nd, axis=None, is_ascend=False).asnumpy()
+        gt = gt_topk(a_npy, axis=None, ret_typ="value",
+                     k=dat_size*dat_size*dat_size*dat_size, is_ascend=False)
+        assert_almost_equal(nd_ret_sort, gt)
+
+    a = mx.nd.arange(0, 1024, step=1, repeat=1, dtype=np.int32)
+    assert_almost_equal(a.topk(k=1024, dtype=np.int32).asnumpy(), a.asnumpy()[::-1])
+    a.attach_grad()
+
+    k = 10
+    with mx.autograd.record():
+        b = mx.nd.topk(a, k=k, ret_typ='value')
+        b.backward(mx.nd.ones((k,), dtype=np.int32))
+    a_grad = a.grad.asnumpy()
+    for i in range(-1, - k - 1, -1):
+        assert a_grad[i] == 1
+
+    # test topk gradient with a small shape
+    for dtype in [np.int32, np.int64, np.float32, np.float64]:
+        a = mx.nd.arange(0, 1000, step=1, repeat=1, dtype=dtype)
+        a.attach_grad()
+        k = 10
+        ograd = mx.nd.arange(0, k, dtype=dtype)
+        with mx.autograd.record():
+            b = mx.nd.topk(a, k=k, ret_typ='value')
+            b.backward(ograd)
+        a_grad = a.grad.asnumpy()
+        ograd_npy = ograd.asnumpy()
+        for i in range(-1, - k - 1, -1):
+            assert a_grad[i] == ograd_npy[-i - 1]
 
     # Repeat those tests that don't involve indices.  These should pass even with
     # duplicated input data values (over many repeated runs with different random seeds,
     # this will be tested).
-    a_npy = get_values(ensure_unique=False)
-    a_nd = mx.nd.array(a_npy, ctx=ctx)
+    for dtype in [np.int16, np.int32, np.int64, np.float32, np.float64]:
+        a_npy = get_values(ensure_unique=False, dtype=dtype)
+        a_nd = mx.nd.array(a_npy, ctx=ctx)
 
-    # test for ret_typ=value
-    nd_ret_topk = mx.nd.topk(a_nd, axis=1, ret_typ="value", k=3, is_ascend=True).asnumpy()
-    gt = gt_topk(a_npy, axis=1, ret_typ="value", k=3, is_ascend=True)
-    assert_almost_equal(nd_ret_topk, gt)
-    nd_ret_topk = mx.nd.topk(a_nd, axis=3, ret_typ="value", k=2, is_ascend=False).asnumpy()
-    gt = gt_topk(a_npy, axis=3, ret_typ="value", k=2, is_ascend=False)
-    assert_almost_equal(nd_ret_topk, gt)
-    nd_ret_topk = mx.nd.topk(a_nd, axis=None, ret_typ="value", k=21, is_ascend=False).asnumpy()
-    gt = gt_topk(a_npy, axis=None, ret_typ="value", k=21, is_ascend=False)
-    assert_almost_equal(nd_ret_topk, gt)
+        # test for ret_typ=value
+        nd_ret_topk = mx.nd.topk(a_nd, axis=1, ret_typ="value", k=3, is_ascend=True).asnumpy()
+        gt = gt_topk(a_npy, axis=1, ret_typ="value", k=3, is_ascend=True)
+        assert_almost_equal(nd_ret_topk, gt)
+        nd_ret_topk = mx.nd.topk(a_nd, axis=3, ret_typ="value", k=2, is_ascend=False).asnumpy()
+        gt = gt_topk(a_npy, axis=3, ret_typ="value", k=2, is_ascend=False)
+        assert_almost_equal(nd_ret_topk, gt)
+        nd_ret_topk = mx.nd.topk(a_nd, axis=None, ret_typ="value", k=21, is_ascend=False).asnumpy()
+        gt = gt_topk(a_npy, axis=None, ret_typ="value", k=21, is_ascend=False)
+        assert_almost_equal(nd_ret_topk, gt)
 
-    # test for sort
-    nd_ret_sort = mx.nd.sort(a_nd, axis=1, is_ascend=True).asnumpy()
-    gt = gt_topk(a_npy, axis=1, ret_typ="value", k=dat_size, is_ascend=True)
-    assert_almost_equal(nd_ret_sort, gt)
-    nd_ret_sort = mx.nd.sort(a_nd, axis=None, is_ascend=False).asnumpy()
-    gt = gt_topk(a_npy, axis=None, ret_typ="value",
-                 k=dat_size*dat_size*dat_size*dat_size, is_ascend=False)
-    assert_almost_equal(nd_ret_sort, gt)
+        # test for sort
+        nd_ret_sort = mx.nd.sort(a_nd, axis=1, is_ascend=True).asnumpy()
+        gt = gt_topk(a_npy, axis=1, ret_typ="value", k=dat_size, is_ascend=True)
+        assert_almost_equal(nd_ret_sort, gt)
+        nd_ret_sort = mx.nd.sort(a_nd, axis=None, is_ascend=False).asnumpy()
+        gt = gt_topk(a_npy, axis=None, ret_typ="value",
+                     k=dat_size*dat_size*dat_size*dat_size, is_ascend=False)
+        assert_almost_equal(nd_ret_sort, gt)
 
 @with_seed()
 def test_ndarray_equal():
@@ -840,7 +943,7 @@ def test_iter():
     for i in range(x.size):
         assert same(y[i].asnumpy(), x[i].asnumpy())
 
-@unittest.skip("test fails intermittently. temporarily disabled till it gets fixed. tracked at https://github.com/apache/incubator-mxnet/issues/8049")
+@with_seed()
 def test_cached():
     sym = mx.sym.Convolution(kernel=(3, 3), num_filter=10) + 2
     op = mx.nd.CachedOp(sym)
@@ -931,8 +1034,8 @@ def test_ndarray_fluent():
                 assert almost_equal(regular.asnumpy(), fluent.asnumpy(), equal_nan=equal_nan)
 
     for func in ['flatten', 'norm', 'round', 'rint', 'fix', 'floor', 'ceil', 'trunc', 'zeros_like',
-                 'ones_like', 'abs', 'sign', 'sin', 'cos', 'degrees', 'radians',
-                 'exp', 'expm1', 'square', 'reciprocal', 'argmax_channel']:
+                 'ones_like', 'abs', 'sign', 'sin', 'cos', 'degrees', 'radians', 'exp', 'expm1',
+                 'square', 'reciprocal', 'argmax_channel', 'shape_array', 'size_array']:
         check_fluent_regular(func, {})
 
     for func in ['arccosh', 'arcsin', 'arccos', 'arctan', 'tan', 'sinh', 'cosh', 'tanh',
@@ -1275,33 +1378,42 @@ def test_ndarray_astype():
 
 @with_seed()
 def test_norm(ctx=default_context()):
-    np_arr = np.random.uniform(size=(3, 3, 3, 3))
-    mx_arr = mx.nd.array(np_arr, ctx=ctx)
-    arr1 = np.linalg.norm(np_arr, keepdims=False)
-    arr2 = mx.nd.norm(mx_arr, keepdims=False)
-    print(arr1)
-    print(arr2.asnumpy())
-    mx.test_utils.assert_almost_equal(arr1, arr2.asnumpy()[0])
+    try:
+        import scipy
+        assert LooseVersion(scipy.__version__) >= LooseVersion('0.1')
+        from scipy.linalg import norm as sp_norm
+    except (AssertionError, ImportError):
+        print("Could not import scipy.linalg.norm or scipy is too old. "
+              "Falling back to numpy.linalg.norm which is not numerically stable.")
+        from numpy.linalg import norm as sp_norm
 
-    for i in range(4):
-        arr1 = np.linalg.norm(np_arr, axis=i, keepdims=False)
-        arr2 = mx.nd.norm(mx_arr, axis=i, keepdims=False)
-        assert arr1.shape == arr2.shape
-        mx.test_utils.assert_almost_equal(arr1, arr2.asnumpy())
+    def l1norm(input_data, axis=0, keepdims=False):
+        return np.sum(abs(input_data), axis=axis, keepdims=keepdims)
+    def l2norm(input_data, axis=0, keepdims=False):
+        return sp_norm(input_data, axis=axis, keepdims=keepdims)
 
-        arr1 = np.linalg.norm(np_arr, axis=i, keepdims=True)
-        arr2 = mx.nd.norm(mx_arr, axis=i, keepdims=True)
-        assert arr1.shape == arr2.shape
-        mx.test_utils.assert_almost_equal(arr1, arr2.asnumpy())
-        if (i < 3):
-            arr1 = np.linalg.norm(np_arr, axis=(i, i+1), keepdims=False)
-            arr2 = mx.nd.norm(mx_arr, axis=(i, i+1), keepdims=False)
-            assert arr1.shape == arr2.shape
-            mx.test_utils.assert_almost_equal(arr1, arr2.asnumpy())
-            arr1 = np.linalg.norm(np_arr, axis=(i, i+1), keepdims=True)
-            arr2 = mx.nd.norm(mx_arr, axis=(i, i+1), keepdims=True)
-            assert arr1.shape == arr2.shape
-            mx.test_utils.assert_almost_equal(arr1, arr2.asnumpy())
+    in_data_dim = random_sample([4,5,6], 1)[0]
+    for force_reduce_dim1 in [True, False]:
+        in_data_shape = rand_shape_nd(in_data_dim)
+        if force_reduce_dim1:
+            in_data_shape = in_data_shape[:3] + (1, ) + in_data_shape[4:]
+        np_arr = np.random.uniform(-1, 1, in_data_shape).astype(np.float32)
+        mx_arr = mx.nd.array(np_arr, ctx=ctx)
+        for ord in [1, 2]:
+            for keep_dims in [True, False]:
+                for i in range(4):
+                    npy_out = l1norm(np_arr, i, keep_dims) if ord == 1 else l2norm(
+                        np_arr, i, keep_dims)
+                    mx_out = mx.nd.norm(mx_arr, ord=ord, axis=i, keepdims=keep_dims)
+                    assert npy_out.shape == mx_out.shape
+                    mx.test_utils.assert_almost_equal(npy_out, mx_out.asnumpy())
+                    if (i < 3):
+                        npy_out = l1norm(np_arr, (i, i + 1), keep_dims) if ord == 1 else l2norm(
+                            np_arr, (i, i + 1), keep_dims)
+                        mx_out = mx.nd.norm(mx_arr, ord=ord, axis=(i, i + 1), keepdims=keep_dims)
+                        assert npy_out.shape == mx_out.shape
+                        mx.test_utils.assert_almost_equal(npy_out, mx_out.asnumpy())
+
 
 @with_seed()
 def test_ndarray_cpu_shared_ctx():

@@ -114,6 +114,24 @@ def test_trainer_save_load():
     assert trainer._kvstore._updater.optimizer._get_lr(0) == 0.2
 
 @with_seed()
+def test_trainer_sparse_save_load():
+    x = gluon.Parameter('x', shape=(10, 1), lr_mult=1.0, stype='row_sparse')
+    x.initialize(ctx=[mx.cpu(0)], init='zeros')
+    trainer = gluon.Trainer([x], 'sgd', {'learning_rate': 0.1})
+    all_rows = mx.nd.arange(0, 10, ctx=mx.cpu(0))
+    with mx.autograd.record():
+        for w in x.list_row_sparse_data(all_rows):
+            y = w * 1
+            y.backward()
+    trainer.step(1)
+    assert trainer._kvstore._updater.optimizer._get_lr(0) == 0.1
+    trainer.save_states('test_trainer_sparse_save_load.states')
+    trainer.load_states('test_trainer_sparse_save_load.states')
+    x.lr_mult = 2.0
+    # check if parameter dict is correctly associated with optimizer after load_state
+    assert trainer._kvstore._updater.optimizer._get_lr(0) == 0.2
+
+@with_seed()
 def test_trainer_multi_layer_init():
     class Net(gluon.Block):
         def __init__(self, **kwargs):
@@ -191,6 +209,7 @@ def test_trainer_reset_kv():
         trainer.step(1)
         assert trainer._kvstore.type == kv
         # load would reset kvstore
+        mx.nd.waitall()
         params.load('test_trainer_reset_kv.params')
         assert trainer._kvstore is None
         assert trainer._kv_initialized is False
@@ -205,3 +224,31 @@ def test_trainer_reset_kv():
     kvs = ['local', 'device']
     for kv in kvs:
         check_trainer_reset_kv(kv)
+
+@with_seed()
+def test_trainer_sparse_kv():
+    def check_trainer_sparse_kv(kv, stype, grad_stype, update_on_kv):
+        params = gluon.ParameterDict()
+        x = params.get('x', shape=(10,1), lr_mult=1.0, stype=stype, grad_stype=grad_stype)
+        params.initialize(ctx=[mx.cpu(0), mx.cpu(1)], init='zeros')
+        trainer = gluon.Trainer(params, 'sgd', {'learning_rate': 0.1}, kvstore=kv)
+        all_rows = mx.nd.arange(0, 10, ctx=mx.cpu(0))
+        ws = x.list_data() if stype == 'default' else x.list_row_sparse_data(all_rows)
+        with mx.autograd.record():
+            for w in ws:
+                y = w + 1
+                y.backward()
+        trainer.step(1)
+        assert trainer._kvstore.type == kv
+        assert trainer._kv_initialized
+        assert trainer._update_on_kvstore is update_on_kv
+        # the updated parameter should be based on the loaded checkpoint
+        mx.nd.waitall()
+        updated_w = x.data(mx.cpu(0)) if stype == 'default' else x.row_sparse_data(all_rows)
+        assert (updated_w == -0.2).asnumpy().all()
+
+    kvs = ['local', 'device']
+    for kv in kvs:
+        check_trainer_sparse_kv(kv, 'default', 'default', True)
+        check_trainer_sparse_kv(kv, 'default', 'row_sparse', False)
+        check_trainer_sparse_kv(kv, 'row_sparse', 'row_sparse', True)

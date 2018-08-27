@@ -64,8 +64,10 @@ enum OpReqType {
  * \sa Resource
  */
 struct OpContext {
+  /*! \brief whether there is a backward phase to compute gradients. */
+  bool need_grad;
   /*! \brief whether it is training phase */
-  int is_train;
+  bool is_train;
   /*! \brief RunContext related resources */
   RunContext run_ctx;
   /*! \brief the callback when operation completes, used by asynchronize ops */
@@ -85,18 +87,19 @@ struct OpContext {
 
 /*! \brief the execution type of the operator */
 enum class ExecType {
-  /*! \brief Forward/Backward are synchronize calls */
+  /*! \brief Forward/Backward are synchronous calls */
   kSync,
   /*!
-   * \brief Forward/Backward are asynchronize,
+   * \brief Forward/Backward are asynchronous,
    *  will call OpContext.async_on_complete when operation finishes.
    */
   kAsync,
   /*!
-   * \brief Cross device copy operation, this is a special operator
-   *  That indicates copy across devices, the input and output can sit on different device.
-   *  In current implementation, copy operator is specially handled by executor.
-   *  This flag is used for special case treatment and future extension of different copy ops.
+   * \brief Cross device copy operation, this is a special operator that indicates it will copy
+   * across devices. For example the input and output for this type of operator can potentially
+   * reside on different devices.  In the current implementation, a copy operator is specially
+   * handled by an executor. This flag is used for special case treatment and future extension of
+   * different copy ops.
    */
   kCrossDeviceCopy,
   /*!

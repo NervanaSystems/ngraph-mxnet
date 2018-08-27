@@ -398,7 +398,6 @@ class Module(BaseModule):
 
         self.for_training = for_training
         self.inputs_need_grad = inputs_need_grad
-        self.binded = True
         self._grad_req = grad_req
 
         if not for_training:
@@ -454,6 +453,8 @@ class Module(BaseModule):
         if shared_module is not None and shared_module.optimizer_initialized:
             self.borrow_optimizer(shared_module)
 
+        self.binded = True
+
     def reshape(self, data_shapes, label_shapes=None):
         """Reshapes the module for new input shapes.
 
@@ -501,6 +502,8 @@ class Module(BaseModule):
 
         batch_size = self._exec_group.batch_size
         if kvstore and 'dist' in kvstore.type and '_sync' in kvstore.type:
+            batch_size *= kvstore.num_workers
+        if kvstore and 'ngraph' in kvstore.type:
             batch_size *= kvstore.num_workers
         rescale_grad = 1.0/batch_size
 

@@ -137,6 +137,11 @@ static inline bool SupportMKLDNN(const NDArray &input) {
       && SupportStorageMKLDNN(input.storage_type());
 }
 
+static inline bool MKLDNNEnvSet() {
+  static bool is_mkldnn_enabled = dmlc::GetEnv("MXNET_MKLDNN_ENABLED", true);
+  return is_mkldnn_enabled;
+}
+
 /*
  * This is to align address to a certain alignment.
  */
@@ -146,9 +151,11 @@ namespace op {
 struct ActivationParam;
 struct ConvolutionParam;
 struct DeconvolutionParam;
+struct SoftmaxParam;
 bool SupportMKLDNNAct(const ActivationParam& param);
 bool SupportMKLDNNConv(const ConvolutionParam& params, const NDArray &input);
 bool SupportMKLDNNDeconv(const DeconvolutionParam& params, const NDArray &input);
+bool SupportMKLDNNSoftmax(const SoftmaxParam& param);
 }
 
 static int GetTypeSize(int dtype) {
@@ -318,6 +325,7 @@ enum OutDataOp {
 };
 
 typedef std::pair<OutDataOp, mkldnn::memory *> mkldnn_output_t;
+void MKLDNNCopy(const mkldnn::memory &mem, const mkldnn::memory* this_mem);
 
 /*
  * These two functions try to create MKLDNN memory in an NDArray based on `req'.
@@ -490,6 +498,13 @@ class OpCheck {
            const std::vector<mxnet::OpReqType> &req,
            const std::vector<mxnet::NDArray> &outputs_);
 };
+
+bool MKLDNNStorageType(const nnvm::NodeAttrs &attrs,
+                       const int dev_mask,
+                       bool support_mkldnn,
+                       DispatchMode *dispatch_mode,
+                       std::vector<int> *in_attrs,
+                       std::vector<int> *out_attrs);
 
 #define MKLDNN_OPCHECK_INIT(backward, num_checks, inputs, outputs)  \
     static bool debug = dmlc::GetEnv("MXNET_MKLDNN_DEBUG", false);  \
