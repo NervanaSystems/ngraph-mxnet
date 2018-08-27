@@ -17,7 +17,7 @@
 #ifndef MXNET_NGRAPH_NGRAPH_SUBGRAPH_H_
 #define MXNET_NGRAPH_NGRAPH_SUBGRAPH_H_
 
-#include "../../../src/operator/subgraph/default_subgraph_op.h"
+#include "../../../src/operator/subgraph/subgraph_property.h"
 #include "ngraph_nnvm_ops.h"
 
 namespace ngraph_bridge {
