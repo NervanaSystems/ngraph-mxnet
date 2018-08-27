@@ -29,8 +29,7 @@
 #include <stack>
 #include <queue>
 
-#include "./default_subgraph_op.h"
-#include "./common.h"
+#include "./subgraph_property.h"
 
 namespace nnvm {
 NodePtr CreateVariableNode(const std::string& name);
@@ -46,12 +45,36 @@ using nnvm::NodePtr;
 using nnvm::NodeEntry;
 using nnvm::Graph;
 
-// TODO(junwu): Change this to 0
-#define SUBGRAPH_DEBUG 0
+#define DEBUG_SUBGRAPH 0
 
 namespace sg {  // sg stands for subgraph
 
-#if SUBGRAPH_DEBUG
+struct SimpleNode;
+using SimpleNodePtr = std::shared_ptr<SimpleNode>;
+
+/*!
+ * \brief Node of the undirected graph which replicates the network structures
+ * of the computational graph. It is used to ease the graph traversal for finding
+ * subgraphs.
+ */
+struct SimpleNode {
+  static SimpleNodePtr Create() {
+    return std::make_shared<SimpleNode>();
+  }
+  SimpleNode() : label(-1), node(nullptr) {}
+  /*! subgraph label */
+  int label;
+  /*! the original node in the computational graph it references*/
+  nnvm::Node* node;
+  /*!
+   * \brief output nodes of the current node
+   * key is node ptr and value is an array of indices standing for the entry indices
+   * in key->inputs whose source is the current node.
+   */
+  std::unordered_map<nnvm::Node*, std::vector<size_t>> outputs;
+};  // struct SimpleNode
+
+#if DEBUG_SUBGRAPH
 void PrintSubgraph(const std::vector<SimpleNode*>& simple_nodes) {
   std::string op_names = "";
   for (size_t i = 0; i < simple_nodes.size(); ++i) {
@@ -408,7 +431,7 @@ void FindSubgraphs(Graph* g,
                              &preselected_nodes);
 
       // filter out unqualified pre-selected nodes
-      std::vector<nnvm::Node*> filtered_nodes = subgraph_selector->Filter(g, preselected_nodes);
+      std::vector<nnvm::Node*> filtered_nodes = subgraph_selector->Filter(preselected_nodes);
 
       // make sure filtered_nodes is a subset of preselected_nodes
       for (const auto n : filtered_nodes) {
@@ -528,7 +551,6 @@ void FindOutputEntries(Graph* g,
         const auto nid = indexed_graph.node_id(it->first);
         // this is a node not belonging to the current subgraph
         if (simple_nodes[nid]->label != label) {
-          // TODO(zhengda) I need to test this.
           for (auto idx : it->second) {
             auto& e = simple_nodes[nid]->node->inputs[idx];
             output_entries->push_back(&e);
@@ -607,15 +629,14 @@ void CreateSubgraphNode(Graph* g,
                         const std::vector<SimpleNode*>& subgraph_nodes,
                         const size_t subgraph_id,
                         std::unordered_map<const nnvm::NodeEntry*, size_t>* entry_top_order_map) {
-#if SUBGRAPH_DEBUG
+#if DEBUG_SUBGRAPH
   LOG(INFO) << "Searching for input entries...";
 #endif
   std::vector<nnvm::NodeEntry*> input_entries;
   FindInputEntries(*g, simple_nodes, subgraph_nodes, *entry_top_order_map, &input_entries);
   std::vector<nnvm::NodeEntry> orig_input_entries;
-  // TODO(junwu): Confirm what value to pass to skip_var
   CutGraphInputs(input_entries, &orig_input_entries, false);
-#if SUBGRAPH_DEBUG
+#if DEBUG_SUBGRAPH
   PrintNodeEntries(input_entries);
   LOG(INFO) << "Searching for output entries...";
 #endif
@@ -642,7 +663,6 @@ void CreateSubgraphNode(Graph* g,
     // update entry_top_order_map with newly created orig_input_entries
     auto it = entry_top_order_map->find(input_entries[i]);
     CHECK(it != entry_top_order_map->end());
-    CHECK_EQ(entry_top_order_map->count(&e), 0U);
     entry_top_order_map->emplace(&e, it->second);
     // update input entries' source simple nodes' outputs map
     nnvm::Node* node = e.node.get();
@@ -655,7 +675,7 @@ void CreateSubgraphNode(Graph* g,
       sn->outputs[n.get()].push_back(i);
     }
   }
-#if SUBGRAPH_DEBUG
+#if DEBUG_SUBGRAPH
   PrintNodeEntries(output_entries);
 #endif
 }
@@ -734,18 +754,13 @@ Graph PartitionGraph(Graph&& g) {
   std::vector<std::vector<SimpleNode*>> subgraph_nodes;
   FindSubgraphs(&g, *subg_prop, simple_nodes, &subgraph_nodes);
   for (size_t i = 0; i < subgraph_nodes.size(); ++i) {
-#if SUBGRAPH_DEBUG
+#if DEBUG_SUBGRAPH
     std::set<SimpleNode*> simple_node_set(subgraph_nodes[i].begin(), subgraph_nodes[i].end());
     CHECK_EQ(simple_node_set.size(), subgraph_nodes[i].size());
     PrintSubgraph(subgraph_nodes[i]);
 #endif
     CreateSubgraphNode(&g, simple_nodes, subgraph_nodes[i], i, &entry_top_order_map);
   }
-#if SUBGRAPH_DEBUG
-  if (subgraph_nodes.size() == 0) {
-    LOG(INFO) << "The graph has no fuseable nodes, the original graph is returned.";
-  }
-#endif
   return g;
 }
 
