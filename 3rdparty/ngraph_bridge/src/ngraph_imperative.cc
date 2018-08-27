@@ -116,28 +116,26 @@ bool compute_forward_imperative(const nnvm::NodeAttrs &attrs,
     if (!op_ng) {
       NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
       op_ng = ngicache[op_key] = ngi.get_op_ngraph();
-      if (ngraph_log_verbose_detail && op_ng) {
-        LOG(INFO) << "Caching... " << attrs.op->name;
-      }
     }
   }
   // op_ng can be null if sgcompiler could not create ngraph IR
   // we fallback to mxnet kernel in this case
   if (op_ng && op_ng->ngraph_forward[mode]) {
-    if (ngraph_log_verbose_detail) {
-      LOG(INFO) << "ngraph imperative op: " << attrs.op->name << ", inputs "
-                << std::to_string(inputs.size()) << ", outputs "
-                << std::to_string(outputs.size());
+#ifndef NDEBUG
+    // log imperative op details in debug mode
+    LOG(INFO) << "ngraph imperative op: " << attrs.op->name << ", inputs "
+              << std::to_string(inputs.size()) << ", outputs "
+              << std::to_string(outputs.size());
 
-      for (const auto &m : attrs.dict) {
-        LOG(INFO) << "attrs.dict[" << m.first << "] = " << m.second;
-      }
+    for (const auto &m : attrs.dict) {
+      LOG(INFO) << "attrs.dict[" << m.first << "] = " << m.second;
     }
+#endif
     compute_forward(ctx, op_ng, inputs, req, outputs);
     return true;
   }
   return false;
-}
+}  // namespace ngraph_bridge
 
 struct StateFCompute {
   std::shared_ptr<Graph> ngraph_;
