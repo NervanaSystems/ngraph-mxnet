@@ -119,7 +119,7 @@ def test_ndarray_setitem():
     assert same(x.asnumpy(), x_np)
 
 
-@with_seed(0)
+@with_seed()
 def test_ndarray_elementwise():
     nrepeat = 10
     maxdim = 4
@@ -240,20 +240,18 @@ def test_ndarray_scalar():
     assert(np.sum(d.asnumpy()) < 1e-5)
 
 
-@with_seed(0)
+@with_seed()
 def test_ndarray_pickle():
     maxdim = 5
-    nrepeat = 10
-    for repeat in range(nrepeat):
-        for dim in range(1, maxdim):
-            a = random_ndarray(dim)
-            b = mx.nd.empty(a.shape)
-            a[:] = np.random.uniform(-10, 10, a.shape)
-            b[:] = np.random.uniform(-10, 10, a.shape)
-            a = a + b
-            data = pkl.dumps(a)
-            a2 = pkl.loads(data)
-            assert np.sum(a.asnumpy() != a2.asnumpy()) == 0
+    for dim in range(1, maxdim):
+        a = random_ndarray(dim)
+        b = mx.nd.empty(a.shape)
+        a[:] = np.random.uniform(-10, 10, a.shape)
+        b[:] = np.random.uniform(-10, 10, a.shape)
+        a = a + b
+        data = pkl.dumps(a)
+        a2 = pkl.loads(data)
+        assert np.sum(a.asnumpy() != a2.asnumpy()) == 0
 
 
 @with_seed()
@@ -551,8 +549,27 @@ def test_broadcast():
             err = np.square(ndarray_ret - numpy_ret).mean()
             assert err < 1E-8
 
+    def test_broadcast_like_axis():
+        testcases = [
+            # Lhs shape, rhs shape, lhs axis, rhs axis, result
+            [(1, 2, 1, 3), (5, 6, 7, 8), (0,2), (1,3), (6, 2, 8, 3)],
+            [(1,), (5,), (0,), (-1,), (5,)],
+            [(1, 7, 9, 1, 1), (9,), (-2,), (0,), (1, 7, 9, 9, 1)],
+            [(1, 7, 9, 1, 1), (9, 1), (-2, -1), (-2, -1), (1, 7, 9, 9, 1)],
+            [(2, 1), (1, 7, 9, 1, 1), (1,), (-3,), (2, 9)]
+        ]
+        
+        for test_data in testcases:
+            lhs = mx.nd.random.uniform(shape=test_data[0])
+            rhs = mx.nd.random.uniform(shape=test_data[1])
+            output = mx.nd.broadcast_like(lhs, rhs, lhs_axes=test_data[2], rhs_axes=test_data[3])
+
+            assert_exception(mx.nd.broadcast_like, mx.base.MXNetError, lhs, rhs, lhs_axes=(), rhs_axes=())
+            assert output.shape == test_data[4]
+
     test_broadcast_to()
     test_broadcast_like()
+    test_broadcast_like_axis()
 
 
 @with_seed()
