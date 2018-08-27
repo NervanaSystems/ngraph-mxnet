@@ -508,7 +508,7 @@ void Compiler::CheckInNgraph() {
       if (ngraph_log_verbose()) {
         unsupported_op_names.insert(node->operation_);
       }
-      if (ngraph_log_verbose_detail()) {
+      if (ngraph_log_verbose_detail) {
         std::cout << "NGRAPH_BRIDGE: Unsupported Op instance (verbose):"
                   << std::endl;
         node->printOpDetails(std::cout);

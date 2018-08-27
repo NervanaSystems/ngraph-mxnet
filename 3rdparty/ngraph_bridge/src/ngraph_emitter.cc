@@ -1677,7 +1677,7 @@ void Emitter::UnsupportedOps() {
     auto conv = create_deconvolution(data, filter, out_shape, node->orig_node_);
 
     if (conv->get_shape() != TShape_to_NShape(node->shape_)) {
-      if (ngraph_log_verbose_detail()) {
+      if (ngraph_log_verbose_detail) {
         std::cout << "NGRAPH_BRIDGE: Deconvolution with adjust and target "
                      "shape is not tested in MXNet."
                   << std::endl;
