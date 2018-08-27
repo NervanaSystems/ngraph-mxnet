@@ -129,16 +129,17 @@ Please see the files `3rdparty/ngraph_bridge/ngraph.mk` and `make/config.mk` for
              ```
 
 ## Distributed training
-MPI is required for multi-CPU support. Download Open MPI from [here](https://www.open-mpi.org/).
+Multi-CPU distributed training uses Intel MLSL and Intel MPI which are a part of nGraph distribution.
+Environment variables `PATH` and `LD_LIBRARY_PATH` will be updated with path to MPI binaries and libraries during installation.
 
-Use `USE_NGRAPH_DISTRIBUTED=1` and `NGRAPH_EXTRA_CMAKE_FLAGS=-DNGRAPH_DISTRIBUTED_ENABLE=1`
+Use `USE_NGRAPH_DISTRIBUTED=1` and `NGRAPH_EXTRA_CMAKE_FLAGS=-DUSE_NGRAPH_DISTRIBUTED=1`
 in order for MXNet to build with nGraph distributed support.
 
 Here's an example of a typical build command for distributed training:
 
 ``` sh
 cd MXNET_ROOT
-make USE_NGRAPH=1 USE_NGRAPH_DISTRIBUTED=1 NGRAPH_EXTRA_CMAKE_FLAGS=-DNGRAPH_DISTRIBUTED_ENABLE=1 USE_CUDA=0 DEBUG=0 -j
+make USE_NGRAPH=1 USE_NGRAPH_DISTRIBUTED=1 NGRAPH_EXTRA_CMAKE_FLAGS=-DUSE_NGRAPH_DISTRIBUTED=1 USE_CUDA=0 DEBUG=0 -j
 ```
 
 Here's an example to run ResNet-50 on two nodes:
@@ -146,7 +147,7 @@ Here's an example to run ResNet-50 on two nodes:
 ``` sh
 export MXNET_NGRAPH_GLUON=1
 export MXNET_ENGINE_TYPE=NaiveEngine
-mpirun -map-by node -x MXNET_NGRAPH_GLUON -x MXNET_ENGINE_TYPE -hostfile hosts -np 2 python MXNET_ROOT/example/image-classification/train_cifar10.py --network resnet --num-layers 50 --kv-store ngraph
+mpirun -hostfile hosts -np 2 python MXNET_ROOT/example/image-classification/train_cifar10.py --network resnet --num-layers 50 --kv-store ngraph
 ```
 
 ## Runtime environment variables

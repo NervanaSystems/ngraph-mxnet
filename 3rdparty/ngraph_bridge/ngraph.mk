@@ -133,10 +133,7 @@ $(NGRAPH_BRIDGE_OBJ): %.o: ngraph $(NGRAPH_BRIDGE_SRC)
   endif
 
   ifeq ($(USE_NGRAPH_DISTRIBUTED), 1)
-    MPI_COMPILE_FLAGS = $(shell mpicxx --showme:compile)
-    NGRAPH_CFLAGS += \
-      $(MPI_COMPILE_FLAGS) \
-      -DMXNET_USE_NGRAPH_DISTRIBUTED=1
+    NGRAPH_CFLAGS += -DMXNET_USE_NGRAPH_DISTRIBUTED=1
   endif
 
   # nGraph provides some libraries that may compete with other libraries already installed
@@ -156,7 +153,7 @@ $(NGRAPH_BRIDGE_OBJ): %.o: ngraph $(NGRAPH_BRIDGE_SRC)
     -lcpu_backend
 
   ifeq ($(USE_NGRAPH_DISTRIBUTED), 1)
-    NGRAPH_LDFLAGS_ += $(shell mpicxx --showme:link)
+    NGRAPH_LDFLAGS_ += -lmlsl
   endif
 
   # The static-link-time flags for creating .so files that will dynamically link to nGraph's libs
