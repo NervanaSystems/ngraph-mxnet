@@ -67,6 +67,7 @@ class Emitter {
   // information on compiled objects
   std::map<NodePtr, NgraphNodePtr> op_map_;
   std::map<NodePtr, NgraphNodePtr> aux_op_map_;
+  std::map<NodePtr, std::vector<NgraphNodePtr>> multi_output_map_;
   std::vector<NodePtr> placeholder_order_;
   GraphExeMode exe_mode_;
 

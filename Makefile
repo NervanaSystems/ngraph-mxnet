@@ -80,10 +80,11 @@ ifeq ($(USE_MKLDNN), 1)
 	export USE_MKLML = 1
 endif
 
-include ngraph.mk
 
 include $(TPARTYDIR)/mshadow/make/mshadow.mk
 include $(DMLC_CORE)/make/dmlc.mk
+
+include 3rdparty/ngraph_bridge/ngraph.mk
 
 # all tge possible warning tread
 WARNFLAGS= -Wall -Wsign-compare -Wno-comment
@@ -386,10 +387,6 @@ endif
 all: lib/libmxnet.a lib/libmxnet.so $(BIN) extra-packages
 
 SRC = $(wildcard src/*/*/*/*.cc src/*/*/*.cc src/*/*.cc src/*.cc)
-ifneq ($(USE_NGRAPH),1)
-    SRC := $(foreach f,$(SRC),$(if $(findstring src/ngraph,$f),,$f))
-endif
-
 OBJ = $(patsubst %.cc, build/%.o, $(SRC))
 CUSRC = $(wildcard src/*/*/*/*.cu src/*/*/*.cu src/*/*.cu src/*.cu)
 CUOBJ = $(patsubst %.cu, build/%_gpu.o, $(CUSRC))
@@ -405,6 +402,10 @@ else
 	EXTRA_OBJ =
 	EXTRA_CUSRC =
 	EXTRA_CUOBJ =
+endif
+
+ifeq ($(USE_NGRAPH), 1)
+	EXTRA_OBJ += $(NGRAPH_BRIDGE_OBJ)
 endif
 
 # plugin
@@ -483,12 +484,12 @@ build/src/%_gpu.o: src/%.cu | mkldnn ngraph
 
 # A nvcc bug cause it to generate "generic/xxx.h" dependencies from torch headers.
 # Use CXX to generate dependency instead.
-build/plugin/%_gpu.o: plugin/%.cu
+build/plugin/%_gpu.o: plugin/%.cu | ngraph
 	@mkdir -p $(@D)
 	$(CXX) -std=c++11 $(CFLAGS) -MM -MT build/plugin/$*_gpu.o $< >build/plugin/$*_gpu.d
 	$(NVCC) -c -o $@ $(NVCCFLAGS) $(CUDA_ARCH) -Xcompiler "$(CFLAGS)" $<
 
-build/plugin/%.o: plugin/%.cc
+build/plugin/%.o: plugin/%.cc | ngraph
 	@mkdir -p $(@D)
 	$(CXX) -std=c++11 -c $(CFLAGS) -MMD -c $< -o $@
 

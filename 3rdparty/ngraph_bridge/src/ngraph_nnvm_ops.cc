@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-#include "../operator/operator_common.h"
+#include "../../../src/operator/operator_common.h"
 #include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
 #include "ngraph_nnvm_utils.h"

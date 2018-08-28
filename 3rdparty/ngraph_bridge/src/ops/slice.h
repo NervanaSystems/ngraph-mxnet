@@ -14,16 +14,16 @@
 * limitations under the License.
 *******************************************************************************/
 
-#ifndef MXNET_NGRAPH_OPS_DECONVOLUTION_H_
-#define MXNET_NGRAPH_OPS_DECONVOLUTION_H_
+#ifndef MXNET_NGRAPH_OPS_SLICE_H_
+#define MXNET_NGRAPH_OPS_SLICE_H_
 
-#include "ngraph_emitter.h"
+#include "../ngraph_emitter.h"
 
 namespace ngraph_bridge {
-NgraphNodePtr create_deconvolution(const NgraphNodePtr& data,
-                                   const NgraphNodePtr& shape,
-                                   const ngraph::Shape& out_shape,
-                                   const nnvm::NodePtr& orig_node);
+
+NgraphNodePtr create_slice_op(const NgraphNodePtr& node,
+                              const nnvm::NodeAttrs& attrs);
+
 }  // namespace ngraph_bridge
 
-#endif  // MXNET_NGRAPH_OPS_DECONVOLUTION_H_
+#endif  // MXNET_NGRAPH_OPS_SLICE_H_

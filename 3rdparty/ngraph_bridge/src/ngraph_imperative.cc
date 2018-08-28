@@ -24,9 +24,9 @@
 #include <nnvm/symbolic.h>
 #include <algorithm>
 #include <cstring>
-#include "../executor/exec_pass.h"
+#include "../../../src/executor/exec_pass.h"
 
-#include "../operator/operator_common.h"
+#include "../../../src/operator/operator_common.h"
 #include "ngraph_imperative.h"
 #include "ngraph_nnvm_ops.h"
 #include "ngraph_nnvm_utils.h"

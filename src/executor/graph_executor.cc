@@ -25,6 +25,11 @@
 #include <mxnet/base.h>
 #include <nnvm/graph.h>
 #include <nnvm/pass_functions.h>
+#if MXNET_USE_NGRAPH == 1
+#include <ngraph_compiler.h>
+#include <ngraph_utils.h>
+#include <ngraph_subgraph.h>
+#endif
 #include <vector>
 #include <algorithm>
 
@@ -35,10 +40,7 @@
 #include "../common/exec_utils.h"
 
 #if MXNET_USE_NGRAPH == 1
-#include "../ngraph/ngraph_compiler.h"
-#include "../ngraph/ngraph_utils.h"
 #include "../operator/subgraph/default_subgraph_op.h"
-#include "../ngraph/ngraph_subgraph.h"
 #endif
 namespace mxnet {
 namespace exec {
@@ -1270,7 +1272,7 @@ void GraphExecutor::InitCachedOps() {
       }
     }
   }
-  // Note that this modifies the requirment of kWriteInplace
+  // Note that this modifies the requirement of kWriteInplace
   for (size_t j = num_forward_outputs_; j < idx.outputs().size(); ++j) {
     auto& e = idx.outputs()[j];
     op_nodes_[e.node_id].exec->req[e.index] =

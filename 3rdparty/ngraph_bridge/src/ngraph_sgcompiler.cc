@@ -107,7 +107,8 @@ void CompileForwardBackward(std::shared_ptr<Graph> sub_graph,
         auto cloned_bf_param = bfmap.get(bf_param);
         auto layout =
             cloned_result->get_output_tensor_view()->get_tensor_view_layout();
-        cloned_bf_param->get_output_tensor_view()->set_tensor_view_layout(layout);
+        cloned_bf_param->get_output_tensor_view()->set_tensor_view_layout(
+            layout);
       }
     }
   }
@@ -265,9 +266,9 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeBackwardFunction(
       Y = op_map_.at(node);
       // Create the Adjoint
       C = make_and_cache_parameter(Y);
+      sub_graph->is_loss.push_back(false);
     } else {
       // mark this graph as being a loss output
-      sub_graph->is_loss = true;
       Y = op_map_.at(node->inputs_[0]);
       if (node->operation_ == "SoftmaxOutput" &&
           get_default(node, "out_grad", false)) {
@@ -276,6 +277,7 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeBackwardFunction(
         C = makeConstant(node, "1");
       }
       C = loss_op_backward_funcs_[node->operation_](node, C);
+      sub_graph->is_loss.push_back(true);
     }
     outputs.push_back(Y);
     adjoints.push_back(C);

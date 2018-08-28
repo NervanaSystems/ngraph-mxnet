@@ -1,19 +1,18 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
+#*******************************************************************************
+# Copyright 2018 Intel Corporation
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#*******************************************************************************
 
 ####################################################################################################
 # USAGE / OVERVIEW:
@@ -64,11 +63,15 @@ ifneq ($(NGRAPH_DIR),)
 endif
 
 #===================================================================================================
+ADD_NGRAPH_LIBDIR_TO_MXNET_RPATH=1
+override NGRAPH_EXTRA_CMAKE_FLAGS += -DNGRAPH_UNIT_TEST_ENABLE=0 -DNGRAPH_TOOLS_ENABLE=0
+NGRAPH_EXTRA_MAKE_FLAGS="VERBOSE=1"
 
-NGRAPH_SRC_DIR := $(ROOTDIR)/3rdparty/ngraph
-NGRAPH_BUILD_DIR := $(ROOTDIR)/3rdparty/ngraph/build
-NGRAPH_INSTALL_DIR := $(ROOTDIR)/3rdparty/ngraph/install
+NGRAPH_SRC_DIR := $(ROOTDIR)/3rdparty/ngraph_bridge
+NGRAPH_BUILD_DIR := $(ROOTDIR)/3rdparty/ngraph_bridge/build
+NGRAPH_INSTALL_DIR := $(ROOTDIR)/3rdparty/ngraph_bridge/build
 MXNET_LIB_DIR := $(ROOTDIR)/lib
+
 
 # The 'clean' target should remove nGraph-related generated files, regardless of whether or not
 # the current Make invocation has USE_NGRAPH=1 ...
@@ -97,9 +100,9 @@ ngraph:
 	  fi
 	cd "$(NGRAPH_BUILD_DIR)"; \
 	cmake "$(NGRAPH_SRC_DIR)" \
-	  -DCMAKE_INSTALL_PREFIX="$(NGRAPH_INSTALL_DIR)" \
-	  $(NGRAPH_EXTRA_CMAKE_FLAGS); \
-	$(MAKE) all install $(NGRAPH_EXTRA_MAKE_FLAGS)
+	  -DCMAKE_INSTALL_PREFIX="$(NGRAPH_INSTALL_DIR)" -DUSE_CUDA=$(USE_CUDA) -DBLAS=$(USE_BLAS)\
+    -DUSE_NGRAPH_DISTRIBUTED=$(USE_NGRAPH_DISTRIBUTED) $(NGRAPH_EXTRA_CMAKE_FLAGS); \
+  $(MAKE) all $(NGRAPH_EXTRA_MAKE_FLAGS)
 
 	# Copy contents of nGraph's 'lib' directory into MXnet's lib directory, taking care to
 	# preserve the relative symlinks used to support Linux shared-object versioning.
@@ -113,11 +116,16 @@ ngraph:
 	@echo 3rdparty/ngraph INTERNAL BUILD/INSTALLATION SUCCESSFUL
 	@echo
 
+NGRAPH_BRIDGE_SRC = $(wildcard $(ROOTDIR)/3rdparty/ngraph_bridge/src/*.cc)
+NGRAPH_BRIDGE_SRC += $(wildcard $(ROOTDIR)/3rdparty/ngraph_bridge/src/ops/*.cc)
+NGRAPH_BRIDGE_OBJ = $(patsubst %.cc,%.cc.o,$(patsubst $(ROOTDIR)/3rdparty/ngraph_bridge/src/%,$(ROOTDIR)/3rdparty/ngraph_bridge/build/src/CMakeFiles/ngraph_bridge.dir/%,$(NGRAPH_BRIDGE_SRC)))
+
+$(NGRAPH_BRIDGE_OBJ): %.o: ngraph $(NGRAPH_BRIDGE_SRC)
 
   # Set NGRAPH_CFLAGS ...
   NGRAPH_CFLAGS = \
     "-I$(NGRAPH_INSTALL_DIR)/include" \
-    "-I$(ROOTDIR)/src/ngraph" \
+    "-I$(ROOTDIR)/3rdparty/ngraph_bridge/src" \
     -DMXNET_USE_NGRAPH=1
 
   ifeq ($(USE_NGRAPH_IE),1)
@@ -140,18 +148,12 @@ ngraph:
     -lmklml_intel \
     -lmkldnn
 
-  # These following libraries are part of ngraph, and provide symbols required by nGraph's
-  # public-interface header files, BUT are not reported as dependencies in libngraph.so's
-  # ELF header.  We enumerate them here so we can make sure they get linked in appropriately.
-  NGRAPH_HELPER_LIBS_LDFLAGS_ := \
-    -lcpu_backend
-
   NGRAPH_LDFLAGS_ := \
     -L$(MXNET_LIB_DIR) \
     -Wl,-rpath-link=$(MXNET_LIB_DIR) \
     $(NGRAPH_COMMON_LIBRARY_LDFLAGS_) \
     -lngraph \
-    $(NGRAPH_HELPER_LIBS_LDFLAGS_)
+    -lcpu_backend
 
   ifeq ($(USE_NGRAPH_DISTRIBUTED), 1)
     NGRAPH_LDFLAGS_ += $(shell mpicxx --showme:link)

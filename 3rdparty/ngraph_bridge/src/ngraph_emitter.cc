@@ -59,6 +59,7 @@ void Emitter::ClearOpMap() {
   // delete the temporary storage
   op_map_.clear();
   placeholder_order_.clear();
+  multi_output_map_.clear();
 }
 
 /**
@@ -587,9 +588,9 @@ void Emitter::CreateBinaryOps() {
   };
   ngraph_op_funcs_["reshape_like"] = [this](const NodePtr& node) {
     auto arg0 = op_map_[node->inputs_[0]];
-    auto reshape = op_map_[node->inputs_[1]]->get_shape();
+    auto out_shape = TShape_to_NShape(node->shape_);
     return std::make_shared<ngraph::op::Reshape>(
-        arg0, pyrange(arg0->get_shape().size()), reshape);
+        arg0, pyrange(arg0->get_shape().size()), out_shape);
   };
   ngraph_op_funcs_["_plus_scalar"] = [this](const NodePtr& node) {
     return CreateScalarOp<ngraph::op::Add>(node);
@@ -704,7 +705,6 @@ void Emitter::CreateBinaryOps() {
         get_default(node, "shape", std::vector<size_t>{})};
     ngraph::AxisSet broadcast_axes;
     ngraph::Shape proxy_shape;
-    assert(ngraph::shape_size(input_shape) == ngraph::shape_size(output_shape));
     // ngraph::op::broadcast does not allow in-place broadcast (must add a
     // new axis), so we reshape the input and eliminate axes with length 1,
     // then add these axes back with proper output length through
@@ -881,6 +881,11 @@ void Emitter::CreateLayerOps() {
     bool squeeze_axis = get_default(node, "squeeze_axis", false);
 
     auto input = op_map_[node->inputs_[0]];
+
+    if (index < 0) {
+      return input;
+    }
+
     auto input_shape = input->get_shape();
     size_t slice_step = input_shape[axis] / num_outputs;
     return slice_data_on_axis(input, index * slice_step, slice_step, axis,
@@ -1128,6 +1133,10 @@ void Emitter::CreateLayerOps() {
 
   // batch norm operation
   ngraph_op_funcs_["BatchNorm"] = [this](const NodePtr& node) -> NgraphNodePtr {
+    if (node->multi_output_index_ >= 0) {
+      return multi_output_map_.at(node->inputs_[0])
+          .at(node->multi_output_index_);
+    }
     enum InputName { kData = 0, kGamma, kBeta, kMovingMean, kMovingVar };
     NgraphNodePtr ng_in_data = op_map_[node->inputs_[kData]];
     NgraphNodePtr ng_in_gamma = op_map_[node->inputs_[kGamma]];
@@ -1197,6 +1206,9 @@ void Emitter::CreateLayerOps() {
           ng_in_moving_var * ng_momentum +
           ng_batch_var * (ng_one - ng_momentum);
 
+      multi_output_map_[node] = {ng_normalized_data, ng_batch_mean,
+                                 ng_batch_var};
+
       return ng_normalized_data;
     }
 
@@ -1217,6 +1229,8 @@ void Emitter::CreateLayerOps() {
                 eps, ng_actual_gamma, ng_in_beta, ng_in_data, ng_in_moving_mean,
                 ng_in_moving_var, true);
 
+        multi_output_map_[node] = {ng_normalized_data, ng_in_moving_mean,
+                                   ng_in_moving_var};
         return ng_normalized_data;
       } else {
         // NOTE: This call is intentionally the same as another call below.  The
@@ -1229,6 +1243,8 @@ void Emitter::CreateLayerOps() {
                 eps, ng_maybe_gamma, ng_in_beta, ng_in_data, ng_in_moving_mean,
                 ng_in_moving_var, channel_axis);
 
+        multi_output_map_[node] = {ng_normalized_data, ng_in_moving_mean,
+                                   ng_in_moving_var};
         return ng_normalized_data;
       }
     }
@@ -1243,6 +1259,8 @@ void Emitter::CreateLayerOps() {
                 eps, ng_actual_gamma, ng_in_beta, ng_in_data, ng_in_moving_mean,
                 ng_in_moving_var, false);
 
+        multi_output_map_[node] = {ng_normalized_data, ng_in_moving_mean,
+                                   ng_in_moving_var};
         return ng_normalized_data;
       } else {
         const NgraphNodePtr ng_normalized_data =
@@ -1250,6 +1268,8 @@ void Emitter::CreateLayerOps() {
                 eps, ng_maybe_gamma, ng_in_beta, ng_in_data, ng_in_moving_mean,
                 ng_in_moving_var, channel_axis);
 
+        multi_output_map_[node] = {ng_normalized_data, ng_in_moving_mean,
+                                   ng_in_moving_var};
         return ng_normalized_data;
       }
     }
@@ -1484,6 +1504,17 @@ void Emitter::CreateLossOps() {
     bool ignore = false;
     NgraphNodePtr mask;
 
+    if (get_default(node, "multi_output", false)) {
+      ngraph::Shape new_shape{label->get_shape()[0]};
+      new_shape.insert(new_shape.end(), begin(softmax->get_shape()) + 2,
+                       end(softmax->get_shape()));
+      if (shape_size(new_shape) != shape_size(label->get_shape())) {
+        new_shape.insert(begin(new_shape) + 1, shape_size(label->get_shape()) /
+                                                   shape_size(new_shape));
+      }
+      label = std::make_shared<ngraph::op::Reshape>(
+          label, pyrange(label->get_shape().size()), new_shape);
+    }
     if (label->get_shape() != softmax->get_shape()) {
       if (use_ignore) {
         ignore = true;
@@ -1493,6 +1524,7 @@ void Emitter::CreateLossOps() {
                                                 label->get_shape(),
                                                 std::to_string(ignore_label))),
                         getType(node->dtype_));
+        label = label * mask;
       }
       size_t axis = op_map_[node->inputs_[0]]->get_shape().size() - 1;
       if (get_default(node, "multi_output", false)) {
@@ -1501,7 +1533,7 @@ void Emitter::CreateLossOps() {
       label = std::make_shared<ngraph::op::OneHot>(label, softmax->get_shape(),
                                                    axis);
       if (ignore) {
-        // We need to reshape the mast so we can broadcast it with
+        // We need to reshape the mask so we can broadcast it with
         // the gradient
         ngraph::Shape new_shape = softmax->get_shape();
         new_shape[axis] = 1;

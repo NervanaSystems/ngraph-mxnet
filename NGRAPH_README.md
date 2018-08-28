@@ -25,7 +25,7 @@ are as follows:
 - `NGRAPH_EXTRA_MAKE_FLAGS` - This variable can provide additional command-line
   arguments to the invocation of `make` used to compile and link nGraph.
 
-Please see the files `ngraph.mk` and `make/config.mk` for more details.
+Please see the files `3rdparty/ngraph_bridge/ngraph.mk` and `make/config.mk` for more details.
 
 ## Compilation instructions for Ubuntu 16.04
 
@@ -131,8 +131,8 @@ Please see the files `ngraph.mk` and `make/config.mk` for more details.
 ## Distributed training
 MPI is required for multi-CPU support. Download Open MPI from [here](https://www.open-mpi.org/).
 
-Use `USE_NGRAPH_DISTRIBUTED=1` and `NGRAPH_EXTRA_CMAKE_FLAGS=-DNGRAPH_DISTRIBUTED_ENABLE=1` 
-in order for MXNet to build with nGraph distributed support. 
+Use `USE_NGRAPH_DISTRIBUTED=1` and `NGRAPH_EXTRA_CMAKE_FLAGS=-DNGRAPH_DISTRIBUTED_ENABLE=1`
+in order for MXNet to build with nGraph distributed support.
 
 Here's an example of a typical build command for distributed training:
 

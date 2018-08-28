@@ -23,8 +23,8 @@
 #include <cstdlib>
 #include <sstream>
 #include <thread>
-#include "../executor/exec_pass.h"
-#include "../imperative/imperative_utils.h"
+#include "../../../src/executor/exec_pass.h"
+#include "../../../src/imperative/imperative_utils.h"
 #include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
 #include "ngraph_sgcompiler_utils.h"
@@ -46,13 +46,18 @@ nnvm::NodePtr CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
   node->attrs.op = nnvm::Op::Get("_ngraph_subgraph_op");
   // setup the inputs to the node
   for (auto input : subgraph->inputs_)
-    if (input->type_ == NodeType::kOutput) {
+    if (input->type_ == NodeType::kOutput && subgraph->subgraph_ > 0) {
       auto n = std::dynamic_pointer_cast<OutputElement>(input);
       node->inputs.emplace_back(nnvm::NodeEntry{
           n->base_node_->orig_node_,
           static_cast<uint32_t>(n->base_node_->multi_output_index_),
           static_cast<uint32_t>(0)});
-
+      // } else if (input->type_ == NodeType::kOutput) {
+      //   auto n = std::dynamic_pointer_cast<OutputElement>(input);
+      //   node->inputs.emplace_back(nnvm::NodeEntry{
+      //       n->base_node_->orig_node_,
+      //       static_cast<uint32_t>(n->multi_output_index_),
+      //       static_cast<uint32_t>(0)});
     } else {
       node->inputs.emplace_back(nnvm::NodeEntry{
           input->orig_node_, static_cast<uint32_t>(input->multi_output_index_),
@@ -207,7 +212,7 @@ void Compiler::IdentifyCollapseGraphs() {
         break;
       }
     }
-    return (s->in_ngraph_ && s->type_ == NodeType::kOp && !in_feed_dict);
+    return (s->in_ngraph_ && !in_feed_dict);
   });
 
   // Output Graphviz dot files (post collapse) for vizualization
@@ -219,7 +224,7 @@ void Compiler::IdentifyCollapseGraphs() {
 void Compiler::CreateSubgraphNNVMNodes() {
   // find the subgraphs
   for (auto n : ngraph_.nodes_) {
-    if (n->type_ == NodeType::kGraph) {
+    if (n->type_ == NodeType::kGraph && n->subgraph_ > 0) {
       // extract and compile subgraph
       compiler_.setExeMode(GraphExeMode::kInfer);
       auto sg = compiler_.Compile(n);
@@ -230,9 +235,6 @@ void Compiler::CreateSubgraphNNVMNodes() {
         compiler_.setExeMode(static_cast<GraphExeMode>(i));
         compiler_.Compile(n);
       }
-
-      // register compiled subgraph with nnvm
-      // register_subgraph(sg);
 
       // add subgraph to stats tracker
       if (ngraph_log_timer()) {
@@ -294,7 +296,7 @@ void Compiler::ConnectSubgraphNodes() {
 void Compiler::CollapseNNVMGraph() {
   for (auto n : ngraph_.nodes_) {
     // Find the subgraphs
-    if (n->type_ == NodeType::kGraph) {
+    if (n->type_ == NodeType::kGraph && n->subgraph_ > 0) {
       auto sg = std::dynamic_pointer_cast<Graph>(n);
       // get the NNVM node
       auto node = compiled_nodes_.at(sg);
@@ -358,7 +360,6 @@ void Compiler::CleanUpUneededReferences() {
 // Main compilation function
 nnvm::Graph Compiler::Compile() {
   IdentifyCollapseGraphs();
-
   for (auto node : ngraph_.nodes_) {
     // store the input variable shape for use by nnvm
     // This is happening because my nnvm graph manipulations are
@@ -468,34 +469,36 @@ bool bad_type(const NodePtr& node) {
          node->stype_ != mxnet::kDefaultStorage;
 }
 
+bool Compiler::IsInNGraph(const NodePtr& node) {
+  bool in_ngraph_ = false;
+  if (bad_type(node)) {
+    return false;
+  } else if (std::find_if(node->inputs_.begin(), node->inputs_.end(),
+                         bad_type) != node->inputs_.end()) {
+    return false;
+  } else if (node->type_ == NodeType::kOp || node->type_ == NodeType::kGraph ||
+      node->type_ == NodeType::kOutput) {
+    if (compiler_.supported_ops.count(node->operation_)) {
+      in_ngraph_ = compiler_.supported_ops[node->operation_](node);
+    }
+  }
+  return in_ngraph_;
+}
+
 // Check nodes in NGraph
 void Compiler::CheckInNgraph() {
   std::unordered_set<std::string> unsupported_op_names;
   for (const std::shared_ptr<ngraph_bridge::Node>& node : ngraph_.nodes_) {
-    // The bridge code only has nGraph emitters for kOp-type nodes.
-    if (node->type_ == NodeType::kOp) {
-      if (compiler_.supported_ops.count(node->operation_)) {
-        node->in_ngraph_ = compiler_.supported_ops[node->operation_](node);
-        // nGraph doesn't yet support float16 or sparse storage.
-        if (bad_type(node)) {
-          node->in_ngraph_ = false;
-        } else {
-          if (std::find_if(node->inputs_.begin(), node->inputs_.end(),
-                           bad_type) != node->inputs_.end()) {
-            node->in_ngraph_ = false;
-          }
-        }
-
-      } else {
-        if (ngraph_log_verbose()) {
-          unsupported_op_names.insert(node->operation_);
-        }
-        if (ngraph_log_verbose_detail()) {
-          std::cout << "NGRAPH_BRIDGE: Unsupported Op instance (verbose):"
-                    << std::endl;
-          node->printOpDetails(std::cout);
-          std::cout << std::endl;
-        }
+    node->in_ngraph_ = IsInNGraph(node);
+    if (!node->in_ngraph_) {
+      if (ngraph_log_verbose()) {
+        unsupported_op_names.insert(node->operation_);
+      }
+      if (ngraph_log_verbose_detail()) {
+        std::cout << "NGRAPH_BRIDGE: Unsupported Op instance (verbose):"
+                  << std::endl;
+        node->printOpDetails(std::cout);
+        std::cout << std::endl;
       }
     }
   }
@@ -506,40 +509,76 @@ void Compiler::CheckInNgraph() {
 
 // Function that parses an nnvm Graph into an intermediary graph
 void Compiler::ParseNnvmGraph() {
+  // get the shape, data and storage types of all of the nodes
+  const auto& idx = graph_.indexed_graph();
+  const auto inferred_shapes =
+      graph_.GetAttr<std::vector<nnvm::TShape>>("shape");
+  const auto inferred_dtypes = graph_.GetAttr<std::vector<int>>("dtype");
+  const auto& inferred_stypes =
+      graph_.GetAttr<mxnet::StorageTypeVector>("storage_type");
+  auto get_type = [&idx, &inferred_shapes, &inferred_dtypes, &inferred_stypes](NodePtr node) {
+    const uint32_t nid = idx.node_id(node->orig_node_.get());
+    const uint32_t eid = idx.entry_id(nid, node->multi_output_index_);
+    node->shape_ = inferred_shapes[eid];
+    node->dtype_ = inferred_dtypes[eid];
+    node->stype_ = inferred_stypes[eid];
+  };
+
+
   // Use NNVM's depth first search to trace the tree and construct the
   // intermediary graph
-  nnvm::DFSVisit(graph_.outputs, [this](const nnvm::NodePtr node) {
+  nnvm::DFSVisit(graph_.outputs, [this, &get_type](const nnvm::NodePtr node) {
     const auto& idx = this->graph_.indexed_graph();
-
     const auto& mutable_nodes = idx.mutable_input_nodes();
     const uint32_t nid = idx.node_id(node.get());
     if (mutable_nodes.count(nid) != 0) {
       // add an auxillary node to the graph
-      this->ngraph_.AddNode(std::make_shared<AuxNode>(node, node->attrs.name));
+      auto tmpnode = std::make_shared<AuxNode>(node, node->attrs.name);
+      get_type(tmpnode);
+      this->ngraph_.AddNode(tmpnode);
     } else if (node->is_variable()) {
       // add variable to the graph
-      this->ngraph_.AddNode(
-          std::make_shared<VariableNode>(node, node->attrs.name));
+      auto tmpnode = std::make_shared<VariableNode>(node, node->attrs.name);
+      get_type(tmpnode);
+      this->ngraph_.AddNode(tmpnode);
     } else {
       // create operation node
       auto op_name = clean_opname(node->op()->name);
       auto op_node = std::make_shared<OpNode>(node, node->attrs.name, op_name);
+      get_type(op_node);
+      if (node->num_outputs() > 1) {
+        if (IsInNGraph(op_node)) {
+          // set up a subgraph for the multi-output op
+          auto tmpGraph = std::make_shared<Graph>(node->attrs.name,
+                                                  ngraph_.context_, true, node);
 
-      // If it's a multi output op (and not Batchnorm)
-      // replace it with a set of nodes that correspond to each output of
-      // the op
-      // TODO(mbrookhart): Handle this more carefully somehow?
-      // not sure how many ops there actually are that need multi-output
-      if (node->num_outputs() > 1 && op_name != "BatchNorm") {
-        for (size_t i = 0; i < node->num_outputs(); ++i) {
-          auto tmpop = std::make_shared<OpNode>(
-              op_node->orig_node_, op_node->name_ + "_" + std::to_string(i),
-              op_node->operation_);
+          tmpGraph->AddNode(op_node);
+          tmpGraph->operation_ = op_name;
+          tmpGraph->multi_output_index_ = -1;
 
-          for (auto input : op_node->inputs_) tmpop->inputs_.push_back(input);
-          tmpop->multi_output_index_ = i;
+          tmpGraph->num_outputs_ = tmpGraph->outputs_.size();
+          get_type(tmpGraph);
+          this->ngraph_.AddNode(tmpGraph);
+          for (size_t i = 0; i < node->num_outputs(); ++i) {
+            tmpGraph->outputs_.push_back(op_node);
+            auto output = std::make_shared<OutputElement>(tmpGraph, i);
+            get_type(output);
+            output->name_ = output->name_ + "_" + std::to_string(i);
+            output->operation_ = op_name;
+            tmpGraph->output_elements_.push_back(output);
+            this->ngraph_.AddNode(output);
+          }
+        } else {
+          for (size_t i = 0; i < node->num_outputs(); ++i) {
+            auto tmpop = std::make_shared<OpNode>(
+                op_node->orig_node_, op_node->name_ + "_" + std::to_string(i),
+                op_node->operation_);
+            get_type(tmpop);            
+            for (auto input : op_node->inputs_) tmpop->inputs_.push_back(input);
+            tmpop->multi_output_index_ = i;
 
-          this->ngraph_.AddNode(tmpop);
+            this->ngraph_.AddNode(tmpop);
+          }
         }
       } else {
         // add operation
@@ -550,15 +589,17 @@ void Compiler::ParseNnvmGraph() {
 
   // set up the inputs to all of the  nodes in the graph
   for (auto node : ngraph_.nodes_) {
-    for (size_t i = 0; i < node->orig_node_->inputs.size(); ++i) {
-      const nnvm::NodeEntry& e = node->orig_node_->inputs[i];
-      std::shared_ptr<Node> tmpnode;
-      tmpnode = this->ngraph_[e];
-      if (tmpnode == nullptr) {
-        throw std::runtime_error(
-            "NGRAPH_BRIDGE: couldn't parse the NNVM graph");
+    if (node->type_ != NodeType::kOutput) {
+      for (size_t i = 0; i < node->orig_node_->inputs.size(); ++i) {
+        const nnvm::NodeEntry& e = node->orig_node_->inputs[i];
+        std::shared_ptr<Node> tmpnode;
+        tmpnode = this->ngraph_[e];
+        if (tmpnode == nullptr) {
+          throw std::runtime_error(
+              "NGRAPH_BRIDGE: couldn't parse the NNVM graph");
+        }
+        node->inputs_.emplace_back(tmpnode);
       }
-      node->inputs_.emplace_back(tmpnode);
     }
   }
 
@@ -566,20 +607,12 @@ void Compiler::ParseNnvmGraph() {
   for (auto e : graph_.outputs) {
     ngraph_.outputs_.push_back(ngraph_[e]);
   }
-
-  // get the shape, data and storage types of all of the nodes
-  const auto& idx = graph_.indexed_graph();
-  const auto inferred_shapes =
-      graph_.GetAttr<std::vector<nnvm::TShape>>("shape");
-  const auto inferred_dtypes = graph_.GetAttr<std::vector<int>>("dtype");
-  const auto& inferred_stypes =
-      graph_.GetAttr<mxnet::StorageTypeVector>("storage_type");
+  // set the shapes on multi-output nodes
   for (auto node : this->ngraph_.nodes_) {
-    const uint32_t nid = idx.node_id(node->orig_node_.get());
-    const uint32_t eid = idx.entry_id(nid, node->multi_output_index_);
-    node->shape_ = inferred_shapes[eid];
-    node->dtype_ = inferred_dtypes[eid];
-    node->stype_ = inferred_stypes[eid];
+    get_type(node);
+    if (node->type_ == NodeType::kGraph) {
+      node->shape_ = node->inputs_[0]->shape_;
+    }
   }
 }
 
