@@ -33,6 +33,17 @@ if(UNIX)
 	endif()
 endif()
 
+if(USE_NGRAPH_IE)
+  add_definitions(-DMXNET_USE_NGRAPH_IE=1)
+endif(USE_NGRAPH_IE)
+
+if(USE_NGRAPH_DISTRIBUTED)
+  find_package(MPI REQUIRED)
+  include_directories(SYSTEM ${MPI_C_INCLUDE_PATH} ${MPI_CXX_INCLUDE_PATH})
+  link_directories(${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES})
+  add_definitions(-DMXNET_USE_NGRAPH_DISTRIBUTED=1)
+endif(USE_NGRAPH_DISTRIBUTED)
+
 
 include(cmake/ngraph.cmake)
 
@@ -46,6 +57,5 @@ include_directories(build/include/)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 
 add_subdirectory(src)
-message("${SRC}")
 
 add_dependencies(ngraph_bridge ext_ngraph)
