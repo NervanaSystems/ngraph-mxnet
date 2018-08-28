@@ -63,29 +63,25 @@ def test_module_input_grads():
     b = mx.sym.Variable('b', __layout__='NC')
     c = mx.sym.Variable('c', __layout__='NC')
 
-    c =  1*a + 2 * b + 3 * c
-    net = mx.mod.Module(c, data_names=['a', 'b', 'c'], label_names=None,
+    c = a + 2 * b + 3 * c
+    net = mx.mod.Module(c, data_names=['b', 'c', 'a'], label_names=None,
                         #context=[mx.cpu(0), mx.cpu(1)])
                         context=[mx.cpu(0)])
-    net.bind(data_shapes=[['c', (5, 5)], ['b', (5, 5)], ['a', (5, 5)]],
+    net.bind(data_shapes=[['b', (5, 5)], ['c', (5, 5)], ['a', (5, 5)]],
              label_shapes=None, inputs_need_grad=True)
     net.init_params()
-    print(net.symbol().debug_str())
 
-    net.forward(data_batch=mx.io.DataBatch(data=[0*nd.ones((5, 5)),
-                                                 1*nd.ones((5, 5)),
-                                                 2*nd.ones((5, 5))]))
-    net.backward(out_grads=[3*nd.ones((5, 5))])
+    net.forward(data_batch=mx.io.DataBatch(data=[nd.ones((5, 5)),
+                                                 nd.ones((5, 5)),
+                                                 nd.ones((5, 5))]))
+    net.backward(out_grads=[nd.ones((5, 5))])
     input_grads = net.get_input_grads()
-    a_grad = input_grads[0].asnumpy()
-    b_grad = input_grads[1].asnumpy()
-    c_grad = input_grads[2].asnumpy()
-    print(a_grad)
-    print(b_grad)
-    print(c_grad)
-    # assert np.all(a_grad == 1), a_grad
-    # assert np.all(b_grad == 2), b_grad
-    # assert np.all(c_grad == 3), c_grad
+    b_grad = input_grads[0].asnumpy()
+    c_grad = input_grads[1].asnumpy()
+    a_grad = input_grads[2].asnumpy()
+    assert np.all(a_grad == 1), a_grad
+    assert np.all(b_grad == 2), b_grad
+    assert np.all(c_grad == 3), c_grad
 
 
 @with_seed()
@@ -642,7 +638,7 @@ def test_factorization_machine_module():
             num_epochs = 50
         expected_accuracy = 0.02
 
-  # use accuracy as the metric
+	# use accuracy as the metric
         metric = mx.metric.create('MSE')
         # train 'num_epochs' epoch
         for epoch in range(num_epochs):
