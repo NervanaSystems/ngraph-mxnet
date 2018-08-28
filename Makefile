@@ -484,12 +484,12 @@ build/src/%_gpu.o: src/%.cu | mkldnn ngraph
 
 # A nvcc bug cause it to generate "generic/xxx.h" dependencies from torch headers.
 # Use CXX to generate dependency instead.
-build/plugin/%_gpu.o: plugin/%.cu
+build/plugin/%_gpu.o: plugin/%.cu | ngraph
 	@mkdir -p $(@D)
 	$(CXX) -std=c++11 $(CFLAGS) -MM -MT build/plugin/$*_gpu.o $< >build/plugin/$*_gpu.d
 	$(NVCC) -c -o $@ $(NVCCFLAGS) $(CUDA_ARCH) -Xcompiler "$(CFLAGS)" $<
 
-build/plugin/%.o: plugin/%.cc
+build/plugin/%.o: plugin/%.cc | ngraph
 	@mkdir -p $(@D)
 	$(CXX) -std=c++11 -c $(CFLAGS) -MMD -c $< -o $@
 

@@ -36,7 +36,7 @@ endif(USE_NGRAPH_DISTRIBUTED)
 ExternalProject_Add(
 	ext_ngraph
 	GIT_REPOSITORY https://github.com/NervanaSystems/ngraph.git
-	GIT_TAG abff494
+	GIT_TAG v0.6.0
 
 	PREFIX ngraph
 	UPDATE_COMMAND ""
