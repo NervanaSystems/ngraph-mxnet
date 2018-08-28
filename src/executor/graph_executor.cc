@@ -367,13 +367,22 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                                            arg_grad_ctxes, aux_state_ctxes);
   const auto grad_sparse = ngraph_bridge::sparse_check(arg_grad_store);
 
-  std::cout << "Init 368" << std::endl;
+  std::cout << "Bind Init" << std::endl;
+  for (auto& n : symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs)) {
+    std::cout << n->attrs.name << std::endl;
+  }
   ngraph_bridge::BindArg bind(num_forward_inputs_, in_args, aux_states);
   ngraph_bridge::Compiler compiler(
       g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), bind,
       default_ctx);
   if (!multi_context && !grad_sparse) {
     g = compiler.Compile();
+    auto& ngraph_inputs = compiler.GetInputs();
+    std::cout << "ngraph inputs" << std::endl;
+    for (auto& n : ngraph_inputs) {
+      std::cout << n->attrs.name << std::endl;
+    }
+
     // mxnet::op::SubgraphPropertyPtr property
     //     = std::make_shared<ngraph_bridge::SgNgraphProperty>();
     // g.attrs["subgraph_property"] = std::make_shared<nnvm::any>(std::move(property));
@@ -382,7 +391,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
     // create "device" and "context" attrs for the graph
     Symbol sym;
     sym.outputs = g.outputs;
-    g = InitFullGraph(sym, grad_req_types);
+    g = InitFullGraph(sym, grad_req_types, &ngraph_inputs);
   } else {
     g = InitFullGraph(symbol,  grad_req_types);
   }
@@ -806,7 +815,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   ngraph_bridge::SimpleBindArg simplebind(num_forward_inputs_, arg_shape_map,
                                           arg_dtype_map, arg_stype_mapn);
 
-  std::cout << "Init 807" << std::endl;
+  std::cout << "SimpleBind Init" << std::endl;
   for (auto& n : symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs)) {
     std::cout << n->attrs.name << std::endl;
   }
