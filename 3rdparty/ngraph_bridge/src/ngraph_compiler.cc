@@ -1,18 +1,18 @@
 /*******************************************************************************
-* Copyright 2018 Intel Corporation
-*
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*******************************************************************************/
+ * Copyright 2018 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
 
 #include <mshadow/base.h>
 
@@ -474,10 +474,10 @@ bool Compiler::IsInNGraph(const NodePtr& node) {
   if (bad_type(node)) {
     return false;
   } else if (std::find_if(node->inputs_.begin(), node->inputs_.end(),
-                         bad_type) != node->inputs_.end()) {
+                          bad_type) != node->inputs_.end()) {
     return false;
   } else if (node->type_ == NodeType::kOp || node->type_ == NodeType::kGraph ||
-      node->type_ == NodeType::kOutput) {
+             node->type_ == NodeType::kOutput) {
     if (compiler_.supported_ops.count(node->operation_)) {
       in_ngraph_ = compiler_.supported_ops[node->operation_](node);
     }
@@ -516,14 +516,14 @@ void Compiler::ParseNnvmGraph() {
   const auto inferred_dtypes = graph_.GetAttr<std::vector<int>>("dtype");
   const auto& inferred_stypes =
       graph_.GetAttr<mxnet::StorageTypeVector>("storage_type");
-  auto get_type = [&idx, &inferred_shapes, &inferred_dtypes, &inferred_stypes](NodePtr node) {
+  auto get_type = [&idx, &inferred_shapes, &inferred_dtypes,
+                   &inferred_stypes](NodePtr node) {
     const uint32_t nid = idx.node_id(node->orig_node_.get());
     const uint32_t eid = idx.entry_id(nid, node->multi_output_index_);
     node->shape_ = inferred_shapes[eid];
     node->dtype_ = inferred_dtypes[eid];
     node->stype_ = inferred_stypes[eid];
   };
-
 
   // Use NNVM's depth first search to trace the tree and construct the
   // intermediary graph
@@ -573,7 +573,7 @@ void Compiler::ParseNnvmGraph() {
             auto tmpop = std::make_shared<OpNode>(
                 op_node->orig_node_, op_node->name_ + "_" + std::to_string(i),
                 op_node->operation_);
-            get_type(tmpop);            
+            get_type(tmpop);
             for (auto input : op_node->inputs_) tmpop->inputs_.push_back(input);
             tmpop->multi_output_index_ = i;
 
