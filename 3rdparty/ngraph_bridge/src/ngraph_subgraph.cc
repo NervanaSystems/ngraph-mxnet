@@ -18,6 +18,7 @@
 #include "../../../src/operator/subgraph/common.h"
 #include "ngraph_nnvm_ops.h"
 #include "ngraph_subgraph.h"
+#include "ngraph_imperative.h"
 
 namespace ngraph_bridge {
 using namespace nnvm;
@@ -30,6 +31,7 @@ std::shared_ptr<ngraph_bridge::Graph> get_ngraph(const NodeAttrs& attrs) {
 
 class NgraphSubgraphOperator {
  public:
+  NgraphSubgraphOperator(const NodeAttrs& attrs): attrs_(attrs) {}
   void Forward(const OpContext& ctx, const std::vector<NDArray>& inputs,
                const std::vector<OpReqType>& req,
                const std::vector<NDArray>& outputs);
@@ -39,6 +41,7 @@ class NgraphSubgraphOperator {
 
  private:
   std::shared_ptr<ngraph_bridge::Graph> ngraph_;
+  nnvm::NodeAttrs attrs_;
 };
 
 void NgraphSubgraphOperator::Forward(const OpContext& ctx,
@@ -47,7 +50,8 @@ void NgraphSubgraphOperator::Forward(const OpContext& ctx,
                                      const std::vector<NDArray>& outputs) {
   // check and init ngraph_
   if (!ngraph_) {
-
+      NGImperative ngi(*attrs_.subgraphs[0], ctx.run_ctx.ctx, inputs, &req, outputs);
+      ngraph_ = ngi.get_op_ngraph();
   }
 
   compute_forward(ctx, ngraph_, inputs, req, outputs);
@@ -63,7 +67,7 @@ void NgraphSubgraphOperator::Backward(const OpContext& ctx,
 OpStatePtr CreateNgraphSubgraphOpState(const NodeAttrs& attrs, Context ctx,
                                        const std::vector<TShape>& in_shapes,
                                        const std::vector<int>& in_types) {
-  return OpStatePtr::Create<NgraphSubgraphOperator>();
+  return OpStatePtr::Create<NgraphSubgraphOperator>(attrs);
 }
 
 void NgraphSubgraphOpForward(const OpStatePtr& state_ptr, const OpContext& ctx,

@@ -67,9 +67,12 @@ NGImperative::NGImperative(const nnvm::NodeAttrs &attrs,
                            const std::vector<mxnet::NDArray> &inputs,
                            const std::vector<mxnet::OpReqType> *req,
                            const std::vector<mxnet::NDArray> &outputs)
+    : NGImperative(get_symbol(attrs, inputs.size()), ctx, inputs, req, outputs) {}
+NGImperative::NGImperative(const nnvm::Symbol &sym, const mxnet::Context &ctx,
+                           const std::vector<mxnet::NDArray> &inputs,
+                           const std::vector<mxnet::OpReqType> *req,
+                           const std::vector<mxnet::NDArray> &outputs)
     : Compiler(ctx) {
-  // Construct nnvm symbol to represent the computation
-  auto sym = get_symbol(attrs, inputs.size());
   // construct single symbol nnvm graph and create ngraph
   nnvm::Graph g;
   g.outputs = sym.outputs;
@@ -349,10 +352,9 @@ NGIOpKey get_ngiop_key(const nnvm::NodeAttrs &attrs, const mxnet::Context &ctx,
     for (size_t ii = 0; ii < i.shape().ndim(); ++ii)
       in.push_back(i.shape()[ii]);
   }
-  return NGIOpKey(
-      attrs.op->name,
-      {static_cast<int>(ctx.dev_type), static_cast<int>(ctx.dev_id)},
-      attrs.dict, in);
+  return NGIOpKey(attrs.op->name, {static_cast<int>(ctx.dev_type),
+                                   static_cast<int>(ctx.dev_id)},
+                  attrs.dict, in);
 }
 
 }  // namespace ngraph_bridge

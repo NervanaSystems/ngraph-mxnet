@@ -40,6 +40,10 @@ class NGImperative : public Compiler {
                const std::vector<mxnet::NDArray> &inputs,
                const std::vector<mxnet::OpReqType> *req,
                const std::vector<mxnet::NDArray> &outputs);
+  NGImperative(const nnvm::Symbol &sym, const mxnet::Context &ctx,
+               const std::vector<mxnet::NDArray> &inputs,
+               const std::vector<mxnet::OpReqType> *req,
+               const std::vector<mxnet::NDArray> &outputs);
 
   // return ngraph representing the imperative compute kernel
   inline std::shared_ptr<Graph> get_op_ngraph() {
