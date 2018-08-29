@@ -151,6 +151,19 @@ Compiler::Compiler(const nnvm::Graph& graph, const NNVMNodeVec& symbol_inputs,
   MakeCopiedInputs(symbol_inputs);
   ProcessGraph({});
 }
+
+// compiler for graph with attrs
+Compiler::Compiler(const nnvm::Graph& g) : ngraph_() {
+  shapes_ = g.GetAttr<nnvm::ShapeVector>("shape");
+  dtypes_ = g.GetAttr<nnvm::DTypeVector>("dtype");
+  stypes_ = g.GetAttr<mxnet::StorageTypeVector>("storage_type");
+
+  DeepCopy(g);
+  nnvm::Symbol s; s.outputs = g.outputs;
+  MakeCopiedInputs(s.ListInputs(nnvm::Symbol::kReadOnlyArgs));
+  ProcessGraph({});
+}
+
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                    const NNVMNodeVec& inputs, const BindArgBase& bindbase,

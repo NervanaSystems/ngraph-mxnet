@@ -230,5 +230,6 @@ NNVM_REGISTER_OP(_backward_ngraph_subgraph_op)
               out_attrs, mxnet::kDefaultStorage, dispatch_mode,
               mxnet::DispatchMode::kFComputeEx);
         });
+MXNET_REGISTER_SUBGRAPH_PROPERTY(ngraph, SgNgraphProperty);
 
 }  // namespace ngraph_bridge

@@ -18,6 +18,7 @@
 #define MXNET_NGRAPH_NGRAPH_SUBGRAPH_H_
 
 #include "../../../src/operator/subgraph/subgraph_property.h"
+#include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
 
 namespace ngraph_bridge {
@@ -27,25 +28,41 @@ using namespace mxnet::op;
 
 class SgNgraphSelector : public SubgraphSelector {
  public:
-  SgNgraphSelector() {}
+  SgNgraphSelector(const nnvm::Graph &g) : compiler_(g) {}
 
   bool Select(const nnvm::Node &n) override {
-    bool match = !n.is_variable() && (n.attrs.name.substr(0, 6) == "ngraph");
-    return match;
+    return (!n.is_variable() && is_node_selected(n));
   }
 
   bool SelectInput(const nnvm::Node &n, const nnvm::Node &new_node) override {
-    return false;
+    return (!n.is_variable() && is_node_selected(new_node));
   }
 
   bool SelectOutput(const nnvm::Node &n, const nnvm::Node &new_node) override {
+    return (!n.is_variable() && is_node_selected(new_node));
+  }
+
+ private:
+  Compiler compiler_;
+  bool is_node_selected(const nnvm::Node &n) {
+    NodePtr nn;
+    MapEntry tmp{&n, 0};
+    auto &entry_map = compiler_.get_ngraph().entry_map_;
+    if (entry_map.count(tmp)) {
+      nn = entry_map[tmp];
+    }
+    if (nn) {
+      return nn->in_ngraph_;
+    }
     return false;
   }
 };
 
 class SgNgraphProperty : public SubgraphProperty {
  public:
-  SgNgraphProperty() {}
+  static SubgraphPropertyPtr Create() {
+    return std::make_shared<SgNgraphProperty>();
+  }
 
   nnvm::NodePtr CreateSubgraphNode(const nnvm::Symbol &sym,
                                    const int subgraph_id = 0) const override {
@@ -58,8 +75,8 @@ class SgNgraphProperty : public SubgraphProperty {
     return n;
   }
   SubgraphSelectorPtr CreateSubgraphSelector() const override {
-    auto selector = std::make_shared<SgNgraphSelector>();
-    return selector;
+    return std::make_shared<SgNgraphSelector>(
+        this->GetAttr<nnvm::Graph>("graph"));
   }
 };
 

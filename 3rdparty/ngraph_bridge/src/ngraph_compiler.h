@@ -191,6 +191,8 @@ class Compiler {
            const mxnet::Context& context);
   // Construct base compiler object with context only
   Compiler(const mxnet::Context& context);
+  // compiler for graph with attrs
+  Compiler(const nnvm::Graph& g);
   // Constructor for use with gluon hybridize
   Compiler(const nnvm::Graph& graph, const NNVMNodeVec& symbol_inputs,
            const std::vector<mxnet::NDArray*>& inputs);
@@ -211,6 +213,7 @@ class Compiler {
   // graph executor inference engine
   const NDArrayMap& GetFeedDict() { return feed_dict_; }
   const NNVMNodeVec& GetInputs() { return inputs_; }
+  Graph& get_ngraph() {return ngraph_;}
 
  protected:
   // parse and process graph
