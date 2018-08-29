@@ -188,7 +188,11 @@ if(USE_NGRAPH AND NOT MSVC)
   list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libcpu_backend.so)
   
   if(USE_NGRAPH_DISTRIBUTED)
+    find_package(MPI REQUIRED)
+    include_directories(SYSTEM ${MPI_C_INCLUDE_PATH} ${MPI_CXX_INCLUDE_PATH})
+    link_directories(${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES})
     list(APPEND mxnet_LINKER_LIBS ${MPI_CXX_LIBRARIES})
+    add_definitions(-DMXNET_USE_NGRAPH_DISTRIBUTED=1)
   endif(USE_NGRAPH_DISTRIBUTED)
 endif()
 
