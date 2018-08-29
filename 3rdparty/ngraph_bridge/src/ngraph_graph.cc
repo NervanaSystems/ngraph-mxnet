@@ -378,18 +378,28 @@ void CollapseSubgraph(Graph* graph, int subgraph_num) {
     tmpGraph->in_ngraph_ = true;
     tmpGraph->subgraph_ = subgraph_num;
 
-    auto in_tmpGraphInputs = [&tmpGraph](NodePtr n) {
-      if (!in_vec(tmpGraph->inputs_, n)) return false;
+    GraphVisitor visitor;
+
+    std::unordered_set<NodePtr> nodes(tmpGraph->nodes_.begin(),
+                                      tmpGraph->nodes_.end());
+    std::unordered_set<NodePtr> visited;
+
+    visitor.operation = [tmpGraph, &nodes, &visited](NodePtr node) {
+      visited.insert(node);
+      if (!nodes.count(node)) {
+        tmpGraph->inputs_.push_back(node);
+      }
+    };
+    visitor.stop_condition = [&nodes, &visited](NodePtr node, NodePtr input) {
+      if (nodes.count(node) && !(visited.count(input))) {
+        return false;
+      }
       return true;
     };
-
-    // setup inputs to this subgraph (as a node)
-    for (auto node : tmpGraph->nodes_) {
-      for (auto input : node->inputs_) {
-        if (input->subgraph_ != subgraph_num && !in_tmpGraphInputs(input))
-          tmpGraph->inputs_.emplace_back(input);
-      }
+    for (auto& node : tmpGraph->outputs_) {
+      GraphTraverse(node, visitor);
     }
+
     for (auto input : tmpGraph->inputs_) {
       tmpGraph->input_is_weight_.push_back(false);
     }
