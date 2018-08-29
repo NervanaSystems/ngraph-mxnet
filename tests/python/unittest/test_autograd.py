@@ -100,11 +100,11 @@ def autograd_assert(*args, **kwargs):
     grad_func = grad_and_loss(func, argnum)
     grad_vals, output = grad_func(*args)
     res = func(*args)
-    assert same(output.asnumpy(), res.asnumpy())
+    assert almost_equal(output.asnumpy(), res.asnumpy())
     grad_res = grad_f(*args)
     assert len(grad_vals) == len(grad_res)
     for a, b in zip(grad_vals, grad_res):
-        assert same(a.asnumpy(), b.asnumpy())
+        assert almost_equal(a.asnumpy(), b.asnumpy())
 
 @with_seed()
 def test_unary_func():

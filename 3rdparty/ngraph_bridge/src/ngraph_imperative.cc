@@ -210,7 +210,7 @@ void InitImperativeOnce() {
                          const std::vector<mxnet::NDArray> &inputs,
                          const std::vector<mxnet::OpReqType> &req,
                          const std::vector<mxnet::NDArray> &outputs) -> void {
-            if (ctx.is_train ||
+            if (ctx.is_train || ctx.need_grad || 
                 !compute_forward_imperative(attrs, ctx, inputs, req, outputs)) {
               // use default mxnet compute kernel
               fallbackx_fn(attrs, ctx, inputs, req, outputs);
@@ -234,7 +234,7 @@ void InitImperativeOnce() {
             for (auto &i : inputs) in.emplace_back(i, ctx.run_ctx.ctx.dev_id);
             std::vector<mxnet::NDArray> out;
             for (auto &i : outputs) out.emplace_back(i, ctx.run_ctx.ctx.dev_id);
-            if (ctx.is_train ||
+            if (ctx.is_train || ctx.need_grad ||
                 !compute_forward_imperative(attrs, ctx, in, req, out)) {
               // use default mxnet compute kernel
               fallback_fn(attrs, ctx, inputs, req, outputs);
@@ -267,7 +267,7 @@ void InitImperativeOnce() {
                          const std::vector<mxnet::OpReqType> &req,
                          const std::vector<mxnet::TBlob> &outputs) -> void {
             auto &op_state = state.get_state<StateFCompute>();
-            if (!ctx.is_train) {
+            if (!(ctx.is_train || ctx.need_grad)) {
               std::vector<mxnet::NDArray> in;
               for (auto &i : inputs) in.emplace_back(i, ctx.run_ctx.ctx.dev_id);
               std::vector<mxnet::NDArray> out;
@@ -352,9 +352,10 @@ NGIOpKey get_ngiop_key(const nnvm::NodeAttrs &attrs, const mxnet::Context &ctx,
     for (size_t ii = 0; ii < i.shape().ndim(); ++ii)
       in.push_back(i.shape()[ii]);
   }
-  return NGIOpKey(attrs.op->name, {static_cast<int>(ctx.dev_type),
-                                   static_cast<int>(ctx.dev_id)},
-                  attrs.dict, in);
+  return NGIOpKey(
+      attrs.op->name,
+      {static_cast<int>(ctx.dev_type), static_cast<int>(ctx.dev_id)},
+      attrs.dict, in);
 }
 
 }  // namespace ngraph_bridge

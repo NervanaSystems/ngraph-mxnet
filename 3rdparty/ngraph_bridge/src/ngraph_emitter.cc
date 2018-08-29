@@ -714,10 +714,6 @@ void Emitter::CreateBinaryOps() {
         output_shape[i] = input_shape[i];
       }
       if (input_shape[i] != output_shape[i]) {
-        // only axis with dim 1 can be broadcasted, this should already been
-        // checked by mxnet front end, but check in case it's being called
-        // by other ops.
-        assert(input_shape[i] == 1);
         broadcast_axes.insert(i);
       } else {
         proxy_shape.push_back(input_shape[i]);
