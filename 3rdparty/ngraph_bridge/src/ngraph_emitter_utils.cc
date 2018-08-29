@@ -52,7 +52,6 @@ NgraphNodePtr slice_data_on_axis(NgraphNodePtr data, size_t starting_loc,
 }
 
 size_t transform_axis(int axis, int shape_size) {
-  assert(abs(axis) <= shape_size);
   // convert negative axis index to postive (counting from right per mxnet
   // convention)
   return axis < 0 ? shape_size + axis : axis;
