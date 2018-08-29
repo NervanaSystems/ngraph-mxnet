@@ -34,7 +34,7 @@ namespace ngraph_bridge {
 
 // enable ngraph gluon at runtime.
 inline bool ngraph_gluon_enable() {
-  return dmlc::GetEnv("MXNET_NGRAPH_GLUON", false);
+  return dmlc::GetEnv("MXNET_NGRAPH_GLUON", true);
 }
 
 // enable distributed ngraph at runtime
@@ -55,9 +55,8 @@ inline bool ngraph_log_viz() {
 inline bool ngraph_log_timer() {
   return dmlc::GetEnv("MXNET_NGRAPH_TIMER", false);
 }
-inline bool ngraph_log_verbose_detail() {
-  return dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_DETAIL", false);
-}
+const bool ngraph_log_verbose_detail =
+    dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_DETAIL", false);
 
 // simple timer for sequential blocks of code
 class Timer {
