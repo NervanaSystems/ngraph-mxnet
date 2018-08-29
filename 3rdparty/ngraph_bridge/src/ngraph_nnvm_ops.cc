@@ -183,17 +183,8 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
   std::vector<mxnet::NDArray> adjoints(inputs.begin(),
                                        inputs.begin() + graph->num_adjoints_);
 
-//  auto placeholders =
-//      get_tensor_views(inputs, backend, nullptr, graph->is_reuse_mem);
-  TensorViewVector placeholders;
-  for (size_t i = 0; i < inputs.size(); ++i) {
-//    if (!graph->is_reuse_mem)
-//      placeholders.push_back(
-//          NDArray_to_TensorView(inputs[0], backend, true));
-//    else
-      placeholders.push_back(
-          const_cast<mxnet::NDArray&>(inputs[0]).create_tensor_view());
-  }
+  auto placeholders =
+      get_tensor_views(inputs, backend, nullptr, graph->is_reuse_mem);
 
   if (graph->zero_grad) {
     for (size_t i = 0; i < graph->num_adjoints_; ++i) {
