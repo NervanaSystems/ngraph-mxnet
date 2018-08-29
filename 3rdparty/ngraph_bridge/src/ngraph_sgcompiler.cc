@@ -441,11 +441,11 @@ void SGCompiler::CompileNodes(NodePtr node,
     }
   };
 
-  visitor.stop_condition = [this, sub_graph](NodePtr node, NodePtr input) {
+  visitor.stop_condition = [this, sub_graph, &nodes](NodePtr node, NodePtr input) {
     // continue if...
     // 1) node is in subgraph or a subgraph input
     // 2) input not visited
-    if (in_vec(sub_graph->nodes_, node) && !(this->op_map_.count(input))) {
+    if (nodes.count(node) && !(this->op_map_.count(input))) {
       return false;
     }
     // else, stop traversing the graph
