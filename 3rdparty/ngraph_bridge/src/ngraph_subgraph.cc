@@ -16,8 +16,8 @@
 
 #include <mxnet/ndarray.h>
 #include "../../../src/operator/subgraph/common.h"
-#include "ngraph_subgraph.h"
 #include "ngraph_nnvm_ops.h"
+#include "ngraph_subgraph.h"
 
 namespace ngraph_bridge {
 using namespace nnvm;
@@ -30,11 +30,6 @@ std::shared_ptr<ngraph_bridge::Graph> get_ngraph(const NodeAttrs& attrs) {
 
 class NgraphSubgraphOperator {
  public:
-  explicit NgraphSubgraphOperator(
-      std::shared_ptr<ngraph_bridge::Graph> ngraph) {
-    ngraph_ = ngraph;
-  }
-
   void Forward(const OpContext& ctx, const std::vector<NDArray>& inputs,
                const std::vector<OpReqType>& req,
                const std::vector<NDArray>& outputs);
@@ -50,6 +45,11 @@ void NgraphSubgraphOperator::Forward(const OpContext& ctx,
                                      const std::vector<NDArray>& inputs,
                                      const std::vector<OpReqType>& req,
                                      const std::vector<NDArray>& outputs) {
+  // check and init ngraph_
+  if (!ngraph_) {
+
+  }
+
   compute_forward(ctx, ngraph_, inputs, req, outputs);
 }
 
@@ -63,13 +63,7 @@ void NgraphSubgraphOperator::Backward(const OpContext& ctx,
 OpStatePtr CreateNgraphSubgraphOpState(const NodeAttrs& attrs, Context ctx,
                                        const std::vector<TShape>& in_shapes,
                                        const std::vector<int>& in_types) {
-  return OpStatePtr::Create<NgraphSubgraphOperator>(get_ngraph(attrs));
-}
-
-OpStatePtr CreateNgraphBackwardOpState(const NodeAttrs& attrs, Context ctx,
-                                       const std::vector<TShape>& in_shapes,
-                                       const std::vector<int>& in_types) {
-  return OpStatePtr::Create<NgraphSubgraphOperator>(get_ngraph(attrs));
+  return OpStatePtr::Create<NgraphSubgraphOperator>();
 }
 
 void NgraphSubgraphOpForward(const OpStatePtr& state_ptr, const OpContext& ctx,
@@ -218,7 +212,6 @@ NNVM_REGISTER_OP(_backward_ngraph_subgraph_op)
       return graph->inputs_.size();
     })
     .set_attr<bool>("TIsBackward", true)
-    .set_attr<FCreateOpState>("FCreateOpState", CreateNgraphBackwardOpState)
     .set_attr<FStatefulComputeEx>("FStatefulComputeEx<cpu>",
                                   NgraphSubgraphOpBackward)
     .set_attr<FInferStorageType>(

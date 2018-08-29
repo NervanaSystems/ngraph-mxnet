@@ -69,9 +69,8 @@ class SgNgraphProperty : public SubgraphProperty {
     nnvm::NodePtr n = nnvm::Node::Create();
     n->attrs.op = Op::Get("_ngraph_subgraph_op");
     n->attrs.name = "_ngraph_subgraph_op" + std::to_string(subgraph_id);
+    n->attrs.subgraphs.push_back(std::make_shared<nnvm::Symbol>(sym));
     auto tmpnode = sym.outputs[0].node.get();
-    n->attrs.parsed =
-        nnvm::get<ngraph_bridge::NGraphParam>(tmpnode->attrs.parsed);
     return n;
   }
   SubgraphSelectorPtr CreateSubgraphSelector() const override {
