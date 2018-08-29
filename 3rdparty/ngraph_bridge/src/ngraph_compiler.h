@@ -200,7 +200,7 @@ class Compiler {
   nnvm::Graph Compile();
   // parse the nnvm graph into an intermediate represenation
   // TODO(mbrookhart): Make this protected, it's here for debugging
-  void ParseNnvmGraph();
+  void ParseNnvmGraph(const nnvm::Graph* graph_with_attrs = nullptr);
   // create and return cached_op graph
   nnvm::Graph GetCachedOpGraph(const std::vector<mxnet::NDArray*>& inputs);
 
@@ -213,7 +213,7 @@ class Compiler {
   // graph executor inference engine
   const NDArrayMap& GetFeedDict() { return feed_dict_; }
   const NNVMNodeVec& GetInputs() { return inputs_; }
-  Graph& get_ngraph() {return ngraph_;}
+  Graph& get_ngraph() { return ngraph_; }
 
  protected:
   // parse and process graph

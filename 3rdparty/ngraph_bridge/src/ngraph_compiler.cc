@@ -161,7 +161,8 @@ Compiler::Compiler(const nnvm::Graph& g) : ngraph_() {
   DeepCopy(g);
   nnvm::Symbol s; s.outputs = g.outputs;
   MakeCopiedInputs(s.ListInputs(nnvm::Symbol::kReadOnlyArgs));
-  ProcessGraph({});
+  ParseNnvmGraph(&g);
+  CheckInNgraph();
 }
 
 // Compiler initialization
@@ -521,14 +522,15 @@ void Compiler::CheckInNgraph() {
 }
 
 // Function that parses an nnvm Graph into an intermediary graph
-void Compiler::ParseNnvmGraph() {
+void Compiler::ParseNnvmGraph(const nnvm::Graph *graph_with_attrs) {
   // get the shape, data and storage types of all of the nodes
+  if (graph_with_attrs == nullptr) graph_with_attrs = &graph_;
   const auto& idx = graph_.indexed_graph();
   const auto inferred_shapes =
-      graph_.GetAttr<std::vector<nnvm::TShape>>("shape");
-  const auto inferred_dtypes = graph_.GetAttr<std::vector<int>>("dtype");
+      graph_with_attrs->GetAttr<std::vector<nnvm::TShape>>("shape");
+  const auto inferred_dtypes = graph_with_attrs->GetAttr<std::vector<int>>("dtype");
   const auto& inferred_stypes =
-      graph_.GetAttr<mxnet::StorageTypeVector>("storage_type");
+      graph_with_attrs->GetAttr<mxnet::StorageTypeVector>("storage_type");
   auto get_type = [&idx, &inferred_shapes, &inferred_dtypes,
                    &inferred_stypes](NodePtr node) {
     const uint32_t nid = idx.node_id(node->orig_node_.get());
