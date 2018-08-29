@@ -106,7 +106,6 @@ void compute_forward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
     }
   }
 
-  assert(graph->ngraph_forward[mode] != nullptr);
   append_cached_to_forward(&results, graph, mode);
   backend->call(graph->ngraph_forward[mode], results, placeholders);
 
@@ -128,7 +127,6 @@ void compute_backward(const mxnet::OpContext &ctx, std::shared_ptr<Graph> graph,
                       const std::vector<mxnet::OpReqType> &req,
                       const std::vector<mxnet::NDArray> &outputs) {
   // only expect backward is called in training mode
-  assert(ctx.is_train);
   auto backend = GetBackendFromContext(graph->context_);
 
   const int mode = static_cast<int>(GraphExeMode::kTrain);
