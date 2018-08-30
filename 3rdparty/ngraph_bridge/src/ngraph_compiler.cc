@@ -159,7 +159,8 @@ Compiler::Compiler(const nnvm::Graph& g) : ngraph_() {
   stypes_ = g.GetAttr<mxnet::StorageTypeVector>("storage_type");
 
   DeepCopy(g);
-  nnvm::Symbol s; s.outputs = g.outputs;
+  nnvm::Symbol s;
+  s.outputs = g.outputs;
   MakeCopiedInputs(s.ListInputs(nnvm::Symbol::kReadOnlyArgs));
   ParseNnvmGraph(&g);
   CheckInNgraph();
@@ -504,31 +505,27 @@ void Compiler::CheckInNgraph() {
   std::unordered_set<std::string> unsupported_op_names;
   for (const std::shared_ptr<ngraph_bridge::Node>& node : ngraph_.nodes_) {
     node->in_ngraph_ = IsInNGraph(node);
-    if (!node->in_ngraph_) {
-      if (ngraph_log_verbose()) {
-        unsupported_op_names.insert(node->operation_);
-      }
-      if (ngraph_log_verbose_detail) {
-        std::cout << "NGRAPH_BRIDGE: Unsupported Op instance (verbose):"
-                  << std::endl;
-        node->printOpDetails(std::cout);
-        std::cout << std::endl;
-      }
+#ifndef NDEBUG
+    if (ngraph_log_verbose_detail && !node->in_ngraph_ &&
+        node->type_ == NodeType::kOp) {
+      std::cout << "NGRAPH_BRIDGE: Unsupported Op: " << node->operation_
+                << std::endl;
+      node->printOpDetails(std::cout);
+      std::cout << std::endl;
     }
-  }
-  for (const auto& name : unsupported_op_names) {
-    std::cout << "NGRAPH_BRIDGE: Unsupported Op: " << name << std::endl;
+#endif
   }
 }
 
 // Function that parses an nnvm Graph into an intermediary graph
-void Compiler::ParseNnvmGraph(const nnvm::Graph *graph_with_attrs) {
+void Compiler::ParseNnvmGraph(const nnvm::Graph* graph_with_attrs) {
   // get the shape, data and storage types of all of the nodes
   if (graph_with_attrs == nullptr) graph_with_attrs = &graph_;
   const auto& idx = graph_.indexed_graph();
   const auto inferred_shapes =
       graph_with_attrs->GetAttr<std::vector<nnvm::TShape>>("shape");
-  const auto inferred_dtypes = graph_with_attrs->GetAttr<std::vector<int>>("dtype");
+  const auto inferred_dtypes =
+      graph_with_attrs->GetAttr<std::vector<int>>("dtype");
   const auto& inferred_stypes =
       graph_with_attrs->GetAttr<mxnet::StorageTypeVector>("storage_type");
   auto get_type = [&idx, &inferred_shapes, &inferred_dtypes,
