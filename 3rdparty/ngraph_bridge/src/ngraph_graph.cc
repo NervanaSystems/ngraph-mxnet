@@ -77,7 +77,7 @@ void GraphTraverse(NodePtr node, const GraphVisitor& visitor) {
  * This utility gets a list of simply-connected nodes that all match some
  * function criterion starting from a given node.
  **/
-std::vector<NodePtr> SelectNodes(NodePtr node,
+std::vector<NodePtr> SelectNodes(std::vector<NodePtr> nodes,
                                  const std::function<bool(NodePtr)>& func) {
   std::vector<NodePtr> outNodes;
 
@@ -103,9 +103,9 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
     // else, stop traversing the graph
     return true;
   };
-
-  GraphTraverse(node, visitor);
-
+  for (auto node: nodes) {
+    GraphTraverse(node, visitor);
+  }
   return outNodes;
 }
 
@@ -113,7 +113,7 @@ std::vector<NodePtr> SelectNodes(NodePtr node,
  * This function searches for non-local issues that make parts of an
  * ngraph identified subgraph non-computable
  */
-std::vector<NodePtr> RemoveBroken(NodePtr node,
+std::vector<NodePtr> RemoveBroken(std::vector<NodePtr> nodes,
                                   const std::vector<NodePtr>& subgraph_nodes) {
   std::vector<NodePtr> outNodes;
   std::unordered_set<NodePtr> outNodes_set;
@@ -155,8 +155,9 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
     // else, stop traversing the graph
     return true;
   };
-
-  GraphTraverse(node, visitor1);
+  for (auto node : nodes) {
+    GraphTraverse(node, visitor1);
+  }
 
   /****************************************************************************/
   // Second Graph pass - Removing Broken Branches
@@ -199,8 +200,9 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
     // else, stop traversing the graph
     return true;
   };
-
-  GraphTraverse(node, visitor2);
+  for (auto node: nodes) {
+    GraphTraverse(node, visitor2);
+  }
 
   /****************************************************************************/
   // Third Graph pass - Removing nodes that are no longer connected to the main
@@ -231,8 +233,9 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
     // else, stop traversing the graph
     return true;
   };
-
-  GraphTraverse(node, visitor3);
+  for (auto node : nodes) {
+    GraphTraverse(node, visitor3);
+  }
   // create a vector of those nodes marked as connected
   std::vector<NodePtr> out;
   for (auto node : outNodes) {
@@ -282,22 +285,28 @@ std::vector<NodePtr> GetSubgraphOutputs(
 }
 
 // Find a subgraph, check it for bad branches
-std::vector<NodePtr> FindSubgraph(const Graph& graph, NodePtr node,
+std::vector<NodePtr> FindSubgraph(const Graph& graph, std::vector<NodePtr> nodes,
                                   const std::function<bool(NodePtr)>& func) {
   // find simply connected nodes that are ngraph compatible
-  auto subgraph_nodes = SelectNodes(node, func);
+  auto subgraph_nodes = SelectNodes(nodes, func);
 
   // search for broken loops
   // remove nodes on broken loops
-  auto outNodes = RemoveBroken(node, subgraph_nodes);
+  auto outNodes = RemoveBroken(nodes, subgraph_nodes);
 
   return outNodes;
 }
 
 bool IdentifyOneSubgraph(Graph* graph, const std::function<bool(NodePtr)>& func,
-                         int current_subgraph_num, NodePtr n) {
+                         int current_subgraph_num, std::vector<NodePtr> n) {
   bool found_subgraph = false;
-  if (n->subgraph_ == 0) {
+  bool not_subgraph = true;
+  for (auto node : n) {
+    if (node->subgraph_ != 0) {
+      not_subgraph = false;
+    }
+  }
+  if (not_subgraph) {
     // select nodes in the a subgraph starting here and going up the graph
     auto subgraph_nodes = FindSubgraph(*graph, n, func);
 
@@ -323,20 +332,15 @@ bool IdentifyOneSubgraph(Graph* graph, const std::function<bool(NodePtr)>& func,
 void IdentifySubgraphs(Graph* graph, const std::function<bool(NodePtr)>& func) {
   int sg = 1;
 
-  // collapse graphs from the outputs
-  for (auto output : graph->outputs_) {
-    bool found_subgraph = false;
-    found_subgraph = IdentifyOneSubgraph(graph, func, sg, output);
-    if (found_subgraph) {
-      sg += 1;
-    }
+  if (IdentifyOneSubgraph(graph, func, sg, graph->outputs_)) {
+    sg += 1;
   }
 
   // loop over the nodes from the back and find any that aren't in subgraphs
   while (true) {
     bool found_subgraph = false;
     for (auto n = graph->nodes_.rbegin(); n != graph->nodes_.rend(); ++n) {
-      found_subgraph = IdentifyOneSubgraph(graph, func, sg, *n);
+      found_subgraph = IdentifyOneSubgraph(graph, func, sg, {*n});
       if (found_subgraph) {
         sg += 1;
         break;
