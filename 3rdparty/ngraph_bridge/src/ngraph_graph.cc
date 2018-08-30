@@ -251,6 +251,14 @@ std::vector<NodePtr> GetSubgraphOutputs(
   std::unordered_set<NodePtr> out_nodes_set;
 
   std::vector<NodePtr> outNodes;
+  // of nodes in the subgraph are outputs of the main graph, they need
+  // to be outputs of the subgraph
+  for (auto n : graph.outputs_) {
+    if (sg_nodes.count(n)) {
+      outNodes.emplace_back(n);
+    }
+  }
+
   // for every node in the subgraph, if the node is an input to other nodes
   // that aren't in the subgraph, this node is an output of the subgraph
   for (auto n : graph.nodes_) {
@@ -261,14 +269,6 @@ std::vector<NodePtr> GetSubgraphOutputs(
           out_nodes_set.insert(i);
         }
       }
-    }
-  }
-
-  // of nodes in the subgraph are outputs of the main graph, they need
-  // to be outputs of the subgraph
-  for (auto n : graph.outputs_) {
-    if (sg_nodes.count(n)) {
-      outNodes.emplace_back(n);
     }
   }
 
