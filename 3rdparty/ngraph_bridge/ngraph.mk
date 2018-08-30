@@ -64,6 +64,9 @@ endif
 
 #===================================================================================================
 ADD_NGRAPH_LIBDIR_TO_MXNET_RPATH=1
+ifeq ($(DEBUG), 1)
+	override NGRAPH_EXTRA_CMAKE_FLAGS += -DCMAKE_BUILD_TYPE=Debug
+endif
 override NGRAPH_EXTRA_CMAKE_FLAGS += -DNGRAPH_UNIT_TEST_ENABLE=0 -DNGRAPH_TOOLS_ENABLE=0
 NGRAPH_EXTRA_MAKE_FLAGS="VERBOSE=1"
 
