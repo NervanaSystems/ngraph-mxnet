@@ -214,6 +214,7 @@ class Compiler {
   const NDArrayMap& GetFeedDict() { return feed_dict_; }
   const NNVMNodeVec& GetInputs() { return inputs_; }
   Graph& get_ngraph() { return ngraph_; }
+  const NodeMap& get_node_map() { return node_map_; }
 
  protected:
   // parse and process graph

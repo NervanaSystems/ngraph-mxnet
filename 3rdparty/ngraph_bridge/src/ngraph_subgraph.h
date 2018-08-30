@@ -46,7 +46,7 @@ class SgNgraphSelector : public SubgraphSelector {
   Compiler compiler_;
   bool is_node_selected(const nnvm::Node &n) {
     NodePtr nn;
-    MapEntry tmp{&n, 0};
+    MapEntry tmp{compiler_.get_node_map().at(&n).get(), 0};
     auto &entry_map = compiler_.get_ngraph().entry_map_;
     if (entry_map.count(tmp)) {
       nn = entry_map[tmp];
@@ -70,7 +70,6 @@ class SgNgraphProperty : public SubgraphProperty {
     n->attrs.op = Op::Get("_ngraph_subgraph_op");
     n->attrs.name = "_ngraph_subgraph_op" + std::to_string(subgraph_id);
     n->attrs.subgraphs.push_back(std::make_shared<nnvm::Symbol>(sym));
-    auto tmpnode = sym.outputs[0].node.get();
     return n;
   }
   SubgraphSelectorPtr CreateSubgraphSelector() const override {
