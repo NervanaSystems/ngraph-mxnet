@@ -16,9 +16,9 @@
 
 #include <mxnet/ndarray.h>
 #include "../../../src/operator/subgraph/common.h"
+#include "ngraph_imperative.h"
 #include "ngraph_nnvm_ops.h"
 #include "ngraph_subgraph.h"
-#include "ngraph_imperative.h"
 
 namespace ngraph_bridge {
 using namespace nnvm;
@@ -31,7 +31,8 @@ std::shared_ptr<ngraph_bridge::Graph> get_ngraph(const NodeAttrs& attrs) {
 
 class NgraphSubgraphOperator {
  public:
-  NgraphSubgraphOperator(std::shared_ptr<ngraph_bridge::Graph> ngraph): ngraph_(ngraph) {}
+  NgraphSubgraphOperator(std::shared_ptr<ngraph_bridge::Graph> ngraph)
+      : ngraph_(ngraph) {}
   void Forward(const OpContext& ctx, const std::vector<NDArray>& inputs,
                const std::vector<OpReqType>& req,
                const std::vector<NDArray>& outputs);

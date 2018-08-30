@@ -65,25 +65,20 @@ std::shared_ptr<ngraph_bridge::Graph> create_ngraph(
   const nnvm::Symbol &sym = *attrs.subgraphs[0];
   auto num_inputs = DefaultSubgraphOpNumInputs(attrs);
   auto num_outputs = DefaultSubgraphOpNumOutputs(attrs);
-  std::vector<TShape> shapes;
-  std::vector<TShape> shapes_out;
-  shapes.reserve(num_inputs);
-  shapes_out.reserve(num_outputs);
+  std::vector<TShape> shapes(num_inputs);
+  std::vector<TShape> shapes_out(num_outputs);
   DefaultSubgraphOpShape(attrs, &shapes, &shapes_out);
 
-  std::vector<int> dtypes;
-  std::vector<int> dtypes_out;
-  dtypes.reserve(num_inputs);
-  dtypes_out.reserve(num_outputs);
+  std::vector<int> dtypes(num_inputs);
+  std::vector<int> dtypes_out(num_outputs);
   DefaultSubgraphOpType(attrs, &dtypes, &dtypes_out);
 
   auto ctx = mxnet::Context::CPU();
-  std::vector<int> stypes;
-  std::vector<int> stypes_out;
-  stypes.reserve(num_inputs);
-  stypes_out.reserve(num_outputs);
+  std::vector<int> stypes(num_inputs);
+  std::vector<int> stypes_out(num_outputs);
   mxnet::DispatchMode dispatch_mode = DispatchMode::kUndefined;
-  DefaultSubgraphOpStorageType(attrs, ctx.dev_mask(), &dispatch_mode, &stypes, &stypes_out);
+  DefaultSubgraphOpStorageType(attrs, ctx.dev_mask(), &dispatch_mode, &stypes,
+                               &stypes_out);
 
   NGImperative ngi(sym, ctx, shapes, dtypes, stypes);
   return ngi.get_op_ngraph();
