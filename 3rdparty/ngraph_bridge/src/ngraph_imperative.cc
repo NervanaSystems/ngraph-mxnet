@@ -88,7 +88,23 @@ NGImperative::NGImperative(const nnvm::Symbol &sym, const mxnet::Context &ctx,
       mxnet::exec::ContextVector(graph_.indexed_graph().num_nodes(), ctx));
   MakeCopiedInputs(sym.ListInputs(nnvm::Symbol::kReadOnlyArgs));
 }
-
+NGImperative::NGImperative(const nnvm::Symbol &sym, const mxnet::Context &ctx,
+                           const nnvm::ShapeVector &shapes,
+                           const nnvm::DTypeVector &dtypes,
+                           const nnvm::StorageVector &stypes)
+    : Compiler(ctx) {
+  shapes_ = shapes;
+  dtypes_ = dtypes;
+  stypes_ = stypes;
+  // construct single symbol nnvm graph and create ngraph
+  nnvm::Graph g;
+  g.outputs = sym.outputs;
+  // initialize ngraph
+  DeepCopy(g);
+  graph_.attrs["context"] = std::make_shared<nnvm::any>(
+      mxnet::exec::ContextVector(graph_.indexed_graph().num_nodes(), ctx));
+  MakeCopiedInputs(sym.ListInputs(nnvm::Symbol::kReadOnlyArgs));
+}
 // process ngraph composed of nnvm symbol graph
 void NGImperative::parse_ngraph() {
   ProcessGraph(NDArrayMap());

@@ -26,12 +26,12 @@ using namespace mxnet;
 using namespace mxnet::op;
 
 std::shared_ptr<ngraph_bridge::Graph> get_ngraph(const NodeAttrs& attrs) {
-  return nnvm::get<ngraph_bridge::NGraphParam>(attrs.parsed).g;
+  return nnvm::get<std::shared_ptr<ngraph_bridge::Graph>>(attrs.parsed);
 }
 
 class NgraphSubgraphOperator {
  public:
-  NgraphSubgraphOperator(const NodeAttrs& attrs): attrs_(attrs) {}
+  NgraphSubgraphOperator(std::shared_ptr<ngraph_bridge::Graph> ngraph): ngraph_(ngraph) {}
   void Forward(const OpContext& ctx, const std::vector<NDArray>& inputs,
                const std::vector<OpReqType>& req,
                const std::vector<NDArray>& outputs);
@@ -41,19 +41,12 @@ class NgraphSubgraphOperator {
 
  private:
   std::shared_ptr<ngraph_bridge::Graph> ngraph_;
-  nnvm::NodeAttrs attrs_;
 };
 
 void NgraphSubgraphOperator::Forward(const OpContext& ctx,
                                      const std::vector<NDArray>& inputs,
                                      const std::vector<OpReqType>& req,
                                      const std::vector<NDArray>& outputs) {
-  // check and init ngraph_
-  if (!ngraph_) {
-      NGImperative ngi(*attrs_.subgraphs[0], ctx.run_ctx.ctx, inputs, &req, outputs);
-      ngraph_ = ngi.get_op_ngraph();
-  }
-
   compute_forward(ctx, ngraph_, inputs, req, outputs);
 }
 
@@ -67,7 +60,7 @@ void NgraphSubgraphOperator::Backward(const OpContext& ctx,
 OpStatePtr CreateNgraphSubgraphOpState(const NodeAttrs& attrs, Context ctx,
                                        const std::vector<TShape>& in_shapes,
                                        const std::vector<int>& in_types) {
-  return OpStatePtr::Create<NgraphSubgraphOperator>(attrs);
+  return OpStatePtr::Create<NgraphSubgraphOperator>(get_ngraph(attrs));
 }
 
 void NgraphSubgraphOpForward(const OpStatePtr& state_ptr, const OpContext& ctx,

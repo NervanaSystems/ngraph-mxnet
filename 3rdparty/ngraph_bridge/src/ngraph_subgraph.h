@@ -17,8 +17,10 @@
 #ifndef MXNET_NGRAPH_NGRAPH_SUBGRAPH_H_
 #define MXNET_NGRAPH_NGRAPH_SUBGRAPH_H_
 
+#include "../../../src/operator/subgraph/common.h"
 #include "../../../src/operator/subgraph/subgraph_property.h"
 #include "ngraph_compiler.h"
+#include "ngraph_imperative.h"
 #include "ngraph_nnvm_ops.h"
 
 namespace ngraph_bridge {
@@ -28,7 +30,7 @@ using namespace mxnet::op;
 
 class SgNgraphSelector : public SubgraphSelector {
  public:
-  SgNgraphSelector(const nnvm::Graph &g) : compiler_(g) {}
+  SgNgraphSelector(Compiler *compiler) : compiler_(compiler) {}
 
   bool Select(const nnvm::Node &n) override {
     return (!n.is_variable() && is_node_selected(n));
@@ -43,11 +45,11 @@ class SgNgraphSelector : public SubgraphSelector {
   }
 
  private:
-  Compiler compiler_;
+  Compiler *compiler_;
   bool is_node_selected(const nnvm::Node &n) {
     NodePtr nn;
-    MapEntry tmp{compiler_.get_node_map().at(&n).get(), 0};
-    auto &entry_map = compiler_.get_ngraph().entry_map_;
+    MapEntry tmp{compiler_->get_node_map().at(&n).get(), 0};
+    auto &entry_map = compiler_->get_ngraph().entry_map_;
     if (entry_map.count(tmp)) {
       nn = entry_map[tmp];
     }
@@ -58,6 +60,34 @@ class SgNgraphSelector : public SubgraphSelector {
   }
 };
 
+std::shared_ptr<ngraph_bridge::Graph> create_ngraph(
+    const nnvm::NodeAttrs &attrs) {
+  const nnvm::Symbol &sym = *attrs.subgraphs[0];
+  auto num_inputs = DefaultSubgraphOpNumInputs(attrs);
+  auto num_outputs = DefaultSubgraphOpNumOutputs(attrs);
+  std::vector<TShape> shapes;
+  std::vector<TShape> shapes_out;
+  shapes.reserve(num_inputs);
+  shapes_out.reserve(num_outputs);
+  DefaultSubgraphOpShape(attrs, &shapes, &shapes_out);
+
+  std::vector<int> dtypes;
+  std::vector<int> dtypes_out;
+  dtypes.reserve(num_inputs);
+  dtypes_out.reserve(num_outputs);
+  DefaultSubgraphOpType(attrs, &dtypes, &dtypes_out);
+
+  auto ctx = mxnet::Context::CPU();
+  std::vector<int> stypes;
+  std::vector<int> stypes_out;
+  stypes.reserve(num_inputs);
+  stypes_out.reserve(num_outputs);
+  mxnet::DispatchMode dispatch_mode = DispatchMode::kUndefined;
+  DefaultSubgraphOpStorageType(attrs, ctx.dev_mask(), &dispatch_mode, &stypes, &stypes_out);
+
+  NGImperative ngi(sym, ctx, shapes, dtypes, stypes);
+  return ngi.get_op_ngraph();
+}
 class SgNgraphProperty : public SubgraphProperty {
  public:
   static SubgraphPropertyPtr Create() {
@@ -70,12 +100,18 @@ class SgNgraphProperty : public SubgraphProperty {
     n->attrs.op = Op::Get("_ngraph_subgraph_op");
     n->attrs.name = "_ngraph_subgraph_op" + std::to_string(subgraph_id);
     n->attrs.subgraphs.push_back(std::make_shared<nnvm::Symbol>(sym));
+    n->attrs.parsed = create_ngraph(n->attrs);
     return n;
   }
   SubgraphSelectorPtr CreateSubgraphSelector() const override {
-    return std::make_shared<SgNgraphSelector>(
-        this->GetAttr<nnvm::Graph>("graph"));
+    if (!compiler_) {
+      compiler_ = std::make_shared<Compiler>(GetAttr<nnvm::Graph>("graph"));
+    }
+    return std::make_shared<SgNgraphSelector>(compiler_.get());
   }
+
+ private:
+  mutable std::shared_ptr<Compiler> compiler_;
 };
 
 }  // namespace ngraph_bridge
