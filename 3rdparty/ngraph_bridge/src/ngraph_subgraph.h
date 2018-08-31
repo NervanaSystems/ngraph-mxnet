@@ -34,15 +34,18 @@ class SgNgraphSelector : public SubgraphSelector {
   SgNgraphSelector(Compiler *compiler) : compiler_(compiler) {}
 
   bool Select(const nnvm::Node &n) override {
-    return (!n.is_variable() && is_node_selected(n));
+    /* return (!n.is_variable() && is_node_selected(n)); */
+    return (!n.is_variable());
   }
 
   bool SelectInput(const nnvm::Node &n, const nnvm::Node &new_node) override {
-    return (!n.is_variable() && is_node_selected(new_node));
+    /* return (!n.is_variable() && is_node_selected(new_node)); */
+    return (!n.is_variable());
   }
 
   bool SelectOutput(const nnvm::Node &n, const nnvm::Node &new_node) override {
-    return (!n.is_variable() && is_node_selected(new_node));
+    /* return (!n.is_variable() && is_node_selected(new_node)); */
+    return (!n.is_variable());
   }
 
  private:
@@ -69,13 +72,10 @@ std::shared_ptr<ngraph_bridge::Graph> create_ngraph(
 
   std::vector<TShape> shapes(num_inputs);
   std::vector<TShape> shapes_out(num_outputs);
-  DefaultSubgraphOpShape(attrs, &shapes, &shapes_out);
 
   std::vector<int> dtypes(num_inputs);
   std::vector<int> dtypes_out(num_outputs);
-  DefaultSubgraphOpType(attrs, &dtypes, &dtypes_out);
 
-  auto ctx = mxnet::Context::CPU();
   std::vector<int> stypes(num_inputs);
   std::vector<int> stypes_out(num_outputs);
 
@@ -95,7 +95,10 @@ std::shared_ptr<ngraph_bridge::Graph> create_ngraph(
     stypes[i] = ostypes[eid];
   }
 
+  DefaultSubgraphOpShape(attrs, &shapes, &shapes_out);
+  DefaultSubgraphOpType(attrs, &dtypes, &dtypes_out);
   mxnet::DispatchMode dispatch_mode = DispatchMode::kUndefined;
+  auto ctx = mxnet::Context::CPU();
   DefaultSubgraphOpStorageType(attrs, ctx.dev_mask(), &dispatch_mode, &stypes,
                                &stypes_out);
 
