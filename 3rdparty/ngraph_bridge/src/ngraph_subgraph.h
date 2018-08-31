@@ -34,18 +34,15 @@ class SgNgraphSelector : public SubgraphSelector {
   SgNgraphSelector(Compiler *compiler) : compiler_(compiler) {}
 
   bool Select(const nnvm::Node &n) override {
-    /* return (!n.is_variable() && is_node_selected(n)); */
-    return (!n.is_variable());
+    return is_node_selected(n);
   }
 
   bool SelectInput(const nnvm::Node &n, const nnvm::Node &new_node) override {
-    /* return (!n.is_variable() && is_node_selected(new_node)); */
-    return (!n.is_variable());
+    return is_node_selected(n) && is_node_selected(new_node);
   }
 
   bool SelectOutput(const nnvm::Node &n, const nnvm::Node &new_node) override {
-    /* return (!n.is_variable() && is_node_selected(new_node)); */
-    return (!n.is_variable());
+    return is_node_selected(n) && is_node_selected(new_node);
   }
 
  private:
@@ -89,10 +86,11 @@ std::shared_ptr<ngraph_bridge::Graph> create_ngraph(
   const auto &oidx = orig_graph.indexed_graph();
   const auto &inids = idx.input_nodes();
   for (auto &i : inids) {
-    auto eid = oidx.entry_id(oidx.node_id(idx[i].source), 0);
-    shapes[i] = oshapes[eid];
-    dtypes[i] = otypes[eid];
-    stypes[i] = ostypes[eid];
+    /* if (!oidx.exist(idx[i].source)) continue; */
+    /* auto eid = oidx.entry_id(oidx.node_id(idx[i].source), 0); */
+    shapes[i] = oshapes[i];
+    dtypes[i] = otypes[i];
+    stypes[i] = ostypes[i];
   }
 
   DefaultSubgraphOpShape(attrs, &shapes, &shapes_out);
@@ -123,9 +121,10 @@ class SgNgraphProperty : public SubgraphProperty {
     if (ngraph_log_verbose_detail) {
       nnvm::Graph g;
       g.outputs = sym.outputs;
-      std::cout << __func__ << ": id " << subgraph_id << " num_nodes "
-                << orig_graph.indexed_graph().num_node_entries() << "/"
-                << g.indexed_graph().num_node_entries() << std::endl;
+      std::cout << __func__ << ": id " << subgraph_id
+                << " num_nodes after partition "
+                << orig_graph.indexed_graph().num_nodes() << "/"
+                << g.indexed_graph().num_nodes() << std::endl;
     }
 #endif
     n->attrs.parsed = create_ngraph(n->attrs, orig_graph);
@@ -134,7 +133,15 @@ class SgNgraphProperty : public SubgraphProperty {
 
   SubgraphSelectorPtr CreateSubgraphSelector() const override {
     if (!compiler_) {
-      compiler_ = std::make_shared<Compiler>(GetAttr<nnvm::Graph>("graph"));
+      auto &orig_graph = GetAttr<nnvm::Graph>("graph");
+#if DEBUG_SUBGRAPH
+      if (ngraph_log_verbose_detail) {
+        std::cout << "SgNgraphProperty" << ": Init with orig graph "
+                  << &orig_graph << " num_nodes "
+                  << orig_graph.indexed_graph().num_nodes() << std::endl;
+      }
+#endif
+      compiler_ = std::make_shared<Compiler>(orig_graph);
     }
 #if DEBUG_SUBGRAPH
     if (ngraph_log_verbose_detail) {

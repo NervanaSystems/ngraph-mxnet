@@ -45,7 +45,7 @@ using nnvm::NodePtr;
 using nnvm::NodeEntry;
 using nnvm::Graph;
 
-#define DEBUG_SUBGRAPH 0
+#define DEBUG_SUBGRAPH 1
 
 namespace sg {  // sg stands for subgraph
 
@@ -642,6 +642,9 @@ void CreateSubgraphNode(Graph* g,
 #endif
   std::vector<nnvm::NodeEntry*> output_entries;
   FindOutputEntries(g, simple_nodes, subgraph_nodes, *entry_top_order_map, &output_entries);
+#if DEBUG_SUBGRAPH
+  PrintNodeEntries(output_entries);
+#endif
 
   // Create a subgraph for the subgraph node
   nnvm::Symbol sym;
