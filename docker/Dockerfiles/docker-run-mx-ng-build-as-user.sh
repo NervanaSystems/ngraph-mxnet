@@ -23,7 +23,7 @@ set -e  # Fail on any command with non-zero exit
 # Get the python version
 
 if [ -z "${2}" ] ; then
-    export PYTHON_VERSION_NUMBER="2"  # Build for Python 3 by default
+    export PYTHON_VERSION_NUMBER="3"  # Build for Python 3 by default
 else
     export PYTHON_VERSION_NUMBER="${2}"
 fi
