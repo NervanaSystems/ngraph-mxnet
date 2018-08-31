@@ -34,18 +34,15 @@ class SgNgraphSelector : public SubgraphSelector {
   SgNgraphSelector(Compiler *compiler) : compiler_(compiler) {}
 
   bool Select(const nnvm::Node &n) override {
-    /* return (!n.is_variable() && is_node_selected(n)); */
-    return (!n.is_variable());
+    return (!n.is_variable() && is_node_selected(n));
   }
 
   bool SelectInput(const nnvm::Node &n, const nnvm::Node &new_node) override {
-    /* return (!n.is_variable() && is_node_selected(new_node)); */
-    return (!n.is_variable());
+    return (!n.is_variable() && is_node_selected(new_node));
   }
 
   bool SelectOutput(const nnvm::Node &n, const nnvm::Node &new_node) override {
-    /* return (!n.is_variable() && is_node_selected(new_node)); */
-    return (!n.is_variable());
+    return (!n.is_variable() && is_node_selected(new_node));
   }
 
  private:
@@ -69,7 +66,7 @@ std::shared_ptr<ngraph_bridge::Graph> create_ngraph(
   const nnvm::Symbol &sym = *attrs.subgraphs[0];
   auto num_inputs = DefaultSubgraphOpNumInputs(attrs);
   auto num_outputs = DefaultSubgraphOpNumOutputs(attrs);
-  
+
   std::vector<TShape> shapes(num_inputs);
   std::vector<TShape> shapes_out(num_outputs);
   DefaultSubgraphOpShape(attrs, &shapes, &shapes_out);
@@ -81,19 +78,23 @@ std::shared_ptr<ngraph_bridge::Graph> create_ngraph(
   auto ctx = mxnet::Context::CPU();
   std::vector<int> stypes(num_inputs);
   std::vector<int> stypes_out(num_outputs);
+
   auto &oshapes = orig_graph.GetAttr<nnvm::ShapeVector>("shape");
   auto &otypes = orig_graph.GetAttr<nnvm::DTypeVector>("dtype");
   auto &ostypes = orig_graph.GetAttr<StorageTypeVector>("storage_type");
-  
+
   nnvm::Graph g;
   g.outputs = sym.outputs;
   const auto &idx = g.indexed_graph();
   const auto &oidx = orig_graph.indexed_graph();
   const auto &inids = idx.input_nodes();
   for (auto &i : inids) {
-    std::cout << oidx.exist(idx[i].source) << ":" << std::endl;
+    auto eid = oidx.entry_id(oidx.node_id(idx[i].source), 0);
+    shapes[i] = oshapes[eid];
+    dtypes[i] = otypes[eid];
+    stypes[i] = ostypes[eid];
   }
-  
+
   mxnet::DispatchMode dispatch_mode = DispatchMode::kUndefined;
   DefaultSubgraphOpStorageType(attrs, ctx.dev_mask(), &dispatch_mode, &stypes,
                                &stypes_out);
