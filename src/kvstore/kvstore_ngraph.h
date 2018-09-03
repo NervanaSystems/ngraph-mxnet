@@ -19,7 +19,7 @@
 #if MXNET_USE_NGRAPH_DISTRIBUTED
 
 #include <mxnet/kvstore.h>
-#include <mpi.h>
+#include <ngraph/mlsl.hpp>
 
 namespace mxnet {
 namespace kvstore {
@@ -30,28 +30,24 @@ namespace kvstore {
 class KVStoreNGRAPH : public KVStoreLocal {
  public:
   explicit KVStoreNGRAPH(bool use_device_comm) : KVStoreLocal(use_device_comm) {
-      int flag = 0;
-      MPI_Initialized(&flag);
-      if (!flag) {
-        MPI_Init(NULL, NULL);
-      }
+	  if(!MLSL::Environment::GetEnv().IsInitialized()) {
+	      MLSL::Environment::GetEnv().Init(nullptr, nullptr);
+	  }
       dmlc::SetEnv("MXNET_NGRAPH_DISTRIBUTED", 1);
   }
 
   virtual ~KVStoreNGRAPH() {
-      MPI_Finalize();
+	  if(MLSL::Environment::GetEnv().IsInitialized()) {
+          MLSL::Environment::GetEnv().Finalize();
+	  }
   }
 
   int get_group_size() const override {
-      int size;
-      MPI_Comm_size(MPI_COMM_WORLD, &size);
-      return size;
+      return MLSL::Environment::GetEnv().GetProcessCount();
   }
 
   int get_rank() const override {
-      int rank;
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-      return rank;
+      return MLSL::Environment::GetEnv().GetProcessIdx();
   }
 };
 }  // namespace kvstore
