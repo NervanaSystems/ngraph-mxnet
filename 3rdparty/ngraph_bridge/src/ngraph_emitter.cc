@@ -338,6 +338,44 @@ void Emitter::CreateUnaryOps() {
     return ;
   };
   */
+  ngraph_op_funcs_["_arange"] = [this](const NodePtr& node) {
+    double start = get_default(node, "start", 0.0f);
+    double step = get_default(node, "step", 1.0f);
+    std::string stop = get_default(node, "stop", std::string("None"));
+    int repeat = get_default(node, "repeat", 1);
+
+    // if the endpoint is not given, the start value is actually
+    // the number of expements desired, so we just use the
+    // output shape
+    if (stop == "None") {
+      start = 0;
+    }
+
+    // If the output isn't float point, we need to count by integers
+    if (node->dtype_ != mshadow::kFloat32 && 
+        node->dtype_ != mshadow::kFloat64) {
+      start = static_cast<int>(start);
+      step = static_cast<int>(step);
+    }
+
+    std::vector<std::string> range;
+    double current = start;
+    while (range.size() < node->shape_[0]) {
+      for (size_t i = 0; i < repeat; ++i) {
+        range.emplace_back(std::to_string(current));
+      }
+      current += step;
+    }
+    
+    return std::make_shared<ngraph::op::Constant>(
+      getType(node->dtype_), TShape_to_NShape(node->shape_), range);
+  };
+  ngraph_op_funcs_["_ones"] = [this](const NodePtr& node) {
+    return makeConstant(node, "1");
+  };
+  ngraph_op_funcs_["ones_like"] = [this](const NodePtr& node) {
+    return makeConstant(node->inputs_[0], "1");
+  };
   ngraph_op_funcs_["_zeros"] = [this](const NodePtr& node) {
     return makeConstant(node, "0");
   };

@@ -234,7 +234,6 @@ class TestImage(unittest.TestCase):
         for batch in test_iter:
             pass
 
-    @unittest.skip("The test fail with python errors. Temporarily disabled till it gets fixed")
     def test_image_detiter(self):
         im_list = [_generate_objects() + [x] for x in TestImage.IMAGES]
         det_iter = mx.image.ImageDetIter(2, (3, 300, 300), imglist=im_list, path_root='')

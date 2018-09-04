@@ -55,8 +55,7 @@ inline bool ngraph_log_viz() {
 inline bool ngraph_log_timer() {
   return dmlc::GetEnv("MXNET_NGRAPH_TIMER", false);
 }
-const bool ngraph_log_verbose_detail =
-    dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_DETAIL", false);
+extern const bool ngraph_log_verbose_detail; 
 
 // simple timer for sequential blocks of code
 class Timer {

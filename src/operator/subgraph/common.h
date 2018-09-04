@@ -28,51 +28,24 @@
 
 namespace mxnet {
 namespace op {
-namespace sg {
-
-struct SimpleNode;
-using SimpleNodePtr = std::shared_ptr<SimpleNode>;
-
-/*!
- * \brief Node of the undirected graph which replicates the network structures
- * of the computational graph. It is used to ease the graph traversal for finding
- * subgraphs.
- */
-struct SimpleNode {
-  static SimpleNodePtr Create() {
-    return std::make_shared<SimpleNode>();
-  }
-  SimpleNode() : label(-1), node(nullptr) {}
-  /*! subgraph label */
-  int label;
-  /*! the original node in the computational graph it references*/
-  nnvm::Node* node;
-  /*!
-   * \brief output nodes of the current node
-   * key is node ptr and value is an array of indices standing for the entry indices
-   * in key->inputs whose source is the current node.
-   */
-  std::unordered_map<nnvm::Node*, std::vector<size_t>> outputs;
-};  // struct SimpleNode
-}  // namespace sg
 
 inline uint32_t DefaultSubgraphOpNumInputs(const nnvm::NodeAttrs& attrs) {
-  const nnvm::Symbol& sym = nnvm::get<nnvm::Symbol>(attrs.parsed);
+  const nnvm::Symbol& sym = *attrs.subgraphs[0];
   return sym.ListInputNames(nnvm::Symbol::kAll).size();
 }
 
 inline uint32_t DefaultSubgraphOpNumOutputs(const nnvm::NodeAttrs& attrs) {
-  const nnvm::Symbol& sym = nnvm::get<nnvm::Symbol>(attrs.parsed);
+  const nnvm::Symbol& sym = *attrs.subgraphs[0];
   return sym.ListOutputNames().size();
 }
 
 inline std::vector<std::string> DefaultSubgraphOpListInputs(const nnvm::NodeAttrs& attrs) {
-  const nnvm::Symbol& sym = nnvm::get<nnvm::Symbol>(attrs.parsed);
+  const nnvm::Symbol& sym = *attrs.subgraphs[0];
   return sym.ListInputNames(nnvm::Symbol::kAll);
 }
 
 inline std::vector<std::string> DefaultSubgraphOpListOutputs(const nnvm::NodeAttrs& attrs) {
-  const nnvm::Symbol& sym = nnvm::get<nnvm::Symbol>(attrs.parsed);
+  const nnvm::Symbol& sym = *attrs.subgraphs[0];
   return sym.ListOutputNames();
 }
 
@@ -80,7 +53,7 @@ inline bool DefaultSubgraphOpShape(const nnvm::NodeAttrs& attrs,
                                    std::vector<TShape> *in_shapes,
                                    std::vector<TShape> *out_shapes) {
   using namespace exec;
-  const nnvm::Symbol& subgraph_sym = nnvm::get<nnvm::Symbol>(attrs.parsed);
+  const nnvm::Symbol& subgraph_sym = *attrs.subgraphs[0];
   nnvm::Graph g;
   g.outputs = subgraph_sym.outputs;
   const auto& idx_g = g.indexed_graph();
@@ -124,7 +97,7 @@ inline bool DefaultSubgraphOpShape(const nnvm::NodeAttrs& attrs,
 inline bool DefaultSubgraphOpType(const nnvm::NodeAttrs& attrs,
                                   std::vector<int> *in_types,
                                   std::vector<int> *out_types) {
-  const nnvm::Symbol& subgraph_sym = nnvm::get<nnvm::Symbol>(attrs.parsed);
+  const nnvm::Symbol& subgraph_sym = *attrs.subgraphs[0];
   nnvm::Graph g;
   g.outputs = subgraph_sym.outputs;
   const auto& idx_g = g.indexed_graph();
@@ -169,7 +142,7 @@ inline bool DefaultSubgraphOpStorageType(const nnvm::NodeAttrs& attrs,
                                          DispatchMode* dispatch_mode,
                                          std::vector<int>* in_stypes,
                                          std::vector<int>* out_stypes) {
-  const nnvm::Symbol& subgraph_sym = nnvm::get<nnvm::Symbol>(attrs.parsed);
+  const nnvm::Symbol& subgraph_sym = *attrs.subgraphs[0];
   nnvm::Graph g;
   g.outputs = subgraph_sym.outputs;
   const auto& idx_g = g.indexed_graph();
@@ -222,7 +195,7 @@ inline ExecType DefaultSubgraphOpExecType(const nnvm::NodeAttrs& attrs) {
 }
 
 inline std::vector<uint32_t> DefaultSubgraphOpMutableInputs(const nnvm::NodeAttrs& attrs) {
-  const nnvm::Symbol& subgraph_sym = nnvm::get<nnvm::Symbol>(attrs.parsed);
+  const nnvm::Symbol& subgraph_sym = *attrs.subgraphs[0];
   const std::vector<std::string> input_names = subgraph_sym.ListInputNames(nnvm::Symbol::kAll);
   const std::vector<std::string> immutable_input_names =
     subgraph_sym.ListInputNames(nnvm::Symbol::kReadOnlyArgs);
@@ -245,7 +218,7 @@ inline std::vector<uint32_t> DefaultSubgraphOpMutableInputs(const nnvm::NodeAttr
 }
 
 inline std::vector<ResourceRequest> DefaultSubgraphOpResourceRequest(const nnvm::NodeAttrs& attrs) {
-  const nnvm::Symbol& subgraph_sym = nnvm::get<nnvm::Symbol>(attrs.parsed);
+  const nnvm::Symbol& subgraph_sym = *attrs.subgraphs[0];
   static auto& fresource = Op::GetAttr<FResourceRequest>("FResourceRequest");
   std::set<ResourceRequest::Type> resource_types;
   DFSVisit(subgraph_sym.outputs, [&](const nnvm::NodePtr& node) {
@@ -257,12 +230,6 @@ inline std::vector<ResourceRequest> DefaultSubgraphOpResourceRequest(const nnvm:
   });
   return std::vector<ResourceRequest>(resource_types.begin(), resource_types.end());
 }
-
-#if 0
-// TODO(junwu): add this attribute for visible outputs
-inline uint32_t DefaultSubgraphOpNumVisibleOutputs(const nnvm::NodeAttrs& attrs) {
-}
-#endif
 
 }  // namespace op
 }  // namespace mxnet
