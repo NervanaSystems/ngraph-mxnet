@@ -16,7 +16,7 @@
 
 #include <mxnet/ndarray.h>
 #include "../../../src/operator/subgraph/common.h"
-#include "../../../src/operator/subgraph/default_subgraph_op.h"
+#include "../../../src/operator/subgraph/subgraph_property.h"
 #include "ngraph_nnvm_ops.h"
 
 namespace ngraph_bridge {
