@@ -40,9 +40,6 @@
 #include "../common/exec_utils.h"
 #include "../operator/subgraph/subgraph_property.h"
 
-#if MXNET_USE_NGRAPH == 1
-#include "../operator/subgraph/default_subgraph_op.h"
-#endif
 namespace mxnet {
 namespace exec {
 using namespace mxnet::common;
