@@ -25,6 +25,8 @@
 using namespace std;
 
 namespace ngraph_bridge {
+extern const bool ngraph_log_verbose_detail =
+    dmlc::GetEnv("MXNET_NGRAPH_VERBOSE_DETAIL", false);
 
 std::ostream& operator<<(std::ostream& os, const nnvm::TShape& s) {
   return container_to_debug_stream(os, s);
