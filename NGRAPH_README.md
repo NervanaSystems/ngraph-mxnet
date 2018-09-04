@@ -177,7 +177,7 @@ properly if altered to use different nGraph back-ends.
 This is a temporary limitation expected to be lifted in a future release.
 
 ### Test status
-Integration testing to date (3/29/2018) has focused on `tests/cpp/*` and `tests/python/unittest/*`.
+Integration testing to date (8/31/2018) has focused on `tests/cpp/*` and `tests/python/unittest/*`.
 Of these tests, we see the following failures.
 
 #### This test fails with relative errors of <1e-4 on a limit of 1e-5.
@@ -189,15 +189,10 @@ Of these tests, we see the following failures.
 #### These test fail with python errors
 - `tests/python/unittest/test_image.py::test_det_augmenters`
 - `tests/python/unittest/test_image.py::test_image_detiter`
+- `tests/python/unittest/test_image.py:test_imageiter`
 
 #### nGraph changes the number of nodes in the graph, so the assumptions in this test are no longer valid.
 - `tests/python/unittest/test_module.py::test_monitor`
-
-#### Profiler integration is ongoing but incomplete, so profiler fails.
-- `tests/python/unittest/test_profiler.py::test_profiler`
-
-#### We haven't yet integrated nGraph into the debug string, so memory allocation isn't properly supported and test_zero_prop fails
-- `tests/python/unittest/test_symbol.py::test_zero_prop`
 
 Integration testing on other python tests are forthcoming.
 
