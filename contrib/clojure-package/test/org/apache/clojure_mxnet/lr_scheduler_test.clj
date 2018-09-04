@@ -15,15 +15,10 @@
 ;; limitations under the License.
 ;;
 
-(ns org.apache.clojure-mxnet.test-util
-  (:require [clojure.test :as t]))
+(ns org.apache.clojure-mxnet.lr-scheduler-test
+  (:require [org.apache.clojure-mxnet.lr-scheduler :as lr-scheduler]
+            [clojure.test :refer :all]))
 
-(defn approx= [tolerance x y]
-  (if (and (number? x) (number? y))
-    (let [diff (Math/abs (- x y))]
-      (< diff tolerance))
-    (and
-    	(= (count x) (count y))
-		(reduce (fn [x y] (and x y))
-            (map #(approx= tolerance %1 %2) x y)))))
-
+(deftest test-factor-scheduler
+  ;; just excercising
+  (lr-scheduler/factor-scheduler 2 0.3))

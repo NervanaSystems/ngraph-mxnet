@@ -15,15 +15,17 @@
 ;; limitations under the License.
 ;;
 
-(ns org.apache.clojure-mxnet.test-util
-  (:require [clojure.test :as t]))
+(ns org.apache.clojure-mxnet.profiler-test
+  (:require [org.apache.clojure-mxnet.profiler :as profiler]
+            [clojure.test :refer :all]))
 
-(defn approx= [tolerance x y]
-  (if (and (number? x) (number? y))
-    (let [diff (Math/abs (- x y))]
-      (< diff tolerance))
-    (and
-    	(= (count x) (count y))
-		(reduce (fn [x y] (and x y))
-            (map #(approx= tolerance %1 %2) x y)))))
+;; Just excercising the interop
 
+(deftest test-profiler
+  (do
+    (profiler/profiler-set-config  {:filename "test-profile.json"
+                                    :profile-symbolic 1})
+    (profiler/profiler-set-state "run")
+    (profiler/profiler-set-state "stop")
+    (profiler/profiler-set-state)
+    (profiler/dump-profile 0)))

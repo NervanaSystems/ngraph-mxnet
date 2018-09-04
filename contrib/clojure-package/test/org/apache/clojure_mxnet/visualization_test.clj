@@ -15,15 +15,18 @@
 ;; limitations under the License.
 ;;
 
-(ns org.apache.clojure-mxnet.test-util
-  (:require [clojure.test :as t]))
+(ns org.apache.clojure-mxnet.visualization-test
+  (:require [org.apache.clojure-mxnet.symbol :as sym]
+            [org.apache.clojure-mxnet.visualization :as viz]
+            [clojure.test :refer :all])
+  (:import (org.apache.mxnet Visualization$Dot)))
 
-(defn approx= [tolerance x y]
-  (if (and (number? x) (number? y))
-    (let [diff (Math/abs (- x y))]
-      (< diff tolerance))
-    (and
-    	(= (count x) (count y))
-		(reduce (fn [x y] (and x y))
-            (map #(approx= tolerance %1 %2) x y)))))
-
+(deftest test-plot-network
+  (let [to-plot-sym (as-> (sym/variable "data") data
+                      (sym/flatten "fl" {:data data})
+                      (sym/softmax-output "softmax" {:data data}))
+        dot (viz/plot-network to-plot-sym
+                              {"data" [1 1 28 28]}
+                              {:title "foo"
+                               :node-attrs {:shape "oval" :fixedsize "false"}})]
+    (is (instance? Visualization$Dot dot))))

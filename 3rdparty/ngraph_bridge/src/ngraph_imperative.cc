@@ -67,9 +67,13 @@ NGImperative::NGImperative(const nnvm::NodeAttrs &attrs,
                            const std::vector<mxnet::NDArray> &inputs,
                            const std::vector<mxnet::OpReqType> *req,
                            const std::vector<mxnet::NDArray> &outputs)
+    : NGImperative(get_symbol(attrs, inputs.size()), ctx, inputs, req,
+                   outputs) {}
+NGImperative::NGImperative(const nnvm::Symbol &sym, const mxnet::Context &ctx,
+                           const std::vector<mxnet::NDArray> &inputs,
+                           const std::vector<mxnet::OpReqType> *req,
+                           const std::vector<mxnet::NDArray> &outputs)
     : Compiler(ctx) {
-  // Construct nnvm symbol to represent the computation
-  auto sym = get_symbol(attrs, inputs.size());
   // construct single symbol nnvm graph and create ngraph
   nnvm::Graph g;
   g.outputs = sym.outputs;
@@ -84,7 +88,23 @@ NGImperative::NGImperative(const nnvm::NodeAttrs &attrs,
       mxnet::exec::ContextVector(graph_.indexed_graph().num_nodes(), ctx));
   MakeCopiedInputs(sym.ListInputs(nnvm::Symbol::kReadOnlyArgs));
 }
-
+NGImperative::NGImperative(const nnvm::Symbol &sym, const mxnet::Context &ctx,
+                           const nnvm::ShapeVector &shapes,
+                           const nnvm::DTypeVector &dtypes,
+                           const nnvm::StorageVector &stypes)
+    : Compiler(ctx) {
+  shapes_ = shapes;
+  dtypes_ = dtypes;
+  stypes_ = stypes;
+  // construct single symbol nnvm graph and create ngraph
+  nnvm::Graph g;
+  g.outputs = sym.outputs;
+  // initialize ngraph
+  DeepCopy(g);
+  graph_.attrs["context"] = std::make_shared<nnvm::any>(
+      mxnet::exec::ContextVector(graph_.indexed_graph().num_nodes(), ctx));
+  MakeCopiedInputs(sym.ListInputs(nnvm::Symbol::kReadOnlyArgs));
+}
 // process ngraph composed of nnvm symbol graph
 void NGImperative::parse_ngraph() {
   ProcessGraph(NDArrayMap());
@@ -114,6 +134,12 @@ bool compute_forward_imperative(const nnvm::NodeAttrs &attrs,
     auto op_key = get_ngiop_key(attrs, ctx.run_ctx.ctx, inputs);
     op_ng = ngicache[op_key];
     if (!op_ng) {
+#ifndef NDEBUG
+      if (ngraph_log_verbose_detail) {
+        std::cout << "ngraph_imperative: Caching OP " << attrs.op->name
+                  << std::endl;
+      }
+#endif
       NGImperative ngi(attrs, ctx.run_ctx.ctx, inputs, &req, outputs);
       op_ng = ngicache[op_key] = ngi.get_op_ngraph();
     }
@@ -123,12 +149,15 @@ bool compute_forward_imperative(const nnvm::NodeAttrs &attrs,
   if (op_ng && op_ng->ngraph_forward[mode]) {
 #ifndef NDEBUG
     // log imperative op details in debug mode
-    LOG(INFO) << "ngraph imperative op: " << attrs.op->name << ", inputs "
-              << std::to_string(inputs.size()) << ", outputs "
-              << std::to_string(outputs.size());
+    if (ngraph_log_verbose_detail) {
+      std::cout << "ngraph imperative op: " << attrs.op->name << ", inputs "
+                << std::to_string(inputs.size()) << ", outputs "
+                << std::to_string(outputs.size()) << std::endl;
 
-    for (const auto &m : attrs.dict) {
-      LOG(INFO) << "attrs.dict[" << m.first << "] = " << m.second;
+      for (const auto &m : attrs.dict) {
+        std::cout << "attrs.dict[" << m.first << "] = " << m.second
+                  << std::endl;
+      }
     }
 #endif
     compute_forward(ctx, op_ng, inputs, req, outputs);
@@ -207,7 +236,7 @@ void InitImperativeOnce() {
                          const std::vector<mxnet::NDArray> &inputs,
                          const std::vector<mxnet::OpReqType> &req,
                          const std::vector<mxnet::NDArray> &outputs) -> void {
-            if (ctx.is_train || ctx.need_grad || 
+            if (ctx.is_train || ctx.need_grad ||
                 !compute_forward_imperative(attrs, ctx, inputs, req, outputs)) {
               // use default mxnet compute kernel
               fallbackx_fn(attrs, ctx, inputs, req, outputs);
@@ -349,10 +378,9 @@ NGIOpKey get_ngiop_key(const nnvm::NodeAttrs &attrs, const mxnet::Context &ctx,
     for (size_t ii = 0; ii < i.shape().ndim(); ++ii)
       in.push_back(i.shape()[ii]);
   }
-  return NGIOpKey(
-      attrs.op->name,
-      {static_cast<int>(ctx.dev_type), static_cast<int>(ctx.dev_id)},
-      attrs.dict, in);
+  return NGIOpKey(attrs.op->name, {static_cast<int>(ctx.dev_type),
+                                   static_cast<int>(ctx.dev_id)},
+                  attrs.dict, in);
 }
 
 }  // namespace ngraph_bridge

@@ -25,11 +25,6 @@
 #include <mxnet/base.h>
 #include <nnvm/graph.h>
 #include <nnvm/pass_functions.h>
-#if MXNET_USE_NGRAPH == 1
-#include <ngraph_compiler.h>
-#include <ngraph_utils.h>
-#include <ngraph_subgraph.h>
-#endif
 #include <vector>
 #include <algorithm>
 
@@ -38,17 +33,17 @@
 #include "../profiler/profiler.h"
 #include "../common/utils.h"
 #include "../common/exec_utils.h"
+#include "../operator/subgraph/subgraph_property.h"
 
-#if MXNET_USE_NGRAPH == 1
-#include "../operator/subgraph/default_subgraph_op.h"
-#endif
 namespace mxnet {
 namespace exec {
+
 using namespace mxnet::common;
 
 GraphExecutor::GraphExecutor() {
   log_verbose_ = dmlc::GetEnv("MXNET_EXEC_VERBOSE_LOGGING", false);
   need_grad_ = false;
+  subgraph_property_ = dmlc::GetEnv("MXNET_SUBGRAPH_BACKEND", std::string());
 }
 
 GraphExecutor::~GraphExecutor() {
@@ -274,7 +269,6 @@ nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Symbol symbol,
     if (type == "SoftmaxOutput") return false;
     if (type == "BatchNorm") return false;
     if (type == "CuDNNBatchNorm") return false;
-    if (type.substr(0, 7) == "ngraph") return false;
     return true;
   };
 
@@ -284,7 +278,7 @@ nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Symbol symbol,
 
   // take gradient
   nnvm::Graph g_grad = nnvm::pass::Gradient(
-      g, g.outputs, xs, head_grad_entry_,
+      g, symbol.outputs, xs, head_grad_entry_,
       AggregateGradient, need_mirror, nullptr,
       zero_ops, "_copy");
   CHECK_EQ(g_grad.outputs.size(), xs.size());
@@ -293,34 +287,6 @@ nnvm::Graph GraphExecutor::InitFullGraph(nnvm::Symbol symbol,
   }
   return g;
 }
-
-#if MXNET_USE_NGRAPH == 1
-bool multi_context_check(const Context& default_ctx,
-                         const std::vector<Context>& in_arg_ctxes,
-                         const std::vector<Context>& arg_grad_ctxes,
-                         const std::vector<Context>& aux_state_ctxes) {
-  bool multi_context = false;
-  for (auto contexts : {in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes}) {
-    for (auto context : contexts) {
-      if (context != default_ctx) {
-        multi_context = true;
-      }
-    }
-  }
-  // TODO(mbrookhart): we probably need to create collapsed nodes with FCompute<gpu>
-  // Ngraph GPU support is limitted and is currently enabled iff the env. variable
-  // MXNET_NGRAPH_GPU is defined
-#if MXNET_USE_CUDA
-  static const bool ngraph_gpu_enable = dmlc::GetEnv("MXNET_NGRAPH_GPU", false);
-  if (!ngraph_gpu_enable) {
-    if (default_ctx == Context::GPU()) {
-      multi_context = true;
-    }
-  }
-#endif
-  return multi_context;
-}
-#endif
 
 /*!
  * \brief GraphExecutor initializer for regular bind flow in which
@@ -336,7 +302,6 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                          const std::vector<NDArray>& aux_states,
                          Executor* shared_exec,
                          const nnvm::NodeEntryMap<NDArray>& feed_dict) {
-  symbol_ = symbol;
   // create in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes
   auto get_ctx1 = [](const NDArray& nd) { return nd.ctx(); };
   auto get_ctx2 = [default_ctx](const NDArray& nd) -> Context {
@@ -353,43 +318,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   nnvm::Graph g = InitGraph(symbol, default_ctx, ctx_map, in_arg_ctxes,
                             arg_grad_ctxes, aux_state_ctxes, grad_req_types);
 
-#if MXNET_USE_NGRAPH == 1
-  // TODO(mbrookhart): Remove this when hetr can handle multiple contexts
-  auto multi_context = multi_context_check(default_ctx, in_arg_ctxes,
-                                           arg_grad_ctxes, aux_state_ctxes);
-  const auto grad_sparse = ngraph_bridge::sparse_check(arg_grad_store);
-
-  ngraph_bridge::BindArg bind(num_forward_inputs_, in_args, aux_states);
-  ngraph_bridge::Compiler compiler(
-      g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), bind,
-      default_ctx);
-  if (!multi_context && !grad_sparse) {
-    g = compiler.Compile();
-    // mxnet::op::SubgraphPropertyPtr property
-    //     = std::make_shared<ngraph_bridge::SgNgraphProperty>();
-    // g.attrs["subgraph_property"] = std::make_shared<nnvm::any>(std::move(property));
-    // g = ApplyPass(std::move(g), "PartitionGraph");
-
-    // create "device" and "context" attrs for the graph
-    Symbol sym;
-    sym.outputs = g.outputs;
-    g = InitFullGraph(sym, grad_req_types);
-  } else {
-    g = InitFullGraph(symbol,  grad_req_types);
-  }
-  g = AssignContext(g, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
-                    aux_state_ctxes, grad_req_types, num_forward_inputs_,
-                    num_forward_outputs_);
-#endif
   // create arg_shapes and arg_dtypes for shape and type inferences
   const auto& idx = g.indexed_graph();
-#if MXNET_USE_NGRAPH == 1
-  // get ngraph number of nodes used in forward pass
-  num_forward_nodes_ = 0;
-  for (size_t i = 0; i < num_forward_outputs_; ++i)
-    num_forward_nodes_ = std::max(
-        num_forward_nodes_, static_cast<size_t>(idx.outputs()[i].node_id + 1));
-#endif
   const auto& mutable_nodes = idx.mutable_input_nodes();
   size_t arg_top = 0, aux_top = 0;
   data_entry_.resize(idx.num_node_entries());
@@ -459,15 +389,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // Initialize the rest attributes of the graph.
   // This function can be called by regular bind
   // operation flow as well.
-#if MXNET_USE_NGRAPH == 1
-  if (!multi_context && !grad_sparse) {
-    FinishInitGraph(symbol, g, shared_exec, compiler.GetFeedDict());
-  } else {
   FinishInitGraph(symbol, g, shared_exec, feed_dict);
-}
-#else
-  FinishInitGraph(symbol, g, shared_exec, feed_dict);
-#endif
 }
 
 /*!
@@ -770,8 +692,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                          const std::vector<Context>& in_arg_ctxes,
                          const std::vector<Context>& arg_grad_ctxes,
                          const std::vector<Context>& aux_state_ctxes,
-                         const std::unordered_map<std::string, TShape>& arg_shape_mapRef,
-                         const std::unordered_map<std::string, int>& arg_dtype_mapRef,
+                         const std::unordered_map<std::string, TShape>& arg_shape_map,
+                         const std::unordered_map<std::string, int>& arg_dtype_map,
                          const std::unordered_map<std::string, int>& arg_stype_map,
                          const std::vector<OpReqType>& grad_req_types,
                          const std::unordered_set<std::string>& shared_arg_names,
@@ -781,47 +703,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                          std::unordered_map<std::string, NDArray>* shared_buffer,
                          Executor* shared_exec,
                          const nnvm::NodeEntryMap<NDArray>& feed_dict) {
-  symbol_ = symbol;
   nnvm::Graph g = InitGraph(symbol, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
                             aux_state_ctxes, grad_req_types);
-  // make copies so that ngraph compilation can modify shape / dtype
-  std::unordered_map<std::string, TShape> arg_shape_map = arg_shape_mapRef;
-  std::unordered_map<std::string, int> arg_dtype_map = arg_dtype_mapRef;
-  std::unordered_map<std::string, int> arg_stype_mapn = arg_stype_map;
-
-#if MXNET_USE_NGRAPH == 1
-  // TODO(mbrookhart): Remove this when hetr can handle multiple contexts
-  auto multi_context = multi_context_check(default_ctx, in_arg_ctxes,
-                                           arg_grad_ctxes, aux_state_ctxes);
-  const auto grad_sparse = ngraph_bridge::sparse_check(*arg_grad_vec);
-  ngraph_bridge::SimpleBindArg simplebind(num_forward_inputs_, arg_shape_map,
-                                          arg_dtype_map, arg_stype_mapn);
-  ngraph_bridge::Compiler compiler(
-      g, feed_dict, symbol.ListInputs(nnvm::Symbol::kReadOnlyArgs), simplebind,
-      default_ctx);
-  if (!multi_context && !grad_sparse) {
-    g = compiler.Compile();
-    // mxnet::op::SubgraphPropertyPtr property
-    //     = std::make_shared<ngraph_bridge::SgNgraphProperty>();
-    // g.attrs["subgraph_property"] = std::make_shared<nnvm::any>(std::move(property));
-    // g = ApplyPass(std::move(g), "PartitionGraph");
-
-    // modify shape / dtype with ngraph version
-    arg_shape_map = compiler.GetNgraphShape();
-    arg_dtype_map = compiler.GetNgraphDtype();
-    arg_stype_mapn = compiler.GetNgraphStype();
-
-    // create "device" and "context" attrs for the graph
-    Symbol sym;
-    sym.outputs = g.outputs;
-    g = InitFullGraph(sym, grad_req_types);
-  } else {
-    g = InitFullGraph(symbol, grad_req_types);
-  }
-    g = AssignContext(g, default_ctx, ctx_map, in_arg_ctxes, arg_grad_ctxes,
-                      aux_state_ctxes, grad_req_types, num_forward_inputs_,
-                      num_forward_outputs_);
-#endif
   // The following code of shape and dtype inferences and argument
   // initialization is for simple_bind only. Regular bind operation
   // should do this differently.
@@ -829,13 +712,6 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // Initialize arg_shapes and arg_dtypes for shape and type inferences.
   // It contains all in_args and aux_states' shapes and types in a certain order.
   const nnvm::IndexedGraph& idx = g.indexed_graph();
-#if MXNET_USE_NGRAPH == 1
-  // get ngraph number of nodes used in forward pass
-  num_forward_nodes_ = 0;
-  for (size_t i = 0; i < num_forward_outputs_; ++i)
-    num_forward_nodes_ = std::max(
-        num_forward_nodes_, static_cast<size_t>(idx.outputs()[i].node_id + 1));
-#endif
   nnvm::ShapeVector arg_shapes(idx.input_nodes().size(), TShape());
   nnvm::DTypeVector arg_dtypes(idx.input_nodes().size(), -1);
   StorageTypeVector arg_stypes(idx.input_nodes().size(), kUndefinedStorage);
@@ -850,8 +726,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
     if (arg_dtype_map.end() != it2) {
       arg_dtypes[i] = it2->second;
     }
-    auto it3 = arg_stype_mapn.find(name);
-    if (arg_stype_mapn.end() != it3) {
+    auto it3 = arg_stype_map.find(name);
+    if (arg_stype_map.end() != it3) {
       arg_stypes[i] = it3->second;
     }
   }
@@ -896,15 +772,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   // Initialize the rest attributes of the graph.
   // This function can be called by regular bind
   // operation flow as well.
-#if MXNET_USE_NGRAPH == 1
-  if (!multi_context && !grad_sparse) {
-    FinishInitGraph(symbol, g, shared_exec, compiler.GetFeedDict());
-  } else {
   FinishInitGraph(symbol, g, shared_exec, feed_dict);
-}
-#else
-  FinishInitGraph(symbol, g, shared_exec, feed_dict);
-#endif
 }
 
 /*!
@@ -924,8 +792,8 @@ Executor* GraphExecutor::Reshape(const bool partial_shaping,
                                  std::vector<NDArray>* arg_grads,
                                  std::vector<NDArray>* aux_states) {
   nnvm::Graph g;
-  g.outputs = std::vector<nnvm::NodeEntry>(symbol_.outputs.begin(),
-    symbol_.outputs.begin() + num_forward_outputs_);
+  g.outputs = std::vector<nnvm::NodeEntry>(graph_.outputs.begin(),
+    graph_.outputs.begin() + num_forward_outputs_);
   nnvm::Symbol symbol;
   symbol.outputs = g.outputs;
   const nnvm::IndexedGraph& idx = g.indexed_graph();
@@ -1032,15 +900,8 @@ Graph GraphExecutor::InitGraph(nnvm::Symbol symbol,
                                const std::vector<Context>& arg_grad_ctxes,
                                const std::vector<Context>& aux_state_ctxes,
                                const std::vector<OpReqType>& grad_req_types) {
-  num_forward_outputs_ = symbol.outputs.size();
-  num_forward_inputs_ = symbol.ListInputs(nnvm::Symbol::kAll).size();
-
-  nnvm::Graph g;
-  g.outputs = symbol.outputs;
   // setup gradient
-#if MXNET_USE_NGRAPH == 0
-  g = InitFullGraph(symbol,
-                    grad_req_types);
+  nnvm::Graph g = InitFullGraph(symbol, grad_req_types);
 
   // create "device" and "context" attrs for the graph
   g = AssignContext(g, default_ctx, ctx_map,
@@ -1058,7 +919,6 @@ Graph GraphExecutor::InitGraph(nnvm::Symbol symbol,
     num_forward_nodes_ = std::max(
         num_forward_nodes_, static_cast<size_t>(idx.outputs()[i].node_id + 1));
   }
-#endif
   return g;
 }
 
@@ -1570,6 +1430,146 @@ GraphExecutor::CachedSegOpr GraphExecutor::CreateCachedSegOpr(size_t topo_start,
     iter->c_str());
   return ret;
 }
+
+// Infer shapes, dtypes, stypes, contexts for the forward graph
+static nnvm::Graph InferForwardAttrs(nnvm::Graph g,
+                                     nnvm::ShapeVector arg_shapes,
+                                     nnvm::DTypeVector arg_dtypes,
+                                     StorageTypeVector arg_stypes,
+                                     const Context& default_ctx,
+                                     const std::map<std::string, Context>& ctx_map,
+                                     const std::vector<Context>& in_arg_ctxes,
+                                     const std::vector<Context>& aux_state_ctxes) {
+  const auto& indexed_graph = g.indexed_graph();
+  const auto num_forward_inputs = indexed_graph.input_nodes().size();
+  g = AssignContext(g, default_ctx, ctx_map, in_arg_ctxes, {},
+                   aux_state_ctxes, {}, num_forward_inputs, g.outputs.size());
+  g = InferShape(std::move(g), std::move(arg_shapes), "__shape__");
+  if (g.GetAttr<size_t>("shape_num_unknown_nodes") != 0U) {
+    HandleInferShapeError(num_forward_inputs, indexed_graph,
+                          g.GetAttr<nnvm::ShapeVector>("shape"));
+  }
+  g = InferType(std::move(g), std::move(arg_dtypes), "__dtype__");
+  if (g.GetAttr<size_t>("dtype_num_unknown_nodes") != 0U) {
+    HandleInferTypeError(num_forward_inputs, indexed_graph,
+                         g.GetAttr<nnvm::DTypeVector>("dtype"));
+  }
+  g = InferStorageType(std::move(g), std::move(arg_stypes), "__storage_type__");
+  if (g.GetAttr<size_t>("storage_type_num_unknown_nodes") != 0U) {
+    HandleInferStorageTypeError(num_forward_inputs, indexed_graph,
+                                g.GetAttr<StorageTypeVector>("storage_type"));
+  }
+  return g;
+}
+
+// Given input attr arrays, partition the graph using the backend name equal to prop_name.
+// This is a common function for bind and simple_bind flows.
+static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
+                                   const std::string& prop_name,
+                                   const nnvm::ShapeVector& arg_shapes,
+                                   const nnvm::DTypeVector& arg_dtypes,
+                                   const StorageTypeVector& arg_stypes,
+                                   const Context& default_ctx,
+                                   const std::map<std::string, Context>& ctx_map,
+                                   const std::vector<Context>& in_arg_ctxes,
+                                   const std::vector<Context>& aux_state_ctxes) {
+  auto subgraph_prop = op::SubgraphPropertyRegistry::Get()->CreateSubgraphProperty(prop_name);
+  nnvm::Symbol ret = src.Copy();
+  nnvm::Graph g;
+  g.outputs = ret.outputs;
+  g = InferForwardAttrs(g, arg_shapes, arg_dtypes, arg_stypes, default_ctx,
+                        ctx_map, in_arg_ctxes, aux_state_ctxes);
+  subgraph_prop->SetAttr("graph", g);
+  auto it = op::SubgraphPropertyOpNameSet::Get()->find(prop_name);
+  // assign a op name set to the subgraph property if it has been provided by users
+  if (it != op::SubgraphPropertyOpNameSet::Get()->end()) {
+    LOG(INFO) << "SubgraphPropertyOpNameSet for subgraph property " << prop_name
+              << " has been assigned a value. Please make sure it is initialized"
+                 " only for the testing purpose.";
+    subgraph_prop->SetAttr("op_names", it->second);
+  }
+  g.attrs["subgraph_property"] = std::make_shared<nnvm::any>(std::move(subgraph_prop));
+  g = ApplyPass(std::move(g), "PartitionGraph");
+  ret.outputs = g.outputs;
+  return ret;
+}
+
+// Given input attr dicts, partition the graph using the backend name equal to prop_name.
+// This is for simple_bind flow.
+static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
+                                   const std::string& prop_name,
+                                   const std::unordered_map<std::string, TShape>& arg_shape_map,
+                                   const std::unordered_map<std::string, int>& arg_dtype_map,
+                                   const std::unordered_map<std::string, int>& arg_stype_map,
+                                   const Context& default_ctx,
+                                   const std::map<std::string, Context>& ctx_map,
+                                   const std::vector<Context>& in_arg_ctxes,
+                                   const std::vector<Context>& aux_state_ctxes) {
+  const std::vector<std::string> input_names = src.ListInputNames(Symbol::kAll);
+  nnvm::ShapeVector arg_shapes(input_names.size(), TShape());
+  nnvm::DTypeVector arg_dtypes(input_names.size(), -1);
+  StorageTypeVector arg_stypes(input_names.size(), kUndefinedStorage);
+  for (size_t i = 0; i < input_names.size(); ++i) {
+    auto it1 = arg_shape_map.find(input_names[i]);
+    if (arg_shape_map.end() != it1) {
+      arg_shapes[i] = it1->second;
+    }
+    auto it2 = arg_dtype_map.find(input_names[i]);
+    if (arg_dtype_map.end() != it2) {
+      arg_dtypes[i] = it2->second;
+    }
+    auto it3 = arg_stype_map.find(input_names[i]);
+    if (arg_stype_map.end() != it3) {
+      arg_stypes[i] = it3->second;
+    }
+  }
+  return PartitionGraph(src, prop_name, arg_shapes, arg_dtypes, arg_stypes,
+                        default_ctx, ctx_map, in_arg_ctxes, aux_state_ctxes);
+}
+
+// Given input ndarrays, partition the graph using the backend name equal to prop_name.
+// This is for bind flow.
+static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
+                                   const std::string& prop_name,
+                                   const std::vector<NDArray> &in_args,
+                                   const std::vector<NDArray> &aux_states,
+                                   const Context& default_ctx,
+                                   const std::map<std::string, Context>& ctx_map) {
+  const std::vector<std::string> input_names = src.ListInputNames(Symbol::kAll);
+  const std::vector<std::string> arg_names = src.ListInputNames(nnvm::Symbol::kReadOnlyArgs);
+  const std::vector<std::string> aux_names = src.ListInputNames(nnvm::Symbol::kAuxiliaryStates);
+  CHECK_EQ(arg_names.size(), in_args.size());
+  CHECK_EQ(aux_names.size(), aux_states.size());
+  nnvm::ShapeVector arg_shapes;  // all input shapes
+  arg_shapes.reserve(input_names.size());
+  nnvm::DTypeVector arg_dtypes;  // all input dtypes
+  arg_dtypes.reserve(input_names.size());
+  StorageTypeVector arg_stypes;  // all input stypes
+  arg_stypes.reserve(input_names.size());
+  std::vector<Context> in_arg_ctxes(in_args.size());
+  std::vector<Context> aux_state_ctxes(aux_states.size());
+
+  size_t i1 = 0, i2 = 0;
+  for (size_t i = 0; i < input_names.size(); ++i) {
+    if (i2 < aux_names.size() && aux_names[i2] == input_names[i]) {
+      arg_shapes.push_back(aux_states[i2].shape());
+      arg_dtypes.push_back(aux_states[i2].dtype());
+      arg_stypes.push_back(aux_states[i2].storage_type());
+      aux_state_ctxes[i2] = aux_states[i2].ctx();
+      ++i2;
+    } else {
+      CHECK(i1 < arg_names.size());
+      CHECK_EQ(arg_names[i1], input_names[i]);
+      arg_shapes.push_back(in_args[i1].shape());
+      arg_dtypes.push_back(in_args[i1].dtype());
+      arg_stypes.push_back(in_args[i1].storage_type());
+      in_arg_ctxes[i1] = in_args[i1].ctx();
+      ++i1;
+    }
+  }
+  return PartitionGraph(src, prop_name, arg_shapes, arg_dtypes, arg_stypes,
+                        default_ctx, ctx_map, in_arg_ctxes, aux_state_ctxes);
+}
 }  // namespace exec
 
 Executor *Executor::SimpleBind(nnvm::Symbol symbol,
@@ -1589,6 +1589,11 @@ Executor *Executor::SimpleBind(nnvm::Symbol symbol,
                                std::unordered_map<std::string, NDArray>* shared_buffer,
                                Executor* shared_exec) {
   auto exec = new exec::GraphExecutor();
+  if (!exec->subgraph_property().empty()) {
+    symbol = exec::PartitionGraph(symbol, exec->subgraph_property(), arg_shape_map, arg_dtype_map,
+                                  arg_stype_map, default_ctx, group2ctx, in_arg_ctxes,
+                                  aux_state_ctxes);
+  }
   exec->Init(symbol, default_ctx, group2ctx,
              in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes,
              arg_shape_map, arg_dtype_map, arg_stype_map,
@@ -1607,6 +1612,10 @@ Executor *Executor::Bind(nnvm::Symbol symbol,
                          const std::vector<NDArray> &aux_states,
                          Executor* shared_exec) {
   auto exec = new exec::GraphExecutor();
+  if (!exec->subgraph_property().empty()) {
+    symbol = exec::PartitionGraph(symbol, exec->subgraph_property(), in_args, aux_states,
+                                  default_ctx, group2ctx);
+  }
   exec->Init(symbol, default_ctx, group2ctx,
              in_args, arg_grad_store, grad_req_type, aux_states,
              reinterpret_cast<Executor*>(shared_exec));

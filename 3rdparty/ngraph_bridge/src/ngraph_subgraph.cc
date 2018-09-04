@@ -16,8 +16,9 @@
 
 #include <mxnet/ndarray.h>
 #include "../../../src/operator/subgraph/common.h"
-#include "../../../src/operator/subgraph/default_subgraph_op.h"
+#include "ngraph_imperative.h"
 #include "ngraph_nnvm_ops.h"
+#include "ngraph_subgraph.h"
 
 namespace ngraph_bridge {
 using namespace nnvm;
@@ -25,16 +26,13 @@ using namespace mxnet;
 using namespace mxnet::op;
 
 std::shared_ptr<ngraph_bridge::Graph> get_ngraph(const NodeAttrs& attrs) {
-  return nnvm::get<ngraph_bridge::NGraphParam>(attrs.parsed).g;
+  return nnvm::get<std::shared_ptr<ngraph_bridge::Graph>>(attrs.parsed);
 }
 
 class NgraphSubgraphOperator {
  public:
-  explicit NgraphSubgraphOperator(
-      std::shared_ptr<ngraph_bridge::Graph> ngraph) {
-    ngraph_ = ngraph;
-  }
-
+  NgraphSubgraphOperator(std::shared_ptr<ngraph_bridge::Graph> ngraph)
+      : ngraph_(ngraph) {}
   void Forward(const OpContext& ctx, const std::vector<NDArray>& inputs,
                const std::vector<OpReqType>& req,
                const std::vector<NDArray>& outputs);
@@ -61,12 +59,6 @@ void NgraphSubgraphOperator::Backward(const OpContext& ctx,
 }
 
 OpStatePtr CreateNgraphSubgraphOpState(const NodeAttrs& attrs, Context ctx,
-                                       const std::vector<TShape>& in_shapes,
-                                       const std::vector<int>& in_types) {
-  return OpStatePtr::Create<NgraphSubgraphOperator>(get_ngraph(attrs));
-}
-
-OpStatePtr CreateNgraphBackwardOpState(const NodeAttrs& attrs, Context ctx,
                                        const std::vector<TShape>& in_shapes,
                                        const std::vector<int>& in_types) {
   return OpStatePtr::Create<NgraphSubgraphOperator>(get_ngraph(attrs));
@@ -218,7 +210,6 @@ NNVM_REGISTER_OP(_backward_ngraph_subgraph_op)
       return graph->inputs_.size();
     })
     .set_attr<bool>("TIsBackward", true)
-    .set_attr<FCreateOpState>("FCreateOpState", CreateNgraphBackwardOpState)
     .set_attr<FStatefulComputeEx>("FStatefulComputeEx<cpu>",
                                   NgraphSubgraphOpBackward)
     .set_attr<FInferStorageType>(
@@ -230,5 +221,6 @@ NNVM_REGISTER_OP(_backward_ngraph_subgraph_op)
               out_attrs, mxnet::kDefaultStorage, dispatch_mode,
               mxnet::DispatchMode::kFComputeEx);
         });
+MXNET_REGISTER_SUBGRAPH_PROPERTY(ngraph, SgNgraphProperty);
 
 }  // namespace ngraph_bridge
