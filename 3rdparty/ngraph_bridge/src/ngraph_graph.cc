@@ -281,7 +281,7 @@ std::vector<NodePtr> GetSubgraphOutputs(
     }
   }
   auto sorted_nodes = DFSTopologicalSort(graph.outputs_);
-  
+
   // for every node in the subgraph, if the node is an input to other nodes
   // that aren't in the subgraph, this node is an output of the subgraph
   for (auto n : graph.nodes_) {

@@ -441,7 +441,8 @@ void SGCompiler::CompileNodes(NodePtr node,
     }
   };
 
-  visitor.stop_condition = [this, sub_graph, &nodes](NodePtr node, NodePtr input) {
+  visitor.stop_condition = [this, sub_graph, &nodes](NodePtr node,
+                                                     NodePtr input) {
     // continue if...
     // 1) node is in subgraph or a subgraph input
     // 2) input not visited

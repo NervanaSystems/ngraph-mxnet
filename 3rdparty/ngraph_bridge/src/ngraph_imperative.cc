@@ -207,7 +207,7 @@ void InitImperativeOnce() {
                          const std::vector<mxnet::NDArray> &inputs,
                          const std::vector<mxnet::OpReqType> &req,
                          const std::vector<mxnet::NDArray> &outputs) -> void {
-            if (ctx.is_train || ctx.need_grad || 
+            if (ctx.is_train || ctx.need_grad ||
                 !compute_forward_imperative(attrs, ctx, inputs, req, outputs)) {
               // use default mxnet compute kernel
               fallbackx_fn(attrs, ctx, inputs, req, outputs);
@@ -349,10 +349,9 @@ NGIOpKey get_ngiop_key(const nnvm::NodeAttrs &attrs, const mxnet::Context &ctx,
     for (size_t ii = 0; ii < i.shape().ndim(); ++ii)
       in.push_back(i.shape()[ii]);
   }
-  return NGIOpKey(
-      attrs.op->name,
-      {static_cast<int>(ctx.dev_type), static_cast<int>(ctx.dev_id)},
-      attrs.dict, in);
+  return NGIOpKey(attrs.op->name, {static_cast<int>(ctx.dev_type),
+                                   static_cast<int>(ctx.dev_id)},
+                  attrs.dict, in);
 }
 
 }  // namespace ngraph_bridge
