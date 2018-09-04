@@ -64,6 +64,12 @@ class DefaultSubgraphProperty: public SubgraphProperty {
     n->attrs.subgraphs.push_back(std::make_shared<nnvm::Symbol>(sym));
     return n;
   }
+  virtual nnvm::NodePtr CreateSubgraphNode(const nnvm::Graph &sg,
+                                           const int subgraph_id = 0) const {
+    nnvm::Symbol sym;
+    sym.outputs = sg.outputs;
+    return CreateSubgraphNode(sym, subgraph_id);
+  }
   virtual SubgraphSelectorPtr CreateSubgraphSelector() const {
     return std::make_shared<ContainOpSelector>(
         this->GetAttr<std::unordered_set<std::string>>("op_names"));

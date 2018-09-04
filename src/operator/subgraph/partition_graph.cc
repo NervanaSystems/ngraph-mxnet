@@ -30,6 +30,7 @@
 #include <queue>
 
 #include "./subgraph_property.h"
+#include "../../executor/exec_pass.h"
 
 namespace nnvm {
 NodePtr CreateVariableNode(const std::string& name);
@@ -619,6 +620,39 @@ void CutGraphInputs(const std::vector<nnvm::NodeEntry*> &input_entries,
   }
 }
 
+void InferSubgraphAttrs(Graph *g, std::vector<nnvm::NodeEntry> &orig_input_entries, nnvm::Graph &sg) {
+  if (orig_input_entries.size() < 1) return;
+  auto oshapes = g->GetAttr<nnvm::ShapeVector>("shape");
+  auto odtypes = g->GetAttr<nnvm::DTypeVector>("dtype");
+  auto ostypes = g->GetAttr<mxnet::StorageTypeVector>("storage_type");
+  auto odevmask = g->GetAttr<exec::DevMaskVector>("dev_mask");
+
+  const auto& idx_og = g->indexed_graph();
+  const auto& idx_g = sg.indexed_graph();
+
+  nnvm::ShapeVector shapes(idx_g.num_node_entries());
+  nnvm::DTypeVector types(idx_g.num_node_entries(), -1);
+  StorageTypeVector stypes(idx_g.num_node_entries(), kUndefinedStorage);
+  exec::DevMaskVector dev_masks(idx_g.num_node_entries(), odevmask[idx_og.entry_id(orig_input_entries[0])]);
+  const auto &input_nids = idx_g.input_nodes();
+  for (size_t i = 0; i < input_nids.size(); i++) {
+    auto eid = idx_g.entry_id(input_nids[i], 0);
+    auto oeid = idx_og.entry_id(orig_input_entries[i]);
+    shapes[eid] = oshapes[oeid];
+    types[eid] = odtypes[oeid];
+    stypes[eid] = ostypes[oeid];
+  }
+  sg.attrs["shape"] = std::make_shared<dmlc::any>(std::move(shapes));
+  sg = exec::InferShape(std::move(sg));
+  shapes = sg.GetAttr<nnvm::ShapeVector>("shape");
+  CHECK_EQ(sg.GetAttr<size_t>("shape_num_unknown_nodes"), 0U);
+  sg.attrs["dtype"] = std::make_shared<dmlc::any>(std::move(types));
+  sg = exec::InferType(std::move(sg));
+  sg.attrs["dev_mask"] = std::make_shared<dmlc::any>(std::move(dev_masks));
+  sg.attrs["storage_type"] = std::make_shared<dmlc::any>(std::move(stypes));
+  sg = exec::InferStorageType(std::move(sg));
+}
+
 /*!
  * \brief Replace a set of nodes belonging to the same subgraph with a subgrpah node
  * and keep the subgraph in the subgraph node. The input entries and output entries
@@ -644,13 +678,15 @@ void CreateSubgraphNode(Graph* g,
   FindOutputEntries(g, simple_nodes, subgraph_nodes, *entry_top_order_map, &output_entries);
 
   // Create a subgraph for the subgraph node
-  nnvm::Symbol sym;
-  sym.outputs.resize(output_entries.size());
+  nnvm::Graph subgraph;
+  subgraph.outputs.resize(output_entries.size());
   for (size_t i = 0; i < output_entries.size(); ++i) {
-    sym.outputs[i] = *output_entries[i];
+    subgraph.outputs[i] = *output_entries[i];
   }
+  // copy orig_input attrs for subgraph
+  InferSubgraphAttrs(g, orig_input_entries, subgraph);
   const SubgraphPropertyPtr& subg_prop = g->GetAttr<SubgraphPropertyPtr>("subgraph_property");
-  nnvm::NodePtr n = subg_prop->CreateSubgraphNode(sym, subgraph_id);
+  nnvm::NodePtr n = subg_prop->CreateSubgraphNode(subgraph, subgraph_id);
 
   // Connect the external nodes to the subgraph node.
   for (size_t i = 0; i < output_entries.size(); ++i) {

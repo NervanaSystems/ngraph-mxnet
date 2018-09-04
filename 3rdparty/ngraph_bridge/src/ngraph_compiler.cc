@@ -151,6 +151,21 @@ Compiler::Compiler(const nnvm::Graph& graph, const NNVMNodeVec& symbol_inputs,
   MakeCopiedInputs(symbol_inputs);
   ProcessGraph({});
 }
+
+// compiler for graph with attrs
+Compiler::Compiler(const nnvm::Graph& g) : ngraph_() {
+  shapes_ = g.GetAttr<nnvm::ShapeVector>("shape");
+  dtypes_ = g.GetAttr<nnvm::DTypeVector>("dtype");
+  stypes_ = g.GetAttr<mxnet::StorageTypeVector>("storage_type");
+
+  DeepCopy(g);
+  nnvm::Symbol s;
+  s.outputs = g.outputs;
+  MakeCopiedInputs(s.ListInputs(nnvm::Symbol::kReadOnlyArgs));
+  ParseNnvmGraph(&g);
+  CheckInNgraph();
+}
+
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                    const NNVMNodeVec& inputs, const BindArgBase& bindbase,
@@ -221,26 +236,30 @@ void Compiler::IdentifyCollapseGraphs() {
   }
 }
 
+std::shared_ptr<Graph> Compiler::SGCompile(NodePtr& n) {
+  // extract and compile subgraph
+  compiler_.setExeMode(GraphExeMode::kInfer);
+  auto sg = compiler_.Compile(n);
+
+  // compile subgraph in other execution modes,
+  for (int i = 1; i < kGraphExeModeCount; ++i) {
+    // set graph execution mode
+    compiler_.setExeMode(static_cast<GraphExeMode>(i));
+    compiler_.Compile(n);
+  }
+
+  // add subgraph to stats tracker
+  if (ngraph_log_timer()) {
+    NGraphStats::get_instance().add(sg);
+  }
+  return sg;
+}
+
 void Compiler::CreateSubgraphNNVMNodes() {
   // find the subgraphs
   for (auto n : ngraph_.nodes_) {
     if (n->type_ == NodeType::kGraph && n->subgraph_ > 0) {
-      // extract and compile subgraph
-      compiler_.setExeMode(GraphExeMode::kInfer);
-      auto sg = compiler_.Compile(n);
-
-      // compile subgraph in other execution modes,
-      for (int i = 1; i < kGraphExeModeCount; ++i) {
-        // set graph execution mode
-        compiler_.setExeMode(static_cast<GraphExeMode>(i));
-        compiler_.Compile(n);
-      }
-
-      // add subgraph to stats tracker
-      if (ngraph_log_timer()) {
-        NGraphStats::get_instance().add(sg);
-      }
-
+      auto sg = SGCompile(n);
       // create nnvm node
       auto node = CreateNNVMNode(sg);
       compiled_nodes_.insert({sg, node});
@@ -355,6 +374,20 @@ void Compiler::CleanUpUneededReferences() {
     kv.first->nodes_.clear();
     kv.first->entry_map_.clear();
   }
+}
+
+// assumes there is only one ngraph
+std::shared_ptr<Graph> Compiler::GetNgraph() {
+  std::shared_ptr<Graph> ngraph;
+  IdentifyCollapseGraphs();
+  // assumes there is only one ngraph
+  for (auto n : ngraph_.nodes_)
+    if (n->type_ == NodeType::kGraph && n->subgraph_ > 0) {
+      // extract and compile subgraph
+      ngraph = SGCompile(n);
+      break;
+    }
+  return ngraph;
 }
 
 // Main compilation function
@@ -490,32 +523,29 @@ void Compiler::CheckInNgraph() {
   std::unordered_set<std::string> unsupported_op_names;
   for (const std::shared_ptr<ngraph_bridge::Node>& node : ngraph_.nodes_) {
     node->in_ngraph_ = IsInNGraph(node);
-    if (!node->in_ngraph_) {
-      if (ngraph_log_verbose()) {
-        unsupported_op_names.insert(node->operation_);
-      }
-      if (ngraph_log_verbose_detail) {
-        std::cout << "NGRAPH_BRIDGE: Unsupported Op instance (verbose):"
-                  << std::endl;
-        node->printOpDetails(std::cout);
-        std::cout << std::endl;
-      }
+#ifndef NDEBUG
+    if (ngraph_log_verbose_detail && !node->in_ngraph_ &&
+        node->type_ == NodeType::kOp) {
+      std::cout << "NGRAPH_BRIDGE: Unsupported Op: " << node->operation_
+                << std::endl;
+      node->printOpDetails(std::cout);
+      std::cout << std::endl;
     }
-  }
-  for (const auto& name : unsupported_op_names) {
-    std::cout << "NGRAPH_BRIDGE: Unsupported Op: " << name << std::endl;
+#endif
   }
 }
 
 // Function that parses an nnvm Graph into an intermediary graph
-void Compiler::ParseNnvmGraph() {
+void Compiler::ParseNnvmGraph(const nnvm::Graph* graph_with_attrs) {
   // get the shape, data and storage types of all of the nodes
+  if (graph_with_attrs == nullptr) graph_with_attrs = &graph_;
   const auto& idx = graph_.indexed_graph();
   const auto inferred_shapes =
-      graph_.GetAttr<std::vector<nnvm::TShape>>("shape");
-  const auto inferred_dtypes = graph_.GetAttr<std::vector<int>>("dtype");
+      graph_with_attrs->GetAttr<std::vector<nnvm::TShape>>("shape");
+  const auto inferred_dtypes =
+      graph_with_attrs->GetAttr<std::vector<int>>("dtype");
   const auto& inferred_stypes =
-      graph_.GetAttr<mxnet::StorageTypeVector>("storage_type");
+      graph_with_attrs->GetAttr<mxnet::StorageTypeVector>("storage_type");
   auto get_type = [&idx, &inferred_shapes, &inferred_dtypes,
                    &inferred_stypes](NodePtr node) {
     const uint32_t nid = idx.node_id(node->orig_node_.get());

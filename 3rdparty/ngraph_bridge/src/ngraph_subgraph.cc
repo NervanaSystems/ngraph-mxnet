@@ -16,8 +16,9 @@
 
 #include <mxnet/ndarray.h>
 #include "../../../src/operator/subgraph/common.h"
-#include "../../../src/operator/subgraph/subgraph_property.h"
+#include "ngraph_imperative.h"
 #include "ngraph_nnvm_ops.h"
+#include "ngraph_subgraph.h"
 
 namespace ngraph_bridge {
 using namespace nnvm;
@@ -25,16 +26,13 @@ using namespace mxnet;
 using namespace mxnet::op;
 
 std::shared_ptr<ngraph_bridge::Graph> get_ngraph(const NodeAttrs& attrs) {
-  return nnvm::get<ngraph_bridge::NGraphParam>(attrs.parsed).g;
+  return nnvm::get<std::shared_ptr<ngraph_bridge::Graph>>(attrs.parsed);
 }
 
 class NgraphSubgraphOperator {
  public:
-  explicit NgraphSubgraphOperator(
-      std::shared_ptr<ngraph_bridge::Graph> ngraph) {
-    ngraph_ = ngraph;
-  }
-
+  NgraphSubgraphOperator(std::shared_ptr<ngraph_bridge::Graph> ngraph)
+      : ngraph_(ngraph) {}
   void Forward(const OpContext& ctx, const std::vector<NDArray>& inputs,
                const std::vector<OpReqType>& req,
                const std::vector<NDArray>& outputs);
@@ -61,12 +59,6 @@ void NgraphSubgraphOperator::Backward(const OpContext& ctx,
 }
 
 OpStatePtr CreateNgraphSubgraphOpState(const NodeAttrs& attrs, Context ctx,
-                                       const std::vector<TShape>& in_shapes,
-                                       const std::vector<int>& in_types) {
-  return OpStatePtr::Create<NgraphSubgraphOperator>(get_ngraph(attrs));
-}
-
-OpStatePtr CreateNgraphBackwardOpState(const NodeAttrs& attrs, Context ctx,
                                        const std::vector<TShape>& in_shapes,
                                        const std::vector<int>& in_types) {
   return OpStatePtr::Create<NgraphSubgraphOperator>(get_ngraph(attrs));
@@ -158,6 +150,9 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
         [](const nnvm::NodeAttrs& attrs, std::vector<nnvm::TShape>* in_attrs,
            std::vector<nnvm::TShape>* out_attrs) -> bool {
           auto graph = get_ngraph(attrs);
+          for (size_t i = 0; i < graph->inputs_.size(); ++i) {
+            (*in_attrs)[i] = graph->inputs_[i]->shape_;
+          }
           std::vector<nnvm::TShape> shapes;
           for (auto output : graph->outputs_) {
             shapes.push_back(output->shape_);
@@ -165,26 +160,33 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
           (*out_attrs) = shapes;
           return true;
         })
-    .set_attr<nnvm::FInferType>("FInferType",
-                                [](const nnvm::NodeAttrs& attrs,
-                                   std::vector<int>* iattr,
-                                   std::vector<int>* oattr) -> bool {
-                                  auto graph = get_ngraph(attrs);
-                                  std::vector<int> dtypes;
-                                  for (auto output : graph->outputs_) {
-                                    dtypes.push_back(output->dtype_);
-                                  }
-                                  for (size_t i = 0; i < dtypes.size(); ++i) {
-                                    mxnet::op::type_assign(&((*oattr)[i]),
-                                                           dtypes[i]);
-                                  }
-                                  return true;
-                                })
+    .set_attr<nnvm::FInferType>(
+        "FInferType",
+        [](const nnvm::NodeAttrs& attrs, std::vector<int>* iattr,
+           std::vector<int>* oattr) -> bool {
+          auto graph = get_ngraph(attrs);
+          for (size_t i = 0; i < graph->inputs_.size(); ++i) {
+            (*iattr)[i] = graph->inputs_[i]->dtype_;
+          }
+          std::vector<int> dtypes;
+          for (auto output : graph->outputs_) {
+            dtypes.push_back(output->dtype_);
+          }
+          for (size_t i = 0; i < dtypes.size(); ++i) {
+            mxnet::op::type_assign(&((*oattr)[i]), dtypes[i]);
+          }
+          return true;
+        })
     .set_attr<FInferStorageType>(
         "FInferStorageType",
         [](const nnvm::NodeAttrs& attrs, const int dev_mask,
            mxnet::DispatchMode* dispatch_mode, std::vector<int>* in_attrs,
            std::vector<int>* out_attrs) {
+          DISPATCH_MODE_ASSIGN_CHECK(dispatch_mode, 0,
+                                     DispatchMode::kFComputeEx);
+          mxnet::op::storage_type_assign(in_attrs, mxnet::kDefaultStorage,
+                                         dispatch_mode,
+                                         mxnet::DispatchMode::kFComputeEx);
           return mxnet::op::storage_type_assign(
               out_attrs, mxnet::kDefaultStorage, dispatch_mode,
               mxnet::DispatchMode::kFComputeEx);
@@ -218,7 +220,7 @@ NNVM_REGISTER_OP(_backward_ngraph_subgraph_op)
       return graph->inputs_.size();
     })
     .set_attr<bool>("TIsBackward", true)
-    .set_attr<FCreateOpState>("FCreateOpState", CreateNgraphBackwardOpState)
+    .set_attr<bool>("TIsLayerOpBackward", true)
     .set_attr<FStatefulComputeEx>("FStatefulComputeEx<cpu>",
                                   NgraphSubgraphOpBackward)
     .set_attr<FInferStorageType>(
@@ -226,9 +228,15 @@ NNVM_REGISTER_OP(_backward_ngraph_subgraph_op)
         [](const nnvm::NodeAttrs& attrs, const int dev_mask,
            mxnet::DispatchMode* dispatch_mode, std::vector<int>* in_attrs,
            std::vector<int>* out_attrs) {
+          DISPATCH_MODE_ASSIGN_CHECK(dispatch_mode, 0,
+                                     DispatchMode::kFComputeEx);
+          mxnet::op::storage_type_assign(in_attrs, mxnet::kDefaultStorage,
+                                         dispatch_mode,
+                                         mxnet::DispatchMode::kFComputeEx);
           return mxnet::op::storage_type_assign(
               out_attrs, mxnet::kDefaultStorage, dispatch_mode,
               mxnet::DispatchMode::kFComputeEx);
         });
+MXNET_REGISTER_SUBGRAPH_PROPERTY(ngraph, SgNgraphProperty);
 
 }  // namespace ngraph_bridge
