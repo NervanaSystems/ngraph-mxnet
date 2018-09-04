@@ -261,23 +261,28 @@ std::shared_ptr<ngraph::Function> SGCompiler::MakeBackwardFunction(
   for (auto node : sub_graph->outputs_) {
     NgraphNodePtr Y;
     NgraphNodePtr C;
-    if (loss_op_backward_funcs_.count(node->operation_) == 0) {
+    NodePtr tmpnode = node;
+    while (tmpnode->inputs_.size() == 1 &&
+           loss_op_backward_funcs_.count(tmpnode->operation_) == 0) {
+      tmpnode = tmpnode->inputs_[0];
+    }
+    if (loss_op_backward_funcs_.count(tmpnode->operation_)) {
+      // mark this graph as being a loss output
+      Y = op_map_.at(tmpnode->inputs_[0]);
+      if (tmpnode->operation_ == "SoftmaxOutput" &&
+          get_default(tmpnode, "out_grad", false)) {
+        C = make_and_cache_parameter(Y);
+      } else {
+        C = makeConstant(tmpnode, "1");
+      }
+      C = loss_op_backward_funcs_[tmpnode->operation_](tmpnode, C);
+      sub_graph->is_loss.push_back(true);
+    } else {
       // Get the output
       Y = op_map_.at(node);
       // Create the Adjoint
       C = make_and_cache_parameter(Y);
       sub_graph->is_loss.push_back(false);
-    } else {
-      // mark this graph as being a loss output
-      Y = op_map_.at(node->inputs_[0]);
-      if (node->operation_ == "SoftmaxOutput" &&
-          get_default(node, "out_grad", false)) {
-        C = make_and_cache_parameter(Y);
-      } else {
-        C = makeConstant(node, "1");
-      }
-      C = loss_op_backward_funcs_[node->operation_](node, C);
-      sub_graph->is_loss.push_back(true);
     }
     outputs.push_back(Y);
     adjoints.push_back(C);
@@ -441,7 +446,8 @@ void SGCompiler::CompileNodes(NodePtr node,
     }
   };
 
-  visitor.stop_condition = [this, sub_graph, &nodes](NodePtr node, NodePtr input) {
+  visitor.stop_condition = [this, sub_graph, &nodes](NodePtr node,
+                                                     NodePtr input) {
     // continue if...
     // 1) node is in subgraph or a subgraph input
     // 2) input not visited

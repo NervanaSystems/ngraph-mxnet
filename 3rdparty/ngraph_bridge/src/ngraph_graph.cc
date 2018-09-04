@@ -244,6 +244,28 @@ std::vector<NodePtr> RemoveBroken(NodePtr node,
   return out;
 }
 
+std::vector<NodePtr> DFSTopologicalSort(const std::vector<NodePtr>& outputs) {
+  GraphVisitor visitor;
+
+  std::unordered_set<NodePtr> visited;
+  std::vector<NodePtr> sorted_nodes;
+
+  visitor.operation = [&sorted_nodes, &visited](NodePtr node) {
+    visited.insert(node);
+    sorted_nodes.emplace_back(node);
+  };
+  visitor.stop_condition = [&visited](NodePtr node, NodePtr input) {
+    if (!(visited.count(input))) {
+      return false;
+    }
+    return true;
+  };
+  for (auto& node : outputs) {
+    GraphTraverse(node, visitor);
+  }
+  return sorted_nodes;
+}
+
 std::vector<NodePtr> GetSubgraphOutputs(
     const Graph& graph, const std::vector<NodePtr>& subgraph_nodes) {
   std::unordered_set<NodePtr> sg_nodes(subgraph_nodes.begin(),
@@ -258,6 +280,7 @@ std::vector<NodePtr> GetSubgraphOutputs(
       outNodes.emplace_back(n);
     }
   }
+  auto sorted_nodes = DFSTopologicalSort(graph.outputs_);
 
   // for every node in the subgraph, if the node is an input to other nodes
   // that aren't in the subgraph, this node is an output of the subgraph
@@ -265,10 +288,16 @@ std::vector<NodePtr> GetSubgraphOutputs(
     if (!sg_nodes.count(n)) {
       for (auto i : n->inputs_) {
         if (sg_nodes.count(i) && !out_nodes_set.count(i)) {
-          outNodes.emplace_back(i);
           out_nodes_set.insert(i);
         }
       }
+    }
+  }
+
+  // Add the outputs in reverse topological order
+  for (auto it = sorted_nodes.rbegin(); it < sorted_nodes.rend(); ++it) {
+    if (out_nodes_set.count(*it)) {
+      outNodes.emplace_back(*it);
     }
   }
 
