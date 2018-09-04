@@ -236,26 +236,30 @@ void Compiler::IdentifyCollapseGraphs() {
   }
 }
 
+std::shared_ptr<Graph> Compiler::SGCompile(NodePtr& n) {
+  // extract and compile subgraph
+  compiler_.setExeMode(GraphExeMode::kInfer);
+  auto sg = compiler_.Compile(n);
+
+  // compile subgraph in other execution modes,
+  for (int i = 1; i < kGraphExeModeCount; ++i) {
+    // set graph execution mode
+    compiler_.setExeMode(static_cast<GraphExeMode>(i));
+    compiler_.Compile(n);
+  }
+
+  // add subgraph to stats tracker
+  if (ngraph_log_timer()) {
+    NGraphStats::get_instance().add(sg);
+  }
+  return sg;
+}
+
 void Compiler::CreateSubgraphNNVMNodes() {
   // find the subgraphs
   for (auto n : ngraph_.nodes_) {
     if (n->type_ == NodeType::kGraph && n->subgraph_ > 0) {
-      // extract and compile subgraph
-      compiler_.setExeMode(GraphExeMode::kInfer);
-      auto sg = compiler_.Compile(n);
-
-      // compile subgraph in other execution modes,
-      for (int i = 1; i < kGraphExeModeCount; ++i) {
-        // set graph execution mode
-        compiler_.setExeMode(static_cast<GraphExeMode>(i));
-        compiler_.Compile(n);
-      }
-
-      // add subgraph to stats tracker
-      if (ngraph_log_timer()) {
-        NGraphStats::get_instance().add(sg);
-      }
-
+      auto sg = SGCompile(n);
       // create nnvm node
       auto node = CreateNNVMNode(sg);
       compiled_nodes_.insert({sg, node});
@@ -370,6 +374,20 @@ void Compiler::CleanUpUneededReferences() {
     kv.first->nodes_.clear();
     kv.first->entry_map_.clear();
   }
+}
+
+// assumes there is only one ngraph
+std::shared_ptr<Graph> Compiler::GetNgraph() {
+  std::shared_ptr<Graph> ngraph;
+  IdentifyCollapseGraphs();
+  // assumes there is only one ngraph
+  for (auto n : ngraph_.nodes_)
+    if (n->type_ == NodeType::kGraph && n->subgraph_ > 0) {
+      // extract and compile subgraph
+      ngraph = SGCompile(n);
+      break;
+    }
+  return ngraph;
 }
 
 // Main compilation function

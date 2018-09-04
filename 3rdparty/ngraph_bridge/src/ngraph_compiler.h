@@ -198,6 +198,8 @@ class Compiler {
            const std::vector<mxnet::NDArray*>& inputs);
   // Compile returns the compiled graph
   nnvm::Graph Compile();
+  // assumes there is only one ngraph
+  std::shared_ptr<Graph> GetNgraph();
   // parse the nnvm graph into an intermediate represenation
   // TODO(mbrookhart): Make this protected, it's here for debugging
   void ParseNnvmGraph(const nnvm::Graph* graph_with_attrs = nullptr);
@@ -233,6 +235,7 @@ class Compiler {
 
   void IdentifyCollapseGraphs();
 
+  std::shared_ptr<Graph> SGCompile(NodePtr& n);
   void CreateSubgraphNNVMNodes();
   void ConnectSubgraphNodes();
   void CollapseNNVMGraph();

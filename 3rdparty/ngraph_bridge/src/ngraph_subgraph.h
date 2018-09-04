@@ -23,7 +23,7 @@
 #include "ngraph_imperative.h"
 #include "ngraph_nnvm_ops.h"
 
-#define DEBUG_SUBGRAPH 1
+#define DEBUG_SUBGRAPH 0
 namespace ngraph_bridge {
 using namespace nnvm;
 using namespace mxnet;
@@ -33,9 +33,7 @@ class SgNgraphSelector : public SubgraphSelector {
  public:
   SgNgraphSelector(Compiler *compiler) : compiler_(compiler) {}
 
-  bool Select(const nnvm::Node &n) override {
-    return is_node_selected(n);
-  }
+  bool Select(const nnvm::Node &n) override { return is_node_selected(n); }
 
   bool SelectInput(const nnvm::Node &n, const nnvm::Node &new_node) override {
     return is_node_selected(n) && is_node_selected(new_node);
@@ -44,6 +42,7 @@ class SgNgraphSelector : public SubgraphSelector {
   bool SelectOutput(const nnvm::Node &n, const nnvm::Node &new_node) override {
     return is_node_selected(n) && is_node_selected(new_node);
   }
+
 
  private:
   Compiler *compiler_;
@@ -109,25 +108,34 @@ class SgNgraphProperty : public SubgraphProperty {
     return std::make_shared<SgNgraphProperty>();
   }
 
-  nnvm::NodePtr CreateSubgraphNode(const nnvm::Symbol &sym,
-                                   const int subgraph_id = 0) const override {
+  virtual nnvm::NodePtr CreateSubgraphNode(const nnvm::Symbol &sym,
+                                           const int subgraph_id = 0) const {
     nnvm::NodePtr n = nnvm::Node::Create();
     n->attrs.op = Op::Get("_ngraph_subgraph_op");
     n->attrs.name = "_ngraph_subgraph_op" + std::to_string(subgraph_id);
     n->attrs.subgraphs.push_back(std::make_shared<nnvm::Symbol>(sym));
+    return n;
+  }
 
-    auto &orig_graph = GetAttr<nnvm::Graph>("graph");
+  virtual nnvm::NodePtr CreateSubgraphNode(
+      const nnvm::Graph &sg, const int subgraph_id = 0) const override {
+    nnvm::Symbol sym;
+    sym.outputs = sg.outputs;
+    auto n = CreateSubgraphNode(sym, subgraph_id);
+
 #if DEBUG_SUBGRAPH
     if (ngraph_log_verbose_detail) {
       nnvm::Graph g;
       g.outputs = sym.outputs;
+      auto &orig_graph = GetAttr<nnvm::Graph>("graph");
       std::cout << __func__ << ": id " << subgraph_id
                 << " num_nodes after partition "
                 << orig_graph.indexed_graph().num_nodes() << "/"
                 << g.indexed_graph().num_nodes() << std::endl;
     }
 #endif
-    n->attrs.parsed = create_ngraph(n->attrs, orig_graph);
+    Compiler compiler(sg);
+    n->attrs.parsed = compiler.GetNgraph();
     return n;
   }
 
@@ -136,8 +144,8 @@ class SgNgraphProperty : public SubgraphProperty {
       auto &orig_graph = GetAttr<nnvm::Graph>("graph");
 #if DEBUG_SUBGRAPH
       if (ngraph_log_verbose_detail) {
-        std::cout << "SgNgraphProperty" << ": Init with orig graph "
-                  << &orig_graph << " num_nodes "
+        std::cout << "SgNgraphProperty"
+                  << ": Init with orig graph " << &orig_graph << " num_nodes "
                   << orig_graph.indexed_graph().num_nodes() << std::endl;
       }
 #endif

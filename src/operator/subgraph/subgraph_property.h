@@ -67,6 +67,8 @@ class SubgraphProperty {
   // execute the operators in the subgraph.
   virtual nnvm::NodePtr CreateSubgraphNode(const nnvm::Symbol &s,
                                            const int subgraph_id = 0) const = 0;
+  virtual nnvm::NodePtr CreateSubgraphNode(const nnvm::Graph &sg,
+                                           const int subgraph_id = 0) const = 0;
   // set an attr with name in the attr map
   template<typename T>
   SubgraphProperty& SetAttr(const std::string& name, const T& value) {
