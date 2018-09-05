@@ -117,15 +117,7 @@ NGImperative::NGImperative(const nnvm::Graph &g, const mxnet::Context& ctx) : Co
 }
 // process ngraph composed of nnvm symbol graph
 void NGImperative::parse_ngraph() {
-  ProcessGraph(NDArrayMap());
-  IdentifyCollapseGraphs();
-  // imperative assumes graph is just one node
-  for (auto n : ngraph_.nodes_)
-    if (n->type_ == NodeType::kGraph) {
-      // extract and compile subgraph
-      op_ngraph_ = compiler_.Compile(n);
-      break;
-    }
+  GetNgraph();
 }
 // local utility function to cache and invoke ngraph bridge for imperative ops.
 // returns true if successfully executed with ngraph, false on failure.

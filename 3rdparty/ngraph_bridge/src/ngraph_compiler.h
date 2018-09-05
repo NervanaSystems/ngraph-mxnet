@@ -45,48 +45,6 @@ using NgraphSType = std::unordered_map<std::string, int>;
 using NDArrayMap = nnvm::NodeEntryMap<mxnet::NDArray>;
 using StateMap = std::unordered_map<const nnvm::Node*, mxnet::OpStatePtr>;
 
-// This struct collects arguments and provides a method for
-// ngraph_bridge::Compiler to infer nnvm::Graph shape and dtype
-// prior to compilation of the ngraph.  There are two flavos to
-// consider, Bind and SimpleBind, matching the two flavors of
-// GraphExecutor::Init function where ngraph_bridge::Compiler is
-// invoked.  Hence there are two derivations of this base object.
-struct BindArgBase {
-  explicit BindArgBase(size_t numforward) : kNumForwardInputs(numforward) {}
-  virtual ~BindArgBase() {}
-
-  // common arguments
-  const size_t kNumForwardInputs;
-};
-
-// Bind
-struct BindArg : public BindArgBase {
-  BindArg(size_t numforward, const std::vector<mxnet::NDArray>& inargs,
-          const std::vector<mxnet::NDArray>& auxstates)
-      : BindArgBase(numforward), in_args_(inargs), aux_states_(auxstates) {}
-
-  // bind arguments
-  const std::vector<mxnet::NDArray> in_args_;
-  const std::vector<mxnet::NDArray> aux_states_;
-};
-
-// SimpleBind
-struct SimpleBindArg : public BindArgBase {
-  SimpleBindArg(size_t numforward,
-                const std::unordered_map<std::string, nnvm::TShape>& shapes,
-                const std::unordered_map<std::string, int>& dtypes,
-                const std::unordered_map<std::string, int>& stypes)
-      : BindArgBase(numforward),
-        shape_map_(shapes),
-        dtype_map_(dtypes),
-        stype_map_(stypes) {}
-
-  // simple bind arguments
-  const NgraphShape shape_map_;
-  const NgraphDType dtype_map_;
-  const NgraphDType stype_map_;
-};
-
 // This is a compile-time hash map that contains information on
 // nnvm alias renaming to simplify the emitter class -
 // we don't want to emit _Plus, _plus, _add, and elemwise_add
@@ -184,11 +142,6 @@ inline std::string clean_opname(std::string name) {
 // Main compiler class
 class Compiler {
  public:
-  // Construction takes setup from the grad executor and preps the graph
-  // for ngraph compilation
-  Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
-           const NNVMNodeVec& inputs, const BindArgBase& bindarg,
-           const mxnet::Context& context);
   // Construct base compiler object with context only
   Compiler(const mxnet::Context& context);
   // compiler for graph with attrs
@@ -203,8 +156,6 @@ class Compiler {
   // parse the nnvm graph into an intermediate represenation
   // TODO(mbrookhart): Make this protected, it's here for debugging
   void ParseNnvmGraph(const nnvm::Graph* graph_with_attrs = nullptr);
-  // create and return cached_op graph
-  nnvm::Graph GetCachedOpGraph(const std::vector<mxnet::NDArray*>& inputs);
 
   StateMap CopySavedStates(const StateMap& saved_states);
   // Return maps of the shapes and dtypes for further analysis in graph_executor
@@ -233,13 +184,9 @@ class Compiler {
   // create a copied representation of the inputs
   void MakeCopiedInputs(const NNVMNodeVec& inputs);
 
-  void IdentifyCollapseGraphs();
 
   std::shared_ptr<Graph> SGCompile(NodePtr& n);
   void CreateSubgraphNNVMNodes();
-  void ConnectSubgraphNodes();
-  void CollapseNNVMGraph();
-  void CleanUpUneededReferences();
   // class to compile subgraphs
   SGCompiler compiler_;
   // storage for copied nodes
@@ -255,11 +202,6 @@ class Compiler {
   // copied feed dict and inputs
   nnvm::NodeEntryMap<mxnet::NDArray> feed_dict_;
   NNVMNodeVec inputs_;
-
-  // infer nnvm::Graph shape and type for bind case
-  void Infer(const BindArg* bind);
-  // infer nnvm::Graph shape and type for simple bind case
-  void Infer(const SimpleBindArg* simplebind);
 
   // inferred nnvm::Graph shape
   nnvm::ShapeVector shapes_;
