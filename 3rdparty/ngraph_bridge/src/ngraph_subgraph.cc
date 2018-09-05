@@ -154,7 +154,8 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
           auto compiler =
               nnvm::get<std::shared_ptr<ngraph_bridge::Compiler>>(attrs.parsed);
           auto graph = get_ngraph(attrs);
-          if ((*in_attrs)[0] != graph->inputs_[0]->shape_) {
+          if ((graph->inputs_.size() > 0) &&
+              (*in_attrs)[0] != graph->inputs_[0]->shape_) {
             compiler->ReshapeGraph(*in_attrs);
             graph = compiler->GetNgraph();
           }
@@ -192,9 +193,10 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
            std::vector<int>* out_attrs) {
           DISPATCH_MODE_ASSIGN_CHECK(dispatch_mode, 0,
                                      DispatchMode::kFComputeEx);
-          mxnet::op::storage_type_assign(in_attrs, mxnet::kDefaultStorage,
-                                         dispatch_mode,
-                                         mxnet::DispatchMode::kFComputeEx);
+          if (in_attrs->size() > 0)
+            mxnet::op::storage_type_assign(in_attrs, mxnet::kDefaultStorage,
+                                           dispatch_mode,
+                                           mxnet::DispatchMode::kFComputeEx);
           return mxnet::op::storage_type_assign(
               out_attrs, mxnet::kDefaultStorage, dispatch_mode,
               mxnet::DispatchMode::kFComputeEx);
