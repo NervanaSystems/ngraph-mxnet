@@ -71,58 +71,6 @@ nnvm::NodePtr CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
   return node;
 }
 
-// infer nnvm::Graph shape and dtype for bind case
-// reused from GraphExecutor::Init in graph_executor.cc
-void Compiler::Infer(const BindArg* bind) {
-  const auto& idx = graph_.indexed_graph();
-  const auto& mutable_nodes = idx.mutable_input_nodes();
-  size_t arg_top = 0, aux_top = 0;
-  for (size_t i = 0; i < bind->kNumForwardInputs; ++i) {
-    const uint32_t nid = idx.input_nodes().at(i);
-    if (mutable_nodes.count(nid)) {
-      shapes_.push_back(bind->aux_states_[aux_top].shape());
-      dtypes_.push_back(bind->aux_states_[aux_top].dtype());
-      stypes_.push_back(bind->aux_states_[aux_top].storage_type());
-      ++aux_top;
-    } else {
-      shapes_.push_back(bind->in_args_[arg_top].shape());
-      dtypes_.push_back(bind->in_args_[arg_top].dtype());
-      stypes_.push_back(bind->in_args_[arg_top].storage_type());
-      ++arg_top;
-    }
-  }
-
-  // append default shapes / dtypes so that vector size = graph size
-  shapes_.resize(idx.input_nodes().size(), nnvm::TShape());
-  dtypes_.resize(idx.input_nodes().size(), -1);
-  stypes_.resize(idx.input_nodes().size(), mxnet::kUndefinedStorage);
-}
-
-// infer nnvm::Graph shape and dtype for simple bind case
-// reused from GraphExecutor::Init in graph_executor.cc
-void Compiler::Infer(const SimpleBindArg* simplebind) {
-  const auto& idx = graph_.indexed_graph();
-  shapes_.resize(idx.input_nodes().size(), nnvm::TShape());
-  dtypes_.resize(idx.input_nodes().size(), -1);
-  stypes_.resize(idx.input_nodes().size(), mxnet::kUndefinedStorage);
-  for (size_t i = 0; i < simplebind->kNumForwardInputs; ++i) {
-    const uint32_t nid = idx.input_nodes().at(i);
-    const std::string& name = idx[nid].source->attrs.name;
-    auto it1 = simplebind->shape_map_.find(name);
-    if (simplebind->shape_map_.end() != it1) {
-      shapes_[i] = it1->second;
-    }
-    auto it2 = simplebind->dtype_map_.find(name);
-    if (simplebind->dtype_map_.end() != it2) {
-      dtypes_[i] = it2->second;
-    }
-    auto it3 = simplebind->stype_map_.find(name);
-    if (simplebind->stype_map_.end() != it3) {
-      stypes_[i] = it3->second;
-    }
-  }
-}
-
 static std::atomic<int> graph_counter(1);
 
 std::string get_ngraph_name() {
@@ -166,26 +114,6 @@ Compiler::Compiler(const nnvm::Graph& g) : ngraph_() {
   CheckInNgraph();
 }
 
-// Compiler initialization
-Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
-                   const NNVMNodeVec& inputs, const BindArgBase& bindbase,
-                   const mxnet::Context& context)
-    : ngraph_(get_ngraph_name(), context) {
-  DeepCopy(graph);
-  graph_.attrs["context"] = std::make_shared<nnvm::any>(
-      mxnet::exec::ContextVector(graph_.indexed_graph().num_nodes(), context));
-  // infer nnvm::Graph shape and type
-  auto bind = dynamic_cast<const BindArg*>(&bindbase);
-  auto simplebind = dynamic_cast<const SimpleBindArg*>(&bindbase);
-  if (bind != nullptr) {
-    Infer(bind);
-  } else if (simplebind != nullptr) {
-    Infer(simplebind);
-  }
-  MakeCopiedInputs(inputs);
-  ProcessGraph(feed_dict);
-}
-
 void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
   graph_ = mxnet::exec::InferShape(std::move(graph_), std::move(shapes_),
                                    "__shape__");
@@ -208,32 +136,6 @@ void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
   MakeCopiedFeedDict(feed_dict);
   ParseNnvmGraph();
   CheckInNgraph();
-}
-
-void Compiler::IdentifyCollapseGraphs() {
-  if (ngraph_log_verbose()) {
-    std::cout << "NGRAPH_BRIDGE: processing " << ngraph_.name_ << std::endl;
-  }
-  // Output Graphviz dot files (pre collapse) for vizualization
-  if (ngraph_log_viz()) {
-    WriteSubgraphDots(ngraph_, ngraph_.name_ + "_pre_collapse");
-  }
-
-  IdentifySubgraphs(&ngraph_, [this](NodePtr s) -> bool {
-    bool in_feed_dict = false;
-    for (auto kv : feed_dict_) {
-      if (kv.first.node->attrs.name == s->name_) {
-        in_feed_dict = true;
-        break;
-      }
-    }
-    return (s->in_ngraph_ && !in_feed_dict);
-  });
-
-  // Output Graphviz dot files (post collapse) for vizualization
-  if (ngraph_log_viz()) {
-    WriteSubgraphDots(ngraph_, ngraph_.name_ + "_post_collapse");
-  }
 }
 
 std::shared_ptr<Graph> Compiler::SGCompile(NodePtr& n) {
@@ -284,98 +186,6 @@ struct NodeEntryEqual {
   }
 };
 
-void Compiler::ConnectSubgraphNodes() {
-  // create a map of original NodeEntries -> subgraph output NodeEntries
-  std::unordered_map<nnvm::NodeEntry, nnvm::NodeEntry, NodeEntryHash,
-                     NodeEntryEqual>
-      out_map;
-  for (auto kv : compiled_nodes_) {
-    for (auto output : kv.first->output_elements_) {
-      nnvm::NodeEntry orig_entry{
-          output->base_node_->orig_node_,
-          static_cast<uint32_t>(output->base_node_->multi_output_index_),
-          static_cast<uint32_t>(0)};
-      nnvm::NodeEntry new_entry{
-          kv.second, static_cast<uint32_t>(output->multi_output_index_),
-          static_cast<uint32_t>(0)};
-      out_map[orig_entry] = new_entry;
-    }
-  }
-  // replace inputs in all of the graphs if they are now outputs of other
-  // subgraphs
-  for (auto kv : compiled_nodes_) {
-    for (auto& input : kv.second->inputs) {
-      if (out_map.count(input) != 0) {
-        input = out_map[input];
-      }
-    }
-  }
-}
-
-void Compiler::CollapseNNVMGraph() {
-  for (auto n : ngraph_.nodes_) {
-    // Find the subgraphs
-    if (n->type_ == NodeType::kGraph && n->subgraph_ > 0) {
-      auto sg = std::dynamic_pointer_cast<Graph>(n);
-      // get the NNVM node
-      auto node = compiled_nodes_.at(sg);
-      // Loop over the output elements, and replace NNVM node entries
-      // with output Node Entries
-      for (auto output : sg->output_elements_) {
-        nnvm::NodeEntry sg_node{
-            node, static_cast<uint32_t>(output->multi_output_index_),
-            static_cast<uint32_t>(0)};
-
-        auto matches = [&output](nnvm::NodeEntry n) -> bool {
-          return (n.node == output->base_node_->orig_node_) &&
-                 (n.index == output->base_node_->multi_output_index_);
-        };
-
-        // Replace outputs if needed
-        for (auto& nnvm_output : graph_.outputs)
-          if (matches(nnvm_output)) nnvm_output = sg_node;
-
-        // use nnvm depth first search to fix node connections in nnvm
-        nnvm::DFSVisit(graph_.outputs,
-                       [sg_node, &output, &matches](const nnvm::NodePtr node) {
-                         for (auto input : node->inputs) {
-                           auto it = std::find_if(node->inputs.begin(),
-                                                  node->inputs.end(), matches);
-
-                           if (it != node->inputs.end()) {
-                             node->inputs[it - node->inputs.begin()] = sg_node;
-                           } else {
-                             break;
-                           }
-                         }
-                       });
-      }
-    }
-  }
-}
-
-void Compiler::CleanUpUneededReferences() {
-  // Clean up the nodes in the subgraph that we don't need anymore
-  // so we don't keep extra shared pointers around
-  // this is spaghetti
-  // TODO(mbrookhart): Ask DLMC for the capability to destroy nnvm::op
-  // objects so we don't have to do this anymore.
-  for (auto kv : compiled_nodes_) {
-    for (auto input : kv.first->inputs_) {
-      input->inputs_.clear();
-    }
-    for (auto output : kv.first->outputs_) {
-      output->inputs_.clear();
-    }
-    for (auto output_element : kv.first->output_elements_) {
-      output_element->inputs_.clear();
-      output_element->base_node_ = nullptr;
-    }
-    kv.first->nodes_.clear();
-    kv.first->entry_map_.clear();
-  }
-}
-
 // assumes there is only one ngraph
 std::shared_ptr<Graph> Compiler::GetNgraph() {
   // assumes all operations in the graph are fusable
@@ -403,66 +213,6 @@ std::shared_ptr<Graph> Compiler::GetNgraph() {
   return ngraph;
 }
 
-// Main compilation function
-nnvm::Graph Compiler::Compile() {
-  IdentifyCollapseGraphs();
-  for (auto node : ngraph_.nodes_) {
-    // store the input variable shape for use by nnvm
-    // This is happening because my nnvm graph manipulations are
-    // breaking the infer shape functionality, so shapes of inputs
-    // don't get properly inferred. Works, because we're inferring
-    // the shapes before doing all of this, but not ideal
-    if (node->type_ == NodeType::kAux || node->type_ == NodeType::kVariable) {
-      ngraph_shape_[node->name_] = node->shape_;
-      ngraph_dtype_[node->name_] = node->dtype_;
-      ngraph_stype_[node->name_] = node->stype_;
-    }
-  }
-
-  CreateSubgraphNNVMNodes();
-  ConnectSubgraphNodes();
-  CollapseNNVMGraph();
-  CleanUpUneededReferences();
-  // create a new output graph
-  nnvm::Graph out_graph;
-
-  // initialize it with original graph nodes
-  out_graph.outputs = graph_.outputs;
-  return std::move(out_graph);
-}
-
-nnvm::Graph Compiler::GetCachedOpGraph(
-    const std::vector<mxnet::NDArray*>& inputs) {
-  nnvm::ShapeVector shape_inputs;
-  nnvm::DTypeVector dtype_inputs;
-  std::vector<int> storage_type_inputs;
-  shape_inputs.reserve(inputs.size());
-  dtype_inputs.reserve(inputs.size());
-  storage_type_inputs.reserve(inputs.size());
-  for (uint32_t i = 0; i < inputs.size(); ++i) {
-    shape_inputs.emplace_back(inputs[i]->shape());
-    dtype_inputs.emplace_back(inputs[i]->dtype());
-    storage_type_inputs.emplace_back(inputs[i]->storage_type());
-  }
-  // create a new output graph
-  auto g = Compile();
-  mxnet::imperative::CheckAndInferShape(&g, std::move(shape_inputs), true);
-  mxnet::imperative::CheckAndInferType(&g, std::move(dtype_inputs), true);
-  exec::DevMaskVector cached_dev_mask(g.indexed_graph().num_nodes(),
-                                      inputs[0]->ctx().dev_mask());
-  mxnet::imperative::CheckAndInferStorageType(
-      &g, std::move(cached_dev_mask), std::move(storage_type_inputs), true);
-
-  const auto& idx = g.indexed_graph();
-  std::vector<uint32_t> ref_count(idx.num_node_entries(), 0);
-  for (const auto& i : idx.input_nodes()) ++ref_count[idx.entry_id(i, 0)];
-  for (const auto& i : idx.outputs()) ++ref_count[idx.entry_id(i)];
-  for (size_t i = 0; i < idx.num_nodes(); ++i) {
-    for (const auto& j : idx[i].inputs) ++ref_count[idx.entry_id(j)];
-  }
-  g.attrs["forward_ref_count"] = std::make_shared<dmlc::any>(ref_count);
-  return std::move(g);
-}
 
 // create copied saved states
 StateMap Compiler::CopySavedStates(const StateMap& saved_states) {
