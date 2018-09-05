@@ -194,9 +194,9 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
           DISPATCH_MODE_ASSIGN_CHECK(dispatch_mode, 0,
                                      DispatchMode::kFComputeEx);
           if (in_attrs->size() > 0)
-          mxnet::op::storage_type_assign(in_attrs, mxnet::kDefaultStorage,
-                                         dispatch_mode,
-                                         mxnet::DispatchMode::kFComputeEx);
+            mxnet::op::storage_type_assign(in_attrs, mxnet::kDefaultStorage,
+                                           dispatch_mode,
+                                           mxnet::DispatchMode::kFComputeEx);
           return mxnet::op::storage_type_assign(
               out_attrs, mxnet::kDefaultStorage, dispatch_mode,
               mxnet::DispatchMode::kFComputeEx);
