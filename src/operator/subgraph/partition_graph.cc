@@ -623,35 +623,53 @@ void CutGraphInputs(const std::vector<nnvm::NodeEntry*> &input_entries,
 /*!
  * \brief Infer attrs for subgraph, given input nodes of subgraph from original graph
  */
-nnvm::Graph InferSubgraphAttrs(Graph *g, const std::vector<nnvm::NodeEntry> &orig_input_entries,
-                        nnvm::Graph&& sg) {
-  if (orig_input_entries.size() < 1) return std::move(sg);
+nnvm::Graph InferSubgraphAttrs(
+    Graph* g, const std::vector<nnvm::NodeEntry>& orig_input_entries,
+    nnvm::Graph&& sg) {
   const auto &idx_og = g->indexed_graph();
   const auto &idx_g = sg.indexed_graph();
   auto num_nodes = idx_g.num_node_entries();
 
   auto orig_ctx = g->GetAttr<exec::ContextVector>("context");
-  auto sg_ctx = orig_ctx[idx_og.entry_id(orig_input_entries[0])];
-  sg.attrs["context"] = std::make_shared<dmlc::any>(exec::ContextVector(num_nodes, sg_ctx));
+  auto orig_dev_masks = g->GetAttr<exec::DevMaskVector>("dev_mask");
 
   auto oshapes = g->GetAttr<nnvm::ShapeVector>("shape");
   auto odtypes = g->GetAttr<nnvm::DTypeVector>("dtype");
   auto ostypes = g->GetAttr<mxnet::StorageTypeVector>("storage_type");
 
+  exec::ContextVector contexts(num_nodes, orig_ctx[0]);
   nnvm::ShapeVector shapes(num_nodes);
   nnvm::DTypeVector types(num_nodes, -1);
   StorageTypeVector stypes(num_nodes, kUndefinedStorage);
-  exec::DevMaskVector dev_masks(num_nodes, sg_ctx.dev_mask());
+  exec::DevMaskVector dev_masks(num_nodes, orig_ctx[0].dev_mask());
+
+  nnvm::DFSVisit(sg.outputs, [&idx_og, &idx_g, &dev_masks, &orig_dev_masks,
+                              &orig_ctx, &contexts](const nnvm::NodePtr node) {
+    if (!node->is_variable()) {
+      const uint32_t eid = idx_g.entry_id(idx_g.node_id(node.get()), 0);
+      const uint32_t oeid = idx_og.entry_id(idx_og.node_id(node.get()), 0);
+      std::cout << eid << " " << oeid << std::endl;
+      contexts[eid] = orig_ctx[oeid];
+      dev_masks[eid] = orig_dev_masks[oeid];
+    }
+  });
 
   const auto &input_nids = idx_g.input_nodes();
   for (size_t i = 0; i < input_nids.size(); i++) {
     auto eid = idx_g.entry_id(input_nids[i], 0);
     auto oeid = idx_og.entry_id(orig_input_entries[i]);
+      std::cout << eid << " " << oeid << std::endl;
+    
+    contexts[eid] = orig_ctx[oeid];
+    dev_masks[eid] = orig_dev_masks[oeid];
+
     shapes[eid] = oshapes[oeid];
     types[eid] = odtypes[oeid];
     stypes[eid] = ostypes[oeid];
   }
 
+  sg.attrs["context"] = std::make_shared<dmlc::any>(std::move(contexts));
+  
   sg.attrs["shape"] = std::make_shared<dmlc::any>(std::move(shapes));
   sg = exec::InferShape(std::move(sg));
   CHECK_EQ(sg.GetAttr<size_t>("shape_num_unknown_nodes"), 0U);

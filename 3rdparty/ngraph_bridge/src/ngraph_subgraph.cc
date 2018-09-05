@@ -154,18 +154,22 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
           auto compiler =
               nnvm::get<std::shared_ptr<ngraph_bridge::Compiler>>(attrs.parsed);
           auto graph = get_ngraph(attrs);
-          if ((*in_attrs)[0] != graph->inputs_[0]->shape_) {
+          if ((graph->inputs_.size() > 0) &&
+              (*in_attrs)[0] != graph->inputs_[0]->shape_) {
             compiler->ReshapeGraph(*in_attrs);
             graph = compiler->GetNgraph();
           }
+          std::cout << "get input shapes" << std::endl;
           for (size_t i = 0; i < graph->inputs_.size(); ++i) {
             (*in_attrs)[i] = graph->inputs_[i]->shape_;
           }
+          std::cout << "get output shapes" << std::endl;
           std::vector<nnvm::TShape> shapes;
           for (auto output : graph->outputs_) {
             shapes.push_back(output->shape_);
           }
           (*out_attrs) = shapes;
+          std::cout << "return" << std::endl;
           return true;
         })
     .set_attr<nnvm::FInferType>(
