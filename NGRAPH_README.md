@@ -25,7 +25,7 @@ are as follows:
 - `NGRAPH_EXTRA_MAKE_FLAGS` - This variable can provide additional command-line
   arguments to the invocation of `make` used to compile and link nGraph.
 
-Please see the files `ngraph.mk` and `make/config.mk` for more details.
+Please see the files `3rdparty/ngraph_bridge/ngraph.mk` and `make/config.mk` for more details.
 
 ## Compilation instructions for Ubuntu 16.04
 
@@ -131,13 +131,22 @@ Please see the files `ngraph.mk` and `make/config.mk` for more details.
 ## Distributed training
 MPI is required for multi-CPU support. Download Open MPI from [here](https://www.open-mpi.org/).
 
-`USE_NGRAPH_DISTRIBUTED` must be set to (exactly) `1` in order for MXNet to build with nGraph distributed support.
+Use `USE_NGRAPH_DISTRIBUTED=1` and `NGRAPH_EXTRA_CMAKE_FLAGS=-DNGRAPH_DISTRIBUTED_ENABLE=1`
+in order for MXNet to build with nGraph distributed support.
+
+Here's an example of a typical build command for distributed training:
+
+``` sh
+cd MXNET_ROOT
+make USE_NGRAPH=1 USE_NGRAPH_DISTRIBUTED=1 NGRAPH_EXTRA_CMAKE_FLAGS=-DNGRAPH_DISTRIBUTED_ENABLE=1 USE_CUDA=0 DEBUG=0 -j
+```
 
 Here's an example to run ResNet-50 on two nodes:
 
 ``` sh
 export MXNET_NGRAPH_GLUON=1
-mpirun -map-by node -x MXNET_NGRAPH_GLUON -hostfile hosts -np 2 python MXNET_ROOT/example/image-classification/train_cifar10.py --network resnet --num-layers 50 --kv-store ngraph
+export MXNET_ENGINE_TYPE=NaiveEngine
+mpirun -map-by node -x MXNET_NGRAPH_GLUON -x MXNET_ENGINE_TYPE -hostfile hosts -np 2 python MXNET_ROOT/example/image-classification/train_cifar10.py --network resnet --num-layers 50 --kv-store ngraph
 ```
 
 ## Runtime environment variables
@@ -168,7 +177,7 @@ properly if altered to use different nGraph back-ends.
 This is a temporary limitation expected to be lifted in a future release.
 
 ### Test status
-Integration testing to date (3/29/2018) has focused on `tests/cpp/*` and `tests/python/unittest/*`.
+Integration testing to date (8/31/2018) has focused on `tests/cpp/*` and `tests/python/unittest/*`.
 Of these tests, we see the following failures.
 
 #### This test fails with relative errors of <1e-4 on a limit of 1e-5.
@@ -180,15 +189,10 @@ Of these tests, we see the following failures.
 #### These test fail with python errors
 - `tests/python/unittest/test_image.py::test_det_augmenters`
 - `tests/python/unittest/test_image.py::test_image_detiter`
+- `tests/python/unittest/test_image.py:test_imageiter`
 
 #### nGraph changes the number of nodes in the graph, so the assumptions in this test are no longer valid.
 - `tests/python/unittest/test_module.py::test_monitor`
-
-#### Profiler integration is ongoing but incomplete, so profiler fails.
-- `tests/python/unittest/test_profiler.py::test_profiler`
-
-#### We haven't yet integrated nGraph into the debug string, so memory allocation isn't properly supported and test_zero_prop fails
-- `tests/python/unittest/test_symbol.py::test_zero_prop`
 
 Integration testing on other python tests are forthcoming.
 

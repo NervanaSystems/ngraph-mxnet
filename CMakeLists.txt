@@ -18,9 +18,10 @@ mxnet_option(USE_CUDNN            "Build with cudnn support"  ON) # one could se
 mxnet_option(USE_SSE              "Build with x86 SSE instruction support" ON IF NOT ARM)
 mxnet_option(USE_F16C             "Build with x86 F16C instruction support" ON) # autodetects support if ON
 mxnet_option(USE_LAPACK           "Build with lapack support" ON)
+mxnet_option(USE_NGRAPH           "Build with nGraph support" ON)
 mxnet_option(USE_MKL_IF_AVAILABLE "Use MKL if found" ON)
 mxnet_option(USE_MKLML_MKL        "Use MKLDNN variant of MKL (if MKL found)" ON IF USE_MKL_IF_AVAILABLE AND (NOT APPLE))
-mxnet_option(USE_MKLDNN           "Use MKLDNN variant of MKL (if MKL found)" ON IF USE_MKL_IF_AVAILABLE AND (NOT APPLE))
+mxnet_option(USE_MKLDNN           "Use MKLDNN variant of MKL (if MKL found)" ON IF USE_MKL_IF_AVAILABLE AND (NOT APPLE) AND (NOT USE_NGRAPH))
 mxnet_option(USE_OPERATOR_TUNING  "Enable auto-tuning of operators" ON IF NOT MSVC)
 mxnet_option(USE_GPERFTOOLS       "Build with GPerfTools support (if found)" ON)
 mxnet_option(USE_JEMALLOC         "Build with Jemalloc support"   ON)
@@ -37,6 +38,7 @@ mxnet_option(ENABLE_CUDA_RTC      "Build with CUDA runtime compilation support" 
 mxnet_option(BUILD_CPP_EXAMPLES   "Build cpp examples" ON)
 mxnet_option(INSTALL_EXAMPLES     "Install the example source files." OFF)
 mxnet_option(USE_SIGNAL_HANDLER   "Print stack traces on segfaults." OFF)
+mxnet_option(USE_TENSORRT         "Enable infeference optimization with TensorRT." OFF)
 
 message(STATUS "CMAKE_SYSTEM_NAME ${CMAKE_SYSTEM_NAME}")
 if(USE_CUDA AND NOT USE_OLDCMAKECUDA)
@@ -130,7 +132,8 @@ else(MSVC)
   else()
     set(SUPPORT_F16C FALSE)
   endif()
-  set(CMAKE_C_FLAGS "-Wall -Wno-unknown-pragmas -fPIC -Wno-sign-compare")
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+  set(CMAKE_C_FLAGS "-Wall -Wno-unknown-pragmas -Wno-sign-compare")
   if ("${CMAKE_CXX_COMPILER_ID}" MATCHES ".*Clang$")
     set(CMAKE_C_FLAGS "-Wno-braced-scalar-init")
   endif()
@@ -164,6 +167,35 @@ if(NOT mxnet_LINKER_LIBS)
   set(mxnet_LINKER_LIBS "")
 endif(NOT mxnet_LINKER_LIBS)
 
+if(USE_NGRAPH AND NOT MSVC)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-comment")
+  set(NGRAPH_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/3rdparty/ngraph_bridge)
+
+  if(NOT MSVC)
+    set(ARCH_OPT_FLAGS "-mtune=generic")
+  endif()
+  add_subdirectory(3rdparty/ngraph_bridge)
+
+  include_directories(3rdparty/ngraph_bridge/src)
+  include_directories(${CMAKE_BINARY_DIR}/3rdparty/ngraph_bridge/include)
+  
+  add_definitions(-DMXNET_USE_NGRAPH=1)
+  
+  list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libngraph.so)
+  list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libmkldnn.so)
+  list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libiomp5.so)
+  list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libmklml_intel.so)
+  list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libcpu_backend.so)
+  
+  if(USE_NGRAPH_DISTRIBUTED)
+    find_package(MPI REQUIRED)
+    include_directories(SYSTEM ${MPI_C_INCLUDE_PATH} ${MPI_CXX_INCLUDE_PATH})
+    link_directories(${MPI_C_LIBRARIES} ${MPI_CXX_LIBRARIES})
+    list(APPEND mxnet_LINKER_LIBS ${MPI_CXX_LIBRARIES})
+    add_definitions(-DMXNET_USE_NGRAPH_DISTRIBUTED=1)
+  endif(USE_NGRAPH_DISTRIBUTED)
+endif()
+
 if(USE_GPROF)
   message(STATUS "Using GPROF")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-omit-frame-pointer -g -pg")
@@ -183,6 +215,36 @@ if(USE_VTUNE)
   include_directories(${VTUNE_ROOT}/include)
   list(APPEND mxnet_LINKER_LIBS ${VTUNE_ROOT}/lib64/libittnotify.a)
   list(APPEND mxnet_LINKER_LIBS dl)
+endif()
+
+if(USE_TENSORRT)
+  message(STATUS "Using TensorRT")
+  set(ONNX_PATH 3rdparty/onnx-tensorrt/third_party/onnx/build/)
+  set(ONNX_TRT_PATH 3rdparty/onnx-tensorrt/build/)
+
+  include_directories(${ONNX_PATH})
+  include_directories(3rdparty/onnx-tensorrt/)
+  include_directories(3rdparty/)
+  add_definitions(-DMXNET_USE_TENSORRT=1)
+  add_definitions(-DONNX_NAMESPACE=onnx)
+
+  find_package(Protobuf REQUIRED)
+
+  find_library(ONNX_LIBRARY NAMES libonnx.so REQUIRED
+          PATHS ${ONNX_PATH}
+          DOC "Path to onnx library.")
+  find_library(ONNX_PROTO_LIBRARY NAMES libonnx_proto.so REQUIRED
+          PATHS ${ONNX_PATH}
+          DOC "Path to onnx_proto library.")
+  find_library(ONNX_TRT_RUNTIME_LIBRARY NAMES libnvonnxparser_runtime.so REQUIRED
+          PATHS ${ONNX_TRT_PATH}
+          DOC "Path to onnx_proto library.")
+  find_library(ONNX_TRT_PARSER_LIBRARY NAMES libnvonnxparser.so REQUIRED
+          PATHS ${ONNX_TRT_PATH}
+          DOC "Path to onnx_proto library.")
+
+  list(APPEND mxnet_LINKER_LIBS libnvinfer.so ${ONNX_TRT_PARSER_LIBRARY} ${ONNX_TRT_RUNTIME_LIBRARY}
+          ${ONNX_PROTO_LIBRARY} ${ONNX_LIBRARY} ${PROTOBUF_LIBRARY})
 endif()
 
 if(USE_MKLDNN)
@@ -603,13 +665,23 @@ if(UNIX)
   set(DUMMY_SOURCE ${CMAKE_BINARY_DIR}/dummy.c)
   file(WRITE ${DUMMY_SOURCE} "")
   list(APPEND MXNET_INSTALL_TARGETS mxnet_static)
-  add_library(mxnet_static STATIC ${SOURCE})
   add_library(mxnet SHARED ${DUMMY_SOURCE})
+  if(USE_NGRAPH AND NOT MSVC)
+    add_library(mxnet_static STATIC ${SOURCE} $<TARGET_OBJECTS:ngraph_bridge>)
+  else()
+    add_library(mxnet_static STATIC ${SOURCE})
+  endif()
   target_link_libraries(mxnet PRIVATE ${BEGIN_WHOLE_ARCHIVE} $<TARGET_FILE:mxnet_static> ${END_WHOLE_ARCHIVE})
   target_link_libraries(mxnet PRIVATE mxnet_static)
   set_target_properties(mxnet_static PROPERTIES OUTPUT_NAME mxnet)
 else()
   add_library(mxnet SHARED ${SOURCE})
+endif()
+
+if(USE_NGRAPH AND NOT MSVC)
+  if(UNIX)
+    add_dependencies(mxnet_static ngraph_bridge)
+  endif()
 endif()
 
 if(USE_CUDA)

@@ -18,19 +18,20 @@
 */
 
 #include <mxnet/ndarray.h>
-#include "./default_subgraph_op.h"
+#include "./common.h"
 #include "../../imperative/imperative_utils.h"
 #include "../../imperative/cached_op.h"
 
 namespace mxnet {
 namespace op {
 
-#define SUBGRAPH_DEBUG 1
+#define DEBUG_SUBGRAPH 0
 
 class DefaultSubgraphOperator {
  public:
   explicit DefaultSubgraphOperator(const Symbol& sym) : subgraph_sym_(sym) {
-    subgraph_exec_.reset(new CachedOp(sym, {{"static_alloc", "true"}}));
+    subgraph_exec_.reset(new CachedOp(sym, {{"static_alloc", "true"},
+                                            {"static_shape", "true"}}));
   }
 
   void Forward(const OpContext& ctx,
@@ -64,7 +65,7 @@ void DefaultSubgraphOperator::Forward(const OpContext& ctx,
   for (auto& nd : tmp_outputs) {
     output_ptrs.push_back(&nd);
   }
-#if SUBGRAPH_DEBUG
+#if DEBUG_SUBGRAPH
   for (size_t i = 0; i < inputs.size(); ++i) {
     LOG(INFO) << "inputs[" << i << "].version = " << inputs[i].version();
   }
@@ -79,8 +80,7 @@ OpStatePtr CreateDefaultSubgraphOpState(const NodeAttrs& attrs,
                                         Context ctx,
                                         const std::vector<TShape>& in_shapes,
                                         const std::vector<int>& in_types) {
-  const Symbol& subgraph_sym = nnvm::get<Symbol>(attrs.parsed);
-  return OpStatePtr::Create<DefaultSubgraphOperator>(subgraph_sym);
+  return OpStatePtr::Create<DefaultSubgraphOperator>(*attrs.subgraphs[0]);
 }
 
 void DefaultSubgraphOpForward(const OpStatePtr& state_ptr,
@@ -104,7 +104,6 @@ NNVM_REGISTER_OP(_default_subgraph_op)
 .set_attr<FInferStorageType>("FInferStorageType", DefaultSubgraphOpStorageType)
 .set_attr<FStatefulComputeEx>("FStatefulComputeEx<cpu>", DefaultSubgraphOpForward)
 .set_attr<nnvm::FMutateInputs>("FMutateInputs", DefaultSubgraphOpMutableInputs)
-.set_attr<FResourceRequest>("FResourceRequest", DefaultSubgraphOpResourceRequest)
 .set_attr<std::string>("key_var_num_args", "num_args")
 .set_attr<FExecType>("FExecType", DefaultSubgraphOpExecType)
 .add_argument("data", "NDArray-or-Symbol[]", "input data list");

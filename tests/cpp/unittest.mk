@@ -17,10 +17,6 @@
 
 TEST_SRC = $(shell find tests/cpp/ -name "*.cc")
 
-ifneq ($(USE_NGRAPH),1)
-   TEST_SRC := $(foreach f,$(TEST_SRC),$(if $(findstring tests/cpp/ngraph,$f),,$f))
-endif
-
 TEST_OBJ = $(patsubst %.cc, build/%.o, $(TEST_SRC))
 TEST = build/tests/cpp/mxnet_unit_tests
 
@@ -33,9 +29,6 @@ GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
 TEST_CFLAGS = -Itests/cpp/include -Isrc $(CFLAGS)
 
 TEST_LDFLAGS = $(LDFLAGS)
-ifeq ($(USE_NGRAPH), 1)
-    TEST_LDFLAGS += $(NGRAPH_LDFLAGS_FOR_CPP_UNIT_TESTS_PROG)
-endif
 TEST_LDFLAGS += -Llib -lmxnet
 
 ifeq ($(USE_BREAKPAD), 1)
@@ -71,13 +64,8 @@ build/tests/cpp/engine/%.o : tests/cpp/engine/%.cc | mkldnn ngraph
 	$(CXX) -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -MM -MT tests/cpp/engine/$* $< > build/tests/cpp/engine/$*.d
 	$(CXX) -c -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -o build/tests/cpp/engine/$*.o $(filter %.cc %.a, $^)
 
-build/tests/cpp/ngraph/%.o : tests/cpp/ngraph/%.cc | ngraph
-	@mkdir -p $(@D)
-	$(CXX) -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -MM -MT tests/cpp/ngraph/$* $< > build/tests/cpp/ngraph/$*.d
-	$(CXX) -c -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -o build/tests/cpp/ngraph/$*.o $(filter %.cc %.a, $^)
-
 $(TEST): $(TEST_OBJ) lib/libmxnet.so gtest.a
-	$(CXX) -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -o $@ $^ $(TEST_LDFLAGS) $(NGRAPH_AS_DIRECT_LINKAGE_LDFLAGS)
+	$(CXX) -std=c++11 $(TEST_CFLAGS) -I$(GTEST_INC) -o $@ $^ $(TEST_LDFLAGS) $(NGRAPH_LDFLAGS_FOR_CPP_UNIT_TESTS_PROG)
 
 runtest: $(TEST)
 	LD_LIBRARY_PATH=$(shell pwd)/lib:$(LD_LIBRARY_PATH) $(TEST)
@@ -89,6 +77,3 @@ testclean:
 -include build/tests/cpp/operator/*.d
 -include build/tests/cpp/storage/*.d
 -include build/tests/cpp/engine/*.d
-ifeq ($(USE_NGRAPH),1)
-    -include build/tests/cpp/ngraph/*.d
-endif

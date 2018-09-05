@@ -29,6 +29,7 @@ echo "**************************************************************************
 
 cd "${MX_DIR}"
 git submodule update --init --recursive
+<<<<<<< HEAD
 echo "The make variable is: ${MAKE_VARIABLES}"
 
 case "${MAKE_VARIABLES}" in
@@ -58,6 +59,10 @@ esac
 
 
 export LD_LIBRARY_PATH="${MX_DIR}/3rdparty/ngraph/install/lib"
+=======
+make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 -j $(nproc)
+export LD_LIBRARY_PATH="${MX_DIR}/3rdparty/ngraph_bridge/build/lib"
+>>>>>>> origin/master
 echo ${LD_LIBRARY_PATH}
 
 echo "Verify the installation of Mxnet"

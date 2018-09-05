@@ -28,13 +28,12 @@
 #include <nnvm/pass.h>
 #include <nnvm/pass_functions.h>
 #include <nnvm/symbolic.h>
+#if MXNET_USE_NGRAPH == 1
+#include <ngraph_imperative.h>
+#endif
 #include "./c_api_common.h"
 #include "../operator/operator_common.h"
 #include "../executor/exec_pass.h"
-#if MXNET_USE_NGRAPH == 1
-#include "../ngraph/ngraph_imperative.h"
-#endif
-#include "../operator/subgraph/default_subgraph_op.h"
 
 namespace mxnet {
 namespace op {
@@ -380,13 +379,13 @@ int MXSymbolCutSubgraph(SymbolHandle sym, SymbolHandle **input_symbols,
   // a subgraph.
   API_BEGIN();
   nnvm::Symbol *s = static_cast<nnvm::Symbol*>(sym);
-  std::string subg_attr = "__subgraph_name__";
+  const std::string subg_attr = "__subgraph_name__";
   auto out_node = s->outputs[0].node;
   auto it = out_node->attrs.dict.find(subg_attr);
   if (it != out_node->attrs.dict.end()) {
-    std::string subg_name = it->second;
+    const std::string &subg_name = it->second;
     std::vector<nnvm::NodeEntry *> input_entries;
-    DFSVisit(s->outputs, [subg_attr, subg_name, &input_entries]
+    DFSVisit(s->outputs, [&subg_attr, &subg_name, &input_entries]
              (nnvm::NodePtr n) {
       // If the node itself isn't in the subgraph, we ignore it.
       auto it = n->attrs.dict.find(subg_attr);
@@ -702,29 +701,5 @@ int MXSetCalibTableToQuantizedSymbol(SymbolHandle qsym_handle,
   g = ApplyPass(std::move(g), "SetCalibTableToQuantizedGraph");
   s->outputs = g.outputs;
   *ret_qsym_handle = s;
-  API_END_HANDLE_ERROR(delete s);
-}
-
-int MXPartitionGraph(SymbolHandle sym_handle,
-                     const mx_uint num_ops,
-                     const char** op_names,
-                     SymbolHandle* ret_sym_handle) {
-  nnvm::Symbol* s = new nnvm::Symbol();
-  API_BEGIN();
-  std::unordered_set<std::string> op_name_set;
-  for (size_t i = 0; i < num_ops; ++i) {
-    op_name_set.emplace(op_names[i]);
-  }
-  nnvm::Symbol* sym = static_cast<nnvm::Symbol*>(sym_handle);
-  *s = sym->Copy();
-  nnvm::Graph g = Symbol2Graph(*s);
-  if (!op_name_set.empty()) {
-    mxnet::op::SubgraphPropertyPtr property
-        = std::make_shared<mxnet::op::DefaultSubgraphProperty>(op_name_set);
-    g.attrs["subgraph_property"] = std::make_shared<nnvm::any>(std::move(property));
-  }
-  g = ApplyPass(std::move(g), "PartitionGraph");
-  s->outputs = g.outputs;
-  *ret_sym_handle = s;
   API_END_HANDLE_ERROR(delete s);
 }
