@@ -623,7 +623,7 @@ void CutGraphInputs(const std::vector<nnvm::NodeEntry*> &input_entries,
 /*!
  * \brief Infer attrs for subgraph, given input nodes of subgraph from original graph
  */
-nnvm::Graph InferSubgraphAttrs(Graph *g, std::vector<nnvm::NodeEntry> &orig_input_entries,
+void InferSubgraphAttrs(Graph *g, std::vector<nnvm::NodeEntry> &orig_input_entries,
                         nnvm::Graph &sg) {
   if (orig_input_entries.size() < 1) return;
   const auto &idx_og = g->indexed_graph();
@@ -664,7 +664,6 @@ nnvm::Graph InferSubgraphAttrs(Graph *g, std::vector<nnvm::NodeEntry> &orig_inpu
   sg.attrs["storage_type"] = std::make_shared<dmlc::any>(std::move(stypes));
   sg = exec::InferStorageType(std::move(sg));
   CHECK_EQ(sg.GetAttr<size_t>("storage_type_num_unknown_nodes"), 0U);
-  return std::move(sg);
 }
 
 /*!
@@ -697,8 +696,8 @@ void CreateSubgraphNode(Graph* g,
   for (size_t i = 0; i < output_entries.size(); ++i) {
     subgraph.outputs[i] = *output_entries[i];
   }
-  // copy orig_input attrs for subgraph
-  subgraph = InferSubgraphAttrs(g, orig_input_entries, std::move(subgraph));
+  // update subgraph attrs 
+  InferSubgraphAttrs(g, orig_input_entries, subgraph);
   const SubgraphPropertyPtr& subg_prop = g->GetAttr<SubgraphPropertyPtr>("subgraph_property");
   nnvm::NodePtr n = subg_prop->CreateSubgraphNode(subgraph, subgraph_id);
 
