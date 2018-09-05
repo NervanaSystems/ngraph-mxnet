@@ -29,6 +29,7 @@
 #include <string>
 #include <vector>
 
+#include "../../../src/executor/exec_pass.h"
 #include "ngraph_graph.h"
 #include "ngraph_sgcompiler.h"
 #include "nnvm/graph_attr_types.h"
@@ -181,6 +182,24 @@ inline std::string clean_opname(std::string name) {
     return name;
   }
 }
+// Utility function to check if compiler supports ctx 
+inline bool check_ctx(const nnvm::Graph &g) {
+  if (!g.HasAttr("context")) return false;
+  auto g_ctx = g.GetAttr<mxnet::exec::ContextVector>("context");
+  if (g_ctx.size() < 1) return false;
+  auto default_ctx = g_ctx[0];
+#if MXNET_USE_CUDA
+  static const bool ngraph_gpu_enable = dmlc::GetEnv("MXNET_NGRAPH_GPU", false);
+  if (!ngraph_gpu_enable && default_ctx == mxnet::Context::GPU()) return false;
+#endif
+
+  // only one ctx supported per graph
+  for (auto c : g_ctx) {
+    if (c != default_ctx) return false;
+  }
+  return true;
+}
+
 // Main compiler class
 class Compiler {
  public:

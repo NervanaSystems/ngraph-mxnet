@@ -23,7 +23,6 @@
 #include <cstdlib>
 #include <sstream>
 #include <thread>
-#include "../../../src/executor/exec_pass.h"
 #include "../../../src/imperative/imperative_utils.h"
 #include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
@@ -153,7 +152,12 @@ Compiler::Compiler(const nnvm::Graph& graph, const NNVMNodeVec& symbol_inputs,
 }
 
 // compiler for graph with attrs
-Compiler::Compiler(const nnvm::Graph& g) : ngraph_() {
+Compiler::Compiler(const nnvm::Graph& g)
+    : ngraph_(get_ngraph_name(),
+              g.HasAttr("context")
+                  ? g.GetAttr<mxnet::exec::ContextVector>("context")[0]
+                  : mxnet::Context()) {
+  if (!check_ctx(g)) return;
   shapes_ = g.GetAttr<nnvm::ShapeVector>("shape");
   dtypes_ = g.GetAttr<nnvm::DTypeVector>("dtype");
   stypes_ = g.GetAttr<mxnet::StorageTypeVector>("storage_type");

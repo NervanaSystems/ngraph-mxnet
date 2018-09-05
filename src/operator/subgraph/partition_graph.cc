@@ -620,23 +620,29 @@ void CutGraphInputs(const std::vector<nnvm::NodeEntry*> &input_entries,
   }
 }
 
-nnvm::Graph InferSubgraphAttrs(Graph *g,
-                        const std::vector<nnvm::NodeEntry> &orig_input_entries,
-                        nnvm::Graph&& sg) {
-  if (orig_input_entries.size() < 1) return std::move(sg);
+/*!
+ * \brief Infer attrs for subgraph, given input nodes of subgraph from original graph
+ */
+nnvm::Graph InferSubgraphAttrs(Graph *g, std::vector<nnvm::NodeEntry> &orig_input_entries,
+                        nnvm::Graph &sg) {
+  if (orig_input_entries.size() < 1) return;
+  const auto &idx_og = g->indexed_graph();
+  const auto &idx_g = sg.indexed_graph();
+  auto num_nodes = idx_g.num_node_entries();
+
+  auto orig_ctx = g->GetAttr<exec::ContextVector>("context");
+  auto sg_ctx = orig_ctx[idx_og.entry_id(orig_input_entries[0])];
+  sg.attrs["context"] = std::make_shared<dmlc::any>(exec::ContextVector(num_nodes, sg_ctx));
+
   auto oshapes = g->GetAttr<nnvm::ShapeVector>("shape");
   auto odtypes = g->GetAttr<nnvm::DTypeVector>("dtype");
   auto ostypes = g->GetAttr<mxnet::StorageTypeVector>("storage_type");
-  auto odevmask = g->GetAttr<exec::DevMaskVector>("dev_mask");
 
-  const auto& idx_og = g->indexed_graph();
-  const auto& idx_g = sg.indexed_graph();
+  nnvm::ShapeVector shapes(num_nodes);
+  nnvm::DTypeVector types(num_nodes, -1);
+  StorageTypeVector stypes(num_nodes, kUndefinedStorage);
+  exec::DevMaskVector dev_masks(num_nodes, sg_ctx.dev_mask());
 
-  nnvm::ShapeVector shapes(idx_g.num_node_entries());
-  nnvm::DTypeVector types(idx_g.num_node_entries(), -1);
-  StorageTypeVector stypes(idx_g.num_node_entries(), kUndefinedStorage);
-  exec::DevMaskVector dev_masks(idx_g.num_node_entries(),
-                                odevmask[idx_og.entry_id(orig_input_entries[0])]);
   const auto &input_nids = idx_g.input_nodes();
   for (size_t i = 0; i < input_nids.size(); i++) {
     auto eid = idx_g.entry_id(input_nids[i], 0);
@@ -645,15 +651,19 @@ nnvm::Graph InferSubgraphAttrs(Graph *g,
     types[eid] = odtypes[oeid];
     stypes[eid] = ostypes[oeid];
   }
+
   sg.attrs["shape"] = std::make_shared<dmlc::any>(std::move(shapes));
   sg = exec::InferShape(std::move(sg));
-  shapes = sg.GetAttr<nnvm::ShapeVector>("shape");
   CHECK_EQ(sg.GetAttr<size_t>("shape_num_unknown_nodes"), 0U);
+
   sg.attrs["dtype"] = std::make_shared<dmlc::any>(std::move(types));
   sg = exec::InferType(std::move(sg));
+  CHECK_EQ(sg.GetAttr<size_t>("dtype_num_unknown_nodes"), 0U);
+
   sg.attrs["dev_mask"] = std::make_shared<dmlc::any>(std::move(dev_masks));
   sg.attrs["storage_type"] = std::make_shared<dmlc::any>(std::move(stypes));
   sg = exec::InferStorageType(std::move(sg));
+  CHECK_EQ(sg.GetAttr<size_t>("storage_type_num_unknown_nodes"), 0U);
   return std::move(sg);
 }
 

@@ -54,6 +54,7 @@ class SgNgraphSelector : public SubgraphSelector {
  private:
   Compiler *compiler_;
   bool is_node_selected(const nnvm::Node &n) {
+    if (compiler_->get_node_map().size() < 1) return false;
     NodePtr nn;
     MapEntry tmp{compiler_->get_node_map().at(&n).get(), 0};
     auto &entry_map = compiler_->get_ngraph().entry_map_;
@@ -69,10 +70,12 @@ class SgNgraphSelector : public SubgraphSelector {
 
 class SgNgraphProperty : public SubgraphProperty {
  public:
-  static SubgraphPropertyPtr Create() { return std::make_shared<SgNgraphProperty>(); }
+  static SubgraphPropertyPtr Create() {
+    return std::make_shared<SgNgraphProperty>();
+  }
 
-  virtual nnvm::NodePtr CreateSubgraphNode(const nnvm::Symbol &sym,
-                                           const int subgraph_id = 0) const override {
+  virtual nnvm::NodePtr CreateSubgraphNode(
+      const nnvm::Symbol &sym, const int subgraph_id = 0) const override {
     nnvm::NodePtr n = nnvm::Node::Create();
     n->attrs.op = Op::Get("_ngraph_subgraph_op");
     n->attrs.name = "_ngraph_subgraph_op" + std::to_string(subgraph_id);
@@ -80,8 +83,8 @@ class SgNgraphProperty : public SubgraphProperty {
     return n;
   }
 
-  virtual nnvm::NodePtr CreateSubgraphNode(const nnvm::Graph &sg,
-                                           const int subgraph_id = 0) const override {
+  virtual nnvm::NodePtr CreateSubgraphNode(
+      const nnvm::Graph &sg, const int subgraph_id = 0) const override {
     nnvm::Symbol sym;
     sym.outputs = sg.outputs;
     auto n = CreateSubgraphNode(sym, subgraph_id);
@@ -91,9 +94,10 @@ class SgNgraphProperty : public SubgraphProperty {
       nnvm::Graph g;
       g.outputs = sym.outputs;
       auto &orig_graph = GetAttr<nnvm::Graph>("graph");
-      std::cout << __func__ << ": id " << subgraph_id << " num_nodes after partition "
-                << orig_graph.indexed_graph().num_nodes() << "/" << g.indexed_graph().num_nodes()
-                << std::endl;
+      std::cout << __func__ << ": id " << subgraph_id
+                << " num_nodes after partition "
+                << orig_graph.indexed_graph().num_nodes() << "/"
+                << g.indexed_graph().num_nodes() << std::endl;
     }
 #endif
     Compiler compiler(sg);
@@ -115,7 +119,8 @@ class SgNgraphProperty : public SubgraphProperty {
     }
 #if DEBUG_SUBGRAPH
     if (ngraph_log_verbose_detail) {
-      std::cout << __func__ << ": using compiler_ " << compiler_.get() << std::endl;
+      std::cout << __func__ << ": using compiler_ " << compiler_.get()
+                << std::endl;
     }
 #endif
     return std::make_shared<SgNgraphSelector>(compiler_.get());
