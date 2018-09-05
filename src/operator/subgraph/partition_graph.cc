@@ -637,17 +637,17 @@ nnvm::Graph InferSubgraphAttrs(
   auto odtypes = g->GetAttr<nnvm::DTypeVector>("dtype");
   auto ostypes = g->GetAttr<mxnet::StorageTypeVector>("storage_type");
 
-  exec::ContextVector contexts(num_nodes, orig_ctx[0]);
+  exec::ContextVector contexts(idx_g.num_nodes(), orig_ctx[0]);
   nnvm::ShapeVector shapes(num_nodes);
   nnvm::DTypeVector types(num_nodes, -1);
   StorageTypeVector stypes(num_nodes, kUndefinedStorage);
-  exec::DevMaskVector dev_masks(num_nodes, orig_ctx[0].dev_mask());
+  exec::DevMaskVector dev_masks(idx_g.num_nodes(), orig_ctx[0].dev_mask());
 
   nnvm::DFSVisit(sg.outputs, [&idx_og, &idx_g, &dev_masks, &orig_dev_masks,
                               &orig_ctx, &contexts](const nnvm::NodePtr node) {
     if (!node->is_variable()) {
-      const uint32_t eid = idx_g.entry_id(idx_g.node_id(node.get()), 0);
-      const uint32_t oeid = idx_og.entry_id(idx_og.node_id(node.get()), 0);
+      const uint32_t eid = idx_g.node_id(node.get());
+      const uint32_t oeid = idx_og.node_id(node.get());
       contexts[eid] = orig_ctx[oeid];
       dev_masks[eid] = orig_dev_masks[oeid];
     }
@@ -655,11 +655,14 @@ nnvm::Graph InferSubgraphAttrs(
 
   const auto &input_nids = idx_g.input_nodes();
   for (size_t i = 0; i < input_nids.size(); i++) {
+    auto nid = input_nids[i];
+    auto onid = idx_og.node_id(orig_input_entries[i].node.get());
+
     auto eid = idx_g.entry_id(input_nids[i], 0);
     auto oeid = idx_og.entry_id(orig_input_entries[i]);
-    
-    contexts[eid] = orig_ctx[oeid];
-    dev_masks[eid] = orig_dev_masks[oeid];
+
+    contexts[nid] = orig_ctx[onid];
+    dev_masks[nid] = orig_dev_masks[onid];
 
     shapes[eid] = oshapes[oeid];
     types[eid] = odtypes[oeid];
