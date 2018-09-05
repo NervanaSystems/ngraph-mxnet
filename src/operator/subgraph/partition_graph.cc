@@ -620,8 +620,10 @@ void CutGraphInputs(const std::vector<nnvm::NodeEntry*> &input_entries,
   }
 }
 
-void InferSubgraphAttrs(Graph *g, std::vector<nnvm::NodeEntry> &orig_input_entries, nnvm::Graph &sg) {
-  if (orig_input_entries.size() < 1) return;
+nnvm::Graph InferSubgraphAttrs(Graph *g,
+                        const std::vector<nnvm::NodeEntry> &orig_input_entries,
+                        nnvm::Graph&& sg) {
+  if (orig_input_entries.size() < 1) return std::move(sg);
   auto oshapes = g->GetAttr<nnvm::ShapeVector>("shape");
   auto odtypes = g->GetAttr<nnvm::DTypeVector>("dtype");
   auto ostypes = g->GetAttr<mxnet::StorageTypeVector>("storage_type");
@@ -633,7 +635,8 @@ void InferSubgraphAttrs(Graph *g, std::vector<nnvm::NodeEntry> &orig_input_entri
   nnvm::ShapeVector shapes(idx_g.num_node_entries());
   nnvm::DTypeVector types(idx_g.num_node_entries(), -1);
   StorageTypeVector stypes(idx_g.num_node_entries(), kUndefinedStorage);
-  exec::DevMaskVector dev_masks(idx_g.num_node_entries(), odevmask[idx_og.entry_id(orig_input_entries[0])]);
+  exec::DevMaskVector dev_masks(idx_g.num_node_entries(),
+                                odevmask[idx_og.entry_id(orig_input_entries[0])]);
   const auto &input_nids = idx_g.input_nodes();
   for (size_t i = 0; i < input_nids.size(); i++) {
     auto eid = idx_g.entry_id(input_nids[i], 0);
@@ -651,6 +654,7 @@ void InferSubgraphAttrs(Graph *g, std::vector<nnvm::NodeEntry> &orig_input_entri
   sg.attrs["dev_mask"] = std::make_shared<dmlc::any>(std::move(dev_masks));
   sg.attrs["storage_type"] = std::make_shared<dmlc::any>(std::move(stypes));
   sg = exec::InferStorageType(std::move(sg));
+  return std::move(sg);
 }
 
 /*!
@@ -684,7 +688,7 @@ void CreateSubgraphNode(Graph* g,
     subgraph.outputs[i] = *output_entries[i];
   }
   // copy orig_input attrs for subgraph
-  InferSubgraphAttrs(g, orig_input_entries, subgraph);
+  subgraph = InferSubgraphAttrs(g, orig_input_entries, std::move(subgraph));
   const SubgraphPropertyPtr& subg_prop = g->GetAttr<SubgraphPropertyPtr>("subgraph_property");
   nnvm::NodePtr n = subg_prop->CreateSubgraphNode(subgraph, subgraph_id);
 

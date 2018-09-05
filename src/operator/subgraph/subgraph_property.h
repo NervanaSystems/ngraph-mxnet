@@ -107,6 +107,7 @@ class SubgraphProperty {
     CHECK(it != attrs_.end()) << "Cannot find attribute " << name << " in SubgraphProperty";
     return nnvm::get<T>(*it->second);
   }
+
  protected:
   std::unordered_map<std::string, std::shared_ptr<nnvm::any>> attrs_;
 };
