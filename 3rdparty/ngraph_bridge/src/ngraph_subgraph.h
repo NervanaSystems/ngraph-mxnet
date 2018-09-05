@@ -100,8 +100,9 @@ class SgNgraphProperty : public SubgraphProperty {
                 << g.indexed_graph().num_nodes() << std::endl;
     }
 #endif
-    Compiler compiler(sg);
-    n->attrs.parsed = compiler.GetNgraph();
+    auto compiler = std::make_shared<Compiler>(sg);
+    compiler->GetNgraph();
+    n->attrs.parsed = compiler;
     return n;
   }
 

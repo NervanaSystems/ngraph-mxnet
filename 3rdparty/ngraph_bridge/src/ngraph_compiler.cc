@@ -168,6 +168,12 @@ Compiler::Compiler(const nnvm::Graph& g)
   MakeCopiedInputs(s.ListInputs(nnvm::Symbol::kReadOnlyArgs));
   ParseNnvmGraph(&g);
   CheckInNgraph();
+  graph_.attrs["context"] =
+      std::make_shared<nnvm::any>(mxnet::exec::ContextVector(
+          graph_.indexed_graph().num_nodes(),
+          g.HasAttr("context")
+              ? g.GetAttr<mxnet::exec::ContextVector>("context")[0]
+              : mxnet::Context()));
 }
 
 // Compiler initialization
@@ -188,6 +194,49 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
   }
   MakeCopiedInputs(inputs);
   ProcessGraph(feed_dict);
+}
+
+void Compiler::ReshapeGraph(const nnvm::ShapeVector& new_shapes) {
+  // std::cout << "-------------old-----------" << std::endl;
+  // for (auto shape : shapes_) {
+  //   std::cout << shape << std::endl;
+  // }
+  // std::cout << "-------------new-----------" << std::endl;
+  // for (auto shape : new_shapes) {
+  //   std::cout << shape << std::endl;
+  // }
+  // std::cout << "---------------------------" << std::endl;
+  sub_ngraph_ = nullptr;
+  for (size_t i = 0; i < new_shapes.size(); ++i) {
+    shapes_[i] = new_shapes[i];
+  }
+  ngraph_.nodes_.clear();
+  ngraph_.entry_map_.clear();
+  nnvm::Graph graph;
+  graph.outputs = graph_.outputs;
+
+  graph.attrs["context"] =
+      std::make_shared<nnvm::any>(mxnet::exec::ContextVector(
+          graph_.indexed_graph().num_nodes(),
+          graph_.GetAttr<mxnet::exec::ContextVector>("context")[0]));
+
+  graph = mxnet::exec::InferShape(
+      std::move(graph),
+      nnvm::ShapeVector{shapes_.begin(), shapes_.begin() + new_shapes.size()},
+      "__shape__");
+
+  graph = mxnet::exec::InferType(
+      std::move(graph),
+      nnvm::DTypeVector{dtypes_.begin(), dtypes_.begin() + new_shapes.size()},
+      "__dtype__");
+
+  graph = mxnet::exec::InferStorageType(
+      std::move(graph),
+      mxnet::StorageTypeVector{stypes_.begin(),
+                               stypes_.begin() + new_shapes.size()},
+      "__stype__");
+
+  ParseNnvmGraph(&graph);
 }
 
 void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
@@ -382,6 +431,7 @@ void Compiler::CleanUpUneededReferences() {
 
 // assumes there is only one ngraph
 std::shared_ptr<Graph> Compiler::GetNgraph() {
+  if (sub_ngraph_) return sub_ngraph_;
   // assumes all operations in the graph are fusable
   for (auto& node : ngraph_.nodes_) {
     if (node->type_ == NodeType::kOp) {
@@ -396,15 +446,14 @@ std::shared_ptr<Graph> Compiler::GetNgraph() {
   }
   CollapseSubgraph(&ngraph_, 1);
 
-  std::shared_ptr<Graph> ngraph;
   // assumes there is only one ngraph
   for (auto n : ngraph_.nodes_)
     if (n->type_ == NodeType::kGraph && n->subgraph_ > 0) {
       // extract and compile subgraph
-      ngraph = SGCompile(n);
+      sub_ngraph_ = SGCompile(n);
       break;
     }
-  return ngraph;
+  return sub_ngraph_;
 }
 
 // Main compilation function
@@ -571,7 +620,6 @@ void Compiler::ParseNnvmGraph(const nnvm::Graph* graph_with_attrs) {
     node->dtype_ = inferred_dtypes[eid];
     node->stype_ = inferred_stypes[eid];
   };
-
   // Use NNVM's depth first search to trace the tree and construct the
   // intermediary graph
   nnvm::DFSVisit(graph_.outputs, [this, &get_type](const nnvm::NodePtr node) {

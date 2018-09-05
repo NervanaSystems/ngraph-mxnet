@@ -105,8 +105,8 @@ NGImperative::NGImperative(const nnvm::Symbol &sym, const mxnet::Context &ctx,
       mxnet::exec::ContextVector(graph_.indexed_graph().num_nodes(), ctx));
   MakeCopiedInputs(sym.ListInputs(nnvm::Symbol::kReadOnlyArgs));
 }
-NGImperative::NGImperative(const nnvm::Graph &g, const mxnet::Context& ctx) : Compiler(ctx) {
-
+NGImperative::NGImperative(const nnvm::Graph &g, const mxnet::Context &ctx)
+    : Compiler(ctx) {
   shapes_ = g.GetAttr<nnvm::ShapeVector>("shape");
   dtypes_ = g.GetAttr<nnvm::DTypeVector>("dtype");
   stypes_ = g.GetAttr<mxnet::StorageTypeVector>("storage_type");

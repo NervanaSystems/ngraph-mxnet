@@ -219,6 +219,7 @@ class Compiler {
   nnvm::Graph Compile();
   // assumes there is only one ngraph
   std::shared_ptr<Graph> GetNgraph();
+  void ReshapeGraph(const nnvm::ShapeVector& new_shapes);
   // parse the nnvm graph into an intermediate represenation
   // TODO(mbrookhart): Make this protected, it's here for debugging
   void ParseNnvmGraph(const nnvm::Graph* graph_with_attrs = nullptr);
@@ -267,6 +268,8 @@ class Compiler {
   nnvm::Graph graph_;
   // storage for IR graph
   ngraph_bridge::Graph ngraph_;
+  // compiled subgraph
+  std::shared_ptr<ngraph_bridge::Graph> sub_ngraph_;
   // shape, type and storage_type maps to return to the graph executor
   NgraphShape ngraph_shape_;
   NgraphDType ngraph_dtype_;
