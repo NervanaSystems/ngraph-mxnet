@@ -1,12 +1,12 @@
 #*******************************************************************************
 # Copyright 2018 Intel Corporation
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -103,9 +103,9 @@ ngraph:
 	  fi
 	cd "$(NGRAPH_BUILD_DIR)"; \
 	cmake "$(NGRAPH_SRC_DIR)" \
-	  -DCMAKE_INSTALL_PREFIX="$(NGRAPH_INSTALL_DIR)" -DUSE_CUDA=$(USE_CUDA) -DBLAS=$(USE_BLAS)\
-    -DUSE_NGRAPH_DISTRIBUTED=$(USE_NGRAPH_DISTRIBUTED) $(NGRAPH_EXTRA_CMAKE_FLAGS); \
-  $(MAKE) all $(NGRAPH_EXTRA_MAKE_FLAGS)
+	  -DCMAKE_INSTALL_PREFIX="$(NGRAPH_INSTALL_DIR)" -DUSE_CUDA=$(USE_CUDA) -DBLAS=$(USE_BLAS) \
+	  -DUSE_NGRAPH_DISTRIBUTED=$(USE_NGRAPH_DISTRIBUTED) $(NGRAPH_EXTRA_CMAKE_FLAGS); \
+	  $(MAKE) all $(NGRAPH_EXTRA_MAKE_FLAGS)
 
 	# Copy contents of nGraph's 'lib' directory into MXnet's lib directory, taking care to
 	# preserve the relative symlinks used to support Linux shared-object versioning.
