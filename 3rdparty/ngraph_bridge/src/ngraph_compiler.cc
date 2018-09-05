@@ -378,8 +378,21 @@ void Compiler::CleanUpUneededReferences() {
 
 // assumes there is only one ngraph
 std::shared_ptr<Graph> Compiler::GetNgraph() {
+  // assumes all operations in the graph are fusable
+  for (auto& node : ngraph_.nodes_) {
+    if (node->type_ == NodeType::kOp) {
+      node->subgraph_ = 1;
+    } else if (node->type_ == NodeType::kGraph) {
+      node->subgraph_ = 1;
+      for (auto output :
+           std::dynamic_pointer_cast<Graph>(node)->output_elements_) {
+        output->subgraph_ = 1;
+      }
+    }
+  }
+  CollapseSubgraph(&ngraph_, 1);
+
   std::shared_ptr<Graph> ngraph;
-  IdentifyCollapseGraphs();
   // assumes there is only one ngraph
   for (auto n : ngraph_.nodes_)
     if (n->type_ == NodeType::kGraph && n->subgraph_ > 0) {
