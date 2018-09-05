@@ -352,7 +352,7 @@ void Emitter::CreateUnaryOps() {
     }
 
     // If the output isn't float point, we need to count by integers
-    if (node->dtype_ != mshadow::kFloat32 && 
+    if (node->dtype_ != mshadow::kFloat32 &&
         node->dtype_ != mshadow::kFloat64) {
       start = static_cast<int>(start);
       step = static_cast<int>(step);
@@ -366,9 +366,9 @@ void Emitter::CreateUnaryOps() {
       }
       current += step;
     }
-    
+
     return std::make_shared<ngraph::op::Constant>(
-      getType(node->dtype_), TShape_to_NShape(node->shape_), range);
+        getType(node->dtype_), TShape_to_NShape(node->shape_), range);
   };
   ngraph_op_funcs_["_ones"] = [this](const NodePtr& node) {
     return makeConstant(node, "1");

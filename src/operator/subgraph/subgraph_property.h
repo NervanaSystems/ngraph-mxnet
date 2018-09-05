@@ -92,6 +92,8 @@ class SubgraphProperty {
   // execute the operators in the subgraph.
   virtual nnvm::NodePtr CreateSubgraphNode(const nnvm::Symbol &s,
                                            const int subgraph_id = 0) const = 0;
+  virtual nnvm::NodePtr CreateSubgraphNode(const nnvm::Graph &sg,
+                                           const int subgraph_id = 0) const = 0;
   // set an attr with name in the attr map
   template<typename T>
   SubgraphProperty& SetAttr(const std::string& name, const T& value) {
@@ -105,6 +107,7 @@ class SubgraphProperty {
     CHECK(it != attrs_.end()) << "Cannot find attribute " << name << " in SubgraphProperty";
     return nnvm::get<T>(*it->second);
   }
+
  protected:
   std::unordered_map<std::string, std::shared_ptr<nnvm::any>> attrs_;
 };

@@ -23,7 +23,6 @@
 #include <cstdlib>
 #include <sstream>
 #include <thread>
-#include "../../../src/executor/exec_pass.h"
 #include "../../../src/imperative/imperative_utils.h"
 #include "ngraph_compiler.h"
 #include "ngraph_nnvm_ops.h"
@@ -151,6 +150,32 @@ Compiler::Compiler(const nnvm::Graph& graph, const NNVMNodeVec& symbol_inputs,
   MakeCopiedInputs(symbol_inputs);
   ProcessGraph({});
 }
+
+// compiler for graph with attrs
+Compiler::Compiler(const nnvm::Graph& g)
+    : ngraph_(get_ngraph_name(),
+              g.HasAttr("context")
+                  ? g.GetAttr<mxnet::exec::ContextVector>("context")[0]
+                  : mxnet::Context()) {
+  if (!check_ctx(g)) return;
+  shapes_ = g.GetAttr<nnvm::ShapeVector>("shape");
+  dtypes_ = g.GetAttr<nnvm::DTypeVector>("dtype");
+  stypes_ = g.GetAttr<mxnet::StorageTypeVector>("storage_type");
+
+  DeepCopy(g);
+  nnvm::Symbol s;
+  s.outputs = g.outputs;
+  MakeCopiedInputs(s.ListInputs(nnvm::Symbol::kReadOnlyArgs));
+  ParseNnvmGraph(&g);
+  CheckInNgraph();
+  graph_.attrs["context"] =
+      std::make_shared<nnvm::any>(mxnet::exec::ContextVector(
+          graph_.indexed_graph().num_nodes(),
+          g.HasAttr("context")
+              ? g.GetAttr<mxnet::exec::ContextVector>("context")[0]
+              : mxnet::Context()));
+}
+
 // Compiler initialization
 Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
                    const NNVMNodeVec& inputs, const BindArgBase& bindbase,
@@ -169,6 +194,49 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
   }
   MakeCopiedInputs(inputs);
   ProcessGraph(feed_dict);
+}
+
+void Compiler::ReshapeGraph(const nnvm::ShapeVector& new_shapes) {
+  // std::cout << "-------------old-----------" << std::endl;
+  // for (auto shape : shapes_) {
+  //   std::cout << shape << std::endl;
+  // }
+  // std::cout << "-------------new-----------" << std::endl;
+  // for (auto shape : new_shapes) {
+  //   std::cout << shape << std::endl;
+  // }
+  // std::cout << "---------------------------" << std::endl;
+  sub_ngraph_ = nullptr;
+  for (size_t i = 0; i < new_shapes.size(); ++i) {
+    shapes_[i] = new_shapes[i];
+  }
+  ngraph_.nodes_.clear();
+  ngraph_.entry_map_.clear();
+  nnvm::Graph graph;
+  graph.outputs = graph_.outputs;
+
+  graph.attrs["context"] =
+      std::make_shared<nnvm::any>(mxnet::exec::ContextVector(
+          graph_.indexed_graph().num_nodes(),
+          graph_.GetAttr<mxnet::exec::ContextVector>("context")[0]));
+
+  graph = mxnet::exec::InferShape(
+      std::move(graph),
+      nnvm::ShapeVector{shapes_.begin(), shapes_.begin() + new_shapes.size()},
+      "__shape__");
+
+  graph = mxnet::exec::InferType(
+      std::move(graph),
+      nnvm::DTypeVector{dtypes_.begin(), dtypes_.begin() + new_shapes.size()},
+      "__dtype__");
+
+  graph = mxnet::exec::InferStorageType(
+      std::move(graph),
+      mxnet::StorageTypeVector{stypes_.begin(),
+                               stypes_.begin() + new_shapes.size()},
+      "__stype__");
+
+  ParseNnvmGraph(&graph);
 }
 
 void Compiler::ProcessGraph(const NDArrayMap& feed_dict) {
@@ -221,26 +289,30 @@ void Compiler::IdentifyCollapseGraphs() {
   }
 }
 
+std::shared_ptr<Graph> Compiler::SGCompile(NodePtr& n) {
+  // extract and compile subgraph
+  compiler_.setExeMode(GraphExeMode::kInfer);
+  auto sg = compiler_.Compile(n);
+
+  // compile subgraph in other execution modes,
+  for (int i = 1; i < kGraphExeModeCount; ++i) {
+    // set graph execution mode
+    compiler_.setExeMode(static_cast<GraphExeMode>(i));
+    compiler_.Compile(n);
+  }
+
+  // add subgraph to stats tracker
+  if (ngraph_log_timer()) {
+    NGraphStats::get_instance().add(sg);
+  }
+  return sg;
+}
+
 void Compiler::CreateSubgraphNNVMNodes() {
   // find the subgraphs
   for (auto n : ngraph_.nodes_) {
     if (n->type_ == NodeType::kGraph && n->subgraph_ > 0) {
-      // extract and compile subgraph
-      compiler_.setExeMode(GraphExeMode::kInfer);
-      auto sg = compiler_.Compile(n);
-
-      // compile subgraph in other execution modes,
-      for (int i = 1; i < kGraphExeModeCount; ++i) {
-        // set graph execution mode
-        compiler_.setExeMode(static_cast<GraphExeMode>(i));
-        compiler_.Compile(n);
-      }
-
-      // add subgraph to stats tracker
-      if (ngraph_log_timer()) {
-        NGraphStats::get_instance().add(sg);
-      }
-
+      auto sg = SGCompile(n);
       // create nnvm node
       auto node = CreateNNVMNode(sg);
       compiled_nodes_.insert({sg, node});
@@ -355,6 +427,33 @@ void Compiler::CleanUpUneededReferences() {
     kv.first->nodes_.clear();
     kv.first->entry_map_.clear();
   }
+}
+
+// assumes there is only one ngraph
+std::shared_ptr<Graph> Compiler::GetNgraph() {
+  if (sub_ngraph_) return sub_ngraph_;
+  // assumes all operations in the graph are fusable
+  for (auto& node : ngraph_.nodes_) {
+    if (node->type_ == NodeType::kOp) {
+      node->subgraph_ = 1;
+    } else if (node->type_ == NodeType::kGraph) {
+      node->subgraph_ = 1;
+      for (auto output :
+           std::dynamic_pointer_cast<Graph>(node)->output_elements_) {
+        output->subgraph_ = 1;
+      }
+    }
+  }
+  CollapseSubgraph(&ngraph_, 1);
+
+  // assumes there is only one ngraph
+  for (auto n : ngraph_.nodes_)
+    if (n->type_ == NodeType::kGraph && n->subgraph_ > 0) {
+      // extract and compile subgraph
+      sub_ngraph_ = SGCompile(n);
+      break;
+    }
+  return sub_ngraph_;
 }
 
 // Main compilation function
@@ -490,32 +589,29 @@ void Compiler::CheckInNgraph() {
   std::unordered_set<std::string> unsupported_op_names;
   for (const std::shared_ptr<ngraph_bridge::Node>& node : ngraph_.nodes_) {
     node->in_ngraph_ = IsInNGraph(node);
-    if (!node->in_ngraph_) {
-      if (ngraph_log_verbose()) {
-        unsupported_op_names.insert(node->operation_);
-      }
-      if (ngraph_log_verbose_detail) {
-        std::cout << "NGRAPH_BRIDGE: Unsupported Op instance (verbose):"
-                  << std::endl;
-        node->printOpDetails(std::cout);
-        std::cout << std::endl;
-      }
+#ifndef NDEBUG
+    if (ngraph_log_verbose_detail && !node->in_ngraph_ &&
+        node->type_ == NodeType::kOp) {
+      std::cout << "NGRAPH_BRIDGE: Unsupported Op: " << node->operation_
+                << std::endl;
+      node->printOpDetails(std::cout);
+      std::cout << std::endl;
     }
-  }
-  for (const auto& name : unsupported_op_names) {
-    std::cout << "NGRAPH_BRIDGE: Unsupported Op: " << name << std::endl;
+#endif
   }
 }
 
 // Function that parses an nnvm Graph into an intermediary graph
-void Compiler::ParseNnvmGraph() {
+void Compiler::ParseNnvmGraph(const nnvm::Graph* graph_with_attrs) {
   // get the shape, data and storage types of all of the nodes
+  if (graph_with_attrs == nullptr) graph_with_attrs = &graph_;
   const auto& idx = graph_.indexed_graph();
   const auto inferred_shapes =
-      graph_.GetAttr<std::vector<nnvm::TShape>>("shape");
-  const auto inferred_dtypes = graph_.GetAttr<std::vector<int>>("dtype");
+      graph_with_attrs->GetAttr<std::vector<nnvm::TShape>>("shape");
+  const auto inferred_dtypes =
+      graph_with_attrs->GetAttr<std::vector<int>>("dtype");
   const auto& inferred_stypes =
-      graph_.GetAttr<mxnet::StorageTypeVector>("storage_type");
+      graph_with_attrs->GetAttr<mxnet::StorageTypeVector>("storage_type");
   auto get_type = [&idx, &inferred_shapes, &inferred_dtypes,
                    &inferred_stypes](NodePtr node) {
     const uint32_t nid = idx.node_id(node->orig_node_.get());
@@ -524,7 +620,6 @@ void Compiler::ParseNnvmGraph() {
     node->dtype_ = inferred_dtypes[eid];
     node->stype_ = inferred_stypes[eid];
   };
-
   // Use NNVM's depth first search to trace the tree and construct the
   // intermediary graph
   nnvm::DFSVisit(graph_.outputs, [this, &get_type](const nnvm::NodePtr node) {

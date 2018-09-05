@@ -30,6 +30,7 @@
 #include <queue>
 
 #include "./subgraph_property.h"
+#include "../../executor/exec_pass.h"
 
 namespace nnvm {
 NodePtr CreateVariableNode(const std::string& name);
@@ -620,6 +621,71 @@ void CutGraphInputs(const std::vector<nnvm::NodeEntry*> &input_entries,
 }
 
 /*!
+ * \brief Infer attrs for subgraph, given input nodes of subgraph from original graph
+ */
+nnvm::Graph InferSubgraphAttrs(
+    Graph* g, const std::vector<nnvm::NodeEntry>& orig_input_entries,
+    nnvm::Graph&& sg) {
+  const auto &idx_og = g->indexed_graph();
+  const auto &idx_g = sg.indexed_graph();
+  auto num_nodes = idx_g.num_node_entries();
+
+  auto orig_ctx = g->GetAttr<exec::ContextVector>("context");
+  auto orig_dev_masks = g->GetAttr<exec::DevMaskVector>("dev_mask");
+
+  auto oshapes = g->GetAttr<nnvm::ShapeVector>("shape");
+  auto odtypes = g->GetAttr<nnvm::DTypeVector>("dtype");
+  auto ostypes = g->GetAttr<mxnet::StorageTypeVector>("storage_type");
+
+  exec::ContextVector contexts(num_nodes, orig_ctx[0]);
+  nnvm::ShapeVector shapes(num_nodes);
+  nnvm::DTypeVector types(num_nodes, -1);
+  StorageTypeVector stypes(num_nodes, kUndefinedStorage);
+  exec::DevMaskVector dev_masks(num_nodes, orig_ctx[0].dev_mask());
+
+  nnvm::DFSVisit(sg.outputs, [&idx_og, &idx_g, &dev_masks, &orig_dev_masks,
+                              &orig_ctx, &contexts](const nnvm::NodePtr node) {
+    if (!node->is_variable()) {
+      const uint32_t eid = idx_g.entry_id(idx_g.node_id(node.get()), 0);
+      const uint32_t oeid = idx_og.entry_id(idx_og.node_id(node.get()), 0);
+      std::cout << eid << " " << oeid << std::endl;
+      contexts[eid] = orig_ctx[oeid];
+      dev_masks[eid] = orig_dev_masks[oeid];
+    }
+  });
+
+  const auto &input_nids = idx_g.input_nodes();
+  for (size_t i = 0; i < input_nids.size(); i++) {
+    auto eid = idx_g.entry_id(input_nids[i], 0);
+    auto oeid = idx_og.entry_id(orig_input_entries[i]);
+      std::cout << eid << " " << oeid << std::endl;
+    
+    contexts[eid] = orig_ctx[oeid];
+    dev_masks[eid] = orig_dev_masks[oeid];
+
+    shapes[eid] = oshapes[oeid];
+    types[eid] = odtypes[oeid];
+    stypes[eid] = ostypes[oeid];
+  }
+
+  sg.attrs["context"] = std::make_shared<dmlc::any>(std::move(contexts));
+  
+  sg.attrs["shape"] = std::make_shared<dmlc::any>(std::move(shapes));
+  sg = exec::InferShape(std::move(sg));
+  CHECK_EQ(sg.GetAttr<size_t>("shape_num_unknown_nodes"), 0U);
+
+  sg.attrs["dtype"] = std::make_shared<dmlc::any>(std::move(types));
+  sg = exec::InferType(std::move(sg));
+  CHECK_EQ(sg.GetAttr<size_t>("dtype_num_unknown_nodes"), 0U);
+
+  sg.attrs["dev_mask"] = std::make_shared<dmlc::any>(std::move(dev_masks));
+  sg.attrs["storage_type"] = std::make_shared<dmlc::any>(std::move(stypes));
+  sg = exec::InferStorageType(std::move(sg));
+  CHECK_EQ(sg.GetAttr<size_t>("storage_type_num_unknown_nodes"), 0U);
+  return std::move(sg);
+}
+
+/*!
  * \brief Replace a set of nodes belonging to the same subgraph with a subgrpah node
  * and keep the subgraph in the subgraph node. The input entries and output entries
  * of the subgraph node are kept in the same order as the subgraph's.
@@ -644,13 +710,15 @@ void CreateSubgraphNode(Graph* g,
   FindOutputEntries(g, simple_nodes, subgraph_nodes, *entry_top_order_map, &output_entries);
 
   // Create a subgraph for the subgraph node
-  nnvm::Symbol sym;
-  sym.outputs.resize(output_entries.size());
+  nnvm::Graph subgraph;
+  subgraph.outputs.resize(output_entries.size());
   for (size_t i = 0; i < output_entries.size(); ++i) {
-    sym.outputs[i] = *output_entries[i];
+    subgraph.outputs[i] = *output_entries[i];
   }
+  // update subgraph attrs
+  subgraph = InferSubgraphAttrs(g, orig_input_entries, std::move(subgraph));
   const SubgraphPropertyPtr& subg_prop = g->GetAttr<SubgraphPropertyPtr>("subgraph_property");
-  nnvm::NodePtr n = subg_prop->CreateSubgraphNode(sym, subgraph_id);
+  nnvm::NodePtr n = subg_prop->CreateSubgraphNode(subgraph, subgraph_id);
 
   // Connect the external nodes to the subgraph node.
   for (size_t i = 0; i < output_entries.size(); ++i) {
