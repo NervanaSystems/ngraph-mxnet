@@ -159,17 +159,14 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
             compiler->ReshapeGraph(*in_attrs);
             graph = compiler->GetNgraph();
           }
-          std::cout << "get input shapes" << std::endl;
           for (size_t i = 0; i < graph->inputs_.size(); ++i) {
             (*in_attrs)[i] = graph->inputs_[i]->shape_;
           }
-          std::cout << "get output shapes" << std::endl;
           std::vector<nnvm::TShape> shapes;
           for (auto output : graph->outputs_) {
             shapes.push_back(output->shape_);
           }
           (*out_attrs) = shapes;
-          std::cout << "return" << std::endl;
           return true;
         })
     .set_attr<nnvm::FInferType>(
@@ -196,6 +193,7 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
            std::vector<int>* out_attrs) {
           DISPATCH_MODE_ASSIGN_CHECK(dispatch_mode, 0,
                                      DispatchMode::kFComputeEx);
+          if (in_attrs->size() > 0)
           mxnet::op::storage_type_assign(in_attrs, mxnet::kDefaultStorage,
                                          dispatch_mode,
                                          mxnet::DispatchMode::kFComputeEx);

@@ -648,7 +648,6 @@ nnvm::Graph InferSubgraphAttrs(
     if (!node->is_variable()) {
       const uint32_t eid = idx_g.entry_id(idx_g.node_id(node.get()), 0);
       const uint32_t oeid = idx_og.entry_id(idx_og.node_id(node.get()), 0);
-      std::cout << eid << " " << oeid << std::endl;
       contexts[eid] = orig_ctx[oeid];
       dev_masks[eid] = orig_dev_masks[oeid];
     }
@@ -658,7 +657,6 @@ nnvm::Graph InferSubgraphAttrs(
   for (size_t i = 0; i < input_nids.size(); i++) {
     auto eid = idx_g.entry_id(input_nids[i], 0);
     auto oeid = idx_og.entry_id(orig_input_entries[i]);
-      std::cout << eid << " " << oeid << std::endl;
     
     contexts[eid] = orig_ctx[oeid];
     dev_masks[eid] = orig_dev_masks[oeid];
