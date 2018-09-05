@@ -42,6 +42,14 @@ class SgNgraphSelector : public SubgraphSelector {
   bool SelectOutput(const nnvm::Node &n, const nnvm::Node &new_node) override {
     return is_node_selected(n) && is_node_selected(new_node);
   }
+  std::vector<nnvm::Node *> Filter(
+      const std::vector<nnvm::Node *> &candidates) {
+    if (candidates.size() == 1 && candidates[0]->inputs.size() == 0) {
+      return std::vector<nnvm::Node *>();
+    } else {
+      return candidates;
+    }
+  }
 
  private:
   Compiler *compiler_;

@@ -238,5 +238,6 @@ NNVM_REGISTER_OP(_backward_ngraph_subgraph_op)
               mxnet::DispatchMode::kFComputeEx);
         });
 MXNET_REGISTER_SUBGRAPH_PROPERTY(ngraph, SgNgraphProperty);
+static int ngraph_backend = setenv("MXNET_SUBGRAPH_BACKEND", "ngraph", 0);
 
 }  // namespace ngraph_bridge
