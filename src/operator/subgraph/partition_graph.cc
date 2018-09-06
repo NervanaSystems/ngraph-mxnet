@@ -670,7 +670,7 @@ nnvm::Graph InferSubgraphAttrs(
   }
 
   sg.attrs["context"] = std::make_shared<dmlc::any>(std::move(contexts));
-  
+
   sg.attrs["shape"] = std::make_shared<dmlc::any>(std::move(shapes));
   sg = exec::InferShape(std::move(sg));
   CHECK_EQ(sg.GetAttr<size_t>("shape_num_unknown_nodes"), 0U);
