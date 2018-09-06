@@ -1,12 +1,12 @@
 #*******************************************************************************
 # Copyright 2018 Intel Corporation
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -25,7 +25,7 @@ list(APPEND NGRAPH_EXTRA_CMAKE_FLAGS "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
 list(APPEND NGRAPH_EXTRA_CMAKE_FLAGS "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}")
 list(APPEND NGRAPH_EXTRA_CMAKE_FLAGS "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
 list(APPEND NGRAPH_EXTRA_CMAKE_FLAGS "-DCMAKE_INSTALL_PREFIX=${NGRAPH_INSTALL_PREFIX}")
-list(APPEND NGRAPH_EXTRA_CMAKE_FLAGS "-DNGRAPH_USE_PREBUILT_LLVM=${NGRAPH_USE_PREBUILT_LLVM}")
+list(APPEND NGRAPH_EXTRA_CMAKE_FLAGS "-DNGRAPH_DEX_ONLY=1")
 list(APPEND NGRAPH_EXTRA_CMAKE_FLAGS "-DNGRAPH_UNIT_TEST_ENABLE=0")
 list(APPEND NGRAPH_EXTRA_CMAKE_FLAGS "-DNGRAPH_TOOLS_ENABLE=0")
 
@@ -37,7 +37,6 @@ ExternalProject_Add(
 	ext_ngraph
 	GIT_REPOSITORY https://github.com/NervanaSystems/ngraph.git
 	GIT_TAG v0.6.0
-
 	PREFIX ngraph
 	UPDATE_COMMAND ""
 	CMAKE_ARGS "${NGRAPH_EXTRA_CMAKE_FLAGS}"
