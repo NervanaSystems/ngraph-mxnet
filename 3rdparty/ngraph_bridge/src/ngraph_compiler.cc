@@ -157,7 +157,7 @@ Compiler::Compiler(const nnvm::Graph& g)
               g.HasAttr("context")
                   ? g.GetAttr<mxnet::exec::ContextVector>("context")[0]
                   : mxnet::Context()) {
-  if (!check_ctx(g)) return;
+  if (!check_graph(g)) return;
   shapes_ = g.GetAttr<nnvm::ShapeVector>("shape");
   dtypes_ = g.GetAttr<nnvm::DTypeVector>("dtype");
   stypes_ = g.GetAttr<mxnet::StorageTypeVector>("storage_type");
