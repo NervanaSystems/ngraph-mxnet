@@ -626,6 +626,8 @@ void CutGraphInputs(const std::vector<nnvm::NodeEntry*> &input_entries,
 nnvm::Graph InferSubgraphAttrs(
     Graph* g, const std::vector<nnvm::NodeEntry>& orig_input_entries,
     nnvm::Graph&& sg) {
+  // return if partition without attrs
+  if (!g->HasAttr("context")) return std::move(sg);
   const auto &idx_og = g->indexed_graph();
   const auto &idx_g = sg.indexed_graph();
   auto num_nodes = idx_g.num_node_entries();
