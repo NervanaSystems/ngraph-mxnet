@@ -22,7 +22,6 @@ logging.basicConfig(level=logging.DEBUG)
 from common import find_mxnet, data, fit
 from common.util import download_file
 import mxnet as mx
-from mpi4py import MPI
 
 def download_cifar10():
     data_dir="data"

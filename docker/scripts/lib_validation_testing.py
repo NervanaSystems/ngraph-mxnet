@@ -229,6 +229,12 @@ def runResnetScript(script=None,          # Script to run
             trainEpochs, trainNumClasses, trainNumExamples, str(trainImageShape).strip(), trainPadSize, trainLr, str(trainLrStepEpochs).strip()))
             print("The Command for Resnet is: {}".format(cmd))
         else:
+            ## Temporary to add import mpi4py
+            with open(script, 'r+') as file:
+                readcontent = file.read()
+                file.seek(0, 0)
+                file.write("from mpi4py import MPI\n")
+                file.write(readcontent)  
             ## get the hostname
             hostname_process = subprocess.check_output(["hostname"],shell=True)
             hostname= hostname_process.decode('utf-8')

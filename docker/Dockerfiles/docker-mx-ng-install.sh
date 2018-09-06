@@ -35,6 +35,9 @@ fi
 echo "======PYTHON_VERSION_NUMBER========"
 echo " PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
 
+echo "======MAKE_VARIABLES========"
+echo " MAKE_VARIABLES= ${MAKE_VARIABLES}"
+
 # Note that the docker image must have been previously built using the
 # make-docker-mx-ngraph-base.sh script (in the same directory as this script).
 
