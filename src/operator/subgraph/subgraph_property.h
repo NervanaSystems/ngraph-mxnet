@@ -93,7 +93,15 @@ class SubgraphProperty {
   virtual nnvm::NodePtr CreateSubgraphNode(const nnvm::Symbol &s,
                                            const int subgraph_id = 0) const = 0;
   virtual nnvm::NodePtr CreateSubgraphNode(const nnvm::Graph &sg,
-                                           const int subgraph_id = 0) const = 0;
+                                           const int subgraph_id = 0) const {
+    nnvm::Symbol sym;
+    sym.outputs = sg.outputs;
+    return CreateSubgraphNode(sym, subgraph_id);
+  }
+  // Infer subgraph attrs before creating subgraph node if needed
+  virtual bool NeedGraphAttrs() const {
+    return false;
+  }
   // set an attr with name in the attr map
   template<typename T>
   SubgraphProperty& SetAttr(const std::string& name, const T& value) {

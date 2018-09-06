@@ -74,6 +74,7 @@ class SgNgraphProperty : public SubgraphProperty {
     return std::make_shared<SgNgraphProperty>();
   }
 
+  virtual bool NeedGraphAttrs() const override { return true; }
   virtual nnvm::NodePtr CreateSubgraphNode(
       const nnvm::Symbol &sym, const int subgraph_id = 0) const override {
     nnvm::NodePtr n = nnvm::Node::Create();

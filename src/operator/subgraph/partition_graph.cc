@@ -713,15 +713,22 @@ void CreateSubgraphNode(Graph* g,
   FindOutputEntries(g, simple_nodes, subgraph_nodes, *entry_top_order_map, &output_entries);
 
   // Create a subgraph for the subgraph node
-  nnvm::Graph subgraph;
-  subgraph.outputs.resize(output_entries.size());
+  nnvm::Symbol sym;
+  sym.outputs.resize(output_entries.size());
   for (size_t i = 0; i < output_entries.size(); ++i) {
-    subgraph.outputs[i] = *output_entries[i];
+    sym.outputs[i] = *output_entries[i];
   }
-  // update subgraph attrs
-  subgraph = InferSubgraphAttrs(g, orig_input_entries, std::move(subgraph));
   const SubgraphPropertyPtr& subg_prop = g->GetAttr<SubgraphPropertyPtr>("subgraph_property");
-  nnvm::NodePtr n = subg_prop->CreateSubgraphNode(subgraph, subgraph_id);
+  nnvm::NodePtr n;
+  if (!subg_prop->NeedGraphAttrs()) {
+    n = subg_prop->CreateSubgraphNode(sym, subgraph_id);
+  } else {
+    nnvm::Graph subgraph;
+    subgraph.outputs = sym.outputs;
+    // update subgraph attrs
+    subgraph = InferSubgraphAttrs(g, orig_input_entries, std::move(subgraph));
+    n = subg_prop->CreateSubgraphNode(subgraph, subgraph_id);
+  }
 
   // Connect the external nodes to the subgraph node.
   for (size_t i = 0; i < output_entries.size(); ++i) {
