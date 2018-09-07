@@ -31,6 +31,10 @@
 #include <mxnet/resource.h>
 #include <mxnet/imperative.h>
 #include <mshadow/tensor.h>
+#if MXNET_USE_NGRAPH == 1
+#include <ngraph_nnvm_utils.h>
+#include <ngraph/ngraph.hpp>
+#endif
 #if MXNET_USE_MKLDNN == 1
 #include <mkldnn.hpp>
 #endif
@@ -39,10 +43,12 @@
 #include "../operator/tensor/matrix_op-inl.h"
 #include "../operator/tensor/init_op.h"
 #include "../operator/nn/mkldnn/mkldnn_base-inl.h"
+#include "../engine/engine_impl.h"
 
 #if MXNET_USE_OPENCV
 #include <opencv2/opencv.hpp>
 #endif  // MXNET_USE_OPENCV
+
 
 namespace dmlc {
 DMLC_REGISTRY_ENABLE(::mxnet::NDArrayFunctionReg);
@@ -730,6 +736,21 @@ void NDArray::UpdateMKLDNNMemDesc() {
     ptr_->mkl_mem_.reset(new MKLDNNMemory(pd, ptr_->shandle.dptr));
     MKLDNNStream::Get()->RegisterMem(ptr_->mkl_mem_->GetMem());
   }
+}
+#endif
+
+#if MXNET_USE_NGRAPH == 1
+std::shared_ptr<ngraph::runtime::TensorView> &NDArray::create_tensor_view() {
+  if (ptr_->tensor_view_ == nullptr ||
+      ptr_->tensor_view_->get_shape() !=
+          ngraph_bridge::TShape_to_NShape(shape_)) {
+    auto backend = ngraph_bridge::GetBackendFromContext(ctx());
+    CHECK(backend != nullptr);
+    ptr_->tensor_view_ = backend->create_tensor(
+        ngraph_bridge::getType(dtype_), ngraph_bridge::TShape_to_NShape(shape_),
+        storage_handle().dptr);
+  }
+  return ptr_->tensor_view_;
 }
 #endif
 
@@ -2014,6 +2035,7 @@ void NDArray::SyncCheckFormat(const bool full_check) const {
           << "less than the size of first dimension and in ascending order";
   CHECK_EQ(err, kNormalErr) << "Check the validity of this sparse NDArray";
 }
+
 
 #if MXNET_PREDICT_ONLY == 0
 // register API function

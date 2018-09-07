@@ -92,6 +92,7 @@ USE_OPENCV = 1
 
 #whether use libjpeg-turbo for image decode without OpenCV wrapper
 USE_LIBJPEG_TURBO = 0
+
 #add the path to libjpeg-turbo library
 USE_LIBJPEG_TURBO_PATH = NONE
 
@@ -100,6 +101,9 @@ USE_OPENMP = 1
 
 # whether use MKL-DNN library
 USE_MKLDNN = 0
+
+# whether to use the nGraph library
+USE_NGRAPH = 0
 
 # whether use NNPACK library
 USE_NNPACK = 0

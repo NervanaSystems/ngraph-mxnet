@@ -129,6 +129,12 @@ class SubgraphProperty {
     subgraph_node->inputs = *orig_input_entries;
   }
   /*!
+   * \brief Infer subgraph attrs before creating subgraph node, if needed.
+   */
+  virtual bool NeedGraphAttrs() const {
+    return false;
+  }
+  /*!
    * \brief Set an attr with name in the attr map.
    */
   template<typename T>
