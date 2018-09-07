@@ -84,7 +84,7 @@ endif
 include $(TPARTYDIR)/mshadow/make/mshadow.mk
 include $(DMLC_CORE)/make/dmlc.mk
 
-include 3rdparty/ngraph_bridge/ngraph.mk
+include 3rdparty/ngraph-mxnet-bridge/ngraph.mk
 
 # all tge possible warning tread
 WARNFLAGS= -Wall -Wsign-compare -Wno-comment
