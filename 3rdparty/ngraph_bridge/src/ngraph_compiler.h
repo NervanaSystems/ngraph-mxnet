@@ -182,8 +182,8 @@ inline std::string clean_opname(std::string name) {
     return name;
   }
 }
-// Utility function to check if compiler supports graph 
-inline bool check_graph(const nnvm::Graph &g) {
+// Utility function to check if compiler supports graph
+inline bool check_graph(const nnvm::Graph& g) {
   if (!g.HasAttr("context")) return false;
   auto g_ctx = g.GetAttr<mxnet::exec::ContextVector>("context");
   if (g_ctx.size() < 1) return false;
@@ -197,7 +197,8 @@ inline bool check_graph(const nnvm::Graph &g) {
   for (auto c : g_ctx) {
     if (c != default_ctx) return false;
   }
-  const auto& storage_types = g.GetAttr<mxnet::StorageTypeVector>("storage_type");
+  const auto& storage_types =
+      g.GetAttr<mxnet::StorageTypeVector>("storage_type");
   for (auto& s : storage_types) {
     if (s != mxnet::kDefaultStorage) return false;
   }
@@ -215,7 +216,7 @@ class Compiler {
   // Construct base compiler object with context only
   Compiler(const mxnet::Context& context);
   // compiler for graph with attrs
-  Compiler(const nnvm::Graph& g);
+  Compiler(const nnvm::Graph& g, const bool selector_only = false);
   // Constructor for use with gluon hybridize
   Compiler(const nnvm::Graph& graph, const NNVMNodeVec& symbol_inputs,
            const std::vector<mxnet::NDArray*>& inputs);

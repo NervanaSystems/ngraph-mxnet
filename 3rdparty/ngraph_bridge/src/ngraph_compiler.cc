@@ -146,7 +146,7 @@ Compiler::Compiler(const nnvm::Graph& graph, const NNVMNodeVec& symbol_inputs,
 }
 
 // compiler for graph with attrs
-Compiler::Compiler(const nnvm::Graph& g)
+Compiler::Compiler(const nnvm::Graph& g, const bool selector_only)
     : ngraph_(get_ngraph_name(),
               g.HasAttr("context")
                   ? g.GetAttr<mxnet::exec::ContextVector>("context")[0]
@@ -168,6 +168,9 @@ Compiler::Compiler(const nnvm::Graph& g)
           g.HasAttr("context")
               ? g.GetAttr<mxnet::exec::ContextVector>("context")[0]
               : mxnet::Context()));
+  if (selector_only) {
+    IdentifyCollapseGraphs();
+  }
 }
 
 // Compiler initialization

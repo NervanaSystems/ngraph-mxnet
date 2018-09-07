@@ -644,28 +644,25 @@ nnvm::Graph InferSubgraphAttrs(
   nnvm::DTypeVector types(num_nodes, -1);
   StorageTypeVector stypes(num_nodes, kUndefinedStorage);
   exec::DevMaskVector dev_masks(idx_g.num_nodes(), orig_ctx[0].dev_mask());
-
-  nnvm::DFSVisit(sg.outputs, [&idx_og, &idx_g, &dev_masks, &orig_dev_masks,
-                              &orig_ctx, &contexts](const nnvm::NodePtr node) {
-    if (!node->is_variable()) {
-      const uint32_t eid = idx_g.node_id(node.get());
-      const uint32_t oeid = idx_og.node_id(node.get());
-      contexts[eid] = orig_ctx[oeid];
-      dev_masks[eid] = orig_dev_masks[oeid];
+  nnvm::DFSVisit(sg.outputs, [&](const nnvm::NodePtr node) {
+    if (idx_og.exist(node.get())) {
+      const uint32_t nid = idx_g.node_id(node.get());
+      const uint32_t onid = idx_og.node_id(node.get());
+      contexts[nid] = orig_ctx[onid];
+      dev_masks[nid] = orig_dev_masks[onid];
     }
   });
 
   const auto &input_nids = idx_g.input_nodes();
-  for (size_t i = 0; i < input_nids.size(); i++) {
-    auto nid = input_nids[i];
-    auto onid = idx_og.node_id(orig_input_entries[i].node.get());
-
-    auto eid = idx_g.entry_id(input_nids[i], 0);
-    auto oeid = idx_og.entry_id(orig_input_entries[i]);
-
+  for (size_t i = 0; i < orig_input_entries.size(); i++) {
+    auto n = orig_input_entries[i].node.get();
+    if (!idx_og.exist(n)) continue;
+    const uint32_t nid = input_nids[i];
+    const uint32_t onid = idx_og.node_id(n);
+    auto eid = idx_g.entry_id(nid, 0);
+    auto oeid = idx_og.entry_id(onid, 0);
     contexts[nid] = orig_ctx[onid];
     dev_masks[nid] = orig_dev_masks[onid];
-
     shapes[eid] = oshapes[oeid];
     types[eid] = odtypes[oeid];
     stypes[eid] = ostypes[oeid];

@@ -31,16 +31,17 @@ using namespace mxnet::op;
 
 class SgNgraphSelector : public SubgraphSelector {
  public:
-  SgNgraphSelector(Compiler *compiler) : compiler_(compiler) {}
+  SgNgraphSelector(Compiler *compiler)
+      : compiler_(compiler), valid(compiler_->get_node_map().size() > 0) {}
 
   bool Select(const nnvm::Node &n) override { return is_node_selected(n); }
 
   bool SelectInput(const nnvm::Node &n, const nnvm::Node &new_node) override {
-    return is_node_selected(n) && is_node_selected(new_node);
+    return is_node_selected(n, &new_node);
   }
 
   bool SelectOutput(const nnvm::Node &n, const nnvm::Node &new_node) override {
-    return is_node_selected(n) && is_node_selected(new_node);
+    return is_node_selected(n, &new_node);
   }
   std::vector<nnvm::Node *> Filter(
       const std::vector<nnvm::Node *> &candidates) {
@@ -53,18 +54,30 @@ class SgNgraphSelector : public SubgraphSelector {
 
  private:
   Compiler *compiler_;
-  bool is_node_selected(const nnvm::Node &n) {
-    if (compiler_->get_node_map().size() < 1) return false;
-    NodePtr nn;
-    MapEntry tmp{compiler_->get_node_map().at(&n).get(), 0};
-    auto &entry_map = compiler_->get_ngraph().entry_map_;
-    if (entry_map.count(tmp)) {
-      nn = entry_map[tmp];
+  const bool valid;
+  NodePtr get_node(const nnvm::Node *n) {
+    if (n) {
+      auto &entry_map = compiler_->get_ngraph().entry_map_;
+      MapEntry tmp{compiler_->get_node_map().at(n).get(), 0};
+      if (entry_map.count(tmp)) {
+        return entry_map[tmp];
+      }
     }
-    if (nn) {
-      return nn->in_ngraph_;
+    return nullptr;
+  }
+  bool is_node_selected(const nnvm::Node &n, const nnvm::Node *next = nullptr) {
+    bool selected = false;
+    if (!valid) return selected;
+
+    auto nn = get_node(&n);
+    auto nnext = get_node(next);
+
+    selected = nn && nn->in_ngraph_;
+    if (next) {
+      selected = selected && nnext && nnext->in_ngraph_ &&
+                 nn->subgraph_ == nnext->subgraph_;
     }
-    return false;
+    return selected;
   }
 };
 
@@ -117,7 +130,7 @@ class SgNgraphProperty : public SubgraphProperty {
                   << orig_graph.indexed_graph().num_nodes() << std::endl;
       }
 #endif
-      compiler_ = std::make_shared<Compiler>(orig_graph);
+      compiler_ = std::make_shared<Compiler>(orig_graph, true);
     }
 #if DEBUG_SUBGRAPH
     if (ngraph_log_verbose_detail) {
