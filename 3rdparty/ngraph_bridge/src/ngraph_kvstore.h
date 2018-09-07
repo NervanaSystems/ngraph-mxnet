@@ -13,48 +13,46 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 *******************************************************************************/
+
 #ifndef MXNET_KVSTORE_KVSTORE_NGRAPH_H_
 #define MXNET_KVSTORE_KVSTORE_NGRAPH_H_
 
 #if MXNET_USE_NGRAPH_DISTRIBUTED
 
-#include <mxnet/kvstore.h>
 #include <mpi.h>
+#include <mxnet/kvstore.h>
+#include <ngraph/distributed.hpp>
+#include "../../src/kvstore/kvstore_local.h"
 
-namespace mxnet {
-namespace kvstore {
+namespace ngraph_bridge {
 
 /**
  * \brief store data in local machine using nGraph
  */
-class KVStoreNGRAPH : public KVStoreLocal {
+class KVStoreNGRAPH : public mxnet::kvstore::KVStoreLocal {
  public:
-  explicit KVStoreNGRAPH(bool use_device_comm) : KVStoreLocal(use_device_comm) {
-      int flag = 0;
-      MPI_Initialized(&flag);
-      if (!flag) {
-        MPI_Init(NULL, NULL);
-      }
-      dmlc::SetEnv("MXNET_NGRAPH_DISTRIBUTED", 1);
+  explicit KVStoreNGRAPH(bool use_device_comm)
+      : mxnet::kvstore::KVStoreLocal(use_device_comm) {
+    dmlc::SetEnv("MXNET_NGRAPH_DISTRIBUTED", 1);
   }
 
-  virtual ~KVStoreNGRAPH() {
-      MPI_Finalize();
-  }
+  virtual ~KVStoreNGRAPH() {}
 
   int get_group_size() const override {
-      int size;
-      MPI_Comm_size(MPI_COMM_WORLD, &size);
-      return size;
+    int size;
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    return size;
   }
 
   int get_rank() const override {
-      int rank;
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-      return rank;
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    return rank;
   }
+
+ private:
+  ngraph::Distributed dist;
 };
-}  // namespace kvstore
-}  // namespace mxnet
-#endif  // MXNET_USE_NGRAPH_DISTRIBUTED
-#endif  // MXNET_KVSTORE_KVSTORE_NGRAPH_H_
+}  // namespace ngraph_bridge
+#endif
+#endif
