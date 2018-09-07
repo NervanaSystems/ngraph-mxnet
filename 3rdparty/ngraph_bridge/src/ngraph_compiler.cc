@@ -51,12 +51,6 @@ nnvm::NodePtr CreateNNVMNode(std::shared_ptr<Graph> subgraph) {
           n->base_node_->orig_node_,
           static_cast<uint32_t>(n->base_node_->multi_output_index_),
           static_cast<uint32_t>(0)});
-      // } else if (input->type_ == NodeType::kOutput) {
-      //   auto n = std::dynamic_pointer_cast<OutputElement>(input);
-      //   node->inputs.emplace_back(nnvm::NodeEntry{
-      //       n->base_node_->orig_node_,
-      //       static_cast<uint32_t>(n->multi_output_index_),
-      //       static_cast<uint32_t>(0)});
     } else {
       node->inputs.emplace_back(nnvm::NodeEntry{
           input->orig_node_, static_cast<uint32_t>(input->multi_output_index_),
@@ -197,15 +191,6 @@ Compiler::Compiler(const nnvm::Graph& graph, const NDArrayMap& feed_dict,
 }
 
 void Compiler::ReshapeGraph(const nnvm::ShapeVector& new_shapes) {
-  // std::cout << "-------------old-----------" << std::endl;
-  // for (auto shape : shapes_) {
-  //   std::cout << shape << std::endl;
-  // }
-  // std::cout << "-------------new-----------" << std::endl;
-  // for (auto shape : new_shapes) {
-  //   std::cout << shape << std::endl;
-  // }
-  // std::cout << "---------------------------" << std::endl;
   sub_ngraph_ = nullptr;
   for (size_t i = 0; i < new_shapes.size(); ++i) {
     shapes_[i] = new_shapes[i];
