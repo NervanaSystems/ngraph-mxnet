@@ -187,7 +187,7 @@ inline std::shared_ptr<ngraph::runtime::Backend> GetBackendFromContext(
 
 class OutputElement;
 
-using MapEntry = std::pair<nnvmNodePtr, size_t>;
+using MapEntry = std::pair<const nnvm::Node *, size_t>;
 /*
 Graph class
 Graph subclasses Node so that we can embed graphs into other graphs
@@ -235,13 +235,13 @@ class Graph : public Node {
 
   // Add a node to the graph
   void AddNode(NodePtr node) {
-    entry_map_[MapEntry{node->orig_node_, node->multi_output_index_}] = node;
+    entry_map_[MapEntry{node->orig_node_.get(), node->multi_output_index_}] = node;
     nodes_.emplace_back(node);
   }
 
   // get the node corresponding to an orig_node
   NodePtr operator[](const nnvm::NodeEntry &entry) {
-    MapEntry tmp{entry.node, entry.index};
+    MapEntry tmp{entry.node.get(), entry.index};
     if (entry_map_.count(tmp)) {
       return entry_map_[tmp];
     }

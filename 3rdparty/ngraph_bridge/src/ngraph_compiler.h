@@ -29,6 +29,7 @@
 #include <string>
 #include <vector>
 
+#include "../../../src/executor/exec_pass.h"
 #include "ngraph_graph.h"
 #include "ngraph_sgcompiler.h"
 #include "nnvm/graph_attr_types.h"
@@ -181,6 +182,28 @@ inline std::string clean_opname(std::string name) {
     return name;
   }
 }
+// Utility function to check if compiler supports graph 
+inline bool check_graph(const nnvm::Graph &g) {
+  if (!g.HasAttr("context")) return false;
+  auto g_ctx = g.GetAttr<mxnet::exec::ContextVector>("context");
+  if (g_ctx.size() < 1) return false;
+  auto default_ctx = g_ctx[0];
+#if MXNET_USE_CUDA
+  static const bool ngraph_gpu_enable = dmlc::GetEnv("MXNET_NGRAPH_GPU", false);
+  if (!ngraph_gpu_enable && default_ctx == mxnet::Context::GPU()) return false;
+#endif
+
+  // only one ctx supported per graph
+  for (auto c : g_ctx) {
+    if (c != default_ctx) return false;
+  }
+  const auto& storage_types = g.GetAttr<mxnet::StorageTypeVector>("storage_type");
+  for (auto& s : storage_types) {
+    if (s != mxnet::kDefaultStorage) return false;
+  }
+  return true;
+}
+
 // Main compiler class
 class Compiler {
  public:
@@ -191,14 +214,19 @@ class Compiler {
            const mxnet::Context& context);
   // Construct base compiler object with context only
   Compiler(const mxnet::Context& context);
+  // compiler for graph with attrs
+  Compiler(const nnvm::Graph& g);
   // Constructor for use with gluon hybridize
   Compiler(const nnvm::Graph& graph, const NNVMNodeVec& symbol_inputs,
            const std::vector<mxnet::NDArray*>& inputs);
   // Compile returns the compiled graph
   nnvm::Graph Compile();
+  // assumes there is only one ngraph
+  std::shared_ptr<Graph> GetNgraph();
+  void ReshapeGraph(const nnvm::ShapeVector& new_shapes);
   // parse the nnvm graph into an intermediate represenation
   // TODO(mbrookhart): Make this protected, it's here for debugging
-  void ParseNnvmGraph();
+  void ParseNnvmGraph(const nnvm::Graph* graph_with_attrs = nullptr);
   // create and return cached_op graph
   nnvm::Graph GetCachedOpGraph(const std::vector<mxnet::NDArray*>& inputs);
 
@@ -211,6 +239,8 @@ class Compiler {
   // graph executor inference engine
   const NDArrayMap& GetFeedDict() { return feed_dict_; }
   const NNVMNodeVec& GetInputs() { return inputs_; }
+  Graph& get_ngraph() { return ngraph_; }
+  const NodeMap& get_node_map() { return node_map_; }
 
  protected:
   // parse and process graph
@@ -229,6 +259,7 @@ class Compiler {
 
   void IdentifyCollapseGraphs();
 
+  std::shared_ptr<Graph> SGCompile(NodePtr& n);
   void CreateSubgraphNNVMNodes();
   void ConnectSubgraphNodes();
   void CollapseNNVMGraph();
@@ -241,6 +272,8 @@ class Compiler {
   nnvm::Graph graph_;
   // storage for IR graph
   ngraph_bridge::Graph ngraph_;
+  // compiled subgraph
+  std::shared_ptr<ngraph_bridge::Graph> sub_ngraph_;
   // shape, type and storage_type maps to return to the graph executor
   NgraphShape ngraph_shape_;
   NgraphDType ngraph_dtype_;
