@@ -56,6 +56,7 @@ echo  ' '
 # explicitly set them here
 export PIP_INSTALL_FROM_SUDO=1
 export PIP_INSTALL_EXTRA_ARGS="--proxy=$http_proxy --proxy=$https_proxy"
+export MAKE_VARIABLES="${MAKE_VARIABLES}"
 ./build-install-mx.sh 2>&1 | tee ../mx-build.log
 echo "===== Build & Install Pipeline Exited with $? and endtime ${xtime} ===="
 
