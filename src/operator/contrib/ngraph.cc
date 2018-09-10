@@ -44,7 +44,7 @@ std::shared_ptr<ngraph_bridge::Graph> get_ngraph(const NodeAttrs& attrs) {
 
 class NgraphSubgraphOperator {
  public:
-  NgraphSubgraphOperator(std::shared_ptr<ngraph_bridge::Graph> ngraph)
+  explicit NgraphSubgraphOperator(std::shared_ptr<ngraph_bridge::Graph> ngraph)
       : ngraph_(ngraph) {}
   void Forward(const OpContext& ctx, const std::vector<NDArray>& inputs,
                const std::vector<OpReqType>& req,
@@ -265,4 +265,4 @@ static int ngraph_backend = setenv("MXNET_SUBGRAPH_BACKEND", "ngraph", 0);
 }  // namespace op
 }  // namespace mxnet
 
-#endif // MXNET_USE_NGRAPH
+#endif  // MXNET_USE_NGRAPH

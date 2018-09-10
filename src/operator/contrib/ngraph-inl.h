@@ -31,6 +31,8 @@
 #include <ngraph_imperative.h>
 #include <ngraph_nnvm_ops.h>
 
+#include <vector>
+
 #include "../subgraph/common.h"
 #include "../subgraph/subgraph_property.h"
 
@@ -39,7 +41,7 @@ namespace op {
 
 class SgNgraphSelector : public SubgraphSelector {
  public:
-  SgNgraphSelector(ngraph_bridge::Compiler *compiler)
+  explicit SgNgraphSelector(ngraph_bridge::Compiler *compiler)
       : compiler_(compiler), valid(compiler_->get_node_map().size() > 0) {}
 
   bool Select(const nnvm::Node &n) override { return is_node_selected(n); }
@@ -94,8 +96,8 @@ class SgNgraphProperty : public SubgraphProperty {
     return std::make_shared<SgNgraphProperty>();
   }
 
-  virtual bool NeedGraphAttrs() const override { return true; }
-  virtual nnvm::NodePtr CreateSubgraphNode(
+  bool NeedGraphAttrs() const override { return true; }
+  nnvm::NodePtr CreateSubgraphNode(
       const nnvm::Symbol &sym, const int subgraph_id = 0) const override {
     nnvm::NodePtr n = nnvm::Node::Create();
     n->attrs.op = Op::Get("_ngraph_subgraph_op");
@@ -104,7 +106,7 @@ class SgNgraphProperty : public SubgraphProperty {
     return n;
   }
 
-  virtual nnvm::NodePtr CreateSubgraphNode(
+  nnvm::NodePtr CreateSubgraphNode(
       const nnvm::Graph &sg, const int subgraph_id = 0) const override {
     nnvm::Symbol sym;
     sym.outputs = sg.outputs;
@@ -131,6 +133,6 @@ class SgNgraphProperty : public SubgraphProperty {
 }  // namespace op
 }  // namespace mxnet
 
-#endif // MXNET_USE_NGRAPH
+#endif  // MXNET_USE_NGRAPH
 
 #endif  // MXNET_OPERATOR_CONTRIB_NGRAPH_INL_H_
