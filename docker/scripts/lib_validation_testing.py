@@ -307,9 +307,23 @@ def runResnetI1KScript(script=None,          # Script to run
         trainEpochs, trainNumClasses, trainNumExamples, str(trainImageShape).strip(), trainPadSize, trainLr, str(trainLrStepEpochs).strip(), dataDirectory.strip(), dataDirectory.strip()))
         print("The Command for Resnet is: {}".format(cmd))
     else:
-        cmd = ("{} {} --network {} --batch-size {} --num-layers {} --num-epochs {} --num-classes {} --num-examples {} --image-shape {} --pad-size {} --lr {} --lr-step-epochs {} --data-train=/dataset/mxnet_imagenet/train.rec --data-val=/dataset/mxnet_imagenet/val.rec".format(python_lib.strip(), script, "resnet", trainBatchSize, trainNumLayers,
-        trainEpochs, trainNumClasses, trainNumExamples, str(trainImageShape).strip(), trainPadSize, trainLr, str(trainLrStepEpochs).strip(), str(dataDirectory).strip(), str(dataDirectory).strip()))
-        print("The Command for Resnet is: {}".format(cmd))
+        if (str(makeVars) != "USE_NGRAPH_DISTRIBUTED"):
+            cmd = ("{} {} --network {} --batch-size {} --num-layers {} --num-epochs {} --num-classes {} --num-examples {} --image-shape {} --pad-size {} --lr {} --lr-step-epochs {} --data-train=/dataset/mxnet_imagenet/train.rec --data-val=/dataset/mxnet_imagenet/val.rec".format(python_lib.strip(), script, "resnet", trainBatchSize, trainNumLayers,
+            trainEpochs, trainNumClasses, trainNumExamples, str(trainImageShape).strip(), trainPadSize, trainLr, str(trainLrStepEpochs).strip(), str(dataDirectory).strip(), str(dataDirectory).strip()))
+            print("The Command for Resnet is: {}".format(cmd))
+        else:
+            ## Temporary to add import mpi4py
+            with open(script, 'r+') as file:
+                readcontent = file.read()
+                file.seek(0, 0)
+                file.write("from mpi4py import MPI\n")
+                file.write(readcontent)
+            ## get the hostname
+            hostname_process = subprocess.check_output(["hostname"],shell=True)
+            hostname= hostname_process.decode('utf-8')
+            cmd = ("MXNET_ENGINE_TYPE=NaiveEngine MXNET_NGRAPH_GLUON=1 OMP_NUM_THREADS=56 KMP_AFFINITY=granularity=fine,compact,1,0 mpirun --mca btl_tcp_if_include eno1 -np 2 -x OMP_NUM_THREADS -x KMP_AFFINITY -x MXNET_ENGINE_TYPE -H {},{} -map-by node {} {} --network {} --num-layers {} --num-epochs {} --kv-store ngraph --data-train=/dataset/mxnet_imagenet/train.rec --data-val=/dataset/mxnet_imagenet/val.rec".format(hostname.strip(),
+            hostname.strip(), python_lib.strip(), script, "resnet", trainNumLayers, trainEpochs))
+            print("The Command for Resnet is: {}".format(cmd))
 
     # Hook for testing results detection without having to run multi-hour
     # Framework+Dataset tests
