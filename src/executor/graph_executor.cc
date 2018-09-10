@@ -1491,6 +1491,8 @@ static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
   g.attrs["subgraph_property"] = std::make_shared<nnvm::any>(std::move(subgraph_prop));
   g = ApplyPass(std::move(g), "PartitionGraph");
   ret.outputs = g.outputs;
+  nnvm::Graph tmpg;
+  tmpg.outputs = ret.outputs;
   return ret;
 }
 

@@ -23,7 +23,7 @@
 #include "ngraph_imperative.h"
 #include "ngraph_nnvm_ops.h"
 
-#define DEBUG_SUBGRAPH 0
+#define DEBUG_SUBGRAPH 1
 namespace ngraph_bridge {
 using namespace nnvm;
 using namespace mxnet;

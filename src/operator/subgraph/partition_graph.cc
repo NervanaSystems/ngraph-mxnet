@@ -46,7 +46,7 @@ using nnvm::NodePtr;
 using nnvm::NodeEntry;
 using nnvm::Graph;
 
-#define DEBUG_SUBGRAPH 0
+#define DEBUG_SUBGRAPH 1
 
 namespace sg {  // sg stands for subgraph
 
@@ -620,12 +620,73 @@ void CutGraphInputs(const std::vector<nnvm::NodeEntry*> &input_entries,
   }
 }
 
+nnvm::Graph get_igraph(Graph* g, const std::vector<nnvm::NodeEntry>& orig_input_entries) {
+  auto orig_ctx = g->GetAttr<exec::ContextVector>("context");
+  auto orig_dev_masks = g->GetAttr<exec::DevMaskVector>("dev_mask");
+
+  auto oshapes = g->GetAttr<nnvm::ShapeVector>("shape");
+  auto odtypes = g->GetAttr<nnvm::DTypeVector>("dtype");
+  auto ostypes = g->GetAttr<mxnet::StorageTypeVector>("storage_type");
+  nnvm::Graph tmpg;
+  tmpg.outputs = g->outputs;
+  const auto &idx_g = tmpg.indexed_graph();
+  const auto &idx_og = g->indexed_graph();
+  auto num_nodes = idx_g.num_node_entries();
+  nnvm::ShapeVector shapes(num_nodes);
+  nnvm::DTypeVector types(num_nodes, -1);
+  StorageTypeVector stypes(num_nodes, kUndefinedStorage);
+  exec::ContextVector contexts(idx_g.num_nodes(), orig_ctx[0]);
+  exec::DevMaskVector dev_masks(idx_g.num_nodes(), orig_ctx[0].dev_mask());
+  nnvm::DFSVisit(tmpg.outputs, [&](const nnvm::NodePtr node) {
+    if (idx_og.exist(node.get())) {
+      const uint32_t nid = idx_g.node_id(node.get());
+      const uint32_t onid = idx_og.node_id(node.get());
+      contexts[nid] = orig_ctx[onid];
+      dev_masks[nid] = orig_dev_masks[onid];
+      shapes[nid] = oshapes[onid];
+      types[nid] = odtypes[onid];
+      stypes[nid] = ostypes[onid];
+    }
+  });
+  const auto &input_nids = idx_g.input_nodes();
+  for (size_t i = 0; i < input_nids.size(); i++) {
+    contexts[i] = orig_ctx[i];
+    dev_masks[i] = orig_dev_masks[i];
+    shapes[i] = oshapes[i];
+    types[i] = odtypes[i];
+    stypes[i] = ostypes[i];
+  }
+  tmpg.attrs["context"] = std::make_shared<dmlc::any>(std::move(contexts));
+
+  tmpg.attrs["shape"] = std::make_shared<dmlc::any>(std::move(shapes));
+  tmpg = exec::InferShape(std::move(tmpg));
+
+  tmpg.attrs["dtype"] = std::make_shared<dmlc::any>(std::move(types));
+  tmpg = exec::InferType(std::move(tmpg));
+
+  tmpg.attrs["dev_mask"] = std::make_shared<dmlc::any>(std::move(dev_masks));
+  tmpg.attrs["storage_type"] = std::make_shared<dmlc::any>(std::move(stypes));
+  tmpg = exec::InferStorageType(std::move(tmpg));
+  /* return std::move(tmpg); */
+  return tmpg;
+}
+
 /*!
  * \brief Infer attrs for subgraph, given input nodes of subgraph from original graph
  */
 nnvm::Graph InferSubgraphAttrs(
-    Graph* g, const std::vector<nnvm::NodeEntry>& orig_input_entries,
+    Graph* og, const std::vector<nnvm::NodeEntry>& orig_input_entries,
     nnvm::Graph&& sg) {
+  nnvm::Graph *g;
+  bool exists = true;
+  for (size_t i = 0; i < orig_input_entries.size(); i++) {
+    auto n = orig_input_entries[i].node.get();
+    if (!og->indexed_graph().exist(n)) {exists = false;break;}
+  }
+  if (exists)
+  g = og;
+  else
+  *g = get_igraph(og, orig_input_entries);
   // return if partition without attrs
   if (!g->HasAttr("context")) return std::move(sg);
   const auto &idx_og = g->indexed_graph();
