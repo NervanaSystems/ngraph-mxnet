@@ -643,9 +643,6 @@ nnvm::Graph get_igraph(Graph* g, const std::vector<nnvm::NodeEntry>& orig_input_
       const uint32_t onid = idx_og.node_id(node.get());
       contexts[nid] = orig_ctx[onid];
       dev_masks[nid] = orig_dev_masks[onid];
-      shapes[nid] = oshapes[onid];
-      types[nid] = odtypes[onid];
-      stypes[nid] = ostypes[onid];
     }
   });
   const auto &input_nids = idx_g.input_nodes();
@@ -720,7 +717,9 @@ nnvm::Graph InferSubgraphAttrs(
   const auto &input_nids = idx_g.input_nodes();
   for (size_t i = 0; i < orig_input_entries.size(); i++) {
     auto n = orig_input_entries[i].node.get();
-    if (!idx_og.exist(n)) continue;
+    if (!idx_og.exist(n)) {
+      n = const_cast<nnvm::Node *>(idx_g[i].source);
+    }
     const uint32_t nid = input_nids[i];
     const uint32_t onid = idx_og.node_id(n);
     auto eid = idx_g.entry_id(nid, 0);
