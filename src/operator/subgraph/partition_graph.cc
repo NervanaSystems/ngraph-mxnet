@@ -667,8 +667,7 @@ nnvm::Graph get_igraph(Graph* g, const std::vector<nnvm::NodeEntry>& orig_input_
   tmpg.attrs["dev_mask"] = std::make_shared<dmlc::any>(std::move(dev_masks));
   tmpg.attrs["storage_type"] = std::make_shared<dmlc::any>(std::move(stypes));
   tmpg = exec::InferStorageType(std::move(tmpg));
-  /* return std::move(tmpg); */
-  return tmpg;
+  return std::move(tmpg);
 }
 
 /*!
@@ -683,10 +682,14 @@ nnvm::Graph InferSubgraphAttrs(
     auto n = orig_input_entries[i].node.get();
     if (!og->indexed_graph().exist(n)) {exists = false;break;}
   }
+  nnvm::Graph tmpg;
   if (exists)
   g = og;
-  else
-  *g = get_igraph(og, orig_input_entries);
+  else{
+    tmpg = get_igraph(og, orig_input_entries);
+  g = &tmpg;
+
+  }
   // return if partition without attrs
   if (!g->HasAttr("context")) return std::move(sg);
   const auto &idx_og = g->indexed_graph();
