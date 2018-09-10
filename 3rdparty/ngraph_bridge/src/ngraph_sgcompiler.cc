@@ -424,7 +424,6 @@ void SGCompiler::CompileNodes(NodePtr node,
           os << "   Shape mismatch:"
              << " nnvm::Tshape=" << nnvm_shape
              << ", ngraph::Shape=" << ngraph_shape_as_nnvm_shape;
-          throw std::runtime_error(os.str());
         }
 
         // Verify that the element-types computed by NNVM and nGraph are

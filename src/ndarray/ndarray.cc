@@ -22,9 +22,6 @@
  * \file ndarray.cc
  * \brief ndarry module of mxnet
  */
-#if MXNET_USE_NGRAPH == 1
-#include <ngraph_nnvm_utils.h>
-#endif
 #include <dmlc/io.h>
 #include <dmlc/memory_io.h>
 #include <dmlc/logging.h>
@@ -35,6 +32,7 @@
 #include <mxnet/imperative.h>
 #include <mshadow/tensor.h>
 #if MXNET_USE_NGRAPH == 1
+#include <ngraph_nnvm_utils.h>
 #include <ngraph/ngraph.hpp>
 #endif
 #if MXNET_USE_MKLDNN == 1
@@ -705,9 +703,6 @@ mkldnn::memory *NDArray::CreateMKLDNNData(const mkldnn::memory::primitive_desc &
 #endif
 
 #if MXNET_USE_NGRAPH == 1
-std::shared_ptr<ngraph::runtime::TensorView> &NDArray::get_tensor_view() {
-  return ptr_->tensor_view_;
-}
 std::shared_ptr<ngraph::runtime::TensorView> &NDArray::create_tensor_view() {
   if (ptr_->tensor_view_ == nullptr ||
       ptr_->tensor_view_->get_shape() !=
