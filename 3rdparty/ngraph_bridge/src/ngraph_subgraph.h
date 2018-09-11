@@ -74,8 +74,8 @@ class SgNgraphSelector : public SubgraphSelector {
 
     selected = nn && nn->in_ngraph_;
     if (next) {
-      selected = selected && nnext && nnext->in_ngraph_;
-      /* &&            nn->subgraph_ == nnext->subgraph_; */
+      selected = selected && nnext && nnext->in_ngraph_
+      &&            nn->subgraph_ == nnext->subgraph_;
     }
     return selected;
   }
@@ -130,7 +130,7 @@ class SgNgraphProperty : public SubgraphProperty {
                   << orig_graph.indexed_graph().num_nodes() << std::endl;
       }
 #endif
-      compiler_ = std::make_shared<Compiler>(orig_graph);
+      compiler_ = std::make_shared<Compiler>(orig_graph, true);
     }
 #if DEBUG_SUBGRAPH
     if (ngraph_log_verbose_detail) {
