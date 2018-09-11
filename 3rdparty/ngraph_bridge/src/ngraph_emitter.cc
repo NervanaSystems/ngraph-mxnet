@@ -715,7 +715,10 @@ void Emitter::CreateBinaryOps() {
     return cast_result(CreateAutoBroadcast<ngraph::op::Equal>(node),
                        getType(node->dtype_));
   };
-  ngraph_op_funcs_["broadcast_not_equal"] = [this](const NodePtr& node) {
+  std::string s = "broadcast_not_equal";
+  if ( ngraph_log_verbose_detail)
+  s = "broadcast_not_equal1";
+  ngraph_op_funcs_[s] = [this](const NodePtr& node) {
     return cast_result(CreateAutoBroadcast<ngraph::op::NotEqual>(node),
                        getType(node->dtype_));
   };

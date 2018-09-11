@@ -46,13 +46,14 @@ using nnvm::NodePtr;
 using nnvm::NodeEntry;
 using nnvm::Graph;
 
-#define DEBUG_SUBGRAPH 0
+#define DEBUG_SUBGRAPH 1
 
 namespace sg {  // sg stands for subgraph
 
 struct SimpleNode;
 using SimpleNodePtr = std::shared_ptr<SimpleNode>;
 
+using AttrsTuple = std::tuple<TShape, int, int>;
 /*!
  * \brief Node of the undirected graph which replicates the network structures
  * of the computational graph. It is used to ease the graph traversal for finding
@@ -242,7 +243,7 @@ bool LabelSubgraph(const Graph& g,
     s.push(descendant);
     size_t count = 0;
     while (!s.empty()) {
-      CHECK_LT(count, indexed_graph.num_nodes()) << "Finding ancestor failed. There is probably"
+      CHECK_LT(count, indexed_graph.num_nodes()*10) << "Finding ancestor failed. There is probably"
                                                     " a loop in the graph";
       ++count;
       const nnvm::Node* top = s.top();
@@ -620,12 +621,114 @@ void CutGraphInputs(const std::vector<nnvm::NodeEntry*> &input_entries,
   }
 }
 
+nnvm::Graph get_igraph(Graph* g, const std::vector<nnvm::NodeEntry>& orig_input_entries) {
+  auto orig_ctx = g->GetAttr<exec::ContextVector>("context");
+  auto orig_dev_masks = g->GetAttr<exec::DevMaskVector>("dev_mask");
+
+  auto oshapes = g->GetAttr<nnvm::ShapeVector>("shape");
+  auto odtypes = g->GetAttr<nnvm::DTypeVector>("dtype");
+  auto ostypes = g->GetAttr<mxnet::StorageTypeVector>("storage_type");
+  nnvm::Graph tmpg;
+  tmpg.outputs = g->outputs;
+  const auto &idx_g = tmpg.indexed_graph();
+  const auto &idx_og = g->indexed_graph();
+  auto num_nodes = idx_g.num_node_entries();
+  nnvm::ShapeVector shapes(num_nodes);
+  nnvm::DTypeVector types(num_nodes, -1);
+  StorageTypeVector stypes(num_nodes, kUndefinedStorage);
+  exec::ContextVector contexts(idx_g.num_nodes(), orig_ctx[0]);
+  exec::DevMaskVector dev_masks(idx_g.num_nodes(), orig_ctx[0].dev_mask());
+  nnvm::DFSVisit(tmpg.outputs, [&](const nnvm::NodePtr node) {
+    if (idx_og.exist(node.get())) {
+      const uint32_t nid = idx_g.node_id(node.get());
+      const uint32_t onid = idx_og.node_id(node.get());
+      contexts[nid] = orig_ctx[onid];
+      dev_masks[nid] = orig_dev_masks[onid];
+    }
+  });
+  const auto &input_nids = idx_g.input_nodes();
+  const auto &oinput_nids = idx_og.input_nodes();
+  for (size_t i = 0; i < input_nids.size(); i++) {
+    const uint32_t nid = input_nids[i];
+    const uint32_t onid = oinput_nids[i];
+    auto eid = idx_g.entry_id(nid, 0);
+    auto oeid = idx_og.entry_id(onid, 0);
+    contexts[nid] = orig_ctx[onid];
+    dev_masks[nid] = orig_dev_masks[onid];
+    shapes[eid] = oshapes[oeid];
+    types[eid] = odtypes[oeid];
+    stypes[eid] = ostypes[oeid];
+  }
+  tmpg.attrs["context"] = std::make_shared<dmlc::any>(std::move(contexts));
+
+  tmpg.attrs["shape"] = std::make_shared<dmlc::any>(std::move(shapes));
+  tmpg = exec::InferShape(std::move(tmpg));
+
+  tmpg.attrs["dtype"] = std::make_shared<dmlc::any>(std::move(types));
+  tmpg = exec::InferType(std::move(tmpg));
+
+  tmpg.attrs["dev_mask"] = std::make_shared<dmlc::any>(std::move(dev_masks));
+  tmpg.attrs["storage_type"] = std::make_shared<dmlc::any>(std::move(stypes));
+  tmpg = exec::InferStorageType(std::move(tmpg));
+  return std::move(tmpg);
+}
+nnvm::Graph InferSubgraphAttrs(
+    Graph* g, const std::vector<nnvm::NodeEntry>& orig_input_entries,
+    nnvm::NodeEntryMap<sg::AttrsTuple>& input_attr_map,
+    nnvm::Graph&& sg) {
+  
+  const auto &idx_g = sg.indexed_graph();
+  auto num_nodes = idx_g.num_node_entries();
+  exec::ContextVector contexts(idx_g.num_nodes(), mxnet::Context::CPU());
+  nnvm::ShapeVector shapes(num_nodes);
+  nnvm::DTypeVector types(num_nodes, -1);
+  StorageTypeVector stypes(num_nodes, kUndefinedStorage);
+  exec::DevMaskVector dev_masks(idx_g.num_nodes(), mxnet::Context::CPU().dev_mask());
+
+  const auto &inids = idx_g.input_nodes();
+  for (size_t i = 0; i < orig_input_entries.size(); i++) {
+    auto &n = orig_input_entries[i];
+    std::cout << "orig " << &n << ":" << n.node << ":" << n.node->attrs.name << std::endl;
+    auto eid = idx_g.entry_id(inids[i], 0);
+    std::tie(shapes[eid], types[eid], stypes[eid]) = input_attr_map[orig_input_entries[i]];
+  }
+
+  sg.attrs["context"] = std::make_shared<dmlc::any>(std::move(contexts));
+
+  sg.attrs["shape"] = std::make_shared<dmlc::any>(std::move(shapes));
+  sg = exec::InferShape(std::move(sg));
+  CHECK_EQ(sg.GetAttr<size_t>("shape_num_unknown_nodes"), 0U);
+
+  sg.attrs["dtype"] = std::make_shared<dmlc::any>(std::move(types));
+  sg = exec::InferType(std::move(sg));
+  CHECK_EQ(sg.GetAttr<size_t>("dtype_num_unknown_nodes"), 0U);
+
+  sg.attrs["dev_mask"] = std::make_shared<dmlc::any>(std::move(dev_masks));
+  sg.attrs["storage_type"] = std::make_shared<dmlc::any>(std::move(stypes));
+  sg = exec::InferStorageType(std::move(sg));
+  CHECK_EQ(sg.GetAttr<size_t>("storage_type_num_unknown_nodes"), 0U);
+  return std::move(sg);
+}
 /*!
  * \brief Infer attrs for subgraph, given input nodes of subgraph from original graph
  */
 nnvm::Graph InferSubgraphAttrs(
-    Graph* g, const std::vector<nnvm::NodeEntry>& orig_input_entries,
+    Graph* og, const std::vector<nnvm::NodeEntry>& orig_input_entries,
     nnvm::Graph&& sg) {
+  nnvm::Graph *g;
+  bool exists = true;
+  for (size_t i = 0; i < orig_input_entries.size(); i++) {
+    auto n = orig_input_entries[i].node.get();
+    if (!og->indexed_graph().exist(n)) {exists = false;break;}
+  }
+  nnvm::Graph tmpg;
+  if (exists)
+  g = og;
+  else{
+    tmpg = get_igraph(og, orig_input_entries);
+  g = &tmpg;
+
+  }
   // return if partition without attrs
   if (!g->HasAttr("context")) return std::move(sg);
   const auto &idx_og = g->indexed_graph();
@@ -644,28 +747,27 @@ nnvm::Graph InferSubgraphAttrs(
   nnvm::DTypeVector types(num_nodes, -1);
   StorageTypeVector stypes(num_nodes, kUndefinedStorage);
   exec::DevMaskVector dev_masks(idx_g.num_nodes(), orig_ctx[0].dev_mask());
-
-  nnvm::DFSVisit(sg.outputs, [&idx_og, &idx_g, &dev_masks, &orig_dev_masks,
-                              &orig_ctx, &contexts](const nnvm::NodePtr node) {
-    if (!node->is_variable()) {
-      const uint32_t eid = idx_g.node_id(node.get());
-      const uint32_t oeid = idx_og.node_id(node.get());
-      contexts[eid] = orig_ctx[oeid];
-      dev_masks[eid] = orig_dev_masks[oeid];
+  nnvm::DFSVisit(sg.outputs, [&](const nnvm::NodePtr node) {
+    if (idx_og.exist(node.get())) {
+      const uint32_t nid = idx_g.node_id(node.get());
+      const uint32_t onid = idx_og.node_id(node.get());
+      contexts[nid] = orig_ctx[onid];
+      dev_masks[nid] = orig_dev_masks[onid];
     }
   });
 
   const auto &input_nids = idx_g.input_nodes();
-  for (size_t i = 0; i < input_nids.size(); i++) {
-    auto nid = input_nids[i];
-    auto onid = idx_og.node_id(orig_input_entries[i].node.get());
-
-    auto eid = idx_g.entry_id(input_nids[i], 0);
-    auto oeid = idx_og.entry_id(orig_input_entries[i]);
-
+  for (size_t i = 0; i < orig_input_entries.size(); i++) {
+    auto n = orig_input_entries[i].node.get();
+    if (!idx_og.exist(n)) {
+      n = const_cast<nnvm::Node *>(idx_g[i].source);
+    }
+    const uint32_t nid = input_nids[i];
+    const uint32_t onid = idx_og.node_id(n);
+    auto eid = idx_g.entry_id(nid, 0);
+    auto oeid = idx_og.entry_id(onid, 0);
     contexts[nid] = orig_ctx[onid];
     dev_masks[nid] = orig_dev_masks[onid];
-
     shapes[eid] = oshapes[oeid];
     types[eid] = odtypes[oeid];
     stypes[eid] = ostypes[oeid];
@@ -697,7 +799,8 @@ void CreateSubgraphNode(Graph* g,
                         const std::vector<SimpleNodePtr>& simple_nodes,
                         const std::vector<SimpleNode*>& subgraph_nodes,
                         const size_t subgraph_id,
-                        std::unordered_map<const nnvm::NodeEntry*, size_t>* entry_top_order_map) {
+                        std::unordered_map<const nnvm::NodeEntry*, size_t>* entry_top_order_map,
+                        nnvm::NodeEntryMap<AttrsTuple>* input_attr_map) {
 #if DEBUG_SUBGRAPH
   LOG(INFO) << "Searching for input entries...";
 #endif
@@ -722,18 +825,31 @@ void CreateSubgraphNode(Graph* g,
   nnvm::NodePtr n;
   if (!subg_prop->NeedGraphAttrs()) {
     n = subg_prop->CreateSubgraphNode(sym, subgraph_id);
+    // Connect the external nodes to the subgraph node.
+    for (size_t i = 0; i < output_entries.size(); ++i) {
+      *output_entries[i] = nnvm::NodeEntry{n, static_cast<uint32_t>(i), 0};
+    }
   } else {
     nnvm::Graph subgraph;
     subgraph.outputs = sym.outputs;
     // update subgraph attrs
-    subgraph = InferSubgraphAttrs(g, orig_input_entries, std::move(subgraph));
+    subgraph = InferSubgraphAttrs(g, orig_input_entries, *input_attr_map, std::move(subgraph));
     n = subg_prop->CreateSubgraphNode(subgraph, subgraph_id);
+  
+    auto &g = subgraph;
+    const auto &oshapes = g.GetAttr<nnvm::ShapeVector>("shape");
+    const auto &odtypes = g.GetAttr<nnvm::DTypeVector>("dtype");
+    const auto &ostypes = g.GetAttr<mxnet::StorageTypeVector>("storage_type");
+    const auto &idx = g.indexed_graph();
+    const auto &soutputs = idx.outputs();
+    // Connect the external nodes to the subgraph node.
+    for (size_t i = 0; i < output_entries.size(); ++i) {
+      *output_entries[i] = nnvm::NodeEntry{n, static_cast<uint32_t>(i), 0};
+      const auto eid = idx.entry_id(soutputs[i]);
+      input_attr_map->emplace(*output_entries[i], std::make_tuple(oshapes[eid], odtypes[eid], ostypes[eid]));
+    }
   }
 
-  // Connect the external nodes to the subgraph node.
-  for (size_t i = 0; i < output_entries.size(); ++i) {
-    *output_entries[i] = nnvm::NodeEntry{n, static_cast<uint32_t>(i), 0};
-  }
   n->inputs = orig_input_entries;
   const auto& indexed_graph = g->indexed_graph();
   for (size_t i = 0; i < n->inputs.size(); ++i) {
@@ -766,7 +882,7 @@ void CreateSubgraphNode(Graph* g,
  * the topological order unchanged.
  */
 void TopSortEntries(const Graph& g,
-                    std::unordered_map<const nnvm::NodeEntry*, size_t>* entry_top_order_map) {
+                    std::unordered_map<const nnvm::NodeEntry*, size_t>* entry_top_order_map) { 
   CHECK(entry_top_order_map != nullptr);
   std::unordered_set<const nnvm::Node*> visited;
   // tuple: (graph node, index of node's inputs, node entry as the output of the graph node)
@@ -822,6 +938,19 @@ Graph PartitionGraph(Graph&& g) {
   }
   using namespace sg;
   const SubgraphPropertyPtr& subg_prop = g.GetAttr<SubgraphPropertyPtr>("subgraph_property");
+  // input attrs
+  nnvm::NodeEntryMap<AttrsTuple> input_attr_map;
+  const auto &oshapes = g.GetAttr<nnvm::ShapeVector>("shape");
+  const auto &odtypes = g.GetAttr<nnvm::DTypeVector>("dtype");
+  const auto &ostypes = g.GetAttr<mxnet::StorageTypeVector>("storage_type");
+  const auto &idx = g.indexed_graph();
+  DFSVisit(g.outputs, [&](const nnvm::NodePtr& n) {
+    for (auto& e : n->inputs) {
+      const auto eid = idx.entry_id(e);
+      input_attr_map.emplace(e, std::make_tuple(oshapes[eid], odtypes[eid], ostypes[eid]));
+      std::cout << "InputAttr " << &e <<" "<< ":" << e.node << ":" << e.node->attrs.name << ":" << oshapes[eid]<< odtypes[eid]<< ostypes[eid] << std::endl;
+    }
+  });
   // top sort NodeEntry of all the nodes' inputs
   std::unordered_map<const nnvm::NodeEntry*, size_t> entry_top_order_map;
   TopSortEntries(g, &entry_top_order_map);
@@ -837,7 +966,7 @@ Graph PartitionGraph(Graph&& g) {
     CHECK_EQ(simple_node_set.size(), subgraph_nodes[i].size());
     PrintSubgraph(subgraph_nodes[i]);
 #endif
-    CreateSubgraphNode(&g, simple_nodes, subgraph_nodes[i], i, &entry_top_order_map);
+    CreateSubgraphNode(&g, simple_nodes, subgraph_nodes[i], i, &entry_top_order_map, &input_attr_map);
   }
   return g;
 }

@@ -14,11 +14,11 @@
 * limitations under the License.
 *******************************************************************************/
 
-#include "ngraph_subgraph.h"
 #include <mxnet/ndarray.h>
 #include "../../../src/operator/subgraph/common.h"
 #include "ngraph_imperative.h"
 #include "ngraph_nnvm_ops.h"
+#include "ngraph_subgraph.h"
 
 namespace ngraph_bridge {
 using namespace nnvm;
@@ -63,6 +63,7 @@ void NgraphSubgraphOperator::Backward(const OpContext& ctx,
 OpStatePtr CreateNgraphSubgraphOpState(const NodeAttrs& attrs, Context ctx,
                                        const std::vector<TShape>& in_shapes,
                                        const std::vector<int>& in_types) {
+      std::cout << "NGR SUB Create OP ST" << std::endl;
   return OpStatePtr::Create<NgraphSubgraphOperator>(get_ngraph(attrs));
 }
 
@@ -147,28 +148,31 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
                                         return _names;
                                       })
     .set_attr<FCreateOpState>("FCreateOpState", CreateNgraphSubgraphOpState)
-    .set_attr<nnvm::FInferShape>(
-        "FInferShape",
-        [](const nnvm::NodeAttrs& attrs, std::vector<nnvm::TShape>* in_attrs,
-           std::vector<nnvm::TShape>* out_attrs) -> bool {
-          auto compiler =
-              nnvm::get<std::shared_ptr<ngraph_bridge::Compiler>>(attrs.parsed);
-          auto graph = get_ngraph(attrs);
-          if ((graph->inputs_.size() > 0) &&
-              (*in_attrs)[0] != graph->inputs_[0]->shape_) {
-            compiler->ReshapeGraph(*in_attrs);
-            graph = compiler->GetNgraph();
-          }
-          for (size_t i = 0; i < graph->inputs_.size(); ++i) {
-            (*in_attrs)[i] = graph->inputs_[i]->shape_;
-          }
-          std::vector<nnvm::TShape> shapes;
-          for (auto output : graph->outputs_) {
-            shapes.push_back(output->shape_);
-          }
-          (*out_attrs) = shapes;
-          return true;
-        })
+    .set_attr_parser([](NodeAttrs* attrs) {
+      std::cout << "NGR SUB Parse" << std::endl;
+    })
+.set_attr<nnvm::FInferShape>(
+    "FInferShape",
+    [](const nnvm::NodeAttrs& attrs, std::vector<nnvm::TShape>* in_attrs,
+       std::vector<nnvm::TShape>* out_attrs) -> bool {
+      auto compiler =
+          nnvm::get<std::shared_ptr<ngraph_bridge::Compiler>>(attrs.parsed);
+      auto graph = get_ngraph(attrs);
+      if ((graph->inputs_.size() > 0) &&
+          (*in_attrs)[0] != graph->inputs_[0]->shape_) {
+        compiler->ReshapeGraph(*in_attrs);
+        graph = compiler->GetNgraph();
+      }
+      for (size_t i = 0; i < graph->inputs_.size(); ++i) {
+        (*in_attrs)[i] = graph->inputs_[i]->shape_;
+      }
+      std::vector<nnvm::TShape> shapes;
+      for (auto output : graph->outputs_) {
+        shapes.push_back(output->shape_);
+      }
+      (*out_attrs) = shapes;
+      return true;
+    })
     .set_attr<nnvm::FInferType>(
         "FInferType",
         [](const nnvm::NodeAttrs& attrs, std::vector<int>* iattr,
