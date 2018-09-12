@@ -188,10 +188,15 @@ inline bool check_graph(const nnvm::Graph &g) {
   auto g_ctx = g.GetAttr<mxnet::exec::ContextVector>("context");
   if (g_ctx.size() < 1) return false;
   auto default_ctx = g_ctx[0];
-#if MXNET_USE_CUDA
-  static const bool ngraph_gpu_enable = dmlc::GetEnv("MXNET_NGRAPH_GPU", false);
-  if (!ngraph_gpu_enable && default_ctx == mxnet::Context::GPU()) return false;
-#endif
+// TODO [csullivan]: Building nGraph CPU with USE_CUDA=1 produces a runtime that is
+// unable to run with GPU. If USE_NGRAPH_GPU=1 then nGraph handles both CPU and GPU
+// and there is no issue. Commenting out the below lines as they need to be replaced
+// with something that will allow for MXNet GPU and MXNet+nGraph CPU to cohabitate.
+//
+// #if MXNET_USE_CUDA
+//   static const bool ngraph_gpu_enable = dmlc::GetEnv("MXNET_NGRAPH_GPU", false);
+//   if (!ngraph_gpu_enable && default_ctx == mxnet::Context::GPU()) return false;
+// #endif
 
   // only one ctx supported per graph
   for (auto c : g_ctx) {

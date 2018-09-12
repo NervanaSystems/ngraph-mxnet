@@ -125,6 +125,7 @@ USE_MKLDNN = 0
 USE_NGRAPH = 0
 USE_NGRAPH_IE = 0
 USE_NGRAPH_DISTRIBUTED = 0
+USE_NGRAPH_GPU = 0
 
 # use prebuilt mkldnn if set
 ifneq ($(MKLDNNROOT),)

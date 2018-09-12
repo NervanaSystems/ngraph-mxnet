@@ -46,6 +46,13 @@ if(USE_NGRAPH_DISTRIBUTED)
   add_definitions(-DMXNET_USE_NGRAPH_DISTRIBUTED=1)
 endif(USE_NGRAPH_DISTRIBUTED)
 
+if (CUDA_INCLUDE_DIRS)
+  include_directories(SYSTEM ${CUDA_INCLUDE_DIRS})
+else()
+  if (USE_NGRAPH_GPU)
+    message(FATAL_ERROR "USE_CUDA_PATH should be set when USE_NGRAPH_GPU is enabled.")
+  endif()
+endif()
 
 include(cmake/ngraph.cmake)
 
