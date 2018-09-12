@@ -268,7 +268,8 @@ def runResnetI1KScript(script=None,          # Script to run
                     trainPadSize = None,
                     trainLr = None,
                     trainLrStepEpochs = None,
-                    trainWithNPP = None):            # Log line prefix
+                    trainWithNPP = None,
+                    makeVars = None):            # Log line prefix
 
     print("")
     print("Resnet I1K script being run with:")
@@ -287,6 +288,7 @@ def runResnetI1KScript(script=None,          # Script to run
     print("    trainLr:         {}".format(str(trainLr)))
     print("    trainLrStepEpochs:          {}".format(str(trainLrStepEpochs)))
     print("    trainWithNPP:          {}".format(str(trainWithNPP)))
+    print("    make Variable:          {}".format(str(makeVars)))
 
     if trainEpochs is None or int(trainEpochs) == 0:
         raise Exception("runResnetScript() called without parameter num_epochs")
