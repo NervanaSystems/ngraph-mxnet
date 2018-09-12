@@ -239,7 +239,7 @@ bool LabelSubgraph(const Graph& g,
                          const std::vector<nnvm::Node*>& snodes) {
     if (ancestor == descendant) return true;
     std::stack<const nnvm::Node*> s;
-    std::unordered_set<const nnvm::Node*> visited;
+    std::unordered_set<const nnvm::Node*> visited(snodes.begin(), snodes.end());
     s.push(descendant);
     size_t count = 0;
     while (!s.empty()) {
@@ -253,6 +253,8 @@ bool LabelSubgraph(const Graph& g,
         return true;
       }
       for (const auto& entry : top->inputs) {
+        // when searching for the ancestor, the path cannot cross any subgraph node
+        // or a previously visited node
         if (visited.count(entry.node.get()) == 0) {
           s.push(entry.node.get());
         }
