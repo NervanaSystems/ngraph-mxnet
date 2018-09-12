@@ -25,7 +25,7 @@ are as follows:
 - `NGRAPH_EXTRA_MAKE_FLAGS` - This variable can provide additional command-line
   arguments to the invocation of `make` used to compile and link nGraph.
 
-Please see the files `3rdparty/ngraph_bridge/ngraph.mk` and `make/config.mk` for more details.
+Please see the files `3rdparty/ngraph-mxnet-bridge/ngraph.mk` and `make/config.mk` for more details.
 
 ## Compilation instructions for Ubuntu 16.04
 
