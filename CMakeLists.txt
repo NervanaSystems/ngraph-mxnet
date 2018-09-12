@@ -169,15 +169,15 @@ endif(NOT mxnet_LINKER_LIBS)
 
 if(USE_NGRAPH AND NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-comment")
-  set(NGRAPH_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/3rdparty/ngraph_bridge)
+  set(NGRAPH_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/3rdparty/ngraph-mxnet-bridge)
 
   if(NOT MSVC)
     set(ARCH_OPT_FLAGS "-mtune=generic")
   endif()
-  add_subdirectory(3rdparty/ngraph_bridge)
+  add_subdirectory(3rdparty/ngraph-mxnet-bridge)
 
-  include_directories(3rdparty/ngraph_bridge/src)
-  include_directories(${CMAKE_BINARY_DIR}/3rdparty/ngraph_bridge/include)
+  include_directories(3rdparty/ngraph-mxnet-bridge/src)
+  include_directories(${CMAKE_BINARY_DIR}/3rdparty/ngraph-mxnet-bridge/include)
   
   add_definitions(-DMXNET_USE_NGRAPH=1)
   
@@ -667,7 +667,7 @@ if(UNIX)
   list(APPEND MXNET_INSTALL_TARGETS mxnet_static)
   add_library(mxnet SHARED ${DUMMY_SOURCE})
   if(USE_NGRAPH AND NOT MSVC)
-    add_library(mxnet_static STATIC ${SOURCE} $<TARGET_OBJECTS:ngraph_bridge>)
+    add_library(mxnet_static STATIC ${SOURCE} $<TARGET_OBJECTS:ngraph-mxnet-bridge>)
   else()
     add_library(mxnet_static STATIC ${SOURCE})
   endif()
@@ -680,7 +680,7 @@ endif()
 
 if(USE_NGRAPH AND NOT MSVC)
   if(UNIX)
-    add_dependencies(mxnet_static ngraph_bridge)
+    add_dependencies(mxnet_static ngraph-mxnet-bridge)
   endif()
 endif()
 
