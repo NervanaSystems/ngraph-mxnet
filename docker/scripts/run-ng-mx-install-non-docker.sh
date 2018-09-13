@@ -26,7 +26,6 @@ echo "Build Mxnet_Ngraph"
 
 set -e  # Make sure we exit on any command that returns non-zero
 set -u  # No unset variables
-set -o pipefail # Make sure cmds in pipe that are non-zero also fail immediatel
 
 # ===== Main ==================================================================
 
@@ -38,14 +37,13 @@ export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
 # See script docker-run-tf-ng-build-as-user.sh
 # HOME is expected to be /home/dockuser.  See script run-as-user.sh, which
 # sets this up.
-cd "$HOME/ng-mx"
 
+HOME=`pwd`
 echo "In $(basename ${0}):"
 echo "  HOME=${HOME}"
 echo "  PYTHON_VERSION_NUMBER=${PYTHON_VERSION_NUMBER}"
 echo "  PYTHON_BIN_PATH=${PYTHON_BIN_PATH}"
-
-cd "$HOME/ng-mx/docker/scripts/"
+echo "  MAKE_VARIABLES=${MAKE_VARIABLES}"
 
 xtime="$(date)"
 echo  ' '
@@ -54,11 +52,10 @@ echo  ' '
 # Make sure pip install uses sudo, for installing into system
 # In addition, pip seems to ignore http_proxy env vars, so
 # explicitly set them here
+cd "${HOME}"
 export PIP_INSTALL_FROM_SUDO=1
 export PIP_INSTALL_EXTRA_ARGS="--proxy=$http_proxy --proxy=$https_proxy"
-export MAKE_VARIABLES="${MAKE_VARIABLES}"
-./build-install-mx.sh 2>&1 | tee ../mx-build.log
+echo `pwd`
+bash build-install-mx.sh 2>&1 | tee ../mx-build.log
+
 echo "===== Build & Install Pipeline Exited with $? and endtime ${xtime} ===="
-
-
-

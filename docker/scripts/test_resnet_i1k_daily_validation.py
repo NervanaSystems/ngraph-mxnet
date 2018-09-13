@@ -101,6 +101,13 @@ if (os.environ.get('TEST_MX_NG_RESNET_LR_STEP_EPOCHS') != ''):
 else:
     trainLrStepEpochs = '30,60'
 
+# TEST_MAKE_VARIABLES
+if (os.environ.get('TEST_MAKE_VARIABLES') != ''):
+    makeVars = os.environ.get('TEST_MAKE_VARIABLES').strip()
+    print ("===== TEST_MAKE_VARIABLES : {}".format(makeVars))
+else:
+    makeVars = "USE_NGRAPH"
+
 # With NNP 
 trainWithNPP = os.environ.get('TEST_MX_NG_RESNET_WITH_NNP')
 
@@ -134,7 +141,8 @@ def test_resnet_i1k_daily_validation():
                                   trainEpochs = trainEpochs,
                                   trainLr = trainLr,
                                   trainLrStepEpochs = trainLrStepEpochs,
-                                  trainWithNPP = trainWithNPP)
+                                  trainWithNPP = trainWithNPP,
+                                  makeVars = makeVars)
     ngraphResults = processOutput(ngraphLog)
     
     lDir = None
