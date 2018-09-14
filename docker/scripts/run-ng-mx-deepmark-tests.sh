@@ -108,6 +108,10 @@ run_inference_topologies() {
     cmd="pytest -s docker/scripts/test_deepmark_sockeye_gnmt_inference.py --junit-xml=validation_test_deepmark_sockeye_gnmt_inference.xml --junit-prefix=inference_deepmark_sockeye_gnmt_cpu"
     eval $cmd
 
+    # Run ssd_512_mobilenet1_0_voc 
+    cmd="pytest -s docker/scripts/test_deepmark_ssd_512_mobilenet_inference.py --junit-xml=validation_test_deepmark_ssd_512_mobilenet_inference.xml --junit-prefix=inference_deepmark_ssd_512_mobilenet_cpu"
+    eval $cmd
+
     echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
 
 }  # run_inference_topologies()
