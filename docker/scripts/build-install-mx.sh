@@ -56,7 +56,7 @@ case "${MAKE_VARIABLES}" in
 		;;
 esac
 
-export LD_LIBRARY_PATH="${MX_DIR}/3rdparty/ngraph_bridge/build/lib"
+export LD_LIBRARY_PATH="${MX_DIR}/3rdparty/ngraph-mxnet-bridge/build/lib"
 echo ${LD_LIBRARY_PATH}
 
 echo "Verify the installation of Mxnet"
@@ -90,19 +90,19 @@ elif [ "${MAKE_VARIABLES}" == "USE_MKLDNN" ]; then
   		echo "Success to install MKLDNN."
   	fi
 
-  	if [ -d "${MX_DIR}/3rdparty/ngraph/install" ]; then
-  		( >&2 echo "FATAL ERROR: the directory 3rdparty/ngraph/install found in ${MX_DIR}/3rdparty/ngraph" )
+  	if [ -d "${MX_DIR}/3rdparty/ngraph-mxnet-bridge/install" ]; then
+  		( >&2 echo "FATAL ERROR: the directory 3rdparty/ngraph-mxnet-bridge/install found in ${MX_DIR}/3rdparty/ngraph-mxnet-bridge" )
   		exit 1
   	else
-  		echo "PASS. Directory 3rdparty/ngraph/install is not existed!"
+  		echo "PASS. Directory 3rdparty/ngraph-mxnet-bridge/install is not existed!"
   	fi
 else
 	if [ -f "./lib/libmkldnn.so" ] ; then
 		( >&2 echo "FATAL ERROR: libmkldnn.so should not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
 	fi
 
-  	if [ -d "${MX_DIR}/3rdparty/ngraph/install" ]; then
-  		( >&2 echo "FATAL ERROR: the directory 3rdparty/ngraph/install found in ${MX_DIR}/3rdparty/ngraph" )
+  	if [ -d "${MX_DIR}/3rdparty/ngraph-mxnet-bridge/install" ]; then
+  		( >&2 echo "FATAL ERROR: the directory 3rdparty/ngraph-mxnet-bridge/install found in ${MX_DIR}/3rdparty/ngraph-mxnet-bridge" )
   		exit 1
   	fi
 
