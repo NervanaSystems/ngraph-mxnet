@@ -19,6 +19,7 @@
 """Setup mxnet package."""
 from __future__ import absolute_import
 import os
+import platform
 import sys
 
 from setuptools import find_packages
@@ -30,7 +31,28 @@ if "--inplace" in sys.argv:
 else:
     from setuptools import setup
     from setuptools.extension import Extension
-    kwargs = {'install_requires': ['numpy<=1.15.0,>=1.8.2', 'requests<2.19.0,>=2.18.4', 'graphviz<0.9.0,>=0.8.1'], 'zip_safe': False}
+
+    # OS X High Sierra has a problem with numpy 1.15.0 and earlier in some environments.
+    # But it works fine with numpy 1.15.1.
+    def platform_is_osx():
+        return platform.uname()[0] == 'Darwin'
+
+    def get_osx_minor_version_num():
+        """
+        For example, the OS X version of Sierra is 10.12.x, and High Sierra is 10.13.x.
+        When running on High Sierra, this function returns 13.
+        """
+        osx_version_triple = platform.mac_ver()[0]
+        osx_major_str, osx_minor_str, osx_patch_str = osx_version_triple.split('.')
+        assert osx_major_str == '10'
+        return int(osx_minor_str)
+
+    if platform_is_osx() and (get_osx_minor_version_num() >= 13):
+        numpy_constraint = 'numpy>=1.15.1'
+    else:
+        numpy_constraint = 'numpy<=1.15.0,>=1.8.2'
+
+    kwargs = {'install_requires': [numpy_constraint, 'requests<2.19.0,>=2.18.4', 'graphviz<0.9.0,>=0.8.1'], 'zip_safe': False}
 
 with_cython = False
 if '--with-cython' in sys.argv:
