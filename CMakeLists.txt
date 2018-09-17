@@ -180,14 +180,31 @@ if(USE_NGRAPH AND NOT MSVC)
 
   include_directories(3rdparty/ngraph-mxnet-bridge/src)
   include_directories(${CMAKE_BINARY_DIR}/3rdparty/ngraph-mxnet-bridge/include)
-  
+
   add_definitions(-DMXNET_USE_NGRAPH=1)
-  
-  list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libngraph.so)
-  list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libmkldnn.so)
-  list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libiomp5.so)
-  list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libmklml_intel.so)
-  list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libcpu_backend.so)
+
+  # The following libraries collectively provide the symbols required by the
+  # MXnet-nGraph bridge code at static-link time.
+  #
+  # NOTE: nGraph loads individual backends as-needed at runtime (using 'dlopen'),
+  # and so one might assume that `libcpu_backend` is not needed during static-link
+  # time.  However, it provides some symbols required by other backend-agnostic
+  # code.
+  if (CMAKE_HOST_APPLE)
+      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libngraph.dylib)
+      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libmkldnn.dylib)
+      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libiomp5.dylib)
+      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libmklml.dylib)
+      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libcpu_backend.dylib)
+  elseif (UNIX AND NOT APPLE)
+      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libngraph.so)
+      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libmkldnn.so)
+      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libiomp5.so)
+      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libmklml_intel.so)
+      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libcpu_backend.so)
+  else()
+      message(FATAL_ERROR "Not sure how to handle this operating system.")
+  endif()
 endif()
 
 if(USE_GPROF)
