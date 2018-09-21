@@ -116,6 +116,10 @@ run_inference_topologies() {
     cmd="pytest -s docker/scripts/test_deepmark_ssd_inference.py --junit-xml=validation_test_deepmark_ssd_inference.xml --junit-prefix=inference_deepmark_ssd_cpu"
     eval $cmd
 
+    # Run mask_rcnn_resnet50_v1b_coco
+    cmd="pytest -s docker/scripts/test_deepmark_mask_rcnn_resnet50_gluoncv_inference.py --junit-xml=validation_test_deepmark_mask_rcnn_resnet50_gluonvc_inference.xml --junit-prefix=inference_deepmark_mask_rcnn_resnet50_gluoncv_cpu"
+    eval $cmd
+
     echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
 
 }  # run_inference_topologies()
