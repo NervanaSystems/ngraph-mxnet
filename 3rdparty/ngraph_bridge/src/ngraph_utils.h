@@ -55,7 +55,20 @@ inline bool ngraph_log_viz() {
 inline bool ngraph_log_timer() {
   return dmlc::GetEnv("MXNET_NGRAPH_TIMER", false);
 }
-extern const bool ngraph_log_verbose_detail; 
+inline const std::unordered_set<std::string>& ngraph_filter_ops() {
+  static std::unordered_set<std::string> ops_filter;
+  if (!ops_filter.empty()) return ops_filter;
+  std::stringstream opsenv(
+      dmlc::GetEnv("MXNET_NGRAPH_OPS_DISABLE", std::string("")));
+  while (opsenv.good()) {
+    std::string s;
+    std::getline(opsenv, s, ',');
+    ops_filter.insert(s);
+  }
+
+  return ops_filter;
+}
+extern const bool ngraph_log_verbose_detail;
 
 // simple timer for sequential blocks of code
 class Timer {

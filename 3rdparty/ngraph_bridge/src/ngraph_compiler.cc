@@ -471,7 +471,7 @@ bool bad_type(const NodePtr& node) {
 
 bool Compiler::IsInNGraph(const NodePtr& node) {
   bool in_ngraph_ = false;
-  if (bad_type(node)) {
+  if (ngraph_filter_ops().count(node->operation_) || bad_type(node)) {
     return false;
   } else if (std::find_if(node->inputs_.begin(), node->inputs_.end(),
                           bad_type) != node->inputs_.end()) {
@@ -488,6 +488,7 @@ bool Compiler::IsInNGraph(const NodePtr& node) {
 // Check nodes in NGraph
 void Compiler::CheckInNgraph() {
   std::unordered_set<std::string> unsupported_op_names;
+  std::unordered_set<std::string> supported_op_names;
   for (const std::shared_ptr<ngraph_bridge::Node>& node : ngraph_.nodes_) {
     node->in_ngraph_ = IsInNGraph(node);
     if (!node->in_ngraph_) {
@@ -500,10 +501,17 @@ void Compiler::CheckInNgraph() {
         node->printOpDetails(std::cout);
         std::cout << std::endl;
       }
+    } else {
+      if (ngraph_log_verbose()) {
+        supported_op_names.insert(node->operation_);
+      }
     }
   }
   for (const auto& name : unsupported_op_names) {
     std::cout << "NGRAPH_BRIDGE: Unsupported Op: " << name << std::endl;
+  }
+  for (const auto& name : supported_op_names) {
+    std::cout << "NGRAPH_BRIDGE: Supported Op: " << name << std::endl;
   }
 }
 
