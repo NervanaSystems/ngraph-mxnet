@@ -52,13 +52,13 @@ run_inference_topologies() {
     export TEST_KMP_AFFINITY="${MX_NG_KMP_AFFINITY}"
     export TEST_DEEPMARK_TYPE="${MX_NG_DEEPMARK_TYPE}"
 
-    if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
+    #if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
         # Run the Faster-RCNN, --batch-size 1
-        cmd="pytest -s docker/scripts/test_deepmark_Faster_RCNN_inference.py --junit-xml=validation_test_deepmark_Faster_RCNN_inference.xml --junit-prefix=inference_deepmark_Faster_RCNN_cpu"
-        eval $cmd
-    else
-        echo "Faster-RCNN doesn't work with any --batch-size except 1."
-    fi
+    #    cmd="pytest -s docker/scripts/test_deepmark_Faster_RCNN_inference.py --junit-xml=validation_test_deepmark_Faster_RCNN_inference.xml --junit-prefix=inference_deepmark_Faster_RCNN_cpu"
+    #    eval $cmd
+    #else
+    #    echo "Faster-RCNN doesn't work with any --batch-size except 1."
+    #fi
 
     # Run the inception_v4
     #cmd="pytest -s docker/scripts/test_deepmark_inception_v4_inference.py --junit-xml=validation_test_deepmark_inception_v4_inference.xml --junit-prefix=inference_deepmark_inception_v4_cpu"

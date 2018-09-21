@@ -502,7 +502,7 @@ def runSDDMobileNetDeepMarkScript(sourceDir=None,
 
 # End: def runSDDMobileNetDeepMarkScript()
 
-def runSDDMobileNetDeepMarkScript(sourceDir=None,
+def runSSDDeepMarkScript(sourceDir=None,
                     script=None,          # Script to run
                    logID='',
                    ompNumThreads=None,
