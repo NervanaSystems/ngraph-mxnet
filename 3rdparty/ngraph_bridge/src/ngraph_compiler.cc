@@ -507,11 +507,11 @@ void Compiler::CheckInNgraph() {
       }
     }
   }
-  for (const auto& name : unsupported_op_names) {
-    std::cout << "NGRAPH_BRIDGE: Unsupported Op: " << name << std::endl;
-  }
   for (const auto& name : supported_op_names) {
     std::cout << "NGRAPH_BRIDGE: Supported Op: " << name << std::endl;
+  }
+  for (const auto& name : unsupported_op_names) {
+    std::cout << "NGRAPH_BRIDGE: Unsupported Op: " << name << std::endl;
   }
 }
 
