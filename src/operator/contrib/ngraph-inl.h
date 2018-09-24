@@ -30,6 +30,7 @@
 #include <ngraph_compiler.h>
 #include <ngraph_imperative.h>
 #include <ngraph_nnvm_ops.h>
+#include <ngraph_utils.h>
 
 #include <vector>
 
@@ -38,6 +39,9 @@
 
 namespace mxnet {
 namespace op {
+
+// when built with NGRAPH we use this subgraph by default
+static int ngraph_backend = setenv("MXNET_SUBGRAPH_BACKEND", "ngraph", 0);
 
 class SgNgraphSelector : public SubgraphSelector {
  public:
@@ -95,6 +99,11 @@ class SgNgraphProperty : public SubgraphProperty {
  public:
   static SubgraphPropertyPtr Create() {
     return std::make_shared<SgNgraphProperty>();
+    if (ngraph_backend != 0 && ngraph_bridge::ngraph_log_verbose_detail) {
+      std::cout
+          << "NGRAPH_BRIDGE: WARNING, failed to set MXNET_SUBGRAPH_BACKEND"
+          << std::endl;
+    }
   }
 
   bool NeedGraphAttrs() const override { return true; }

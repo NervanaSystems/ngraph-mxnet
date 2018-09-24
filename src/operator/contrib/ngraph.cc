@@ -259,8 +259,6 @@ NNVM_REGISTER_OP(_backward_ngraph_subgraph_op)
               mxnet::DispatchMode::kFComputeEx);
         });
 MXNET_REGISTER_SUBGRAPH_PROPERTY(ngraph, SgNgraphProperty);
-// when built with NGRAPH we use this subgraph by default
-static int ngraph_backend = setenv("MXNET_SUBGRAPH_BACKEND", "ngraph", 0);
 
 }  // namespace op
 }  // namespace mxnet
