@@ -278,7 +278,7 @@ core_logic: {
           timeout(time: max_time, unit: 'MINUTES') {
             utils.init_git()
             utils.docker_run('ubuntu_cpu', 'build_ubuntu_cpu_ngraph', false)
-            utils.pack_lib('mkldnn_cpu', mx_mkldnn_lib, true)
+            utils.pack_lib('ngraph_cpu', mx_ngraph_lib, true)
           }
         }
       }
