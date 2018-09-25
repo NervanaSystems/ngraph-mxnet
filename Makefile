@@ -16,7 +16,6 @@
 # under the License.
 
 .DEFAULT_GOAL := all
-
 ROOTDIR = $(CURDIR)
 TPARTYDIR = $(ROOTDIR)/3rdparty
 
