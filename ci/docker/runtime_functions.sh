@@ -769,6 +769,14 @@ unittest_ubuntu_tensorrt_gpu() {
     nosetests-3.4 $NOSE_COVERAGE_ARGUMENTS --with-xunit --xunit-file nosetests_trt_gpu.xml --verbose --nocapture tests/python/tensorrt/
 }
 
+unittest_ubuntu_cpu_ngraph() {
+    set -ex
+    export PYTHONPATH=./python/
+    export MXNET_STORAGE_FALLBACK_LOG_VERBOSE=0
+    export LD_LIBRARY_PATH=/work/mxnet/lib:$LD_LIBRARY_PATH
+    nosetests-3.4 $NOSE_COVERAGE_ARGUMENTS --with-xunit --xunit-file nosetests_unittest.xml --verbose tests/python/unittest -e "test_subgraph_exe" -e "test_make_subgraph" -e "test_monitor" -e "test_op_output_names_monitor"
+}
+
 # quantization gpu currently only runs on P3 instances
 # need to separte it from unittest_ubuntu_python2_gpu()
 unittest_ubuntu_python2_quantization_gpu() {

@@ -694,6 +694,21 @@ core_logic: {
         }
       }
     },
+    'Python3: nGraph CPU': {
+      node(NODE_LINUX_CPU) {
+        ws('workspace/build-ngraph-cpu') {
+          timeout(time: max_time, unit: 'MINUTES') {
+            try {
+              utils.unpack_and_init('ngraph_cpu', mx_ngraph_lib, true)
+              utils.docker_run('ubuntu_cpu', 'unittest_ubuntu_cpu_ngraph', false)
+              utils.publish_test_coverage()
+            } finally {
+              utils.collect_test_results_unix('nosetests_ngraph.xml', 'nosetests_python3_ngraph_cpu.xml')
+            }
+          }
+        }
+      }
+    },
     'Scala: CPU': {
       node(NODE_LINUX_CPU) {
         ws('workspace/ut-scala-cpu') {
