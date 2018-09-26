@@ -111,7 +111,7 @@ val_data = gluon.data.DataLoader(
 
 
 # build the generator
-netG = nn.Sequential()
+netG = nn.HybridSequential()
 with netG.name_scope():
     # input is Z, going into a convolution
     netG.add(nn.Conv2DTranspose(ngf * 8, 4, 1, 0, use_bias=False))
@@ -135,7 +135,7 @@ with netG.name_scope():
     # state size. (nc) x 64 x 64
 
 # build the discriminator
-netD = nn.Sequential()
+netD = nn.HybridSequential()
 with netD.name_scope():
     # input is (nc) x 64 x 64
     netD.add(nn.Conv2D(ndf, 4, 2, 1, use_bias=False))
@@ -161,6 +161,10 @@ loss = gluon.loss.SoftmaxCrossEntropyLoss()
 # initialize the generator and the discriminator
 netG.initialize(mx.init.Normal(0.02), ctx=ctx)
 netD.initialize(mx.init.Normal(0.02), ctx=ctx)
+
+# hybridize
+netG.hybridize()
+netD.hybridize()
 
 # trainer for the generator and the discriminator
 trainerG = gluon.Trainer(netG.collect_params(), 'adam', {'learning_rate': opt.lr, 'beta1': opt.beta1})
