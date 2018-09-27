@@ -45,6 +45,7 @@ static int ngraph_backend = setenv("MXNET_SUBGRAPH_BACKEND", "ngraph", 0);
 
 class SgNgraphSelector : public SubgraphSelector {
  public:
+  // Public methods to implement the subgraph selector API
   explicit SgNgraphSelector(ngraph_bridge::Compiler *compiler)
       : compiler_(compiler), valid(compiler_->get_node_map().size() > 0) {}
 
@@ -69,6 +70,9 @@ class SgNgraphSelector : public SubgraphSelector {
  private:
   ngraph_bridge::Compiler *compiler_;
   const bool valid;
+  // get_node is a utility function to translate NNVM Nodes to
+  // the IR nodes inside the ngraph_bridge::Compiler, this is
+  // primarily utilized to help determine nGraph support
   ngraph_bridge::NodePtr get_node(const nnvm::Node *n) {
     if (n) {
       auto &entry_map = compiler_->get_ngraph().entry_map_;
@@ -79,6 +83,9 @@ class SgNgraphSelector : public SubgraphSelector {
     }
     return nullptr;
   }
+  // is_node_selected queries the ngraph_bridge::Compiler to determine if both
+  // current and next NNVM nodes are supported by nGraph.
+  // This allows us to meld nGraph's analysis with PartitionGraph.
   bool is_node_selected(const nnvm::Node &n, const nnvm::Node *next = nullptr) {
     bool selected = false;
     if (!valid) return selected;
@@ -100,13 +107,13 @@ class SgNgraphProperty : public SubgraphProperty {
   static SubgraphPropertyPtr Create() {
     return std::make_shared<SgNgraphProperty>();
     if (ngraph_backend != 0 && ngraph_bridge::ngraph_log_verbose_detail) {
-      std::cout
-          << "NGRAPH_BRIDGE: WARNING, failed to set MXNET_SUBGRAPH_BACKEND"
-          << std::endl;
+      LOG(WARNING) << "NGRAPH_BRIDGE: failed to set MXNET_SUBGRAPH_BACKEND"
+                   << std::endl;
     }
   }
 
   bool NeedGraphAttrs() const override { return true; }
+  // Create a subgraph node based on a symbol
   nnvm::NodePtr CreateSubgraphNode(
       const nnvm::Symbol &sym, const int subgraph_id = 0) const override {
     nnvm::NodePtr n = nnvm::Node::Create();
@@ -115,7 +122,9 @@ class SgNgraphProperty : public SubgraphProperty {
     n->attrs.subgraphs.push_back(std::make_shared<nnvm::Symbol>(sym));
     return n;
   }
-
+  // Create a subgraph node based on a graph with inferred shapes, types
+  // and storage types, then compile it with nGraph and store the
+  // ngraph_bridge::Compiler object in NNVM's node attributes for execution.
   nnvm::NodePtr CreateSubgraphNode(
       const nnvm::Graph &sg, const int subgraph_id = 0) const override {
     nnvm::Symbol sym;
@@ -127,7 +136,8 @@ class SgNgraphProperty : public SubgraphProperty {
     n->attrs.parsed = compiler;
     return n;
   }
-
+  // Create a Subgraph Selector with an embedded ngraph_bridge::Compiler for
+  // nGraph support analysis
   SubgraphSelectorPtr CreateSubgraphSelector() const override {
     if (!compiler_) {
       auto &orig_graph = GetAttr<nnvm::Graph>("graph");

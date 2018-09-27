@@ -7,11 +7,11 @@ Gluon support is experimental and may or may not yield good performance. Gluon-N
 integration can be enabled by setting the environmental variable `MXNET_NGRAPH_GLUON=1`
 
 ## Building with nGraph support
-MXnet's experimental support for the Intel nGraph graph compiler can be enabled
-using MXnet's build system. Current support is for Linux-based OS's, Mac and Windows
+MXNet's experimental support for the Intel nGraph graph compiler can be enabled
+using MXNet's build system. Current support is for Linux-based OS's, Mac and Windows
 support will be added in future releases.
 
-When building MXnet with experimental nGraph integration enabled, MXnet's build
+When building MXNet with experimental nGraph integration enabled, MXNet's build
 system builds its own copy of the nGraph-supplied libraries.  Upon successful
 completion of an nGraph-enabled build, these libraries and related symbolic links
 can be found in the same build directory as `libmxnet.so`.
@@ -35,4 +35,4 @@ nGraph-enabled MXNet software and supporting libraries.  Here is a partial list 
 | `MXNET_NGRAPH_VERBOSE_GRAPH` | When set to `1`, nGraph-enabled MXNet will create in the current directory a JSON file representing each subgraph being compiled by the nGraph library.  Each of these JSON files is a graph serialization that can be loaded by nGraph's `ngraph::deserialize`  functions. |
 
 ## Supported nGraph back-ends
-The nGraph library supports a number of backends, including `"CPU"`, `"INTERPETER"`, and `"GPU"`. Current experimental integration enables `"CPU"` backend by default. More backends will be supported in future releases.
+The nGraph library supports a number of hardware and software backends, including `"CPU"`, `"INTERPETER"` (reference kernels), `"GPU"`, and `"IntelGPU"`. Current experimental integration enables `"CPU"` backend by default. More backends will be supported in future releases.
