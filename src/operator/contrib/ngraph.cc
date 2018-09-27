@@ -43,7 +43,7 @@ std::shared_ptr<ngraph_bridge::Graph> get_ngraph(const NodeAttrs &attrs) {
 }
 
 class NgraphSubgraphOperator {
-public:
+ public:
   explicit NgraphSubgraphOperator(std::shared_ptr<ngraph_bridge::Graph> ngraph)
       : ngraph_(ngraph) {}
   void Forward(const OpContext &ctx, const std::vector<NDArray> &inputs,
@@ -53,7 +53,7 @@ public:
                 const std::vector<OpReqType> &req,
                 const std::vector<NDArray> &outputs);
 
-private:
+ private:
   std::shared_ptr<ngraph_bridge::Graph> ngraph_;
 };
 
@@ -93,9 +93,8 @@ void NgraphSubgraphOpBackward(const OpStatePtr &state_ptr, const OpContext &ctx,
   op.Backward(ctx, inputs, req, outputs);
 }
 
-std::vector<nnvm::NodeEntry>
-NgraphSubgraphGradient(const nnvm::NodePtr &n,
-                       const std::vector<nnvm::NodeEntry> &ograds) {
+std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
+    const nnvm::NodePtr &n, const std::vector<nnvm::NodeEntry> &ograds) {
   auto graph = get_ngraph(n->attrs);
   const bool zero_grad = check_zero_grad(graph);
   graph->zero_grad = zero_grad;
@@ -128,21 +127,21 @@ NgraphSubgraphGradient(const nnvm::NodePtr &n,
   return ret;
 }
 
-std::vector<std::string>
-NgraphSubgraphListNodeNames(const std::vector<ngraph_bridge::NodePtr> &nodes) {
+std::vector<std::string> NgraphSubgraphListNodeNames(
+    const std::vector<ngraph_bridge::NodePtr> &nodes) {
   std::vector<std::string> names;
   for (const auto &n : nodes) {
     names.emplace_back(n->name_);
   }
   return names;
 }
-std::vector<std::string>
-NgraphSubgraphListInputNames(const nnvm::NodeAttrs &attrs) {
+std::vector<std::string> NgraphSubgraphListInputNames(
+    const nnvm::NodeAttrs &attrs) {
   auto graph = get_ngraph(attrs);
   return NgraphSubgraphListNodeNames(graph->inputs_);
 }
-std::vector<std::string>
-NgraphSubgraphListOutputNames(const nnvm::NodeAttrs &attrs) {
+std::vector<std::string> NgraphSubgraphListOutputNames(
+    const nnvm::NodeAttrs &attrs) {
   auto graph = get_ngraph(attrs);
   return NgraphSubgraphListNodeNames(graph->outputs_);
 }
@@ -263,7 +262,7 @@ NNVM_REGISTER_OP(_backward_ngraph_subgraph_op)
                                  NgraphSubgraphBackwardInferStorageType);
 MXNET_REGISTER_SUBGRAPH_PROPERTY(ngraph, SgNgraphProperty);
 
-} // namespace op
-} // namespace mxnet
+}  // namespace op
+}  // namespace mxnet
 
-#endif // MXNET_USE_NGRAPH
+#endif  // MXNET_USE_NGRAPH
