@@ -494,10 +494,10 @@ build_ubuntu_cpu_ngraph() {
         -j$(nproc)
     cp lib/libmkldnn.so.0.* lib/libmkldnn.so.0.tmp
     mv lib/libmkldnn.so.0.tmp lib/libmkldnn.so.0
-    cp lib/libcpu_backend.so.0.7.0* lib/libcpu_backend.so.0.7.tmp
-    mv lib/libcpu_backend.so.0.7.tmp lib/libcpu_backend.so.0.7
-    cp lib/libngraph.so.0.7.0* lib/libngraph.so.0.7.tmp
-    mv lib/libngraph.so.0.7.tmp lib/libngraph.so.0.7
+    cp lib/libcpu_backend.so.0.8.0* lib/libcpu_backend.so.0.8.tmp
+    mv lib/libcpu_backend.so.0.8.tmp lib/libcpu_backend.so.0.8
+    cp lib/libngraph.so.0.8.0* lib/libngraph.so.0.8.tmp
+    mv lib/libngraph.so.0.8.tmp lib/libngraph.so.0.8
 }
 
 build_ubuntu_gpu() {
