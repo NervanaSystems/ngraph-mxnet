@@ -105,11 +105,11 @@ class SgNgraphSelector : public SubgraphSelector {
 class SgNgraphProperty : public SubgraphProperty {
  public:
   static SubgraphPropertyPtr Create() {
-    return std::make_shared<SgNgraphProperty>();
     if (ngraph_backend != 0 && ngraph_bridge::ngraph_log_verbose_detail) {
       LOG(WARNING) << "NGRAPH_BRIDGE: failed to set MXNET_SUBGRAPH_BACKEND"
                    << std::endl;
     }
+    return std::make_shared<SgNgraphProperty>();
   }
 
   bool NeedGraphAttrs() const override { return true; }
