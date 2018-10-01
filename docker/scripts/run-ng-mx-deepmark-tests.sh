@@ -60,7 +60,7 @@ run_inference_topologies() {
         echo "Faster-RCNN doesn't work with any --batch-size except 1."
     fi
 
-    # Run DeepSpeec 2
+    # Run DeepSpeed 2
     cmd="pytest -s docker/scripts/test_deepmark_deepspeed_inference.py --junit-xml=validation_test_deepmark_deepspeed_inference.xml --junit-prefix=inference_deepmark_deepspeed"
     eval $cmd
 
