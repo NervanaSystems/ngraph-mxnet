@@ -84,7 +84,8 @@ class SgNgraphSelector : public SubgraphSelector {
 
     selected = nn && nn->in_ngraph_;
     if (next) {
-      selected = selected && nnext->in_ngraph_;
+      selected =
+          selected && nnext->in_ngraph_ && nn->subgraph_ == nnext->subgraph_;
     }
     return selected;
   }
@@ -121,7 +122,7 @@ class SgNgraphProperty : public SubgraphProperty {
   SubgraphSelectorPtr CreateSubgraphSelector() const override {
     if (!compiler_) {
       auto &orig_graph = GetAttr<nnvm::Graph>("graph");
-      compiler_ = std::make_shared<ngraph_bridge::Compiler>(orig_graph);
+      compiler_ = std::make_shared<ngraph_bridge::Compiler>(orig_graph, true);
     }
     return std::make_shared<SgNgraphSelector>(compiler_.get());
   }
