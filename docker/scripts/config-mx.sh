@@ -31,13 +31,6 @@ cd build
 cmake ../
 make
 
-if [ ! -f "./build/libwarpctc.so" ] ; then
-  ( >&2 echo "FATAL ERROR: Can not found libwarpctc.so. Exiting ...." )
-  exit 1
-else
-   echo "Success to install warpctc."
-fi
-
 cd ${MX_DIR}
 #sed -e '/^USE_NGRAPH/s/.*/USE_NGRAPH = 1/' -e '/^USE_MKL2017/s/.*/USE_MKL2017 = 0/' -e '/^USE_NNPACK/s/.*/USE_NNPACK = 0/' -e "s@\(NGRAPH_DIR = *\)@\1 ${NGRAPH_DIR}@g" ${MX_DIR}/make/config.mk > ${MX_DIR}/make/config.mk.tmp
 echo "Updatind config.mk to enable WARP-CTC..."
