@@ -23,7 +23,6 @@ set -e
 declare SCRIPT_NAME="$(basename "${0}")"
 declare THIS_SCRIPT_DIR="$( cd $(dirname "${BASH_SOURCE[0]}") && pwd )"
 declare MX_DIR="$(cd "${THIS_SCRIPT_DIR}/../.." && pwd)"
-echo "=== MX_DIR = ${MX_DIR} "
 declare WARPCTC_DIR="${MX_DIR}/warp-ctc"
 cd ${WARPCTC_DIR}
 echo "Installing WARP-CTC..."
@@ -32,16 +31,18 @@ cd build
 cmake ../
 make  -j 
 
-echo "=== MX_DIR = ${MX_DIR} "
+rc=$?
+if [ $rc -ne 0 ];then
+    echo "Failed to build warp-ctc"
+    exit $rc
+fi
+
 cd ${MX_DIR}
 #sed -e '/^USE_NGRAPH/s/.*/USE_NGRAPH = 1/' -e '/^USE_MKL2017/s/.*/USE_MKL2017 = 0/' -e '/^USE_NNPACK/s/.*/USE_NNPACK = 0/' -e "s@\(NGRAPH_DIR = *\)@\1 ${NGRAPH_DIR}@g" ${MX_DIR}/make/config.mk > ${MX_DIR}/make/config.mk.tmp
 echo "Updatind config.mk to enable WARP-CTC..."
 echo "WARPCTC_PATH = ${WARPCTC_DIR}" >> ${MX_DIR}/make/config.mk 
 echo "MXNET_PLUGINS += plugin/warpctc/warpctc.mk" >> ${MX_DIR}/make/config.mk 
 
-cp ${MX_DIR}/warp-ctc/build/libwarpctc.so usr/lib
+export LD_LIBRARY_PATH=${WARPCTC_DIR}/build:${LD_LIBRARY_PATH}
 
-echo "=========== "
-cat ${MX_DIR}/make/config.mk 
-echo "=========== "
 echo "Success."
