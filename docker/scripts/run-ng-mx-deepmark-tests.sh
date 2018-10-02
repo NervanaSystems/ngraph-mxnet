@@ -52,8 +52,6 @@ run_inference_topologies() {
     export TEST_KMP_AFFINITY="${MX_NG_KMP_AFFINITY}"
     export TEST_DEEPMARK_TYPE="${MX_NG_DEEPMARK_TYPE}"
 
-    echo "LD_LIBRARY_PATH ======"
-    echo ${LD_LIBRARY_PATH}
     export LD_LIBRARY_PATH="${HOME}/ng-mx/warp-ctc/build"${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     echo "LD_LIBRARY_PATH 2 :======"
     echo ${LD_LIBRARY_PATH}
