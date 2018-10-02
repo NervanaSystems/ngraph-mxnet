@@ -61,10 +61,15 @@ run_inference_topologies() {
         echo "Faster-RCNN doesn't work with any --batch-size except 1."
     fi
 
-    # Run DeepSpeed 2
-    cmd="pytest -s docker/scripts/test_deepmark_deepspeed_inference.py --junit-xml=validation_test_deepmark_deepspeed_inference.xml --junit-prefix=inference_deepmark_deepspeed"
-    eval $cmd
-
+    ## Issue NGRAPH-2911
+    if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
+        # Run DeepSpeed 2
+        cmd="pytest -s docker/scripts/test_deepmark_deepspeed_inference.py --junit-xml=validation_test_deepmark_deepspeed_inference.xml --junit-prefix=inference_deepmark_deepspeed"
+        eval $cmd
+    else
+        echo "DeepSpeed 2 doesn't work with any --batch-size except 1."
+    fi
+    
     # Run the inception_v4
     cmd="pytest -s docker/scripts/test_deepmark_inception_v4_inference.py --junit-xml=validation_test_deepmark_inception_v4_inference.xml --junit-prefix=inference_deepmark_inception_v4_cpu"
     eval $cmd
