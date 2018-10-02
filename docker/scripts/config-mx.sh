@@ -30,7 +30,7 @@ echo "Installing WARP-CTC..."
 mkdir build
 cd build
 cmake ../
-make
+make  -j 
 
 echo "=== MX_DIR = ${MX_DIR} "
 cd ${MX_DIR}
@@ -38,6 +38,8 @@ cd ${MX_DIR}
 echo "Updatind config.mk to enable WARP-CTC..."
 echo "WARPCTC_PATH = ${WARPCTC_DIR}" >> ${MX_DIR}/make/config.mk 
 echo "MXNET_PLUGINS += plugin/warpctc/warpctc.mk" >> ${MX_DIR}/make/config.mk 
+
+cp ${MX_DIR}/warp-ctc/build/libwarpctc.so usr/lib
 
 echo "=========== "
 cat ${MX_DIR}/make/config.mk 
