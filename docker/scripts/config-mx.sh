@@ -44,6 +44,5 @@ echo "WARPCTC_PATH = ${WARPCTC_DIR}" >> ${MX_DIR}/make/config.mk
 echo "MXNET_PLUGINS += plugin/warpctc/warpctc.mk" >> ${MX_DIR}/make/config.mk 
 
 export LD_LIBRARY_PATH="${WARPCTC_DIR}/build"${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-echo ${LD_LIBRARY_PATH}
 
 echo "Success."
