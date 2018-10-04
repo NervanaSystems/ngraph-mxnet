@@ -26,7 +26,7 @@
 # JUnit XML files can be generated using pytest's command-line options.
 # For example:
 #
-#     $ pytest -s ./test_deepmark_deepspeed2_mod.py --junit-xml=../validation_deepmark_deepspeech2_mod.xml --junit-prefix=daily_validation_deepmark_deepspeech2_mod
+#     $ pytest -s ./test_deepmark_deepspeech.py --junit-xml=../validation_deepmark_deepspeech.xml --junit-prefix=daily_validation_deepmark_deepspeech
 
 import sys
 import os
@@ -78,12 +78,12 @@ benchmarkScriptPath = "benchmark.py"
 pythonProg = 'python'
 
 
-def test_deepmark_deepspeech2_mod_cpu_backend():
+def test_deepmark_deepspeech_cpu_backend():
     
     script = os.path.join(os.environ.get('TEST_DEEPMARK_LOG_DIR'), benchmarkScriptPath)
     VT.checkScript(script)
     # Run with NGraph CPU backend, saving timing and accuracy
-    ngraphLog = VT.runDS2MODDeepMarkScript(sourceDir=sourceDir,
+    ngraphLog = VT.runDSDeepMarkScript(sourceDir=sourceDir,
                                 logID=' nGraph',
                                 script=script,
                                 ompNumThreads=ompNumThreads,
@@ -98,24 +98,24 @@ def test_deepmark_deepspeech2_mod_cpu_backend():
     lDir = os.path.abspath(os.environ['TEST_DEEPMARK_LOG_DIR'])
 
     if (not checkAccurary):
-        VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_deepspeech2_mod_cpu_ngraph.log'))
-        VT.checkScript(os.path.join(lDir, 'test_deepmark_deepspeech2_mod_cpu_ngraph.log'))
+        VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_deepspeech_cpu_ngraph.log'))
+        VT.checkScript(os.path.join(lDir, 'test_deepmark_deepspeech_cpu_ngraph.log'))
     else:
-        VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_deepspeech2_mod_accuracy_cpu_ngraph.log'))
-        VT.checkScript(os.path.join(lDir, 'test_deepmark_deepspeech2_mod_accuracy_cpu_ngraph.log'))
-        assert VT.checkAccuracyResult(os.path.join(lDir, 'test_deepmark_deepspeech2_mod_accuracy_cpu_ngraph.log')) == True
+        VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_deepspeech_accuracy_cpu_ngraph.log'))
+        VT.checkScript(os.path.join(lDir, 'test_deepmark_deepspeech_accuracy_cpu_ngraph.log'))
+        assert VT.checkAccuracyResult(os.path.join(lDir, 'test_deepmark_deepspeech_accuracy_cpu_ngraph.log')) == True
 
-    #writeJenkinsDescription(ngraphLog, os.path.join(lDir, 'test_deepmark_deepspeech2_mod_jenkins_oneline.log'))
+    #writeJenkinsDescription(ngraphLog, os.path.join(lDir, 'test_deepmark_deepspeech_jenkins_oneline.log'))
 
 
-    print("----- Deepmark DeepSpeech 2 Mod Testing Summary ----------------------------------------")
+    print("----- Deepmark Deep Speech Testing Summary ----------------------------------------")
 
     summaryLog = None
     if lDir != None:
         if checkAccurary:
-            summaryLog = os.path.join(lDir, 'test_deepmark_deepspeech2_mod_accuracy_cpu_summary.log')
+            summaryLog = os.path.join(lDir, 'test_deepmark_deepspeech_accuracy_cpu_summary.log')
         else:
-            summaryLog = os.path.join(lDir, 'test_deepmark_deepspeech2_mod_cpu_summary.log')
+            summaryLog = os.path.join(lDir, 'test_deepmark_deepspeech_cpu_summary.log')
 
     logOut = VT.LogAndOutput(logFile=summaryLog)
 
@@ -129,7 +129,7 @@ def test_deepmark_deepspeech2_mod_cpu_backend():
     logOut.line("OMP_NUM_THREADS:       {} (fixed)".format(ompNumThreads))
     logOut.line("KMP_AFFINITY:       {} (fixed)".format(kmpAff))
 
-# End: test_deepmark_deepspeech2_mod_cpu_backend()
+# End: test_deepmark_deepspeech_cpu_backend()
 
 
 # Returns array of captured stdout/stderr lines, for post-processing
@@ -175,7 +175,7 @@ def writeJenkinsDescription(ngResults, fileName):
 
         fOut = open( fileName, 'w')
 
-        fOut.write("DeepSpeech2_mod type: {}\n\t{}".format(ngResults['command'],ngResults['one_line']))
+        fOut.write("DeepSpeech type: {}\n\t{}".format(ngResults['command'],ngResults['one_line']))
 
         fOut.close()
 
