@@ -127,7 +127,11 @@ run_inference_topologies() {
     eval $cmd
 
     # Comment out mask_rcnn_resnet50_v1b_coco due to NGRAPH-2821
-    cmd="pytest -s docker/scripts/test_deepmark_mask_rcnn_resnet50_gluoncv_inference.py --junit-xml=validation_test_deepmark_mask_rcnn_resnet50_gluonvc_inference.xml --junit-prefix=inference_deepmark_mask_rcnn_resnet50_gluoncv_cpu"
+    #cmd="pytest -s docker/scripts/test_deepmark_mask_rcnn_resnet50_gluoncv_inference.py --junit-xml=validation_test_deepmark_mask_rcnn_resnet50_gluonvc_inference.xml --junit-prefix=inference_deepmark_mask_rcnn_resnet50_gluoncv_cpu"
+    #eval $cmd
+
+    # Run deepspeed2_mod
+    cmd="pytest -s docker/scripts/test_deepmark_deepspeed2_mod_inference.py--junit-xml=validation_test_deepmark_deepspeed2_mod_inference.xml --junit-prefix=inference_deepmark_deepspeed2_mod_cpu"
     eval $cmd
 
     echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
