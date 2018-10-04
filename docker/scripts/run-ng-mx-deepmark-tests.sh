@@ -64,10 +64,10 @@ run_inference_topologies() {
     ## Issue NGRAPH-2911
     if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
         # Run DeepSpeed 2
-        cmd="pytest -s docker/scripts/test_deepmark_deepspeed_inference.py --junit-xml=validation_test_deepmark_deepspeed_inference.xml --junit-prefix=inference_deepmark_deepspeed"
+        cmd="pytest -s docker/scripts/test_deepmark_deepspeech_inference.py --junit-xml=validation_test_deepmark_deepspeech_inference.xml --junit-prefix=inference_deepmark_deepspeech"
         eval $cmd
     else
-        echo "DeepSpeed 2 doesn't work with any --batch-size except 1."
+        echo "DeepSpeech 2 doesn't work with any --batch-size except 1."
     fi
     
     # Run the inception_v4
@@ -127,7 +127,11 @@ run_inference_topologies() {
     eval $cmd
 
     # Comment out mask_rcnn_resnet50_v1b_coco due to NGRAPH-2821
-    cmd="pytest -s docker/scripts/test_deepmark_mask_rcnn_resnet50_gluoncv_inference.py --junit-xml=validation_test_deepmark_mask_rcnn_resnet50_gluonvc_inference.xml --junit-prefix=inference_deepmark_mask_rcnn_resnet50_gluoncv_cpu"
+    #cmd="pytest -s docker/scripts/test_deepmark_mask_rcnn_resnet50_gluoncv_inference.py --junit-xml=validation_test_deepmark_mask_rcnn_resnet50_gluonvc_inference.xml --junit-prefix=inference_deepmark_mask_rcnn_resnet50_gluoncv_cpu"
+    #eval $cmd
+
+    # Run deepspeech2_mod
+    cmd="pytest -s docker/scripts/test_deepmark_deepspeech2_mod_inference.py--junit-xml=validation_test_deepmark_deepspeech2_mod_inference.xml --junit-prefix=inference_deepmark_deepspeech2_mod_cpu"
     eval $cmd
 
     echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
