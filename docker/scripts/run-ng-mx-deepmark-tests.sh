@@ -131,7 +131,7 @@ run_inference_topologies() {
     #eval $cmd
 
     # Run deepspeech2_mod
-    cmd="pytest -s docker/scripts/test_deepmark_deepspeech2_mod_inference.py--junit-xml=validation_test_deepmark_deepspeech2_mod_inference.xml --junit-prefix=inference_deepmark_deepspeech2_mod_cpu"
+    cmd="pytest -s docker/scripts/test_deepmark_deepspeech2_mod_inference.py --junit-xml=validation_test_deepmark_deepspeech2_mod_inference.xml --junit-prefix=inference_deepmark_deepspeech2_mod_cpu"
     eval $cmd
 
     echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
