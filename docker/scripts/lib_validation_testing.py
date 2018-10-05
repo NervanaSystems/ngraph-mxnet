@@ -362,6 +362,62 @@ def runBenchmarkScoreScript(script=None,          # Script to run
 
 # End: def runBenchmarkScoreScript()
 
+def runDSDeepMarkScript(sourceDir=None,
+                    script=None,          # Script to run
+                   logID='',
+                   ompNumThreads=None,
+                   kmpAff=None,
+                   kmpBlocktime=None,
+                   batchsize=None,
+                   checkAccurary=None):            # Log line prefix
+
+    print("DeepMark script being run with:")
+    print("    script:         {}".format(str(script)))
+    print("    logID:          {}".format(str(logID)))
+
+    print("Setting up run in nGraph environment")
+    print("The Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
+    process = subprocess.check_output(["which python"],shell=True)
+    python_lib = process.decode('utf-8').split()[0]
+    if checkAccurary:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network DeepSpeech2 --batch-size {} --accuracy-check".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference accuracy is: {}".format(cmd))
+    else:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network DeepSpeech2 --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference performance is: {}".format(cmd))
+    runLog = runCommand(command=cmd, logID=logID)
+    return runLog
+
+# End: def runDSDeepMarkScript()
+
+def runDS2MODDeepMarkScript(sourceDir=None,
+                    script=None,          # Script to run
+                   logID='',
+                   ompNumThreads=None,
+                   kmpAff=None,
+                   kmpBlocktime=None,
+                   batchsize=None,
+                   checkAccurary=None):            # Log line prefix
+
+    print("DeepMark script being run with:")
+    print("    script:         {}".format(str(script)))
+    print("    logID:          {}".format(str(logID)))
+
+    print("Setting up run in nGraph environment")
+    print("The Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
+    process = subprocess.check_output(["which python"],shell=True)
+    python_lib = process.decode('utf-8').split()[0]
+    if checkAccurary:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network DeepSpeech2-mod --batch-size {} --accuracy-check".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference accuracy is: {}".format(cmd))
+    else:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network DeepSpeech2-mod --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference performance is: {}".format(cmd))
+    runLog = runCommand(command=cmd, logID=logID)
+    return runLog
+
+# End: def runDS2MODDeepMarkScript()
+
 def runInceptionV4Script(sourceDir=None,
                     script=None,          # Script to run
                    logID='',

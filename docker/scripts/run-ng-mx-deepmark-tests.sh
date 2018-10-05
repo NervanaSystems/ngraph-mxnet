@@ -51,6 +51,7 @@ run_inference_topologies() {
     export TEST_BATCH_SIZE="${MX_NG_BATCH_SIZE}"
     export TEST_KMP_AFFINITY="${MX_NG_KMP_AFFINITY}"
     export TEST_DEEPMARK_TYPE="${MX_NG_DEEPMARK_TYPE}"
+    export LD_LIBRARY_PATH="${HOME}/ng-mx/warp-ctc/build"${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 
     if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
         # Run the Faster-RCNN, --batch-size 1
@@ -60,6 +61,15 @@ run_inference_topologies() {
         echo "Faster-RCNN doesn't work with any --batch-size except 1."
     fi
 
+    ## Issue NGRAPH-2911
+    if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
+        # Run DeepSpeed 2
+        cmd="pytest -s docker/scripts/test_deepmark_deepspeech_inference.py --junit-xml=validation_test_deepmark_deepspeech_inference.xml --junit-prefix=inference_deepmark_deepspeech"
+        eval $cmd
+    else
+        echo "DeepSpeech 2 doesn't work with any --batch-size except 1."
+    fi
+    
     # Run the inception_v4
     cmd="pytest -s docker/scripts/test_deepmark_inception_v4_inference.py --junit-xml=validation_test_deepmark_inception_v4_inference.xml --junit-prefix=inference_deepmark_inception_v4_cpu"
     eval $cmd
@@ -119,6 +129,10 @@ run_inference_topologies() {
     # Comment out mask_rcnn_resnet50_v1b_coco due to NGRAPH-2821
     #cmd="pytest -s docker/scripts/test_deepmark_mask_rcnn_resnet50_gluoncv_inference.py --junit-xml=validation_test_deepmark_mask_rcnn_resnet50_gluonvc_inference.xml --junit-prefix=inference_deepmark_mask_rcnn_resnet50_gluoncv_cpu"
     #eval $cmd
+
+    # Run deepspeech2_mod
+    cmd="pytest -s docker/scripts/test_deepmark_deepspeech2_mod_inference.py--junit-xml=validation_test_deepmark_deepspeech2_mod_inference.xml --junit-prefix=inference_deepmark_deepspeech2_mod_cpu"
+    eval $cmd
 
     echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
 
