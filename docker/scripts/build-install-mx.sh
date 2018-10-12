@@ -43,7 +43,7 @@ case "${MAKE_VARIABLES}" in
 	USE_CUDA)
 		#make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=1 DEBUG=0 -j $(nproc)
 		echo "Building MXnet with experimental nGraph distributed support enabled. Engine: GPU"
-		echo "TODO"
+		make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0 USE_CUDA=1 DEBUG=0 USE_NGRAPH_GPU=1 USE_CUDNN=1 USE_CUDA_PATH=/usr/local/cuda -j $(nproc)
 		break
 		;;
 	USE_MKLDNN)
