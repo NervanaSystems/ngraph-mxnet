@@ -1608,11 +1608,11 @@ Executor *Executor::SimpleBind(nnvm::Symbol symbol,
                                Executor* shared_exec) {
   auto exec = new exec::GraphExecutor();
   if (!exec->subgraph_property().empty() && group2ctx.empty()) {
-    if (group2ctx.empty())
-      LOG(WARNING) << "MXNET_SUBGRAPH_BACKEND does not currently support heterogeneous execution";
     symbol = exec::PartitionGraph(symbol, exec->subgraph_property(), arg_shape_map, arg_dtype_map,
                                   arg_stype_map, default_ctx, group2ctx, in_arg_ctxes,
                                   aux_state_ctxes);
+  } else if (!group2ctx.empty()) {
+    LOG(WARNING) << "MXNET_SUBGRAPH_BACKEND does not currently support heterogeneous execution";
   }
   exec->Init(symbol, default_ctx, group2ctx,
              in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes,
@@ -1633,11 +1633,14 @@ Executor *Executor::Bind(nnvm::Symbol symbol,
                          Executor* shared_exec) {
   auto exec = new exec::GraphExecutor();
   std::vector<NDArray> tmp_in_args = in_args;
-  if (!exec->subgraph_property().empty() && group2ctx.empty()) {
-    if (group2ctx.empty())
-      LOG(WARNING) << "MXNET_SUBGRAPH_BACKEND does not currently support heterogeneous execution";
-    symbol = exec::PartitionGraph(symbol, exec->subgraph_property(), in_args, aux_states,
+  if (!exec->subgraph_property().empty()) {
+    if (group2ctx.empty()) {
+      symbol = exec::PartitionGraph(symbol, exec->subgraph_property(), &tmp_in_args, aux_states,
                                   default_ctx, group2ctx);
+    }
+    else {
+      LOG(WARNING) << "MXNET_SUBGRAPH_BACKEND does not currently support heterogeneous execution";
+    }
   }
   exec->Init(symbol, default_ctx, group2ctx,
              tmp_in_args, arg_grad_store, grad_req_type, aux_states,
