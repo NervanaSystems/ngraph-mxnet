@@ -28,6 +28,7 @@
 #include <ngraph_imperative.h>
 #include <ngraph_graph.h>
 #include <ngraph_nnvm_ops.h>
+#include <ngraph_sgcompiler_utils.h>
 
 #include "./ngraph-inl.h"
 #include "../subgraph/common.h"
@@ -113,7 +114,7 @@ std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
     p->op()->attr_parser(&(p->attrs));
   }
   if (!zero_grad) {
-    for (size_t i = 0; i < ograds.size(); ++i) {
+    for (size_t i = 0; i < graph->num_adjoints_; ++i) {
       if (!is_loss[i]) {
         p->inputs.push_back(ograds[i]);
       }
@@ -121,6 +122,10 @@ std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
   }
   p->inputs.insert(p->inputs.end(), n->inputs.begin(), n->inputs.end());
   std::vector<nnvm::NodeEntry> ret;
+  for (unsigned i = graph->outputs_.size();
+       i < graph->fprop_cache->fprop->get_results().size(); ++i) {
+    p->inputs.emplace_back(nnvm::NodeEntry{n, i, 0});
+  }
   for (unsigned i = 0; i < p->num_outputs(); ++i) {
     ret.emplace_back(nnvm::NodeEntry{p, i, 0});
   }
@@ -135,8 +140,13 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
     })
     .set_num_outputs([](const NodeAttrs& attrs) {
       auto graph = get_ngraph(attrs);
-      return graph->outputs_.size();
+      return graph->fprop_cache->fprop->get_results().size();
     })
+    .set_attr<nnvm::FNumVisibleOutputs>("FNumVisibleOutputs",
+                                        [](const NodeAttrs& attrs) {
+                                          auto graph = get_ngraph(attrs);
+                                          return graph->outputs_.size();
+                                        })
     .set_attr<nnvm::FListInputNames>("FListInputNames",
                                      [](const nnvm::NodeAttrs& attrs) {
                                        auto graph = get_ngraph(attrs);
@@ -174,8 +184,9 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
             (*in_attrs)[i] = graph->inputs_[i]->shape_;
           }
           std::vector<nnvm::TShape> shapes;
-          for (auto output : graph->outputs_) {
-            shapes.push_back(output->shape_);
+          for (auto output : graph->fprop_cache->fprop->get_results()) {
+            shapes.push_back(
+                ngraph_bridge::NShape_to_TShape(output->get_shape()));
           }
           (*out_attrs) = shapes;
           return true;
@@ -189,8 +200,9 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
             (*iattr)[i] = graph->inputs_[i]->dtype_;
           }
           std::vector<int> dtypes;
-          for (auto output : graph->outputs_) {
-            dtypes.push_back(output->dtype_);
+          for (auto output : graph->fprop_cache->fprop->get_results()) {
+            dtypes.push_back(
+                ngraph_bridge::getType(output->get_element_type()));
           }
           for (size_t i = 0; i < dtypes.size(); ++i) {
             mxnet::op::type_assign(&((*oattr)[i]), dtypes[i]);
@@ -236,7 +248,7 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
 NNVM_REGISTER_OP(_backward_ngraph_subgraph_op)
     .set_num_inputs([](const NodeAttrs& attrs) {
       auto graph = get_ngraph(attrs);
-      return graph->num_adjoints_ + graph->inputs_.size();
+      return graph->fprop_cache->fprop->get_results().size();
     })
     .set_num_outputs([](const NodeAttrs& attrs) {
       auto graph = get_ngraph(attrs);
