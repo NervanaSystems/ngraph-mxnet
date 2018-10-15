@@ -188,6 +188,39 @@ bool NgraphSubgraphInferType(const nnvm::NodeAttrs &attrs,
   }
   return true;
 }
+
+bool NgraphSubgraphBackwardInferShape(const nnvm::NodeAttrs &attrs,
+                              std::vector<nnvm::TShape> *in_attrs,
+                              std::vector<nnvm::TShape> *out_attrs) {
+  auto graph = get_ngraph(attrs);
+
+  std::vector<nnvm::TShape> in_shapes;
+  for (const auto& input : graph->fprop_cache->bprop->get_parameters()) {
+    in_shapes.push_back(ngraph_bridge::NShape_to_TShape(input->get_shape()));
+  }
+  (*in_attrs) = in_shapes;
+
+  for (size_t i = 0; i < graph->inputs_.size(); ++i) {
+    (*out_attrs)[i] = graph->inputs_[i]->shape_;
+  }
+  return true;
+}
+bool NgraphSubgraphBackwardInferType(const nnvm::NodeAttrs &attrs,
+                             std::vector<int> *iattr, std::vector<int> *oattr) {
+  auto graph = get_ngraph(attrs);
+  for (size_t i = 0; i < graph->inputs_.size(); ++i) {
+    (*oattr)[i] = graph->inputs_[i]->dtype_;
+  }
+  std::vector<int> dtypes;
+  for (const auto& output : graph->fprop_cache->fprop->get_results()) {
+    dtypes.push_back(ngraph_bridge::getType(output->get_element_type()));
+  }
+  for (size_t i = 0; i < dtypes.size(); ++i) {
+    mxnet::op::type_assign(&((*iattr)[i]), dtypes[i]);
+  }
+  return true;
+}
+
 bool NgraphSubgraphInferStorageType(const nnvm::NodeAttrs &attrs,
                                     const int dev_mask,
                                     mxnet::DispatchMode *dispatch_mode,
@@ -260,16 +293,18 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
 NNVM_REGISTER_OP(_backward_ngraph_subgraph_op)
     .set_num_inputs([](const NodeAttrs &attrs) {
       auto graph = get_ngraph(attrs);
-      return graph->num_adjoints_ + graph->inputs_.size();
+      return graph->fprop_cache->bprop->get_parameters().size();
     })
     .set_num_outputs([](const NodeAttrs &attrs) {
       auto graph = get_ngraph(attrs);
-      return graph->inputs_.size();
+      return graph->fprop_cache->bprop->get_results().size();
     })
     .set_attr<bool>("TIsBackward", true)
     .set_attr<bool>("TIsLayerOpBackward", true)
     .set_attr<FStatefulComputeEx>("FStatefulComputeEx<cpu>",
                                   NgraphSubgraphOpBackward)
+    // .set_attr<nnvm::FInferShape>("FInferShape", NgraphSubgraphBackwardInferShape)
+    // .set_attr<nnvm::FInferType>("FInferType", NgraphSubgraphBackwardInferType)
     .set_attr<FInferStorageType>("FInferStorageType",
                                  NgraphSubgraphBackwardInferStorageType);
 MXNET_REGISTER_SUBGRAPH_PROPERTY(ngraph, SgNgraphProperty);
