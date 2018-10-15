@@ -41,7 +41,12 @@ echo " MAKE_VARIABLES= ${MAKE_VARIABLES}"
 # Note that the docker image must have been previously built using the
 # make-docker-mx-ngraph-base.sh script (in the same directory as this script).
 
-IMAGE_NAME='ngmx_ci'
+if [[ ${MAKE_VARIABLES} == "USE_CUDA" ]]; then
+    IMAGE_NAME='ngmx_ci_gpu'
+else
+    IMAGE_NAME='ngmx_ci'
+fi
+
 IMAGE_ID="${1}"
 if [ -z "${IMAGE_ID}" ] ; then
     echo 'Missing an image version as the only argument. Exitting ...'
