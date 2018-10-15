@@ -96,8 +96,8 @@ elif [ "${MAKE_VARIABLES}" == "USE_MKLDNN" ]; then
   		echo "PASS. Directory 3rdparty/ngraph-mxnet-bridge/install is not existed!"
   	fi
 else
-	if [ -f "./lib/libmkldnn.so" ] ; then
-		( >&2 echo "FATAL ERROR: libmkldnn.so should not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
+	if [ ! -f "./lib/libngraph.so" ] ; then
+		( >&2 echo "FATAL ERROR: libngraph.so should not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
 	fi
 
   	if [ -d "${MX_DIR}/3rdparty/ngraph-mxnet-bridge/install" ]; then
