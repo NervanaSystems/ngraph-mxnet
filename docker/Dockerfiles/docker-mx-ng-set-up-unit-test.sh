@@ -33,7 +33,12 @@ echo " PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
 # Note that the docker image must have been previously built using the
 # make-docker-mx-ngraph-base.sh script (in the same directory as this script).
 
-IMAGE_NAME='ngmx_ci'
+if [[ ${MAKE_VARIABLES} == "USE_CUDA" ]]; then
+    IMAGE_NAME='ngmx_ci_gpu'
+else
+    IMAGE_NAME='ngmx_ci'
+fi
+
 IMAGE_ID="${1}"
 if [ -z "${IMAGE_ID}" ] ; then
     echo 'Missing an image version as the only argument. Exitting ...'
@@ -52,6 +57,7 @@ docker run --rm \
        --env RUN_UID="$(id -u)" \
        --env RUN_CMD='/home/dockuser/ng-mx/docker/scripts/set-up-unit-test.sh' \
        --env PYTHON_VERSION_NUMBER="${PYTHON_VERSION_NUMBER}" \
+       --env MAKE_VARIABLES="${MAKE_VARIABLES}" \
        --env http_proxy=http://proxy-fm.intel.com:911 \
        --env https_proxy=http://proxy-fm.intel.com:912 \
        -v "${ngraph_mx_dir}:/home/dockuser/ng-mx" \
