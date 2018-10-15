@@ -121,6 +121,12 @@ std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
     }
   }
   p->inputs.insert(p->inputs.end(), n->inputs.begin(), n->inputs.end());
+  int mode = static_cast<int>(ngraph_bridge::GraphExeMode::kTrain);
+  for (unsigned i =
+           graph->outputs_.size() + graph->cached_aux_positions[mode].size();
+       i < graph->fprop_cache->fprop->get_results().size(); ++i) {
+    p->inputs.emplace_back(nnvm::NodeEntry{n, i, 0});
+  }
   std::vector<nnvm::NodeEntry> ret;
   for (unsigned i = 0; i < p->num_outputs(); ++i) {
     ret.emplace_back(nnvm::NodeEntry{p, i, 0});
@@ -161,8 +167,8 @@ bool NgraphSubgraphInferShape(const nnvm::NodeAttrs &attrs,
     (*in_attrs)[i] = graph->inputs_[i]->shape_;
   }
   std::vector<nnvm::TShape> shapes;
-  for (auto output : graph->outputs_) {
-    shapes.push_back(output->shape_);
+  for (const auto& output : graph->fprop_cache->fprop->get_results()) {
+    shapes.push_back(ngraph_bridge::NShape_to_TShape(output->get_shape()));
   }
   (*out_attrs) = shapes;
   return true;
@@ -174,8 +180,8 @@ bool NgraphSubgraphInferType(const nnvm::NodeAttrs &attrs,
     (*iattr)[i] = graph->inputs_[i]->dtype_;
   }
   std::vector<int> dtypes;
-  for (auto output : graph->outputs_) {
-    dtypes.push_back(output->dtype_);
+  for (const auto& output : graph->fprop_cache->fprop->get_results()) {
+    dtypes.push_back(ngraph_bridge::getType(output->get_element_type()));
   }
   for (size_t i = 0; i < dtypes.size(); ++i) {
     mxnet::op::type_assign(&((*oattr)[i]), dtypes[i]);
@@ -228,8 +234,13 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
     })
     .set_num_outputs([](const NodeAttrs &attrs) {
       auto graph = get_ngraph(attrs);
-      return graph->outputs_.size();
+      return graph->fprop_cache->fprop->get_results().size();
     })
+    .set_attr<nnvm::FNumVisibleOutputs>("FNumVisibleOutputs",
+                                        [](const NodeAttrs& attrs) {
+                                          auto graph = get_ngraph(attrs);
+                                          return graph->outputs_.size();
+                                        })
     .set_attr<nnvm::FListInputNames>("FListInputNames",
                                      NgraphSubgraphListInputNames)
     .set_attr<nnvm::FListOutputNames>("FListOutputNames",
