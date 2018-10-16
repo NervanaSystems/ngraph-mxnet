@@ -37,10 +37,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV CUDNN_VERSION 7.2.1.38
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends --allow-change-held-packages \
             libcudnn7=$CUDNN_VERSION-1+cuda9.2 \
             libcudnn7-dev=$CUDNN_VERSION-1+cuda9.2 && \
-    sudo apt-mark hold libcudnn7 && \
+    apt-mark hold libcudnn7 && \
     rm -rf /var/lib/apt/lists/*
 
 RUN echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf && \
