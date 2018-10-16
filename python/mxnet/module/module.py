@@ -23,6 +23,7 @@ more `Executor` for data parallelization.
 
 import logging
 import warnings
+import sys
 
 from .. import context as ctx
 from .. import optimizer as opt
@@ -156,6 +157,9 @@ class Module(BaseModule):
         sym, args, auxs = load_checkpoint(prefix, epoch)
         mod = Module(symbol=sym, **kwargs)
         mod._arg_params = args
+        print("### Mod load")
+        for name, arr in sorted(self._arg_params.items()):
+            print(name, arr)
         mod._aux_params = auxs
         mod.params_initialized = True
         if load_optimizer_states:
@@ -305,6 +309,8 @@ class Module(BaseModule):
 
         attrs = self._symbol.attr_dict()
         for name, arr in sorted(self._arg_params.items()):
+            print(name, arr)
+        for name, arr in sorted(self._arg_params.items()):
             desc = InitDesc(name, attrs.get(name, None))
             _impl(desc, arr, arg_params)
 
@@ -419,6 +425,7 @@ class Module(BaseModule):
         else:
             shared_group = None
 
+        print("#### BEFORE EXEC GROUP")
         self._exec_group = DataParallelExecutorGroup(self._symbol, self._context,
                                                      self._work_load_list, self._data_shapes,
                                                      self._label_shapes, self._param_names,
@@ -427,6 +434,9 @@ class Module(BaseModule):
                                                      fixed_param_names=self._fixed_param_names,
                                                      grad_req=grad_req, group2ctxs=self._group2ctxs,
                                                      state_names=self._state_names)
+                                                     
+        print("#### AFTER EXEC GROUP")
+        # sys.exit(0)
         self._total_exec_bytes = self._exec_group._total_exec_bytes
         if shared_module is not None:
             self.params_initialized = True

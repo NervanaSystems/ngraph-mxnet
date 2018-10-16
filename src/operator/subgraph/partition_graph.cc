@@ -46,7 +46,7 @@ using nnvm::NodePtr;
 using nnvm::NodeEntry;
 using nnvm::Graph;
 
-#define DEBUG_SUBGRAPH 0
+#define DEBUG_SUBGRAPH 1
 
 namespace sg {  // sg stands for subgraph
 
@@ -91,7 +91,9 @@ void PrintNodeEntry(const nnvm::NodeEntry& entry) {
 }
 
 void PrintNodeEntries(const std::vector<nnvm::NodeEntry*>& entries) {
+  std::cout << "Num entries: " << entries.size() << std::endl;
   for (size_t i = 0; i < entries.size(); ++i) {
+    std::cout << i << ": ";
     PrintNodeEntry(*entries[i]);
   }
 }
@@ -643,7 +645,7 @@ nnvm::Graph InferSubgraphAttrs(
   auto oshapes = g->GetAttr<nnvm::ShapeVector>("shape");
   auto odtypes = g->GetAttr<nnvm::DTypeVector>("dtype");
   auto ostypes = g->GetAttr<mxnet::StorageTypeVector>("storage_type");
-
+ 
   exec::ContextVector contexts(idx_g.num_nodes(), orig_ctx[0]);
   nnvm::ShapeVector shapes(num_nodes);
   nnvm::DTypeVector types(num_nodes, -1);
@@ -659,6 +661,7 @@ nnvm::Graph InferSubgraphAttrs(
     }
   });
 
+  std::cout << "### INFER SUBGRAPH ATTR" << std::endl;
   const auto &input_nids = idx_g.input_nodes();
   for (size_t i = 0; i < input_nids.size(); i++) {
     auto nid = input_nids[i];
@@ -680,6 +683,11 @@ nnvm::Graph InferSubgraphAttrs(
     shapes[eid] = oshapes[oeid];
     types[eid] = odtypes[oeid];
     stypes[eid] = ostypes[oeid];
+    std::cout << "node[" << i << "]: " << idx_og[onid].source->attrs.name << std::endl; 
+    for (size_t j = 0; j < idx_og[onid].source->num_outputs(); ++j) {
+      uint32_t oeid = idx_og.entry_id(onid, j);
+      std::cout << "  output " << j << " shape: <" << oeid << "> " << oshapes[oeid] << std::endl; 
+    }
   }
 
   sg.attrs["context"] = std::make_shared<dmlc::any>(std::move(contexts));
@@ -711,13 +719,14 @@ void CreateSubgraphNode(Graph* g,
                         std::unordered_map<const nnvm::Node*, nnvm::Symbol>* subgraphs,
                         std::unordered_map<const nnvm::NodeEntry*, size_t>* entry_top_order_map) {
 #if DEBUG_SUBGRAPH
-  LOG(INFO) << "Searching for input entries...";
+  LOG(INFO) << "### Subgraph " << subgraph_id << " Searching for input entries...";
 #endif
   std::vector<nnvm::NodeEntry*> input_entries;
   FindInputEntries(*g, simple_nodes, subgraph_nodes, *entry_top_order_map, &input_entries);
   std::vector<nnvm::NodeEntry> orig_input_entries;
   CutGraphInputs(input_entries, &orig_input_entries, false);
 #if DEBUG_SUBGRAPH
+  std::cout << "### INPUT ENTRIES" << std::endl;
   PrintNodeEntries(input_entries);
   LOG(INFO) << "Searching for output entries...";
 #endif
@@ -730,7 +739,7 @@ void CreateSubgraphNode(Graph* g,
   for (size_t i = 0; i < output_entries.size(); ++i) {
     sym.outputs[i] = *output_entries[i];
   }
-
+ 
   const SubgraphPropertyPtr& subg_prop = g->GetAttr<SubgraphPropertyPtr>("subgraph_property");
   nnvm::NodePtr n;
   if (!subg_prop->NeedGraphAttrs()) {
@@ -767,6 +776,7 @@ void CreateSubgraphNode(Graph* g,
     }
   }
 #if DEBUG_SUBGRAPH
+  std::cout << "### OUTPUT ENTRIES" << std::endl;
   PrintNodeEntries(output_entries);
 #endif
 }
@@ -835,6 +845,7 @@ Graph PartitionGraph(Graph&& g) {
   }
   using namespace sg;
   const SubgraphPropertyPtr& subg_prop = g.GetAttr<SubgraphPropertyPtr>("subgraph_property");
+  
   // top sort NodeEntry of all the nodes' inputs
   std::unordered_map<const nnvm::NodeEntry*, size_t> entry_top_order_map;
   TopSortEntries(g, &entry_top_order_map);
@@ -845,6 +856,26 @@ Graph PartitionGraph(Graph&& g) {
   std::vector<std::vector<SimpleNode*>> subgraph_nodes;
   FindSubgraphs(&g, *subg_prop, simple_nodes, &subgraph_nodes);
   std::unordered_map<const nnvm::Node*, nnvm::Symbol> subgraphs;
+  
+  {
+    const auto &idx_og = g.indexed_graph();
+    auto oshapes = g.GetAttr<nnvm::ShapeVector>("shape");
+  
+    std::cout << "### BEFORE PARTITION" << std::endl;
+    std::cout << "node count : " << idx_og.num_nodes() << std::endl; 
+    std::cout << "node entry count : " << idx_og.num_node_entries() << std::endl; 
+    std::cout << "node input node count : " << idx_og.input_nodes().size() << std::endl; 
+    for (size_t i = 0; i < idx_og.input_nodes().size(); ++i) {
+      const uint32_t nid = idx_og.input_nodes().at(i);
+      const std::string& arg_name = idx_og[nid].source->attrs.name;
+      std::cout << "node[" << i << "]: " << arg_name << std::endl; 
+      for (size_t j = 0; j < idx_og[nid].source->num_outputs(); ++j) {
+        uint32_t oeid = idx_og.entry_id(i, j);
+        std::cout << "  output " << j << " shape: <" << oeid << "> " << oshapes[oeid] << std::endl; 
+      }
+    }
+  }
+  
   for (size_t i = 0; i < subgraph_nodes.size(); ++i) {
 #if DEBUG_SUBGRAPH
     std::set<SimpleNode*> simple_node_set(subgraph_nodes[i].begin(), subgraph_nodes[i].end());
@@ -853,6 +884,26 @@ Graph PartitionGraph(Graph&& g) {
 #endif
     CreateSubgraphNode(&g, simple_nodes, subgraph_nodes[i], i, &subgraphs, &entry_top_order_map);
   }
+  
+  {
+    const auto &idx_og = g.indexed_graph();
+    auto oshapes = g.GetAttr<nnvm::ShapeVector>("shape");
+  
+    std::cout << "### AFTER PARTITION" << std::endl;
+    std::cout << "node count : " << idx_og.num_nodes() << std::endl; 
+    std::cout << "node entry count : " << idx_og.num_node_entries() << std::endl; 
+    std::cout << "node input node count : " << idx_og.input_nodes().size() << std::endl; 
+    for (size_t i = 0; i < idx_og.input_nodes().size(); ++i) {
+      const uint32_t nid = idx_og.input_nodes().at(i);
+      const std::string& arg_name = idx_og[nid].source->attrs.name;
+      std::cout << "node[" << i << "]: " << arg_name << std::endl; 
+      for (size_t j = 0; j < idx_og[nid].source->num_outputs(); ++j) {
+        uint32_t oeid = idx_og.entry_id(i, j);
+        std::cout << "  output " << j << " shape: <" << oeid << "> " << oshapes[oeid] << std::endl; 
+      }
+    }
+  }
+
   return g;
 }
 

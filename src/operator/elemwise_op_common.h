@@ -130,7 +130,7 @@ inline bool ElemwiseAttr(const nnvm::NodeAttrs& attrs,
 
   auto deduce = [&](std::vector<AttrType> *vec, size_t size, const char *name) {
       for (size_t i = 0; i < size; ++i) {
-        std::cout << attrs.name << " [" << i << "] " << name << " " << attr_string(dattr) << " " << attr_string((*vec)[i]) << std::endl;
+//        std::cout << attrs.name << " [" << i << "] " << name << " " << attr_string(dattr) << " " << attr_string((*vec)[i]) << std::endl;
 
         CHECK(assign(&dattr, (*vec)[i]))
           << "Incompatible attr in node " << attrs.name << " at " << i << "-th "

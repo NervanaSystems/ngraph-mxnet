@@ -89,6 +89,7 @@ void MXImperativeInvokeImpl(AtomicSymbolCreator creator,
   const nnvm::Op* op = static_cast<nnvm::Op*>(creator);
   MXAPIThreadLocalEntry *ret = MXAPIThreadLocalStore::Get();
 
+  std::cout << "ImperativeInvoke" << std::endl;
   nnvm::NodeAttrs attrs = imperative::ParseAttrs(op, num_inputs, num_params,
                                                  param_keys, param_vals);
 
