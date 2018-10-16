@@ -23,6 +23,14 @@ cd "$HOME/ng-mx"
 
 cd python && pip install -e . && pip install pytest nose scipy==1.0.0 &&  cd ../
 
+echo "Look for libcuda.so"
+
+echo `ls /usr/local/cuda/lib64/stubs/`
+
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/stubs/
+
+echo " LD_LIBRARY_PATH ==== ${LD_LIBRARY_PATH}"
+
 ## Unit tests test_operator.py 
 cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/gpu/test_operator_gpu.py --verbose --capture=no --junit-xml=result_test_operator_gpu.xml --junit-prefix=result_test_operator_gpu"
 eval $cmd
