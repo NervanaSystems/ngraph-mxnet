@@ -122,8 +122,7 @@ std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
   }
   p->inputs.insert(p->inputs.end(), n->inputs.begin(), n->inputs.end());
   int mode = static_cast<int>(ngraph_bridge::GraphExeMode::kTrain);
-  for (unsigned i =
-           graph->outputs_.size() + graph->cached_aux_positions[mode].size();
+  for (unsigned i = graph->outputs_.size();
        i < graph->fprop_cache->fprop->get_results().size(); ++i) {
     p->inputs.emplace_back(nnvm::NodeEntry{n, i, 0});
   }
@@ -268,19 +267,19 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
       auto graph = get_ngraph(attrs);
       return graph->inputs_.size();
     })
-    .set_num_outputs([](const NodeAttrs &attrs) {
-      auto graph = get_ngraph(attrs);
-      return graph->outputs_.size();
-    })
     // .set_num_outputs([](const NodeAttrs &attrs) {
     //   auto graph = get_ngraph(attrs);
-    //   return graph->fprop_cache->fprop->get_results().size();
+    //   return graph->outputs_.size();
     // })
-    // .set_attr<nnvm::FNumVisibleOutputs>("FNumVisibleOutputs",
-    //                                     [](const NodeAttrs& attrs) {
-    //                                       auto graph = get_ngraph(attrs);
-    //                                       return graph->outputs_.size();
-    //                                     })
+    .set_num_outputs([](const NodeAttrs &attrs) {
+      auto graph = get_ngraph(attrs);
+      return graph->fprop_cache->fprop->get_results().size();
+    })
+    .set_attr<nnvm::FNumVisibleOutputs>("FNumVisibleOutputs",
+                                        [](const NodeAttrs& attrs) {
+                                          auto graph = get_ngraph(attrs);
+                                          return graph->outputs_.size();
+                                        })
     .set_attr<nnvm::FListInputNames>("FListInputNames",
                                      NgraphSubgraphListInputNames)
     .set_attr<nnvm::FListOutputNames>("FListOutputNames",
@@ -300,7 +299,9 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
 NNVM_REGISTER_OP(_backward_ngraph_subgraph_op)
     .set_num_inputs([](const NodeAttrs &attrs) {
       auto graph = get_ngraph(attrs);
-      return graph->fprop_cache->bprop->get_parameters().size();
+      int mode = static_cast<int>(ngraph_bridge::GraphExeMode::kTrain);
+      return graph->fprop_cache->bprop->get_parameters().size() +
+             graph->cached_aux_positions[mode].size();
     })
     .set_num_outputs([](const NodeAttrs &attrs) {
       auto graph = get_ngraph(attrs);
