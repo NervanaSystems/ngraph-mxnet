@@ -169,7 +169,8 @@ bool NgraphSubgraphInferShape(const nnvm::NodeAttrs &attrs,
   }
   size_t i = 0;
   for (const auto& output : graph->fprop_cache->fprop->get_results()) {
-    (*out_attrs)[i] = ngraph_bridge::NShape_to_TShape(output->get_shape());
+    auto tmp_shape = ngraph_bridge::NShape_to_TShape(output->get_shape());
+    (*out_attrs)[i] = tmp_shape;
     i += 1;
   }
   return true;
@@ -195,11 +196,12 @@ bool NgraphSubgraphBackwardInferShape(const nnvm::NodeAttrs &attrs,
                               std::vector<nnvm::TShape> *out_attrs) {
   auto graph = get_ngraph(attrs);
 
-  std::vector<nnvm::TShape> in_shapes;
+  size_t i = 0;
   for (const auto& input : graph->fprop_cache->bprop->get_parameters()) {
-    in_shapes.push_back(ngraph_bridge::NShape_to_TShape(input->get_shape()));
+    auto tmp_shape = ngraph_bridge::NShape_to_TShape(input->get_shape());
+    (*in_attrs)[i] = tmp_shape;
+    ++i;
   }
-  (*in_attrs) = in_shapes;
 
   for (size_t i = 0; i < graph->inputs_.size(); ++i) {
     (*out_attrs)[i] = graph->inputs_[i]->shape_;
