@@ -114,7 +114,7 @@ std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
     p->op()->attr_parser(&(p->attrs));
   }
   if (!zero_grad) {
-    for (size_t i = 0; i < ograds.size(); ++i) {
+    for (size_t i = 0; i < graph->num_adjoints_; ++i) {
       if (!is_loss[i]) {
         p->inputs.push_back(ograds[i]);
       }
@@ -127,6 +127,7 @@ std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
        i < graph->fprop_cache->fprop->get_results().size(); ++i) {
     p->inputs.emplace_back(nnvm::NodeEntry{n, i, 0});
   }
+  std::cout << p->inputs.size() << " " << p->num_inputs() << std::endl;
   std::vector<nnvm::NodeEntry> ret;
   for (unsigned i = 0; i < p->num_outputs(); ++i) {
     ret.emplace_back(nnvm::NodeEntry{p, i, 0});
@@ -166,11 +167,11 @@ bool NgraphSubgraphInferShape(const nnvm::NodeAttrs &attrs,
   for (size_t i = 0; i < graph->inputs_.size(); ++i) {
     (*in_attrs)[i] = graph->inputs_[i]->shape_;
   }
-  std::vector<nnvm::TShape> shapes;
+  size_t i = 0;
   for (const auto& output : graph->fprop_cache->fprop->get_results()) {
-    shapes.push_back(ngraph_bridge::NShape_to_TShape(output->get_shape()));
+    (*out_attrs)[i] = ngraph_bridge::NShape_to_TShape(output->get_shape());
+    i += 1;
   }
-  (*out_attrs) = shapes;
   return true;
 }
 bool NgraphSubgraphInferType(const nnvm::NodeAttrs &attrs,
@@ -267,13 +268,17 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
     })
     .set_num_outputs([](const NodeAttrs &attrs) {
       auto graph = get_ngraph(attrs);
-      return graph->fprop_cache->fprop->get_results().size();
+      return graph->outputs_.size();
     })
-    .set_attr<nnvm::FNumVisibleOutputs>("FNumVisibleOutputs",
-                                        [](const NodeAttrs& attrs) {
-                                          auto graph = get_ngraph(attrs);
-                                          return graph->outputs_.size();
-                                        })
+    // .set_num_outputs([](const NodeAttrs &attrs) {
+    //   auto graph = get_ngraph(attrs);
+    //   return graph->fprop_cache->fprop->get_results().size();
+    // })
+    // .set_attr<nnvm::FNumVisibleOutputs>("FNumVisibleOutputs",
+    //                                     [](const NodeAttrs& attrs) {
+    //                                       auto graph = get_ngraph(attrs);
+    //                                       return graph->outputs_.size();
+    //                                     })
     .set_attr<nnvm::FListInputNames>("FListInputNames",
                                      NgraphSubgraphListInputNames)
     .set_attr<nnvm::FListOutputNames>("FListOutputNames",
