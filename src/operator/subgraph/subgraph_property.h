@@ -139,7 +139,6 @@ class SubgraphPropertyRegistry {
 
   SubgraphPropertyCreateFn __REGISTER_OR_GET__(const std::string& name,
                                                SubgraphPropertyCreateFn fn) {
-    std::cout << "register subgraph: " << name << std::endl;
     if (prop_fn_map_.count(name) == 0U) {
       return __REGISTER__(name, fn);
     } else {

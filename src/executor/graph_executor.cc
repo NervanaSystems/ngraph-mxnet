@@ -489,7 +489,6 @@ void GraphExecutor::InitArguments(const nnvm::IndexedGraph& idx,
   data_entry_.resize(idx.num_node_entries());
   size_t arg_top = 0, aux_top = 0;
   const auto& mutable_nodes = idx.mutable_input_nodes();
-  std::cout << "InitArguments" << std::endl;
   for (size_t i = 0; i < num_forward_inputs_; ++i) {
     const uint32_t nid = idx.node_id(input_nodes[i]);
     const uint32_t eid = idx.entry_id(nid, 0);
@@ -497,7 +496,6 @@ void GraphExecutor::InitArguments(const nnvm::IndexedGraph& idx,
     const int inferred_dtype = inferred_dtypes[eid];
     const NDArrayStorageType inferred_stype = (NDArrayStorageType) inferred_stypes[eid];
     const std::string& arg_name = idx[nid].source->attrs.name;
-    std::cout << "arg_name[" << i << "]: " << arg_name << std::endl;
     // aux_states
     if (mutable_nodes.count(nid)) {
       if (nullptr != shared_exec) {
@@ -597,7 +595,6 @@ void GraphExecutor::InitArguments(const nnvm::IndexedGraph& idx,
           grad_store_.emplace_back(grad_req_types[arg_top], arg_grad_vec->back());
         }  // if (kNullOp == grad_req_types[arg_top])
       }  // if (shared_arg_names.count(arg_name))
-      std::cout << "arg_name: " << arg_name << " in_arg_vec[" << in_arg_vec->size()-1 << "] :" << in_arg_vec->back().shape() << std::endl;
       in_arg_map_.emplace(arg_name, in_arg_vec->back());
       if (!arg_grad_vec->back().is_none()) {
         arg_grad_map_.emplace(arg_name, arg_grad_vec->back());
@@ -1576,15 +1573,12 @@ static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
   std::vector<Context> aux_state_ctxes(aux_states.size());
 
   size_t i1 = 0, i2 = 0;
-  std::cout << "PartitionGraph input names size " << input_names.size() << std::endl;
   for (size_t i = 0; i < input_names.size(); ++i) {
-    std::cout << "input name " << input_names[i] << std::endl;
     if (i2 < aux_names.size() && aux_names[i2] == input_names[i]) {
       arg_shapes.push_back(aux_states[i2].shape());
       arg_dtypes.push_back(aux_states[i2].dtype());
       arg_stypes.push_back(aux_states[i2].storage_type());
       aux_state_ctxes[i2] = aux_states[i2].ctx();
-      std::cout << "aux_states shape " << aux_states[i2].shape() << std::endl;
       ++i2;
     } else {
       CHECK(i1 < arg_names.size());
@@ -1593,7 +1587,6 @@ static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
       arg_dtypes.push_back(in_args->at(i1).dtype());
       arg_stypes.push_back(in_args->at(i1).storage_type());
       in_arg_ctxes[i1] = in_args->at(i1).ctx();
-      std::cout << "input shape " << in_args->at(i1).shape() << std::endl;
       ++i1;
     }
   }

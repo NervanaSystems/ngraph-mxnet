@@ -1466,12 +1466,10 @@ def test_deconvolution():
 def check_nearest_upsampling_with_shape(shapes, scale, root_scale):
     arr = {'arg_%d'%i: mx.random.uniform(-10.0, 10.0, shape, ctx=mx.cpu()).copyto(default_context()) for i, shape in zip(range(len(shapes)), shapes)}
     arr_grad = {'arg_%d'%i: mx.nd.zeros(shape) for i, shape in zip(range(len(shapes)), shapes)}
-    # print(shapes)
 
     up = mx.sym.UpSampling(*[mx.sym.Variable('arg_%d'%i) for i in range(len(shapes))], sample_type='nearest', scale=root_scale)
     exe = up.bind(default_context(), args=arr, args_grad=arr_grad)
-    out = exe.forward(is_train=True)
-    # print(out[0].asnumpy())
+    exe.forward(is_train=True)
     exe.backward(exe.outputs)
     for k in range(len(shapes)):
         name = 'arg_%d'%k
