@@ -95,6 +95,13 @@ elif [ "${MAKE_VARIABLES}" == "USE_MKLDNN" ]; then
   	else
   		echo "PASS. Directory 3rdparty/ngraph-mxnet-bridge/install is not existed!"
   	fi
+elif [ "${MAKE_VARIABLES}" == "USE_CUDA" ]; then
+	if [ ! -f "./lib/libgpu_backend.so" ] ; then
+		( >&2 echo "FATAL ERROR: libgpu_backend.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
+		exit 1
+	else
+		echo "Success to install with CUDA."
+	fi
 else
 	if [ ! -f "./lib/libngraph.so" ] ; then
 		( >&2 echo "FATAL ERROR: libngraph.so should not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
