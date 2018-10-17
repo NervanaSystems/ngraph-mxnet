@@ -27,8 +27,11 @@ echo "Look for libcuda.so"
 
 echo `ls /usr/local/cuda/lib64/stubs/`
 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/stubs/:/usr/local/cuda-9.2/lib64/stubs/:/usr/local/nvidia/lib64/libcuda.so.1:/usr/local/cuda-9.0/lib64/stubs/
+echo "Look for libmxnet.so"
 
+echo `ls lib`
+
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/stubs/:/usr/local/cuda-9.2/lib64/stubs/:/usr/local/nvidia/lib64/libcuda.so.1:/usr/local/cuda-9.0/lib64/stubs/
 echo " LD_LIBRARY_PATH ==== ${LD_LIBRARY_PATH}"
 
 echo "Check if "

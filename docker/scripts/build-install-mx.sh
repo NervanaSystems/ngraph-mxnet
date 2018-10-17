@@ -56,6 +56,7 @@ case "${MAKE_VARIABLES}" in
 esac
 
 export LD_LIBRARY_PATH="${MX_DIR}/3rdparty/ngraph-mxnet-bridge/build/lib"
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${MX_DIR}/lib
 echo ${LD_LIBRARY_PATH}
 
 echo "Verify the installation of Mxnet"
