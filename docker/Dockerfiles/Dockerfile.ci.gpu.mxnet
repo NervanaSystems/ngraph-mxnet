@@ -20,9 +20,9 @@
 # with capabilities for python 2.7 and python 3
 # Author: Lam Nguyen
 
-FROM nvidia/cuda:8.0-cudnn7-devel-ubuntu16.04
+#FROM nvidia/cuda:8.0-cudnn7-devel-ubuntu16.04
 
-#FROM nvidia/cuda:9.2-devel-ubuntu16.04
+FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
 
 #ENV CUDNN_VERSION 7.2.1.38
 #LABEL com.nvidia.cudnn.version="${CUDNN_VERSION}"
