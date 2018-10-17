@@ -64,7 +64,7 @@ else
 fi
 cd "$HOME/ng-mx/docker/scripts/"
 if [[ ${MAKE_VARIABLES} == "USE_CUDA" ]]; then
-	#./run-unit-tests-gpu.sh 2>&1 | tee ../mx-tests.log
+	./run-unit-tests-gpu.sh 2>&1 | tee ../mx-tests.log
 	echo "===== GPU Unit Tests Pipeline Exited with $? ====="
 else
 	./run-unit-tests.sh 2>&1 | tee ../mx-tests.log
