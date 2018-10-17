@@ -703,15 +703,22 @@ mkldnn::memory *NDArray::CreateMKLDNNData(const mkldnn::memory::primitive_desc &
 #endif
 
 #if MXNET_USE_NGRAPH == 1
-std::shared_ptr<ngraph::runtime::Tensor> &NDArray::create_tensor() {
+std::shared_ptr<ngraph::runtime::Tensor> &NDArray::create_tensor(bool is_boolean) {
   if (ptr_->tensor_view_ == nullptr ||
       ptr_->tensor_view_->get_shape() !=
           ngraph_bridge::TShape_to_NShape(shape_)) {
     auto backend = ngraph_bridge::GetBackendFromContext(ctx());
     CHECK(backend != nullptr);
-    ptr_->tensor_view_ = backend->create_tensor(
-        ngraph_bridge::getType(dtype_), ngraph_bridge::TShape_to_NShape(shape_),
-        storage_handle().dptr);
+    if (is_boolean) {
+      ptr_->tensor_view_ = backend->create_tensor(
+          ngraph::element::boolean, ngraph_bridge::TShape_to_NShape(shape_),
+          storage_handle().dptr);
+
+    } else {
+      ptr_->tensor_view_ = backend->create_tensor(
+          ngraph_bridge::getType(dtype_), ngraph_bridge::TShape_to_NShape(shape_),
+          storage_handle().dptr);
+    }
   }
   return ptr_->tensor_view_;
 }

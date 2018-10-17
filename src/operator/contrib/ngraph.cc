@@ -126,7 +126,6 @@ std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
        i < graph->fprop_cache->fprop->get_results().size(); ++i) {
     p->inputs.emplace_back(nnvm::NodeEntry{n, i, 0});
   }
-  std::cout << p->inputs.size() << " " << p->num_inputs() << std::endl;
   std::vector<nnvm::NodeEntry> ret;
   for (unsigned i = 0; i < p->num_outputs(); ++i) {
     ret.emplace_back(nnvm::NodeEntry{p, i, 0});
@@ -186,39 +185,6 @@ bool NgraphSubgraphInferType(const nnvm::NodeAttrs &attrs,
   }
   for (size_t i = 0; i < dtypes.size(); ++i) {
     mxnet::op::type_assign(&((*oattr)[i]), dtypes[i]);
-  }
-  return true;
-}
-
-bool NgraphSubgraphBackwardInferShape(const nnvm::NodeAttrs &attrs,
-                              std::vector<nnvm::TShape> *in_attrs,
-                              std::vector<nnvm::TShape> *out_attrs) {
-  auto graph = get_ngraph(attrs);
-
-  size_t i = 0;
-  for (const auto& input : graph->fprop_cache->bprop->get_parameters()) {
-    auto tmp_shape = ngraph_bridge::NShape_to_TShape(input->get_shape());
-    (*in_attrs)[i] = tmp_shape;
-    ++i;
-  }
-
-  for (size_t i = 0; i < graph->inputs_.size(); ++i) {
-    (*out_attrs)[i] = graph->inputs_[i]->shape_;
-  }
-  return true;
-}
-bool NgraphSubgraphBackwardInferType(const nnvm::NodeAttrs &attrs,
-                             std::vector<int> *iattr, std::vector<int> *oattr) {
-  auto graph = get_ngraph(attrs);
-  for (size_t i = 0; i < graph->inputs_.size(); ++i) {
-    (*oattr)[i] = graph->inputs_[i]->dtype_;
-  }
-  std::vector<int> dtypes;
-  for (const auto& output : graph->fprop_cache->fprop->get_results()) {
-    dtypes.push_back(ngraph_bridge::getType(output->get_element_type()));
-  }
-  for (size_t i = 0; i < dtypes.size(); ++i) {
-    mxnet::op::type_assign(&((*iattr)[i]), dtypes[i]);
   }
   return true;
 }
@@ -311,8 +277,6 @@ NNVM_REGISTER_OP(_backward_ngraph_subgraph_op)
     .set_attr<bool>("TIsLayerOpBackward", true)
     .set_attr<FStatefulComputeEx>("FStatefulComputeEx<cpu>",
                                   NgraphSubgraphOpBackward)
-    // .set_attr<nnvm::FInferShape>("FInferShape", NgraphSubgraphBackwardInferShape)
-    // .set_attr<nnvm::FInferType>("FInferType", NgraphSubgraphBackwardInferType)
     .set_attr<FInferStorageType>("FInferStorageType",
                                  NgraphSubgraphBackwardInferStorageType);
 MXNET_REGISTER_SUBGRAPH_PROPERTY(ngraph, SgNgraphProperty);
