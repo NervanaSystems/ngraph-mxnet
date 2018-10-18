@@ -1485,7 +1485,7 @@ static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
                                    const std::map<std::string, Context>& ctx_map,
                                    const std::vector<Context>& in_arg_ctxes,
                                    const std::vector<Context>& aux_state_ctxes,
-                                   std::vector<const nnvm::Node*>& input_nodes) {
+                                   std::vector<const nnvm::Node*>* input_nodes) {
   auto subgraph_prop = op::SubgraphPropertyRegistry::Get()->CreateSubgraphProperty(prop_name);
   nnvm::Symbol ret = src.Copy();
   nnvm::Graph g;
@@ -1504,10 +1504,10 @@ static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
   g.attrs["subgraph_property"] = std::make_shared<nnvm::any>(std::move(subgraph_prop));
   const auto &idx_g = g.indexed_graph();
   const auto &input_nodes_index = idx_g.input_nodes();
-  input_nodes.resize(input_nodes_index.size());
+  input_nodes->resize(input_nodes_index.size());
   // Traverse all input nodes and store the node pointers in order.
   for (size_t i = 0; i < input_nodes_index.size(); ++i) {
-    input_nodes[i] = idx_g[input_nodes_index[i]].source;
+    (*input_nodes)[i] = idx_g[input_nodes_index[i]].source;
   }
   g = ApplyPass(std::move(g), "PartitionGraph");
   ret.outputs = g.outputs;
@@ -1525,7 +1525,7 @@ static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
                                    const std::map<std::string, Context>& ctx_map,
                                    const std::vector<Context>& in_arg_ctxes,
                                    const std::vector<Context>& aux_state_ctxes,
-                                   std::vector<const nnvm::Node*>& input_nodes) {
+                                   std::vector<const nnvm::Node*>* input_nodes) {
   const std::vector<std::string> input_names = src.ListInputNames(Symbol::kAll);
   nnvm::ShapeVector arg_shapes(input_names.size(), TShape());
   nnvm::DTypeVector arg_dtypes(input_names.size(), -1);
@@ -1557,7 +1557,7 @@ static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
                                    const std::vector<NDArray> &aux_states,
                                    const Context& default_ctx,
                                    const std::map<std::string, Context>& ctx_map,
-                                   std::vector<const nnvm::Node*>& input_nodes) {
+                                   std::vector<const nnvm::Node*>* input_nodes) {
   const std::vector<std::string> input_names = src.ListInputNames(Symbol::kAll);
   const std::vector<std::string> arg_names = src.ListInputNames(nnvm::Symbol::kReadOnlyArgs);
   const std::vector<std::string> aux_names = src.ListInputNames(nnvm::Symbol::kAuxiliaryStates);
@@ -1591,7 +1591,8 @@ static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
     }
   }
   return PartitionGraph(src, prop_name, arg_shapes, arg_dtypes, arg_stypes,
-                        default_ctx, ctx_map, in_arg_ctxes, aux_state_ctxes);
+                        default_ctx, ctx_map, in_arg_ctxes, aux_state_ctxes,
+                        input_nodes);
 }
 }  // namespace exec
 
@@ -1616,7 +1617,7 @@ Executor *Executor::SimpleBind(nnvm::Symbol symbol,
   if (!exec->subgraph_property().empty() && group2ctx.empty()) {
     symbol = exec::PartitionGraph(symbol, exec->subgraph_property(), arg_shape_map, arg_dtype_map,
                                   arg_stype_map, default_ctx, group2ctx, in_arg_ctxes,
-                                  aux_state_ctxes, input_nodes);
+                                  aux_state_ctxes, &input_nodes);
   }
   exec->Init(symbol, default_ctx, group2ctx,
              in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes,
@@ -1639,7 +1640,7 @@ Executor *Executor::Bind(nnvm::Symbol symbol,
   std::vector<const nnvm::Node*> input_nodes;
   if (!exec->subgraph_property().empty() && group2ctx.empty()) {
     symbol = exec::PartitionGraph(symbol, exec->subgraph_property(), in_args, aux_states,
-                                  default_ctx, group2ctx, input_nodes);
+                                  default_ctx, group2ctx, &input_nodes);
   }
   exec->Init(symbol, default_ctx, group2ctx,
              in_args, arg_grad_store, grad_req_type, aux_states,
