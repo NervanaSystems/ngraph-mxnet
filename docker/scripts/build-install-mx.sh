@@ -46,8 +46,9 @@ case "${MAKE_VARIABLES}" in
 		cat /usr/local/cuda/version.txt
 		echo "Print the nvidia-smi"
 		echo `cat /proc/driver/nvidia/version | head -n1 | awk '{ print $8 }'`
+		echo `lspci | grep -i nvidia`
 		echo "Building MXnet with experimental nGraph distributed support enabled. Engine: GPU"
-		make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0 USE_CUDA=1 DEBUG=0 USE_NGRAPH_GPU=1 USE_CUDNN=1 USE_CUDA_PATH=/usr/local/cuda -j $(nproc)
+		#make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0 USE_CUDA=1 DEBUG=0 USE_NGRAPH_GPU=1 USE_CUDNN=1 USE_CUDA_PATH=/usr/local/cuda -j $(nproc)
 		;;
 	USE_MKLDNN)
 		echo "Building MXnet with MKLDNN, and non-nGraph. Engine: CPU + MKLDNN"
