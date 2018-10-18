@@ -61,7 +61,7 @@ docker_mx_dir="/home/dockuser/ng-mx"
 
 script='run-ng-mx-install.sh'
 
-docker run --rm \
+nvidia-docker run --rm \
       --env RUN_UID="$(id -u)" \
       --env RUN_CMD="${docker_mx_dir}/docker/scripts/${script}" \
       --env PYTHON_VERSION_NUMBER="${PYTHON_VERSION_NUMBER}" \

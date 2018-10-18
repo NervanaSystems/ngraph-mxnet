@@ -65,7 +65,7 @@ fi
 
 # The $@ allows us to pass command-line options easily to docker build.
 # Note that a "shift" is done above to remove the IMAGE_ID from the cmd line.
-docker build --rm=true \
+nvidia-docker build --rm=true \
        ${DOCKER_HTTP_PROXY} ${DOCKER_HTTPS_PROXY} \
        $@ \
        -f="${DOCKER_FILE}"  -t="${IMAGE_NAME}:${IMAGE_ID}"   ..

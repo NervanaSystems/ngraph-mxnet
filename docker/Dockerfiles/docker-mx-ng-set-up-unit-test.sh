@@ -53,7 +53,7 @@ ngraph_mx_dir="$(realpath ../..)"
 # Note that the docker image must have been previously built using the
 # make-docker-mx-ngraph-base.sh script (in the same directory as this script).
 
-docker run --rm \
+nvidia-docker run --rm \
        --env RUN_UID="$(id -u)" \
        --env RUN_CMD='/home/dockuser/ng-mx/docker/scripts/set-up-unit-test.sh' \
        --env PYTHON_VERSION_NUMBER="${PYTHON_VERSION_NUMBER}" \
