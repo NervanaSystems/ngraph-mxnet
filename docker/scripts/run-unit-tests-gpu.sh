@@ -32,5 +32,5 @@ sudo ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/li
 #sudo ln -s /usr/local/cuda-8.0/lib64/stubs/libcuda.so /usr/local/cuda-8.0/lib64/stubs/libcuda.so.1
 
 ## Unit tests test_operator.py 
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/gpu/test_operator_gpu.py --verbose --capture=no --junit-xml=result_test_operator_gpu.xml --junit-prefix=result_test_operator_gpu"
+cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/gpu/test_device.py --verbose --capture=no --junit-xml=result_test_operator_gpu.xml --junit-prefix=result_test_operator_gpu"
 eval $cmd
