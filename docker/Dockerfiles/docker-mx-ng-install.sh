@@ -38,6 +38,9 @@ echo " PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
 echo "======MAKE_VARIABLES========"
 echo " MAKE_VARIABLES= ${MAKE_VARIABLES}"
 
+echo "======NGRAPH_BRANCH========"
+echo " NGRAPH_BRANCH= ${NGRAPH_BRANCH}"
+
 # Note that the docker image must have been previously built using the
 # make-docker-mx-ngraph-base.sh script (in the same directory as this script).
 
@@ -61,6 +64,7 @@ docker run --rm \
       --env RUN_CMD="${docker_mx_dir}/docker/scripts/${script}" \
       --env PYTHON_VERSION_NUMBER="${PYTHON_VERSION_NUMBER}"\
       --env MAKE_VARIABLES="${MAKE_VARIABLES}" \
+      --env NGRAPH_BRANCH="${NGRAPH_BRANCH}" \
       --env http_proxy=http://proxy-fm.intel.com:911 \
       --env https_proxy=http://proxy-fm.intel.com:912 \
       -v "${ngraph_mx_dir}:${docker_mx_dir}" \
