@@ -63,6 +63,7 @@ script='run-ng-mx-install.sh'
 
 docker run --rm \
       --env RUN_UID="$(id -u)" \
+      --env RUN_CMD="nvcc --version" \
       --env RUN_CMD="nvidia/cuda nvidia-smi" \
       --env http_proxy=http://proxy-fm.intel.com:911 \
       --env https_proxy=http://proxy-fm.intel.com:912 \
