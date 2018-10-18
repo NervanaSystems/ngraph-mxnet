@@ -32,9 +32,10 @@ git submodule update --init --recursive
 
 if [[ "${NGRAPH_BRANCH}" == "master" ]] ; then
     cd "${MX_DIR}/3rdparty/ngraph-mxnet-bridge"
-    git fetch
-    git checkout origin/master
-    echo "git log -1"
+    echo `pwd`
+    echo `git fetch`
+    echo `git checkout origin/master`
+    echo `git log -1`
 fi
 
 echo "The make variable is: ${MAKE_VARIABLES}"
