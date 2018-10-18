@@ -34,7 +34,7 @@ if [[ "${NGRAPH_BRANCH}" == "master" ]] ; then
     cd "${MX_DIR}/3rdparty/ngraph-mxnet-bridge"
     echo `pwd`
     echo `git fetch`
-    echo `git checkout origin/master`
+    echo `git checkout origin/ci_ngraph_master`
     echo `git log -1`
 fi
 
