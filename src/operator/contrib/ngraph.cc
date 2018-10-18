@@ -233,10 +233,6 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
       auto graph = get_ngraph(attrs);
       return graph->inputs_.size();
     })
-    // .set_num_outputs([](const NodeAttrs &attrs) {
-    //   auto graph = get_ngraph(attrs);
-    //   return graph->outputs_.size();
-    // })
     .set_num_outputs([](const NodeAttrs &attrs) {
       auto graph = get_ngraph(attrs);
       return graph->fprop_cache->fprop->get_results().size();
