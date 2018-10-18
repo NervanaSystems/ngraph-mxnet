@@ -62,11 +62,19 @@ docker_mx_dir="/home/dockuser/ng-mx"
 script='run-ng-mx-install.sh'
 
 docker run --rm \
-      --env RUN_UID="$(id -u)" \
-      --env RUN_CMD="${docker_mx_dir}/docker/scripts/${script}" \
-      --env PYTHON_VERSION_NUMBER="${PYTHON_VERSION_NUMBER}" \
-      --env MAKE_VARIABLES="${MAKE_VARIABLES}" \
+      --env RUN_CMD="nvidia/cuda nvidia-smi" \
       --env http_proxy=http://proxy-fm.intel.com:911 \
       --env https_proxy=http://proxy-fm.intel.com:912 \
       -v "${ngraph_mx_dir}:${docker_mx_dir}" \
       "${IMAGE_NAME}:${IMAGE_ID}" /home/run-as-user.sh
+
+
+#docker run --rm \
+#      --env RUN_UID="$(id -u)" \
+#      --env RUN_CMD="${docker_mx_dir}/docker/scripts/${script}" \
+#      --env PYTHON_VERSION_NUMBER="${PYTHON_VERSION_NUMBER}" \
+#      --env MAKE_VARIABLES="${MAKE_VARIABLES}" \
+#      --env http_proxy=http://proxy-fm.intel.com:911 \
+#      --env https_proxy=http://proxy-fm.intel.com:912 \
+#      -v "${ngraph_mx_dir}:${docker_mx_dir}" \
+#      "${IMAGE_NAME}:${IMAGE_ID}" /home/run-as-user.sh
