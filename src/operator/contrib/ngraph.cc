@@ -121,7 +121,6 @@ std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
     }
   }
   p->inputs.insert(p->inputs.end(), n->inputs.begin(), n->inputs.end());
-  int mode = static_cast<int>(ngraph_bridge::GraphExeMode::kTrain);
   for (unsigned i = graph->outputs_.size();
        i < graph->fprop_cache->fprop->get_results().size(); ++i) {
     p->inputs.emplace_back(nnvm::NodeEntry{n, i, 0});
