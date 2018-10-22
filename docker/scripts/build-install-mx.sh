@@ -30,15 +30,12 @@ echo "**************************************************************************
 cd "${MX_DIR}"
 git submodule update --init --recursive
 
-if [[ "${NGRAPH_BRANCH}" == "master" ]] ; then
-    cd "${MX_DIR}/3rdparty/ngraph-mxnet-bridge"
-    echo `pwd`
-    echo `git fetch`
-    echo `git checkout ci_ngraph_master`
-    echo `git log -1`
+if [ -z "${NGRAPH_BRANCH}" ] ; then
+    cd "${MX_DIR}/3rdparty/ngraph-mxnet-bridge/cmake"
+    sed -e "/GIT_TAG/s/.*/        GIT_TAG ${NGRAPH_BRANCH}/" ngraph.cmake > ngraph.cmake.test
+    cp ngraph.cmake.test ngraph.cmake
+    rm -rf ngraph.cmake.test
 fi
-
-echo "The make variable is: ${MAKE_VARIABLES}"
 
 case "${MAKE_VARIABLES}" in
 	USE_NGRAPH)
