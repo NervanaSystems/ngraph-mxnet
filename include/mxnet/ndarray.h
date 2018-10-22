@@ -761,7 +761,7 @@ class NDArray {
 
 #if MXNET_USE_NGRAPH == 1
     // create and return tensor_view with this ndarray mem
-    std::shared_ptr<ngraph::runtime::TensorView> &create_tensor_view();
+    std::shared_ptr<ngraph::runtime::TensorView> create_tensor_view();
 #endif
 
   /*!
