@@ -1637,8 +1637,7 @@ Executor *Executor::Bind(nnvm::Symbol symbol,
     if (group2ctx.empty()) {
       symbol = exec::PartitionGraph(symbol, exec->subgraph_property(), &tmp_in_args, aux_states,
                                   default_ctx, group2ctx);
-    }
-    else {
+    } else {
       LOG(WARNING) << "MXNET_SUBGRAPH_BACKEND does not currently support heterogeneous execution";
     }
   }
