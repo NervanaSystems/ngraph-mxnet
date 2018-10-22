@@ -30,7 +30,8 @@ echo "**************************************************************************
 cd "${MX_DIR}"
 git submodule update --init --recursive
 
-if [ -z "${NGRAPH_BRANCH}" ] ; then
+if [ ! -z "${NGRAPH_BRANCH}" ] ; then
+	echo "NGRAPH_BRANCH == ${NGRAPH_BRANCH}"
     cd "${MX_DIR}/3rdparty/ngraph-mxnet-bridge/cmake"
     sed -e "/GIT_TAG/s/.*/        GIT_TAG ${NGRAPH_BRANCH}/" ngraph.cmake > ngraph.cmake.test
     cp ngraph.cmake.test ngraph.cmake
