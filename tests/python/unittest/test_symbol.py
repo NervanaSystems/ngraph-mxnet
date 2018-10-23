@@ -269,7 +269,6 @@ def test_blockgrad():
     b = mx.sym.BlockGrad(2*a)
     exe = b.simple_bind(ctx=mx.cpu(), a=(10,10))
 
-@unittest.skip("This test fails with nGraph because we don't have grad_req information in PartitionGraph")
 def test_zero_prop():
     data = mx.symbol.Variable('data')
     for i in range(10):

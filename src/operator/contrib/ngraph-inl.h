@@ -130,8 +130,8 @@ class SgNgraphProperty : public SubgraphProperty {
     nnvm::Symbol sym;
     sym.outputs = sg.outputs;
     auto n = CreateSubgraphNode(sym, subgraph_id);
-
-    auto compiler = std::make_shared<ngraph_bridge::Compiler>(sg);
+    auto grad_req_map = GetAttr<std::vector<mxnet::OpReqType>>("grad_reqs");
+    auto compiler = std::make_shared<ngraph_bridge::Compiler>(sg, grad_req_map);
     compiler->GetNgraph();
     n->attrs.parsed = compiler;
     return n;
@@ -141,7 +141,9 @@ class SgNgraphProperty : public SubgraphProperty {
   SubgraphSelectorPtr CreateSubgraphSelector() const override {
     if (!compiler_) {
       auto &orig_graph = GetAttr<nnvm::Graph>("graph");
-      compiler_ = std::make_shared<ngraph_bridge::Compiler>(orig_graph, true);
+      auto grad_req_map = GetAttr<std::vector<mxnet::OpReqType>>("grad_reqs");
+      compiler_ = std::make_shared<ngraph_bridge::Compiler>(orig_graph,
+                                                            grad_req_map, true);
     }
     return std::make_shared<SgNgraphSelector>(compiler_.get());
   }

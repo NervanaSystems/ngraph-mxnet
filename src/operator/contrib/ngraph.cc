@@ -97,6 +97,11 @@ void NgraphSubgraphOpBackward(const OpStatePtr &state_ptr, const OpContext &ctx,
 std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
     const nnvm::NodePtr &n, const std::vector<nnvm::NodeEntry> &ograds) {
   auto graph = get_ngraph(n->attrs);
+  if (!graph->need_grad) {
+    LOG(FATAL)
+        << "NGRAPH_BRIDGE: This graph was compiled without grad_req but "
+        << "is called in training";
+  }
   const bool zero_grad = check_zero_grad(graph);
   graph->zero_grad = zero_grad;
   auto is_loss = graph->is_loss;
@@ -165,7 +170,7 @@ bool NgraphSubgraphInferShape(const nnvm::NodeAttrs &attrs,
     (*in_attrs)[i] = graph->inputs_[i]->shape_;
   }
   size_t i = 0;
-  for (const auto& output : graph->fprop_cache->fprop->get_results()) {
+  for (const auto& output : graph->get_results()) {
     auto tmp_shape = ngraph_bridge::NShape_to_TShape(output->get_shape());
     (*out_attrs)[i] = tmp_shape;
     i += 1;
@@ -179,7 +184,7 @@ bool NgraphSubgraphInferType(const nnvm::NodeAttrs &attrs,
     (*iattr)[i] = graph->inputs_[i]->dtype_;
   }
   std::vector<int> dtypes;
-  for (const auto& output : graph->fprop_cache->fprop->get_results()) {
+  for (const auto& output : graph->get_results()) {
     dtypes.push_back(ngraph_bridge::getType(output->get_element_type()));
   }
   for (size_t i = 0; i < dtypes.size(); ++i) {
@@ -234,7 +239,7 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
     })
     .set_num_outputs([](const NodeAttrs &attrs) {
       auto graph = get_ngraph(attrs);
-      return graph->fprop_cache->fprop->get_results().size();
+      return graph->get_results().size();
     })
     .set_attr<nnvm::FNumVisibleOutputs>("FNumVisibleOutputs",
                                         [](const NodeAttrs& attrs) {
