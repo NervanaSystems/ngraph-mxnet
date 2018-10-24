@@ -29,8 +29,15 @@ echo "**************************************************************************
 
 cd "${MX_DIR}"
 git submodule update --init --recursive
-echo "The make variable is: ${MAKE_VARIABLES}"
 
+if [ ! -z "${NGRAPH_BRANCH}" ] ; then
+	echo "NGRAPH_BRANCH == ${NGRAPH_BRANCH}"
+    cd "3rdparty/ngraph-mxnet-bridge/cmake"
+    sed -e "/GIT_TAG/s/.*/        GIT_TAG ${NGRAPH_BRANCH}/" ngraph.cmake > ngraph.cmake.test
+    cp ngraph.cmake.test ngraph.cmake
+    rm -rf ngraph.cmake.test
+fi
+cd "${MX_DIR}"
 case "${MAKE_VARIABLES}" in
 	USE_NGRAPH)
 		echo "Building MXnet with experimental nGraph integration enabled. Engine: CPU + MKLDNN"
