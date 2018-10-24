@@ -97,11 +97,6 @@ void NgraphSubgraphOpBackward(const OpStatePtr &state_ptr, const OpContext &ctx,
 std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
     const nnvm::NodePtr &n, const std::vector<nnvm::NodeEntry> &ograds) {
   auto graph = get_ngraph(n->attrs);
-  if (!graph->need_grad) {
-    LOG(FATAL)
-        << "NGRAPH_BRIDGE: This graph was compiled without grad_req but "
-        << "is called in training";
-  }
   const bool zero_grad = check_zero_grad(graph);
   graph->zero_grad = zero_grad;
   auto is_loss = graph->is_loss;
@@ -111,6 +106,11 @@ std::vector<nnvm::NodeEntry> NgraphSubgraphGradient(
   if (std::find(begin(is_loss), end(is_loss), true) == end(is_loss) &&
       zero_grad && graph->num_outputs_ == 1) {
     return mxnet::op::MakeZeroGradNodes(n, ograds);
+  }
+  if (!graph->need_grad) {
+    LOG(FATAL)
+        << "NGRAPH_BRIDGE: This graph was compiled as inference but "
+        << "is called in training";
   }
   p->attrs.name = n->attrs.name + "_backward";
   p->attrs.dict = n->attrs.dict;
