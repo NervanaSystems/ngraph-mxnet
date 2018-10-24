@@ -33,6 +33,10 @@ else
     export PYTHON_VERSION_NUMBER="${2}"
 fi
 
+
+echo "======NGRAPH_BRANCH========"
+echo " NGRAPH_BRANCH= ${NGRAPH_BRANCH}"
+
 # Note that the docker image must have been previously built using the
 # make-docker-mx-ngraph-base.sh script (in the same directory as this script).
 
