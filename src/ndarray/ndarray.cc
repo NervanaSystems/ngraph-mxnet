@@ -740,22 +740,7 @@ void NDArray::UpdateMKLDNNMemDesc() {
 #endif
 
 #if MXNET_USE_NGRAPH == 1
-std::shared_ptr<ngraph::runtime::TensorView> NDArray::create_tensor_view() {
-  if (ptr_->tensor_view_ == nullptr ||
-      ptr_->tensor_view_->get_shape() !=
-          ngraph_bridge::TShape_to_NShape(shape_)) {
-    auto backend = ngraph_bridge::GetBackendFromContext(ctx());
-    CHECK(backend != nullptr);
-    ptr_->tensor_view_ = backend->create_tensor(
-        ngraph_bridge::getType(dtype_), ngraph_bridge::TShape_to_NShape(shape_),
-        storage_handle().dptr);
-  }
-  return ptr_->tensor_view_;
-}
-#endif
-
-#if MXNET_USE_NGRAPH == 1
-std::shared_ptr<ngraph::runtime::Tensor> &NDArray::create_tensor() {
+std::shared_ptr<ngraph::runtime::Tensor> NDArray::create_tensor() {
   if (ptr_->tensor_view_ == nullptr ||
       ptr_->tensor_view_->get_shape() !=
           ngraph_bridge::TShape_to_NShape(shape_)) {
