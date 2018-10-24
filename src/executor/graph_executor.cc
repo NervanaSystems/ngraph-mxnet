@@ -1601,7 +1601,7 @@ static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
     in_args_map[arg_names[i]] = in_args->at(i);
   }
   auto result = PartitionGraph(src, prop_name, arg_shapes, arg_dtypes, arg_stypes, default_ctx,
-                               ctx_map, in_arg_ctxes, aux_state_ctxes);
+                               ctx_map, in_arg_ctxes, aux_state_ctxes, input_nodes);
   // Reorder in_args into new_in_args according to partitioned symbol input sequence
   std::vector<NDArray> new_in_args(in_args->size());
   // get new symbol in_arg names
@@ -1639,10 +1639,16 @@ Executor *Executor::SimpleBind(nnvm::Symbol symbol,
   // side during Init(). If input_nodes is empty, it means ParitionGraph() has
   // not been called, and input nodes order has not been modified.
   std::vector<const nnvm::Node*> input_nodes;
-  if (!exec->subgraph_property().empty() && group2ctx.empty()) {
-    symbol = exec::PartitionGraph(symbol, exec->subgraph_property(), arg_shape_map, arg_dtype_map,
-                                  arg_stype_map, default_ctx, group2ctx, in_arg_ctxes,
-                                  aux_state_ctxes, &input_nodes);
+  if (!exec->subgraph_property().empty()) {
+    if (group2ctx.empty()) {
+      symbol = exec::PartitionGraph(symbol, exec->subgraph_property(),
+                                    arg_shape_map, arg_dtype_map, arg_stype_map,
+                                    default_ctx, group2ctx, in_arg_ctxes,
+                                    aux_state_ctxes, &input_nodes);
+    } else {
+      LOG(WARNING) << "MXNET_SUBGRAPH_BACKEND does not currently support "
+                      "heterogeneous execution";
+    }
   }
   exec->Init(symbol, default_ctx, group2ctx,
              in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes,
@@ -1663,12 +1669,19 @@ Executor *Executor::Bind(nnvm::Symbol symbol,
                          Executor* shared_exec) {
   auto exec = new exec::GraphExecutor();
   std::vector<NDArray> tmp_in_args = in_args;
+  std::vector<const nnvm::Node*> input_nodes;
   if (!exec->subgraph_property().empty()) {
-    symbol = exec::PartitionGraph(symbol, exec->subgraph_property(), &tmp_in_args, aux_states,
-                                  default_ctx, group2ctx);
+    if (group2ctx.empty()) {
+      symbol =
+          exec::PartitionGraph(symbol, exec->subgraph_property(), &tmp_in_args,
+                               aux_states, default_ctx, group2ctx, &input_nodes);
+    } else {
+      LOG(WARNING) << "MXNET_SUBGRAPH_BACKEND does not currently support "
+                      "heterogeneous execution";
+    }
   }
   exec->Init(symbol, default_ctx, group2ctx,
-             tmp_in_args, arg_grad_store, grad_req_type, aux_states,
+             tmp_in_args, arg_grad_store, grad_req_type, aux_states, input_nodes,
              reinterpret_cast<Executor*>(shared_exec));
   return exec;
 }
