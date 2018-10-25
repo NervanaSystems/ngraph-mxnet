@@ -1677,7 +1677,7 @@ Executor *Executor::Bind(nnvm::Symbol symbol,
   // the original order in input_nodes to match the expected order from python
   // side during Init(). If input_nodes is empty, it means ParitionGraph() has
   // not been called, and input nodes order has not been modified.
-  std::vector<NDArray> tmp_in_args = in_args;  
+  std::vector<NDArray> tmp_in_args = in_args;
   std::vector<const nnvm::Node*> input_nodes;
   if (!exec->subgraph_property().empty()) {
     if (group2ctx.empty()) {
