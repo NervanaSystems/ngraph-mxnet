@@ -20,7 +20,7 @@
 # with capabilities for python 2.7 and python 3
 # Author: Lam Nguyen
 
-FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
+FROM nvidia/cuda:9.1-cudnn7-devel
 
 # try to get around issue with badsig
 RUN rm /etc/apt/sources.list.d/cuda.list
@@ -73,4 +73,5 @@ RUN pip install pytest-xdist
 # directory to be properly deleted by the user later (e.g. by jenkins).
 WORKDIR /home
 ADD scripts/run-as-user.sh /home/run-as-user.sh
+ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/lib
 
