@@ -26,11 +26,12 @@ echo `ls ${HOME}/ng-mx/lib`
 
 cd python && pip install -e . && pip install pytest nose scipy &&  cd ../
 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/stubs/:/usr/local/cuda-9.2/lib64/stubs/:/usr/local/nvidia/lib64/libcuda.so.1:/usr/local/cuda-9.0/lib64/stubs/
+#export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/stubs/:/usr/local/cuda-9.2/lib64/stubs/:/usr/local/nvidia/lib64/libcuda.so.1:/usr/local/cuda-9.0/lib64/stubs/
 echo " LD_LIBRARY_PATH ==== ${LD_LIBRARY_PATH}"
 
 
-sudo ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
+#sudo ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1
+echo "In the run unit test -gpu"
 
 #sudo ln -s /usr/local/cuda-8.0/lib64/stubs/libcuda.so /usr/local/cuda-8.0/lib64/stubs/libcuda.so.1
 cmd="OMP_NUM_THREADS=4 $(which python) tests/python/gpu/test_device.py"

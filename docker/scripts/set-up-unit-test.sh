@@ -63,6 +63,7 @@ source "${venv_dir}/bin/activate"
 #	exit 1
 #fi
 cd "$HOME/ng-mx/docker/scripts/"
+
 if [[ ${MAKE_VARIABLES} == "USE_CUDA" ]]; then
 	./run-unit-tests-gpu.sh 2>&1 | tee ../mx-tests.log
 	echo "===== GPU Unit Tests Pipeline Exited with $? ====="

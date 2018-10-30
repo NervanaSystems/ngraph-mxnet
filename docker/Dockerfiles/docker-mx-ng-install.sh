@@ -64,6 +64,8 @@ docker_mx_dir="/home/dockuser/ng-mx"
 
 script='run-ng-mx-install.sh'
 
+echo "The image == ${IMAGE_NAME}:${IMAGE_ID} "
+
 nvidia-docker run --rm \
       --env RUN_UID="$(id -u)" \
       --env RUN_CMD="${docker_mx_dir}/docker/scripts/${script}" \
@@ -74,3 +76,9 @@ nvidia-docker run --rm \
       --env https_proxy=http://proxy-fm.intel.com:912 \
       -v "${ngraph_mx_dir}:${docker_mx_dir}" \
       "${IMAGE_NAME}:${IMAGE_ID}" /home/run-as-user.sh
+
+echo "nvidia-docker container ls -a"
+echo `nvidia-docker container ls -a`
+
+echo "nvidia-docker images | grep ngmx_ci_gpu"
+echo `nvidia-docker images | grep ngmx_ci_gpu` 
