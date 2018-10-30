@@ -53,15 +53,15 @@ PS1='prompt> '
 PS2='prompt-more> '
 virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
 source "${venv_dir}/bin/activate"
-#cd python  && pip install pylint cpplint && cd ../
-#make cpplint |& tee  check_style.txt
-#STYLE_CHECK_LOGFILE='check_style.txt'
-#if [ "$(grep 'All passed!' ${STYLE_CHECK_LOGFILE} | wc -l)" = "1" ] ; then
-#	echo "Pass to check style. Continue running the unit tests"
-#else
-#	echo "Fail to check the style. Exiting ..."
-#	exit 1
-#fi
+cd python  && pip install pylint cpplint && cd ../
+make cpplint |& tee  check_style.txt
+STYLE_CHECK_LOGFILE='check_style.txt'
+if [ "$(grep 'All passed!' ${STYLE_CHECK_LOGFILE} | wc -l)" = "1" ] ; then
+	echo "Pass to check style. Continue running the unit tests"
+else
+	echo "Fail to check the style. Exiting ..."
+	exit 1
+fi
 cd "$HOME/ng-mx/docker/scripts/"
 
 if [[ ${MAKE_VARIABLES} == "USE_CUDA" ]]; then
