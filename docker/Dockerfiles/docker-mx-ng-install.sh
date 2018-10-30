@@ -32,22 +32,16 @@ if [ -z "${2}" ] ; then
 else
     export PYTHON_VERSION_NUMBER="${2}"
 fi
-echo "======PYTHON_VERSION_NUMBER========"
-echo " PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
-
-echo "======MAKE_VARIABLES========"
-echo " MAKE_VARIABLES= ${MAKE_VARIABLES}"
-
-echo "======NGRAPH_BRANCH========"
-echo " NGRAPH_BRANCH= ${NGRAPH_BRANCH}"
 
 # Note that the docker image must have been previously built using the
 # make-docker-mx-ngraph-base.sh script (in the same directory as this script).
 
 if [[ ${MAKE_VARIABLES} == "USE_CUDA" ]]; then
     IMAGE_NAME='ngmx_ci_gpu'
+    D_CMD="nvidia-docker"
 else
     IMAGE_NAME='ngmx_ci'
+    D_CMD="docker"
 fi
 
 IMAGE_ID="${1}"
@@ -64,7 +58,7 @@ docker_mx_dir="/home/dockuser/ng-mx"
 
 script='run-ng-mx-install.sh'
 
-nvidia-docker run --rm \
+${D_CMD} run --rm \
       --env RUN_UID="$(id -u)" \
       --env RUN_CMD="${docker_mx_dir}/docker/scripts/${script}" \
       --env PYTHON_VERSION_NUMBER="${PYTHON_VERSION_NUMBER}" \
