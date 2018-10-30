@@ -40,9 +40,7 @@ else
     echo "ngraphBranch === ${NGRAPH_BRANCH}"
 fi
 cd "${MX_DIR}"
-echo "---DEBUG---"
-echo `ls`
-echo "---END DEBUG---"
+
 case "${MAKE_VARIABLES}" in
 	USE_NGRAPH)
 		echo "Building MXnet with experimental nGraph integration enabled. Engine: CPU + MKLDNN"

@@ -48,8 +48,6 @@ set -u  # No unset variables
 
 ngraph_mx_dir="$(realpath ../..)"
 
-echo "The image  ===== ${IMAGE_NAME}:${IMAGE_ID}"
-
 # The docker image ID is currently just the git SHA of this cloned repo.
 # We need this ID to know which docker image to run with.
 # Note that the docker image must have been previously built using the
@@ -64,9 +62,3 @@ nvidia-docker run --rm \
        --env https_proxy=http://proxy-fm.intel.com:912 \
        -v "${ngraph_mx_dir}:/home/dockuser/ng-mx" \
        "${IMAGE_NAME}:${IMAGE_ID}" /home/run-as-user.sh
-
-echo "nvidia-docker container ls -a"
-echo `nvidia-docker container ls -a`
-
-echo "nvidia-docker images | grep ngmx_ci_gpu"
-echo `nvidia-docker images | grep ngmx_ci_gpu` 
