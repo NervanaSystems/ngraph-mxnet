@@ -30,9 +30,9 @@ echo " LD_LIBRARY_PATH ==== ${LD_LIBRARY_PATH}"
 cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/gpu/test_device.py --verbose --capture=no --junit-xml=result_test_device_gpu.xml --junit-prefix=result_test_device_gpu"
 eval $cmd
 
-## 2. Unit tests test_operator_gpu.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/gpu/test_operator_gpu.py --verbose --capture=no --junit-xml=result_test_operator_gpu.xml --junit-prefix=result_test_operator_gpu"
-eval $cmd
+## 2. Unit tests test_operator_gpu.py . Disable due to NGRAPH-3118
+##cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/gpu/test_operator_gpu.py --verbose --capture=no --junit-xml=result_test_operator_gpu.xml --junit-prefix=result_test_operator_gpu"
+##eval $cmd
 
 ## 3. Unit tests test_forward.py
 cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/gpu/test_forward.py --verbose --capture=no --junit-xml=result_test_forward_gpu.xml --junit-prefix=result_test_forward_gpu"
