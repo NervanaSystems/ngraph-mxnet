@@ -20,7 +20,6 @@ set -u
 set -e
 
 cd "$HOME/ng-mx"
-
 cd python && pip install -e . && pip install pytest nose scipy &&  cd ../
 
 ## Unit tests test_operator.py 
