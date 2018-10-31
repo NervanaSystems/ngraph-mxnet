@@ -495,6 +495,24 @@ void NDArray::Chunk::SetMKLMem(const TShape &shape, int dtype) {
   mkl_mem_.reset(new MKLDNNMemory(pd, shandle.dptr));
 }
 
+/*
+ * Here we want to get MKLDNN memory whose primitive desc is exactly the same as
+ * the given one. operator== can't guarantee that. == can return true even if
+ * the formats are different. I need to double check its format.
+ */
+static inline mkldnn::memory *GetMKLDNNExact(
+    const mkldnn::memory *mem, mkldnn::memory::primitive_desc desc) {
+  mkldnn::memory::primitive_desc src_desc = mem->get_primitive_desc();
+  if (desc == src_desc && desc.desc().data.format == src_desc.desc().data.format) {
+    return const_cast<mkldnn::memory *>(mem);
+  } else {
+    std::shared_ptr<mkldnn::memory> ret(new mkldnn::memory(
+            desc, mem->get_data_handle()));
+    MKLDNNStream::Get()->RegisterMem(ret);
+    return ret.get();
+  }
+}
+
 const mkldnn::memory *NDArray::GetMKLDNNData(
     const mkldnn::memory::primitive_desc &desc) const {
   if (desc.get_size() != shape().Size() * GetTypeSize(dtype_)) {
@@ -740,15 +758,27 @@ void NDArray::UpdateMKLDNNMemDesc() {
 #endif
 
 #if MXNET_USE_NGRAPH == 1
-std::shared_ptr<ngraph::runtime::Tensor> NDArray::create_tensor() {
+std::shared_ptr<ngraph::runtime::Tensor> &NDArray::create_tensor(
+    bool is_boolean, bool is_scalar) {
   if (ptr_->tensor_view_ == nullptr ||
       ptr_->tensor_view_->get_shape() !=
           ngraph_bridge::TShape_to_NShape(shape_)) {
     auto backend = ngraph_bridge::GetBackendFromContext(ctx());
     CHECK(backend != nullptr);
-    ptr_->tensor_view_ = backend->create_tensor(
-        ngraph_bridge::getType(dtype_), ngraph_bridge::TShape_to_NShape(shape_),
-        storage_handle().dptr);
+    ngraph::Shape shape{};
+    if (!is_scalar) {
+      shape = ngraph_bridge::TShape_to_NShape(shape_);
+    }
+    if (is_boolean) {
+      ptr_->tensor_view_ = backend->create_tensor(
+          ngraph::element::boolean, shape,
+          storage_handle().dptr);
+
+    } else {
+      ptr_->tensor_view_ = backend->create_tensor(
+          ngraph_bridge::getType(dtype_), shape,
+          storage_handle().dptr);
+    }
   }
   return ptr_->tensor_view_;
 }

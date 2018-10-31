@@ -760,8 +760,9 @@ class NDArray {
 #endif
 
 #if MXNET_USE_NGRAPH == 1
-    // create and return tensor_view with this ndarray mem
-    std::shared_ptr<ngraph::runtime::Tensor> create_tensor();
+  // create and return tensor_view with this ndarray mem
+  std::shared_ptr<ngraph::runtime::Tensor> &create_tensor(bool is_boolean,
+                                                          bool is_scalar);
 #endif
 
   /*!
