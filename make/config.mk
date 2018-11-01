@@ -109,6 +109,9 @@ USE_MKLDNN = 0
 # USE_NGRAPH_IE - If 1, then if/when nGraph is built it will contain support for inference-engine
 #   processing.
 #
+# USE_NGRAPH_GPU - If 1, then if/when nGraph is built it will contain support for NVIDIA GPU
+#   processing. Requires USE_CUDA and USE_CUDA_PATH to be set above.
+#
 # USE_NGRAPH_DISTRIBUTED - If 1, then if/when nGraph is built it will contain support for
 #   distributed processing.
 #
@@ -124,6 +127,7 @@ USE_MKLDNN = 0
 
 USE_NGRAPH = 0
 USE_NGRAPH_IE = 0
+USE_NGRAPH_GPU = 0
 USE_NGRAPH_DISTRIBUTED = 0
 
 # use prebuilt mkldnn if set

@@ -300,6 +300,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                          const std::vector<NDArray>& arg_grad_store,
                          const std::vector<OpReqType>& grad_req_types,
                          const std::vector<NDArray>& aux_states,
+                         const std::vector<const nnvm::Node*>& input_nodes,
                          Executor* shared_exec,
                          const nnvm::NodeEntryMap<NDArray>& feed_dict) {
   // create in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes
@@ -327,7 +328,8 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
   nnvm::DTypeVector arg_dtypes;
   StorageTypeVector arg_stypes(idx.num_node_entries(), -1);
   for (size_t i = 0; i < num_forward_inputs_; ++i) {
-    const uint32_t nid = idx.input_nodes().at(i);
+    const uint32_t nid = input_nodes.empty() ? idx.input_nodes().at(i) :
+                                               idx.node_id(input_nodes[i]);
     const std::string& arg_name = idx[nid].source->attrs.name;
     size_t eid = idx.entry_id(nid, 0);
     if (mutable_nodes.count(nid)) {
@@ -408,14 +410,16 @@ void GraphExecutor::InitArguments(const nnvm::IndexedGraph& idx,
                                   const std::vector<OpReqType>& grad_req_types,
                                   std::vector<NDArray>* in_arg_vec,
                                   std::vector<NDArray>* arg_grad_vec,
-                                  std::vector<NDArray>* aux_state_vec) {
+                                  std::vector<NDArray>* aux_state_vec,
+                                  const std::vector<const nnvm::Node*>& input_nodes) {
   // initialize in_args, arg_grads, and aux_states
   // populate grad_store_
   data_entry_.resize(idx.num_node_entries());
   size_t arg_top = 0, aux_top = 0;
   const auto& mutable_nodes = idx.mutable_input_nodes();
   for (size_t i = 0; i < num_forward_inputs_; ++i) {
-    const uint32_t nid = idx.input_nodes().at(i);
+    const uint32_t nid = input_nodes.empty() ? idx.input_nodes().at(i) :
+                                               idx.node_id(input_nodes[i]);
     const uint32_t eid = idx.entry_id(nid, 0);
     const TShape& inferred_shape = inferred_shapes[eid];
     const int inferred_dtype = inferred_dtypes[eid];
@@ -481,13 +485,15 @@ void GraphExecutor::InitArguments(const nnvm::IndexedGraph& idx,
                                   std::unordered_map<std::string, NDArray>* shared_buffer,
                                   std::vector<NDArray>* in_arg_vec,
                                   std::vector<NDArray>* arg_grad_vec,
-                                  std::vector<NDArray>* aux_state_vec) {
+                                  std::vector<NDArray>* aux_state_vec,
+                                  const std::vector<const nnvm::Node*>& input_nodes) {
   // initialize in_args, arg_grads, and aux_states and populate grad_store_
   data_entry_.resize(idx.num_node_entries());
   size_t arg_top = 0, aux_top = 0;
   const auto& mutable_nodes = idx.mutable_input_nodes();
   for (size_t i = 0; i < num_forward_inputs_; ++i) {
-    const uint32_t nid = idx.input_nodes().at(i);
+    const uint32_t nid = input_nodes.empty() ? idx.input_nodes().at(i) :
+                                               idx.node_id(input_nodes[i]);
     const uint32_t eid = idx.entry_id(nid, 0);
     const TShape& inferred_shape = inferred_shapes[eid];
     const int inferred_dtype = inferred_dtypes[eid];
@@ -700,6 +706,7 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                          std::vector<NDArray>* in_arg_vec,
                          std::vector<NDArray>* arg_grad_vec,
                          std::vector<NDArray>* aux_state_vec,
+                         const std::vector<const nnvm::Node*>& input_nodes,
                          std::unordered_map<std::string, NDArray>* shared_buffer,
                          Executor* shared_exec,
                          const nnvm::NodeEntryMap<NDArray>& feed_dict) {
@@ -756,14 +763,16 @@ void GraphExecutor::Init(nnvm::Symbol symbol,
                   g.GetAttr<nnvm::DTypeVector>("dtype"),
                   g.GetAttr<StorageTypeVector>("storage_type"),
                   in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes,
-                  grad_req_types, in_arg_vec, arg_grad_vec, aux_state_vec);
+                  grad_req_types, in_arg_vec, arg_grad_vec, aux_state_vec,
+                  input_nodes);
   } else {  // simple bind using shared data arrays and shared_exec
     InitArguments(idx, g.GetAttr<nnvm::ShapeVector>("shape"),
                   g.GetAttr<nnvm::DTypeVector>("dtype"),
                   g.GetAttr<StorageTypeVector>("storage_type"),
                   in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes,
                   grad_req_types, shared_arg_names, shared_exec,
-                  shared_buffer, in_arg_vec, arg_grad_vec, aux_state_vec);
+                  shared_buffer, in_arg_vec, arg_grad_vec, aux_state_vec,
+                  input_nodes);
   }
   // The above code of shape and dtype inferences and argument
   // initialization is for simple_bind only. Regular bind operation
@@ -880,10 +889,16 @@ Executor* GraphExecutor::Reshape(const bool partial_shaping,
       }
     }
   }
+  std::vector<const nnvm::Node*> input_nodes;
+  input_nodes.resize(idx.input_nodes().size());
+  // Traverse all input nodes and store the node pointers in order.
+  for (size_t i = 0; i < input_nodes.size(); ++i) {
+    input_nodes[i] = idx[idx.input_nodes().at(i)].source;
+  }
   auto exec = new GraphExecutor();
   exec->Init(symbol, default_ctx, ctx_map,
              *in_args, *arg_grads, grad_req_types, *aux_states,
-             this);
+             input_nodes, this);
   return exec;
 }
 /*!
@@ -1472,7 +1487,8 @@ static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
                                    const Context& default_ctx,
                                    const std::map<std::string, Context>& ctx_map,
                                    const std::vector<Context>& in_arg_ctxes,
-                                   const std::vector<Context>& aux_state_ctxes) {
+                                   const std::vector<Context>& aux_state_ctxes,
+                                   std::vector<const nnvm::Node*>* input_nodes) {
   auto subgraph_prop = op::SubgraphPropertyRegistry::Get()->CreateSubgraphProperty(prop_name);
   nnvm::Symbol ret = src.Copy();
   nnvm::Graph g;
@@ -1489,6 +1505,13 @@ static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
     subgraph_prop->SetAttr("op_names", it->second);
   }
   g.attrs["subgraph_property"] = std::make_shared<nnvm::any>(std::move(subgraph_prop));
+  const auto &idx_g = g.indexed_graph();
+  const auto &input_nodes_index = idx_g.input_nodes();
+  input_nodes->resize(input_nodes_index.size());
+  // Traverse all input nodes and store the node pointers in order.
+  for (size_t i = 0; i < input_nodes_index.size(); ++i) {
+    (*input_nodes)[i] = idx_g[input_nodes_index[i]].source;
+  }
   g = ApplyPass(std::move(g), "PartitionGraph");
   ret.outputs = g.outputs;
   return ret;
@@ -1504,7 +1527,8 @@ static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
                                    const Context& default_ctx,
                                    const std::map<std::string, Context>& ctx_map,
                                    const std::vector<Context>& in_arg_ctxes,
-                                   const std::vector<Context>& aux_state_ctxes) {
+                                   const std::vector<Context>& aux_state_ctxes,
+                                   std::vector<const nnvm::Node*>* input_nodes) {
   const std::vector<std::string> input_names = src.ListInputNames(Symbol::kAll);
   nnvm::ShapeVector arg_shapes(input_names.size(), TShape());
   nnvm::DTypeVector arg_dtypes(input_names.size(), -1);
@@ -1524,7 +1548,8 @@ static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
     }
   }
   return PartitionGraph(src, prop_name, arg_shapes, arg_dtypes, arg_stypes,
-                        default_ctx, ctx_map, in_arg_ctxes, aux_state_ctxes);
+                        default_ctx, ctx_map, in_arg_ctxes, aux_state_ctxes,
+                        input_nodes);
 }
 
 // Given input ndarrays, partition the graph using the backend name equal to prop_name.
@@ -1534,7 +1559,8 @@ static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
                                    const std::vector<NDArray> &in_args,
                                    const std::vector<NDArray> &aux_states,
                                    const Context& default_ctx,
-                                   const std::map<std::string, Context>& ctx_map) {
+                                   const std::map<std::string, Context>& ctx_map,
+                                   std::vector<const nnvm::Node*>* input_nodes) {
   const std::vector<std::string> input_names = src.ListInputNames(Symbol::kAll);
   const std::vector<std::string> arg_names = src.ListInputNames(nnvm::Symbol::kReadOnlyArgs);
   const std::vector<std::string> aux_names = src.ListInputNames(nnvm::Symbol::kAuxiliaryStates);
@@ -1568,7 +1594,8 @@ static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
     }
   }
   return PartitionGraph(src, prop_name, arg_shapes, arg_dtypes, arg_stypes,
-                        default_ctx, ctx_map, in_arg_ctxes, aux_state_ctxes);
+                        default_ctx, ctx_map, in_arg_ctxes, aux_state_ctxes,
+                        input_nodes);
 }
 }  // namespace exec
 
@@ -1589,16 +1616,22 @@ Executor *Executor::SimpleBind(nnvm::Symbol symbol,
                                std::unordered_map<std::string, NDArray>* shared_buffer,
                                Executor* shared_exec) {
   auto exec = new exec::GraphExecutor();
+  // PartitionGraph() may modify the original graph and change the input node
+  // ordering due to IndexedGraph DFS traveral. It will store the nnvm node* in
+  // the original order in input_nodes to match the expected order from python
+  // side during Init(). If input_nodes is empty, it means ParitionGraph() has
+  // not been called, and input nodes order has not been modified.
+  std::vector<const nnvm::Node*> input_nodes;
   if (!exec->subgraph_property().empty() && group2ctx.empty()) {
     symbol = exec::PartitionGraph(symbol, exec->subgraph_property(), arg_shape_map, arg_dtype_map,
                                   arg_stype_map, default_ctx, group2ctx, in_arg_ctxes,
-                                  aux_state_ctxes);
+                                  aux_state_ctxes, &input_nodes);
   }
   exec->Init(symbol, default_ctx, group2ctx,
              in_arg_ctxes, arg_grad_ctxes, aux_state_ctxes,
              arg_shape_map, arg_dtype_map, arg_stype_map,
              grad_req_types, shared_arg_names,
-             in_args, arg_grads, aux_states,
+             in_args, arg_grads, aux_states, input_nodes,
              shared_buffer, shared_exec);
   return exec;
 }
@@ -1612,13 +1645,19 @@ Executor *Executor::Bind(nnvm::Symbol symbol,
                          const std::vector<NDArray> &aux_states,
                          Executor* shared_exec) {
   auto exec = new exec::GraphExecutor();
+  // PartitionGraph() may modify the original graph and change the input node
+  // ordering due to IndexedGraph DFS traveral. It will store the nnvm node* in
+  // the original order in input_nodes to match the expected order from python
+  // side during Init(). If input_nodes is empty, it means ParitionGraph() has
+  // not been called, and input nodes order has not been modified.
+  std::vector<const nnvm::Node*> input_nodes;
   if (!exec->subgraph_property().empty() && group2ctx.empty()) {
     symbol = exec::PartitionGraph(symbol, exec->subgraph_property(), in_args, aux_states,
-                                  default_ctx, group2ctx);
+                                  default_ctx, group2ctx, &input_nodes);
   }
   exec->Init(symbol, default_ctx, group2ctx,
              in_args, arg_grad_store, grad_req_type, aux_states,
-             reinterpret_cast<Executor*>(shared_exec));
+             input_nodes, reinterpret_cast<Executor*>(shared_exec));
   return exec;
 }
 }  // namespace mxnet

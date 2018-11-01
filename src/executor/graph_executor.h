@@ -84,6 +84,7 @@ class GraphExecutor : public Executor {
             const std::vector<NDArray>& arg_grad_store,
             const std::vector<OpReqType>& grad_req_types,
             const std::vector<NDArray>& aux_states,
+            const std::vector<const nnvm::Node*>& input_nodes,
             Executor* shared_exec = nullptr,
             const nnvm::NodeEntryMap<NDArray>& feed_dict
               = nnvm::NodeEntryMap<NDArray>());
@@ -102,6 +103,7 @@ class GraphExecutor : public Executor {
             std::vector<NDArray>* in_arg_vec,
             std::vector<NDArray>* arg_grad_vec,
             std::vector<NDArray>* aux_state_vec,
+            const std::vector<const nnvm::Node*>& input_nodes,
             std::unordered_map<std::string, NDArray>* shared_buffer = nullptr,
             Executor* shared_exec = nullptr,
             const nnvm::NodeEntryMap<NDArray>& feed_dict
@@ -162,7 +164,8 @@ class GraphExecutor : public Executor {
                      const std::vector<OpReqType>& grad_req_types,
                      std::vector<NDArray>* in_arg_vec,
                      std::vector<NDArray>* arg_grad_vec,
-                     std::vector<NDArray>* aux_state_vec);
+                     std::vector<NDArray>* aux_state_vec,
+                     const std::vector<const nnvm::Node*>& input_nodes);
   // Initialize in_args, arg_grads and aux_states with
   // shared_buffer and shared_exec
   virtual void InitArguments(const nnvm::IndexedGraph& idx,
@@ -178,7 +181,8 @@ class GraphExecutor : public Executor {
                              std::unordered_map<std::string, NDArray>* shared_buffer,
                              std::vector<NDArray>* in_arg_vec,
                              std::vector<NDArray>* arg_grad_vec,
-                             std::vector<NDArray>* aux_state_vec);
+                             std::vector<NDArray>* aux_state_vec,
+                             const std::vector<const nnvm::Node*>& input_nodes);
 
   // internal initialization of the graph for simple bind
   Graph InitGraph(nnvm::Symbol symbol,
