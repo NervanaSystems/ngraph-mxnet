@@ -495,24 +495,6 @@ void NDArray::Chunk::SetMKLMem(const TShape &shape, int dtype) {
   mkl_mem_.reset(new MKLDNNMemory(pd, shandle.dptr));
 }
 
-/*
- * Here we want to get MKLDNN memory whose primitive desc is exactly the same as
- * the given one. operator== can't guarantee that. == can return true even if
- * the formats are different. I need to double check its format.
- */
-static inline mkldnn::memory *GetMKLDNNExact(
-    const mkldnn::memory *mem, mkldnn::memory::primitive_desc desc) {
-  mkldnn::memory::primitive_desc src_desc = mem->get_primitive_desc();
-  if (desc == src_desc && desc.desc().data.format == src_desc.desc().data.format) {
-    return const_cast<mkldnn::memory *>(mem);
-  } else {
-    std::shared_ptr<mkldnn::memory> ret(new mkldnn::memory(
-            desc, mem->get_data_handle()));
-    MKLDNNStream::Get()->RegisterMem(ret);
-    return ret.get();
-  }
-}
-
 const mkldnn::memory *NDArray::GetMKLDNNData(
     const mkldnn::memory::primitive_desc &desc) const {
   if (desc.get_size() != shape().Size() * GetTypeSize(dtype_)) {
