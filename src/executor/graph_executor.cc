@@ -1623,6 +1623,7 @@ Executor *Executor::SimpleBind(nnvm::Symbol symbol,
   // not been called, and input nodes order has not been modified.
   std::vector<const nnvm::Node*> input_nodes;
   if (!exec->subgraph_property().empty() && group2ctx.empty()) {
+    std::cout << "using partition graph: " << exec->subgraph_property() << std::endl;
     symbol = exec::PartitionGraph(symbol, exec->subgraph_property(), arg_shape_map, arg_dtype_map,
                                   arg_stype_map, default_ctx, group2ctx, in_arg_ctxes,
                                   aux_state_ctxes, &input_nodes);
