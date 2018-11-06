@@ -40,6 +40,7 @@ else
     echo "ngraphBranch === ${NGRAPH_BRANCH}"
 fi
 cd "${MX_DIR}"
+
 case "${MAKE_VARIABLES}" in
 	USE_NGRAPH)
 		echo "Building MXnet with experimental nGraph integration enabled. Engine: CPU + MKLDNN"
@@ -50,10 +51,13 @@ case "${MAKE_VARIABLES}" in
 		make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 USE_NGRAPH_DISTRIBUTED=1 NGRAPH_EXTRA_CMAKE_FLAGS=-DNGRAPH_DISTRIBUTED_ENABLE=1 -j $(nproc)
 		;;
 	USE_CUDA)
-		#make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=1 DEBUG=0 -j $(nproc)
+		echo "CUDA Version"
+		cat /usr/local/cuda/version.txt
+		echo "Print the nvidia-smi"
+		echo `cat /proc/driver/nvidia/version | head -n1 | awk '{ print $8 }'`
+		echo `lspci | grep -i nvidia`
 		echo "Building MXnet with experimental nGraph distributed support enabled. Engine: GPU"
-		echo "TODO"
-		break
+		make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0 USE_CUDA=1 DEBUG=0 USE_NGRAPH_GPU=1 USE_CUDNN=1 USE_CUDA_PATH=/usr/local/cuda -j $(nproc)
 		;;
 	USE_MKLDNN)
 		echo "Building MXnet with MKLDNN, and non-nGraph. Engine: CPU + MKLDNN"
@@ -105,9 +109,16 @@ elif [ "${MAKE_VARIABLES}" == "USE_MKLDNN" ]; then
   	else
   		echo "PASS. Directory 3rdparty/ngraph-mxnet-bridge/install is not existed!"
   	fi
+elif [ "${MAKE_VARIABLES}" == "USE_CUDA" ]; then
+	if [ ! -f "./lib/libgpu_backend.so" ] ; then
+		( >&2 echo "FATAL ERROR: libgpu_backend.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
+		exit 1
+	else
+		echo "Success to install with CUDA."
+	fi
 else
-	if [ -f "./lib/libmkldnn.so" ] ; then
-		( >&2 echo "FATAL ERROR: libmkldnn.so should not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
+	if [ ! -f "./lib/libngraph.so" ] ; then
+		( >&2 echo "FATAL ERROR: libngraph.so should not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
 	fi
 
   	if [ -d "${MX_DIR}/3rdparty/ngraph-mxnet-bridge/install" ]; then

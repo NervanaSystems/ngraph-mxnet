@@ -178,7 +178,7 @@ def test_symbol_fluent():
                     'degrees', 'radians', 'sinh', 'cosh', 'tanh', 'arcsinh', 'arccosh', 'arctanh',
                     'exp', 'expm1', 'log', 'log10', 'log2', 'log1p', 'sqrt', 'rsqrt',
                     'square', 'reciprocal' 'reshape_like', 'cbrt', 'rcbrt', 'relu', 'sigmoid',
-                    'softmax', 'log_softmax', 'rint', 'ceil', 'floor', 'trunc', 'fix'])
+                    'softmax', 'log_softmax', 'softmin', 'rint', 'ceil', 'floor', 'trunc', 'fix'])
 
     def check_fluent_regular(func, kwargs, shape=(5, 17, 1), equal_nan=False):
         with mx.name.NameManager():
@@ -197,7 +197,7 @@ def test_symbol_fluent():
 
     for func in ['arccosh', 'arcsin', 'arccos', 'arctan', 'tan', 'sinh', 'cosh', 'tanh',
                  'arcsinh', 'arctanh', 'log', 'log10', 'log2', 'log1p', 'sqrt', 'rsqrt',
-                 'cbrt', 'rcbrt', 'relu', 'sigmoid', 'softmax', 'log_softmax']:
+                 'cbrt', 'rcbrt', 'relu', 'sigmoid', 'softmax', 'log_softmax', 'softmin']:
         check_fluent_regular(func, {}, equal_nan=True)
 
     for func in ['expand_dims', 'flip', 'sort', 'topk', 'argsort', 'argmax', 'argmin']:
@@ -269,7 +269,7 @@ def test_blockgrad():
     b = mx.sym.BlockGrad(2*a)
     exe = b.simple_bind(ctx=mx.cpu(), a=(10,10))
 
-#@unittest.skip("Memory allocation isn't properly supported and test_zero_prop fails since the bridge hasn't been integrated nGraph into the debug string yet. Temporarily disabled till it gets fixed")
+@unittest.skip("NGraph cannot always assume that grad_req='null' and stop_gradient mean the same thing")
 def test_zero_prop():
     data = mx.symbol.Variable('data')
     for i in range(10):
