@@ -41,7 +41,7 @@ namespace mxnet {
 namespace op {
 
 // when built with NGRAPH we use this subgraph by default
-static int ngraph_backend = setenv("MXNET_SUBGRAPH_BACKEND", "ngraph", 0);
+static int ngraph_backend = setenv("MXNET_SUBGRAPH_BACKEND", "", 0);
 
 class SgNgraphSelector : public SubgraphSelector {
  public:
