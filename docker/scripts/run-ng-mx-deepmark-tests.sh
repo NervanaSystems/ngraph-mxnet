@@ -53,50 +53,50 @@ run_inference_topologies() {
     export TEST_DEEPMARK_TYPE="${MX_NG_DEEPMARK_TYPE}"
     export LD_LIBRARY_PATH="${HOME}/ng-mx/warp-ctc/build"${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 
-    if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
+    #if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
         # Run the Faster-RCNN, --batch-size 1
-        cmd="pytest -s docker/scripts/test_deepmark_Faster_RCNN_inference.py --junit-xml=validation_test_deepmark_Faster_RCNN_inference.xml --junit-prefix=inference_deepmark_Faster_RCNN_cpu"
-        eval $cmd
-    else
-        echo "Faster-RCNN doesn't work with any --batch-size except 1."
-    fi
+    #    cmd="pytest -s docker/scripts/test_deepmark_Faster_RCNN_inference.py --junit-xml=validation_test_deepmark_Faster_RCNN_inference.xml --junit-prefix=inference_deepmark_Faster_RCNN_cpu"
+    #    eval $cmd
+    #else
+    #    echo "Faster-RCNN doesn't work with any --batch-size except 1."
+    #fi
 
     ## Issue NGRAPH-2911
-    if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
-        # Run DeepSpeed 2
-        cmd="pytest -s docker/scripts/test_deepmark_deepspeech_inference.py --junit-xml=validation_test_deepmark_deepspeech_inference.xml --junit-prefix=inference_deepmark_deepspeech"
-        eval $cmd
-    else
-        echo "DeepSpeech 2 doesn't work with any --batch-size except 1."
-    fi
+    #if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
+    #    # Run DeepSpeed 2
+    #    cmd="pytest -s docker/scripts/test_deepmark_deepspeech_inference.py --junit-xml=validation_test_deepmark_deepspeech_inference.xml --junit-prefix=inference_deepmark_deepspeech"
+    #    eval $cmd
+    #else
+    #    echo "DeepSpeech 2 doesn't work with any --batch-size except 1."
+    #fi
     
     # Run the inception_v4
-    cmd="pytest -s docker/scripts/test_deepmark_inception_v4_inference.py --junit-xml=validation_test_deepmark_inception_v4_inference.xml --junit-prefix=inference_deepmark_inception_v4_cpu"
-    eval $cmd
+    #cmd="pytest -s docker/scripts/test_deepmark_inception_v4_inference.py --junit-xml=validation_test_deepmark_inception_v4_inference.xml --junit-prefix=inference_deepmark_inception_v4_cpu"
+    #eval $cmd
 
     # Run the inception_v3
-    cmd="pytest -s docker/scripts/test_deepmark_inception_v3_inference.py --junit-xml=validation_test_deepmark_inception_v3_inference.xml --junit-prefix=inference_deepmark_inception_v3_cpu"
-    eval $cmd
+    #cmd="pytest -s docker/scripts/test_deepmark_inception_v3_inference.py --junit-xml=validation_test_deepmark_inception_v3_inference.xml --junit-prefix=inference_deepmark_inception_v3_cpu"
+    #eval $cmd
 
     # Run the inception_resnet_v2
-    cmd="pytest -s docker/scripts/test_deepmark_inception_resnet_v2_inference.py --junit-xml=validation_test_deepmark_inception_resnet_v2_inference.xml --junit-prefix=inference_deepmark_inception_resnet_v2_cpu"
-    eval $cmd
+    #cmd="pytest -s docker/scripts/test_deepmark_inception_resnet_v2_inference.py --junit-xml=validation_test_deepmark_inception_resnet_v2_inference.xml --junit-prefix=inference_deepmark_inception_resnet_v2_cpu"
+    #eval $cmd
 
     # Run the resnet_50
-    cmd="pytest -s docker/scripts/test_deepmark_resnet_50_inference.py --junit-xml=validation_test_deepmark_resnet_50_inference.xml --junit-prefix=inference_deepmark_resnet_50_cpu"
-    eval $cmd
+    #cmd="pytest -s docker/scripts/test_deepmark_resnet_50_inference.py --junit-xml=validation_test_deepmark_resnet_50_inference.xml --junit-prefix=inference_deepmark_resnet_50_cpu"
+    #eval $cmd
 
     # Run the a3c
-    cmd="pytest -s docker/scripts/test_deepmark_a3c_inference.py --junit-xml=validation_test_deepmark_a3c_inference.xml --junit-prefix=inference_deepmark_a3c_cpu"
-    eval $cmd
+    #cmd="pytest -s docker/scripts/test_deepmark_a3c_inference.py --junit-xml=validation_test_deepmark_a3c_inference.xml --junit-prefix=inference_deepmark_a3c_cpu"
+    #eval $cmd
 
     # Run the test wide_deep
-    cmd="pytest -s docker/scripts/test_deepmark_wide_deep_inference.py --junit-xml=validation_test_deepmark_wide_deep_inference.xml --junit-prefix=inference_deepmark_wide_deep_cpu"
-    eval $cmd
+    #cmd="pytest -s docker/scripts/test_deepmark_wide_deep_inference.py --junit-xml=validation_test_deepmark_wide_deep_inference.xml --junit-prefix=inference_deepmark_wide_deep_cpu"
+    #eval $cmd
 
     # Run the test mobilenet
-    cmd="pytest -s docker/scripts/test_deepmark_mobilenet_inference.py --junit-xml=validation_test_deepmark_mobilenet_inference.xml --junit-prefix=inference_deepmark_mobilenet_cpu"
-    eval $cmd
+    #cmd="pytest -s docker/scripts/test_deepmark_mobilenet_inference.py --junit-xml=validation_test_deepmark_mobilenet_inference.xml --junit-prefix=inference_deepmark_mobilenet_cpu"
+    #eval $cmd
 
     # Run the test mobilenet_v2
     cmd="pytest -s docker/scripts/test_deepmark_mobilenet_v2_inference.py --junit-xml=validation_test_deepmark_mobilenet_v2_inference.xml --junit-prefix=inference_deepmark_mobilenet_v2_cpu"
@@ -127,24 +127,24 @@ run_inference_topologies() {
     eval $cmd
 
     # Run DCGAN 
-    cmd="pytest -s docker/scripts/test_deepmark_dcgan_inference.py --junit-xml=validation_test_deepmark_dcgan_inference.xml --junit-prefix=inference_deepmark_dcgan_cpu"
-    eval $cmd
+    #cmd="pytest -s docker/scripts/test_deepmark_dcgan_inference.py --junit-xml=validation_test_deepmark_dcgan_inference.xml --junit-prefix=inference_deepmark_dcgan_cpu"
+    #eval $cmd
 
     # Run  sockeye_transformer
-    cmd="pytest -s docker/scripts/test_deepmark_sockeye_transformer_inference.py --junit-xml=validation_test_deepmark_sockeye_transformer_inference.xml --junit-prefix=inference_deepmark_sockeye_transformer_cpu"
-    eval $cmd
+    #cmd="pytest -s docker/scripts/test_deepmark_sockeye_transformer_inference.py --junit-xml=validation_test_deepmark_sockeye_transformer_inference.xml --junit-prefix=inference_deepmark_sockeye_transformer_cpu"
+    #eval $cmd
 
     # Run  sockeye_gnmt
-    cmd="pytest -s docker/scripts/test_deepmark_sockeye_gnmt_inference.py --junit-xml=validation_test_deepmark_sockeye_gnmt_inference.xml --junit-prefix=inference_deepmark_sockeye_gnmt_cpu"
-    eval $cmd
+    #cmd="pytest -s docker/scripts/test_deepmark_sockeye_gnmt_inference.py --junit-xml=validation_test_deepmark_sockeye_gnmt_inference.xml --junit-prefix=inference_deepmark_sockeye_gnmt_cpu"
+    #eval $cmd
 
     # Run ssd_512_mobilenet1_0_voc 
-    cmd="pytest -s docker/scripts/test_deepmark_ssd_512_mobilenet_inference.py --junit-xml=validation_test_deepmark_ssd_512_mobilenet_inference.xml --junit-prefix=inference_deepmark_ssd_512_mobilenet_cpu"
-    eval $cmd
+    #cmd="pytest -s docker/scripts/test_deepmark_ssd_512_mobilenet_inference.py --junit-xml=validation_test_deepmark_ssd_512_mobilenet_inference.xml --junit-prefix=inference_deepmark_ssd_512_mobilenet_cpu"
+    #eval $cmd
 
     # Run ssd
-    cmd="pytest -s docker/scripts/test_deepmark_ssd_inference.py --junit-xml=validation_test_deepmark_ssd_inference.xml --junit-prefix=inference_deepmark_ssd_cpu"
-    eval $cmd
+    #cmd="pytest -s docker/scripts/test_deepmark_ssd_inference.py --junit-xml=validation_test_deepmark_ssd_inference.xml --junit-prefix=inference_deepmark_ssd_cpu"
+    #eval $cmd
 
     # Run vgg16
     cmd="pytest -s docker/scripts/test_deepmark_vgg16_inference.py --junit-xml=validation_test_deepmark_vgg16_inference.xml --junit-prefix=inference_deepmark_vgg16_cpu"
@@ -155,8 +155,8 @@ run_inference_topologies() {
     #eval $cmd
 
     # Run deepspeech2_mod
-    cmd="pytest -s docker/scripts/test_deepmark_deepspeech2_mod_inference.py --junit-xml=validation_test_deepmark_deepspeech2_mod_inference.xml --junit-prefix=inference_deepmark_deepspeech2_mod_cpu"
-    eval $cmd
+    #cmd="pytest -s docker/scripts/test_deepmark_deepspeech2_mod_inference.py --junit-xml=validation_test_deepmark_deepspeech2_mod_inference.xml --junit-prefix=inference_deepmark_deepspeech2_mod_cpu"
+    #eval $cmd
 
     echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
 
