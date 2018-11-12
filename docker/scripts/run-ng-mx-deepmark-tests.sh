@@ -108,11 +108,11 @@ run_inference_topologies() {
 
     # Run the densenet161
     cmd="pytest -s docker/scripts/test_deepmark_densenet161_inference.py --junit-xml=validation_test_deepmark_densenet161_inference.xml --junit-prefix=inference_deepmark_densenet161_cpu"
-    eval $
+    eval $cmd
 
     # Run the densenet169
     cmd="pytest -s docker/scripts/test_deepmark_densenet169_inference.py --junit-xml=validation_test_deepmark_densenet169_inference.xml --junit-prefix=inference_deepmark_densenet169_cpu"
-    eval $
+    eval $cmd
 
     # Run the densenet201
     cmd="pytest -s docker/scripts/test_deepmark_densenet201_inference.py --junit-xml=validation_test_deepmark_densenet201_inference.xml --junit-prefix=inference_deepmark_densenet201_cpu"
