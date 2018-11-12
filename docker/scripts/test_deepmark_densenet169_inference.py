@@ -26,7 +26,7 @@
 # JUnit XML files can be generated using pytest's command-line options.
 # For example:
 #
-#     $ pytest -s ./test_deepmark_densenet121_inference.py --junit-xml=../validation_deepmark_densenet121.xml --junit-prefix=daily_validation_deepmark_densenet121
+#     $ pytest -s ./test_deepmark_densenet169_inference.py --junit-xml=../validation_deepmark_densenet169.xml --junit-prefix=daily_validation_deepmark_densenet169
 
 import sys
 import os
@@ -77,12 +77,12 @@ benchmarkScriptPath = "benchmark.py"
 pythonProg = 'python'
 
 
-def test_deepmark_densenet121_cpu_backend():
+def test_deepmark_densenet169_cpu_backend():
     
     script = os.path.join(os.environ.get('TEST_DEEPMARK_LOG_DIR'), benchmarkScriptPath)
     VT.checkScript(script)
     # Run with NGraph CPU backend, saving timing and accuracy
-    ngraphLog = VT.runDensenet121DeepMarkScript(sourceDir=sourceDir,
+    ngraphLog = VT.runDensenet169DeepMarkScript(sourceDir=sourceDir,
                                 logID=' nGraph',
                                 script=script,
                                 ompNumThreads=ompNumThreads,
@@ -96,25 +96,25 @@ def test_deepmark_densenet121_cpu_backend():
 
     lDir = os.path.abspath(os.environ['TEST_DEEPMARK_LOG_DIR'])
     if (not checkAccurary):
-        VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_densenet121_cpu_ngraph.log'))
-        VT.checkScript(os.path.join(lDir, 'test_deepmark_densenet121_cpu_ngraph.log'))
+        VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_densenet169_cpu_ngraph.log'))
+        VT.checkScript(os.path.join(lDir, 'test_deepmark_densenet169_cpu_ngraph.log'))
     else:
-        VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_densenet121_accuracy_cpu_ngraph.log'))
-        VT.checkScript(os.path.join(lDir, 'test_deepmark_densenet121_accuracy_cpu_ngraph.log'))
-        assert VT.checkAccuracyResult(os.path.join(lDir, 'test_deepmark_densenet121_accuracy_cpu_ngraph.log')) == True
+        VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_densenet169_accuracy_cpu_ngraph.log'))
+        VT.checkScript(os.path.join(lDir, 'test_deepmark_densenet169_accuracy_cpu_ngraph.log'))
+        assert VT.checkAccuracyResult(os.path.join(lDir, 'test_deepmark_densenet169_accuracy_cpu_ngraph.log')) == True
 
 
-    #writeJenkinsDescription(ngraphLog, os.path.join(lDir, 'test_deepmark_densenet121_jenkins_oneline.log'))
+    #writeJenkinsDescription(ngraphLog, os.path.join(lDir, 'test_deepmark_densenet169_jenkins_oneline.log'))
 
 
-    print("----- Deepmark Densenet 121 Testing Summary ----------------------------------------")
+    print("----- Deepmark Densenet 169 Testing Summary ----------------------------------------")
 
     summaryLog = None
     if lDir != None:
         if checkAccurary:
-            summaryLog = os.path.join(lDir, 'test_deepmark_densenet121_accuracy_cpu_summary.log')
+            summaryLog = os.path.join(lDir, 'test_deepmark_densenet169_accuracy_cpu_summary.log')
         else:
-            summaryLog = os.path.join(lDir, 'test_deepmark_densenet121_cpu_summary.log')
+            summaryLog = os.path.join(lDir, 'test_deepmark_densenet169_cpu_summary.log')
 
     logOut = VT.LogAndOutput(logFile=summaryLog)
 
@@ -128,7 +128,7 @@ def test_deepmark_densenet121_cpu_backend():
     logOut.line("OMP_NUM_THREADS:       {} (fixed)".format(ompNumThreads))
     logOut.line("KMP_AFFINITY:       {} (fixed)".format(kmpAff))
 
-# End: test_deepmark_densenet121_cpu_backend()
+# End: test_deepmark_densenet169_cpu_backend()
 
 
 # Returns array of captured stdout/stderr lines, for post-processing
@@ -174,7 +174,7 @@ def writeJenkinsDescription(ngResults, fileName):
 
         fOut = open( fileName, 'w')
 
-        fOut.write("DENSENET 121 type: {}\n\t{}".format(ngResults['command'],ngResults['one_line']))
+        fOut.write("DENSENET 161 type: {}\n\t{}".format(ngResults['command'],ngResults['one_line']))
 
         fOut.close()
 

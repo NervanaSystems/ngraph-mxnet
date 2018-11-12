@@ -98,12 +98,32 @@ run_inference_topologies() {
     cmd="pytest -s docker/scripts/test_deepmark_mobilenet_inference.py --junit-xml=validation_test_deepmark_mobilenet_inference.xml --junit-prefix=inference_deepmark_mobilenet_cpu"
     eval $cmd
 
+    # Run the test mobilenet_v2
+    cmd="pytest -s docker/scripts/test_deepmark_mobilenet_v2_inference.py --junit-xml=validation_test_deepmark_mobilenet_v2_inference.xml --junit-prefix=inference_deepmark_mobilenet_v2_cpu"
+    eval $cmd
+
     # Run the densenet121
     cmd="pytest -s docker/scripts/test_deepmark_densenet121_inference.py --junit-xml=validation_test_deepmark_densenet121_inference.xml --junit-prefix=inference_deepmark_densenet121_cpu"
     eval $cmd
 
+    # Run the densenet161
+    cmd="pytest -s docker/scripts/test_deepmark_densenet161_inference.py --junit-xml=validation_test_deepmark_densenet161_inference.xml --junit-prefix=inference_deepmark_densenet161_cpu"
+    eval $
+
+    # Run the densenet169
+    cmd="pytest -s docker/scripts/test_deepmark_densenet169_inference.py --junit-xml=validation_test_deepmark_densenet169_inference.xml --junit-prefix=inference_deepmark_densenet169_cpu"
+    eval $
+
+    # Run the densenet201
+    cmd="pytest -s docker/scripts/test_deepmark_densenet201_inference.py --junit-xml=validation_test_deepmark_densenet201_inference.xml --junit-prefix=inference_deepmark_densenet201_cpu"
+    eval $cmd
+
     # Run the squeezenet1.1
     cmd="pytest -s docker/scripts/test_deepmark_squeezenet_inference.py --junit-xml=validation_test_deepmark_squeezenet_inference.xml --junit-prefix=inference_deepmark_squeezenet_cpu"
+    eval $cmd
+
+    # Run squeezenet1.0
+    cmd="pytest -s docker/scripts/test_deepmark_squeezenet1_0_inference.py --junit-xml=validation_test_deepmark_squeezenet1_0_inference.xml --junit-prefix=inference_deepmark_squeezenet1_0_cpu"
     eval $cmd
 
     # Run DCGAN 
@@ -124,6 +144,10 @@ run_inference_topologies() {
 
     # Run ssd
     cmd="pytest -s docker/scripts/test_deepmark_ssd_inference.py --junit-xml=validation_test_deepmark_ssd_inference.xml --junit-prefix=inference_deepmark_ssd_cpu"
+    eval $cmd
+
+    # Run vgg16
+    cmd="pytest -s docker/scripts/test_deepmark_vgg16_inference.py --junit-xml=validation_test_deepmark_vgg16_inference.xml --junit-prefix=inference_deepmark_vgg16_cpu"
     eval $cmd
 
     # Comment out mask_rcnn_resnet50_v1b_coco due to NGRAPH-2821
