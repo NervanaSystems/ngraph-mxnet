@@ -474,7 +474,7 @@ def runInceptionV3Script(sourceDir=None,
 
 # End: def runInceptionV3Script()
 
-def runResnet50DeepMarkScript(sourceDir=None,
+def runResnet50V2DeepMarkScript(sourceDir=None,
                     script=None,          # Script to run
                    logID='',
                    ompNumThreads=None,
@@ -500,7 +500,35 @@ def runResnet50DeepMarkScript(sourceDir=None,
     runLog = runCommand(command=cmd, logID=logID)
     return runLog
 
-# End: def runResnet50DeepMarkScript()
+# End: def runResnet50V2DeepMarkScript()
+
+def runResnet50V1DeepMarkScript(sourceDir=None,
+                    script=None,          # Script to run
+                   logID='',
+                   ompNumThreads=None,
+                   kmpAff=None,
+                   kmpBlocktime=None,
+                   batchsize=None,
+                   checkAccurary=None):            # Log line prefix
+
+    print("DeepMark script being run with:")
+    print("    script:         {}".format(str(script)))
+    print("    logID:          {}".format(str(logID)))
+
+    print("Setting up run in nGraph environment")
+    print("The Python version is: {}".format(os.environ['PYTHON_VERSION_NUMBER']))
+    process = subprocess.check_output(["which python"],shell=True)
+    python_lib = process.decode('utf-8').split()[0]
+    if checkAccurary:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network resnetv1-50 --batch-size {} --accuracy-check".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference accuracy is: {}".format(cmd))
+    else:
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network resnetv1-50 --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        print("The command for checking inference performance is: {}".format(cmd))
+    runLog = runCommand(command=cmd, logID=logID)
+    return runLog
+
+# End: def runResnet50V1DeepMarkScript()
 
 def runA3CDeepMarkScript(sourceDir=None,
                     script=None,          # Script to run
