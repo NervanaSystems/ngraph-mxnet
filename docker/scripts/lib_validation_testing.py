@@ -631,10 +631,10 @@ def runVGG16DeepMarkScript(sourceDir=None,
     process = subprocess.check_output(["which python"],shell=True)
     python_lib = process.decode('utf-8').split()[0]
     if checkAccurary:
-        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network vgg-16--is-train true --batch-size {} --accuracy-check".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network vgg-16 --batch-size {} --accuracy-check".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
         print("The command for checking inference accuracy is: {}".format(cmd))
     else:
-        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network vgg-16 --is-train true --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
+        cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network vgg-16 --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
         print("The command for checking inference performance is: {}".format(cmd))
     runLog = runCommand(command=cmd, logID=logID)
     return runLog
