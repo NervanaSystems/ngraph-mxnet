@@ -158,6 +158,8 @@ std::vector<std::string> NgraphSubgraphListOutputNames(
 bool NgraphSubgraphInferShape(const nnvm::NodeAttrs &attrs,
                               std::vector<nnvm::TShape> *in_attrs,
                               std::vector<nnvm::TShape> *out_attrs) {
+  CHECK(in_attrs != nullptr);
+  CHECK(out_attrs != nullptr);
   auto compiler =
       nnvm::get<std::shared_ptr<ngraph_bridge::Compiler>>(attrs.parsed);
   auto graph = get_ngraph(attrs);
@@ -179,6 +181,8 @@ bool NgraphSubgraphInferShape(const nnvm::NodeAttrs &attrs,
 }
 bool NgraphSubgraphInferType(const nnvm::NodeAttrs &attrs,
                              std::vector<int> *iattr, std::vector<int> *oattr) {
+  CHECK(iattr != nullptr);
+  CHECK(oattr != nullptr);
   auto graph = get_ngraph(attrs);
   for (size_t i = 0; i < graph->inputs_.size(); ++i) {
     (*iattr)[i] = graph->inputs_[i]->dtype_;
@@ -198,6 +202,10 @@ bool NgraphSubgraphInferStorageType(const nnvm::NodeAttrs &attrs,
                                     mxnet::DispatchMode *dispatch_mode,
                                     std::vector<int> *in_attrs,
                                     std::vector<int> *out_attrs) {
+
+  CHECK(dispatch_mode != nullptr);
+  CHECK(in_attrs != nullptr);
+  CHECK(out_attrs != nullptr);
   DISPATCH_MODE_ASSIGN_CHECK(dispatch_mode, 0, DispatchMode::kFComputeEx);
   if (in_attrs->size() > 0)
     mxnet::op::storage_type_assign(in_attrs, mxnet::kDefaultStorage,
@@ -212,6 +220,9 @@ bool NgraphSubgraphBackwardInferStorageType(const nnvm::NodeAttrs &attrs,
                                             mxnet::DispatchMode *dispatch_mode,
                                             std::vector<int> *in_attrs,
                                             std::vector<int> *out_attrs) {
+  CHECK(dispatch_mode != nullptr);
+  CHECK(in_attrs != nullptr);
+  CHECK(out_attrs != nullptr);
   DISPATCH_MODE_ASSIGN_CHECK(dispatch_mode, 0, DispatchMode::kFComputeEx);
   mxnet::op::storage_type_assign(in_attrs, mxnet::kDefaultStorage,
                                  dispatch_mode,
