@@ -218,5 +218,5 @@ cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_t
 eval $cmd 
 
 ### tests/cpp
-make test -j$(nproc) USE_NGRAPH=1
-./build/tests/cpp/mxnet_unit_tests --gtest_output="xml:result_test_cpp.xml"
+#make test -j$(nproc) USE_NGRAPH=1
+#./build/tests/cpp/mxnet_unit_tests --gtest_output="xml:result_test_cpp.xml"
