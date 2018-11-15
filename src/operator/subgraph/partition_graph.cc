@@ -746,7 +746,8 @@ void CreateSubgraphNode(Graph* g,
   std::unordered_map<nnvm::NodeEntry, std::vector<nnvm::NodeEntry*>,
                        nnvm::NodeEntryHash, nnvm::NodeEntryEqual>
         input_entry_map;
-  FindInputEntries(*g, simple_nodes, subgraph_nodes, *entry_top_order_map, &input_entries, &input_entry_map);
+  FindInputEntries(*g, simple_nodes, subgraph_nodes, *entry_top_order_map,
+                   &input_entries, &input_entry_map);
   std::vector<nnvm::NodeEntry> orig_input_entries;
   CutGraphInputs(input_entries, &orig_input_entries, &input_entry_map, false);
 #if DEBUG_SUBGRAPH
