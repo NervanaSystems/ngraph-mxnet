@@ -12,7 +12,7 @@ can be found in the same build directory as `libmxnet.so`.
 The experimental MXnet nGraph integration does not currently support externally
 supplied builds of nGraph's libraries to be used by MXnet.  However, it is possible
 to use control which particular version of the nGraph source code is built by
-executing an appropriate `git checkout ...` command in the `3rdparty/ngraph`
+executing an appropriate `git checkout ...` command in the `3rdparty/ngraph-mxnet-bridge`
 MXnet source tree.
 
 Some of the Make-variable influential for experimental nGraph MXnet integration
