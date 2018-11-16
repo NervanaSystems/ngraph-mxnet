@@ -176,7 +176,12 @@ if(USE_NGRAPH AND NOT MSVC)
   if(NOT MSVC)
     set(ARCH_OPT_FLAGS "-mtune=generic")
   endif()
+
+  set(NGRAPH_BRIDGE_UNIT_TEST_SOURCE "")
+
   add_subdirectory(3rdparty/ngraph-mxnet-bridge)
+
+  get_directory_property(NGRAPH_BRIDGE_UNIT_TEST_SOURCE DIRECTORY 3rdparty/ngraph-mxnet-bridge DEFINITION NGRAPH_BRIDGE_UNIT_TEST_SOURCE) 
 
   include_directories(3rdparty/ngraph-mxnet-bridge/src)
   include_directories(${CMAKE_BINARY_DIR}/3rdparty/ngraph-mxnet-bridge/include)
@@ -209,6 +214,7 @@ if(USE_NGRAPH AND NOT MSVC)
   if(USE_NGRAPH_DISTRIBUTED)
     add_definitions(-DMXNET_USE_NGRAPH_DISTRIBUTED=1)
   endif(USE_NGRAPH_DISTRIBUTED)
+
 endif()
 
 if(USE_GPROF)
