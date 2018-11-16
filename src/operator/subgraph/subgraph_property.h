@@ -122,10 +122,16 @@ class SubgraphProperty {
    * \param subgraph_node the subgraph node to connect output
    * \param output_entries external output entries depending on this subgraph node
    */
-  virtual void ConnectSubgraphOutputs(const nnvm::NodePtr subgraph_node,
-                                      std::vector<nnvm::NodeEntry*>* output_entries) const {
+  virtual void ConnectSubgraphOutputs(
+      const nnvm::NodePtr subgraph_node,
+      std::vector<nnvm::NodeEntry*>* output_entries,
+      const std::unordered_map<nnvm::NodeEntry, std::vector<nnvm::NodeEntry*>,
+                               nnvm::NodeEntryHash, nnvm::NodeEntryEqual>&
+          output_entry_map) const {
     for (size_t i = 0; i < output_entries->size(); ++i) {
-      *output_entries->at(i) = nnvm::NodeEntry{subgraph_node, static_cast<uint32_t>(i), 0};
+      for (auto& entry : output_entry_map.at(*output_entries->at(i))) {
+        *entry = nnvm::NodeEntry{subgraph_node, static_cast<uint32_t>(i), 0};
+      }
     }
   }
   /*!

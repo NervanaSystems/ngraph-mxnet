@@ -1517,6 +1517,10 @@ static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
   }
   g = ApplyPass(std::move(g), "PartitionGraph");
   ret.outputs = g.outputs;
+  std::cout << "---------Symbol Outputs------------" << std::endl;
+  for (auto& output : ret.outputs) {
+    std::cout << output.node->attrs.name << ":" << output.index << std::endl;
+  }
   return ret;
 }
 
@@ -1606,6 +1610,7 @@ static nnvm::Symbol PartitionGraph(const nnvm::Symbol& src,
   }
   auto result = PartitionGraph(src, prop_name, arg_shapes, arg_dtypes, arg_stypes, default_ctx,
                                ctx_map, in_arg_ctxes, aux_state_ctxes, grad_req_types, input_nodes);
+
   // Reorder in_args into new_in_args according to partitioned symbol input sequence
   std::vector<NDArray> new_in_args(in_args->size());
   // get new symbol in_arg names
