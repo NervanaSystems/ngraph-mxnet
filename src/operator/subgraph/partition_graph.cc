@@ -492,13 +492,13 @@ void SortEntries(const std::unordered_map<const nnvm::NodeEntry*, size_t>& entry
  * \param entry_top_order_map mapping entry pointer to its top sorted position
  * \param input_entries input entries of the subgraph
  */
-void FindInputEntries(const Graph& g,
-                      const std::vector<SimpleNodePtr>& simple_nodes,
-                      const std::vector<SimpleNode*>& subgraph_nodes,
-                      const std::unordered_map<const nnvm::NodeEntry*, size_t>&
-                          entry_top_order_map,
-                      std::vector<nnvm::NodeEntry*>* input_entries,
-                      NodeEntryMap<std::vector<nnvm::NodeEntry*>>* input_entry_map) {
+void FindInputEntries(
+    const Graph& g, const std::vector<SimpleNodePtr>& simple_nodes,
+    const std::vector<SimpleNode*>& subgraph_nodes,
+    const std::unordered_map<const nnvm::NodeEntry*, size_t>&
+        entry_top_order_map,
+    std::vector<nnvm::NodeEntry*>* input_entries,
+    nnvm::NodeEntryMap<std::vector<nnvm::NodeEntry*>>* input_entry_map) {
   const auto& indexed_graph = g.indexed_graph();
   int label = -1;
   for (size_t i = 0; i < subgraph_nodes.size(); ++i) {
@@ -541,12 +541,13 @@ void FindInputEntries(const Graph& g,
  * \param entry_top_order_map mapping entry pointer to its top sorted position
  * \param output_entries output entries of the subgraph
  */
-void FindOutputEntries(Graph* g, const std::vector<SimpleNodePtr>& simple_nodes,
-                       const std::vector<SimpleNode*>& subgraph_nodes,
-                       const std::unordered_map<const nnvm::NodeEntry*, size_t>&
-                           entry_top_order_map,
-                       std::vector<nnvm::NodeEntry*>* output_entries,
-                       NodeEntryMap<std::vector<nnvm::NodeEntry*>>* output_entry_map) {
+void FindOutputEntries(
+    Graph* g, const std::vector<SimpleNodePtr>& simple_nodes,
+    const std::vector<SimpleNode*>& subgraph_nodes,
+    const std::unordered_map<const nnvm::NodeEntry*, size_t>&
+        entry_top_order_map,
+    std::vector<nnvm::NodeEntry*>* output_entries,
+    nnvm::NodeEntryMap<std::vector<nnvm::NodeEntry*>>* output_entry_map) {
   if (subgraph_nodes.empty()) return;
   const auto& indexed_graph = g->indexed_graph();
   int label = -1;
@@ -610,10 +611,11 @@ void FindOutputEntries(Graph* g, const std::vector<SimpleNodePtr>& simple_nodes,
  * subgraph. It returns the nodes that connect to the subgraph directly and
  * the names of the new variable nodes.
  */
-void CutGraphInputs(const std::vector<nnvm::NodeEntry*>& input_entries,
-                    std::vector<nnvm::NodeEntry>* orig_entries,
-                    const NodeEntryMap<std::vector<nnvm::NodeEntry*>>& input_entry_map,
-                    const bool skip_var = false) {
+void CutGraphInputs(
+    const std::vector<nnvm::NodeEntry*>& input_entries,
+    std::vector<nnvm::NodeEntry>* orig_entries,
+    const nnvm::NodeEntryMap<std::vector<nnvm::NodeEntry*>>& input_entry_map,
+    const bool skip_var = false) {
   orig_entries->resize(input_entries.size());
   // map for creating unique var nodes for deduplicating entries from the same node
   std::unordered_map<std::string, int> name_count_map;
@@ -736,7 +738,7 @@ void CreateSubgraphNode(Graph* g,
   LOG(INFO) << "Searching for input entries...";
 #endif
   std::vector<nnvm::NodeEntry*> input_entries;
-  NodeEntryMap<std::vector<nnvm::NodeEntry*>> input_entry_map;
+  nnvm::NodeEntryMap<std::vector<nnvm::NodeEntry*>> input_entry_map;
   FindInputEntries(*g, simple_nodes, subgraph_nodes, *entry_top_order_map,
                    &input_entries, &input_entry_map);
   std::vector<nnvm::NodeEntry> orig_input_entries;
@@ -746,7 +748,7 @@ void CreateSubgraphNode(Graph* g,
   LOG(INFO) << "Searching for output entries...";
 #endif
   std::vector<nnvm::NodeEntry*> output_entries;
-  NodeEntryMap<std::vector<nnvm::NodeEntry*>> output_entry_map;
+  nnvm::NodeEntryMap<std::vector<nnvm::NodeEntry*>> output_entry_map;
   FindOutputEntries(g, simple_nodes, subgraph_nodes, *entry_top_order_map,
                     &output_entries, &output_entry_map);
 
