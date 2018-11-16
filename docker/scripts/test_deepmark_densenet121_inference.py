@@ -107,7 +107,7 @@ def test_deepmark_densenet121_cpu_backend():
     #writeJenkinsDescription(ngraphLog, os.path.join(lDir, 'test_deepmark_densenet121_jenkins_oneline.log'))
 
 
-    print("----- Deepmark Densenet Testing Summary ----------------------------------------")
+    print("----- Deepmark Densenet 121 Testing Summary ----------------------------------------")
 
     summaryLog = None
     if lDir != None:
@@ -174,7 +174,7 @@ def writeJenkinsDescription(ngResults, fileName):
 
         fOut = open( fileName, 'w')
 
-        fOut.write("DENSENET type: {}\n\t{}".format(ngResults['command'],ngResults['one_line']))
+        fOut.write("DENSENET 121 type: {}\n\t{}".format(ngResults['command'],ngResults['one_line']))
 
         fOut.close()
 
