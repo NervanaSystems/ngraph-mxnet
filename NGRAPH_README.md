@@ -177,14 +177,11 @@ properly if altered to use different nGraph back-ends.
 This is a temporary limitation expected to be lifted in a future release.
 
 ### Test status
-Integration testing to date (8/31/2018) has focused on `tests/cpp/*` and `tests/python/unittest/*`.
+Integration testing to date (11/15/2018) has focused on `tests/cpp/*` and `tests/python/unittest/*`.
 Of these tests, we see the following failures.
 
 #### This test fails with relative errors of <1e-4 on a limit of 1e-5.
 - `tests/python/unittest/test_gluon.py::test_export`
-
-#### This test fails with scipy 1.1.0. Workaround : use scipy 1.0.0.
-- `tests/python/unittest/test_sparse_operator.py::test_sparse_mathematical_core`
 
 #### These test fail with python errors
 - `tests/python/unittest/test_image.py::test_det_augmenters`
