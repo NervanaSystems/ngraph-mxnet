@@ -46,12 +46,17 @@ using nnvm::NodePtr;
 using nnvm::NodeEntry;
 using nnvm::Graph;
 
+using NodeEntryMap =
+    std::unordered_map<nnvm::NodeEntry, std::vector<nnvm::NodeEntry*>,
+                       nnvm::NodeEntryHash, nnvm::NodeEntryEqual>;
+
 #define DEBUG_SUBGRAPH 0
 
 namespace sg {  // sg stands for subgraph
 
 struct SimpleNode;
 using SimpleNodePtr = std::shared_ptr<SimpleNode>;
+
 
 /*!
  * \brief Node of the undirected graph which replicates the network structures
@@ -491,15 +496,13 @@ void SortEntries(const std::unordered_map<const nnvm::NodeEntry*, size_t>& entry
  * \param entry_top_order_map mapping entry pointer to its top sorted position
  * \param input_entries input entries of the subgraph
  */
-void FindInputEntries(
-    const Graph& g, const std::vector<SimpleNodePtr>& simple_nodes,
-    const std::vector<SimpleNode*>& subgraph_nodes,
-    const std::unordered_map<const nnvm::NodeEntry*, size_t>&
-        entry_top_order_map,
-    std::vector<nnvm::NodeEntry*>* input_entries,
-    std::unordered_map<nnvm::NodeEntry, std::vector<nnvm::NodeEntry*>,
-                       nnvm::NodeEntryHash, nnvm::NodeEntryEqual>*
-        input_entry_map) {
+void FindInputEntries(const Graph& g,
+                      const std::vector<SimpleNodePtr>& simple_nodes,
+                      const std::vector<SimpleNode*>& subgraph_nodes,
+                      const std::unordered_map<const nnvm::NodeEntry*, size_t>&
+                          entry_top_order_map,
+                      std::vector<nnvm::NodeEntry*>* input_entries,
+                      NodeEntryMap* input_entry_map) {
   const auto& indexed_graph = g.indexed_graph();
   int label = -1;
   for (size_t i = 0; i < subgraph_nodes.size(); ++i) {
@@ -542,18 +545,25 @@ void FindInputEntries(
  * \param entry_top_order_map mapping entry pointer to its top sorted position
  * \param output_entries output entries of the subgraph
  */
-void FindOutputEntries(
-    Graph* g, const std::vector<SimpleNodePtr>& simple_nodes,
-    const std::vector<SimpleNode*>& subgraph_nodes,
-    const std::unordered_map<const nnvm::NodeEntry*, size_t>&
-        entry_top_order_map,
-    std::vector<nnvm::NodeEntry*>* output_entries,
-    std::unordered_map<nnvm::NodeEntry, std::vector<nnvm::NodeEntry*>,
-                       nnvm::NodeEntryHash, nnvm::NodeEntryEqual>*
-        output_entry_map) {
+void FindOutputEntries(Graph* g, const std::vector<SimpleNodePtr>& simple_nodes,
+                       const std::vector<SimpleNode*>& subgraph_nodes,
+                       const std::unordered_map<const nnvm::NodeEntry*, size_t>&
+                           entry_top_order_map,
+                       std::vector<nnvm::NodeEntry*>* output_entries,
+                       NodeEntryMap* output_entry_map) {
   if (subgraph_nodes.empty()) return;
   const auto& indexed_graph = g->indexed_graph();
   int label = -1;
+  auto add_output = [output_entries,
+                     output_entry_map](nnvm::NodeEntry* entry) {
+    if (output_entry_map->count(*entry) == 0) {
+      output_entries->push_back(entry);
+      output_entry_map->insert({*entry, {entry}});
+    } else {
+      output_entry_map->at(*entry).push_back(entry);
+    }
+  };
+
   for (size_t i = 0; i < subgraph_nodes.size(); ++i) {
     if (label == -1) {
       label = subgraph_nodes[i]->label;
@@ -568,26 +578,14 @@ void FindOutputEntries(
         // this is a node not belonging to the current subgraph
         if (simple_nodes[nid]->label != label) {
           for (auto idx : it->second) {
-            auto& e = simple_nodes[nid]->node->inputs[idx];
-            if (output_entry_map->count(e) == 0) {
-              output_entries->push_back(&e);
-              output_entry_map->insert({e, {&e}});
-            } else {
-              output_entry_map->at(e).push_back(&e);
-            }
+            add_output(&simple_nodes[nid]->node->inputs[idx]);
           }
         }
       } else {
         // if the output node is a subgraph node
         // two graphs are adjacent
         for (auto idx : it->second) {
-          auto& e = it->first->inputs[idx];
-          if (output_entry_map->count(e) == 0) {
-            output_entries->push_back(&e);
-            output_entry_map->insert({e, {&e}});
-          } else {
-            output_entry_map->at(e).push_back(&e);
-          }
+          add_output(&it->first->inputs[idx]);
         }
       }
     }
@@ -603,12 +601,7 @@ void FindOutputEntries(
     if (indexed_graph.exist(entry.node.get())) {
       const auto nid = indexed_graph.node_id(entry.node.get());
       if (simple_nodes[nid]->label == label) {
-        if(output_entry_map->count(entry) == 0) {
-          output_entries->push_back(&entry);
-          output_entry_map->insert({entry, {&entry}});
-        } else {
-          output_entry_map->at(entry).push_back(&entry);
-        }
+        add_output(&entry);
       }
     }
   }
@@ -621,13 +614,10 @@ void FindOutputEntries(
  * subgraph. It returns the nodes that connect to the subgraph directly and
  * the names of the new variable nodes.
  */
-void CutGraphInputs(
-    const std::vector<nnvm::NodeEntry*>& input_entries,
-    std::vector<nnvm::NodeEntry>* orig_entries,
-    const std::unordered_map<nnvm::NodeEntry, std::vector<nnvm::NodeEntry*>,
-                             nnvm::NodeEntryHash, nnvm::NodeEntryEqual>&
-        input_entry_map,
-    const bool skip_var = false) {
+void CutGraphInputs(const std::vector<nnvm::NodeEntry*>& input_entries,
+                    std::vector<nnvm::NodeEntry>* orig_entries,
+                    const NodeEntryMap& input_entry_map,
+                    const bool skip_var = false) {
   orig_entries->resize(input_entries.size());
   // map for creating unique var nodes for deduplicating entries from the same node
   std::unordered_map<std::string, int> name_count_map;
@@ -751,9 +741,7 @@ void CreateSubgraphNode(Graph* g,
   LOG(INFO) << "Searching for input entries...";
 #endif
   std::vector<nnvm::NodeEntry*> input_entries;
-  std::unordered_map<nnvm::NodeEntry, std::vector<nnvm::NodeEntry*>,
-                       nnvm::NodeEntryHash, nnvm::NodeEntryEqual>
-        input_entry_map;
+  NodeEntryMap input_entry_map;
   FindInputEntries(*g, simple_nodes, subgraph_nodes, *entry_top_order_map,
                    &input_entries, &input_entry_map);
   std::vector<nnvm::NodeEntry> orig_input_entries;
@@ -763,10 +751,9 @@ void CreateSubgraphNode(Graph* g,
   LOG(INFO) << "Searching for output entries...";
 #endif
   std::vector<nnvm::NodeEntry*> output_entries;
-  std::unordered_map<nnvm::NodeEntry, std::vector<nnvm::NodeEntry*>,
-                       nnvm::NodeEntryHash, nnvm::NodeEntryEqual>
-        output_entry_map;
-  FindOutputEntries(g, simple_nodes, subgraph_nodes, *entry_top_order_map, &output_entries, &output_entry_map);
+  NodeEntryMap output_entry_map;
+  FindOutputEntries(g, simple_nodes, subgraph_nodes, *entry_top_order_map,
+                    &output_entries, &output_entry_map);
 
   // Create a subgraph for the subgraph node
   nnvm::Symbol sym;
