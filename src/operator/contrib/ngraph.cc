@@ -168,6 +168,8 @@ bool NgraphSubgraphInferShape(const nnvm::NodeAttrs &attrs,
     compiler->ReshapeGraph(*in_attrs);
     graph = compiler->GetNgraph();
   }
+  CHECK(in_attrs->size() == graph->inputs_.size());
+  CHECK(out_attrs->size() == graph->get_results().size());
   for (size_t i = 0; i < graph->inputs_.size(); ++i) {
     (*in_attrs)[i] = graph->inputs_[i]->shape_;
   }
@@ -181,9 +183,11 @@ bool NgraphSubgraphInferShape(const nnvm::NodeAttrs &attrs,
 }
 bool NgraphSubgraphInferType(const nnvm::NodeAttrs &attrs,
                              std::vector<int> *iattr, std::vector<int> *oattr) {
+  auto graph = get_ngraph(attrs);
   CHECK(iattr != nullptr);
   CHECK(oattr != nullptr);
-  auto graph = get_ngraph(attrs);
+  CHECK(iattr->size() == graph->inputs_.size());
+  CHECK(oattr->size() == graph->get_results().size());
   for (size_t i = 0; i < graph->inputs_.size(); ++i) {
     (*iattr)[i] = graph->inputs_[i]->dtype_;
   }
@@ -202,7 +206,6 @@ bool NgraphSubgraphInferStorageType(const nnvm::NodeAttrs &attrs,
                                     mxnet::DispatchMode *dispatch_mode,
                                     std::vector<int> *in_attrs,
                                     std::vector<int> *out_attrs) {
-
   CHECK(dispatch_mode != nullptr);
   CHECK(in_attrs != nullptr);
   CHECK(out_attrs != nullptr);
