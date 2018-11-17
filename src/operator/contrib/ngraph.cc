@@ -167,7 +167,7 @@ bool NgraphSubgraphInferShape(const nnvm::NodeAttrs &attrs,
   ngraph_bridge::check(out_attrs != nullptr);
   ngraph_bridge::check(in_attrs->size() == graph->inputs_.size());
   ngraph_bridge::check(out_attrs->size() == graph->get_results().size());
-  
+
   if ((graph->inputs_.size() > 0) &&
       (*in_attrs)[0] != graph->inputs_[0]->shape_) {
     compiler->ReshapeGraph(*in_attrs);
