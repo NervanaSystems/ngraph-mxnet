@@ -24,13 +24,6 @@
 
 FROM ubuntu:16.04
 
-#Set up environment variables:
-ENV ftp_proxy="http://proxy-us.intel.com:911"
-#ENV http_proxy="http://proxy-us.intel.com:911"
-#ENV https_proxy="https://proxy-us.intel.com:911"
-ENV no_proxy="localhost,127.0.0.1,intel.com,.intel.com,cluster,.cluster,10.0.0.0/8,172.168.0.0/16,192.168.0.0/16,nervana-dockrepo01.fm.intel.com,nervana.ai"
-ENV socks_proxy="socks://proxy-us.intel.com:1080"
-
 #Install MxNet Dependencies:
 RUN apt-get update && apt-get install -y build-essential git \
         libopencv-dev \
