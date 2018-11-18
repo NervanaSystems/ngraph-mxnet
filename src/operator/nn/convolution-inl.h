@@ -184,6 +184,36 @@ class ConvolutionOp {
     LayerSetUp(in_data[conv::kData].shape_, out_data[conv::kOut].shape_);
     Stream<xpu>* s = ctx.get_stream<xpu>();
 
+//    if (out_data[conv::kOut].Size() == 7056000) {
+    if (in_data[conv::kData].Size() == 50176000) {
+       std::cout << "### convolution input 50176000:" << std::endl;
+       for (size_t i = 0; i < 1000; ++i) {
+         std::cout << "i = " << i << std::endl;
+         for (size_t j = 0; j < 256; ++j) {
+           std::cout << "  j = " << j << ": ";
+//           for (size_t k = 0; k < 196; ++k) {
+           for (size_t k = 0; k < 4; ++k) {
+             std::cout << in_data[conv::kData].dptr<float>()[i*(256*196)+j*196+k] << " ";
+           }
+           std::cout << std::endl;
+         }
+       }
+    }
+    else if (in_data[conv::kData].Size() == 200704000) {
+      std::cout << "### convolution input 200704000:" << std::endl;
+      for (size_t i = 0; i < 1000; ++i) {
+        std::cout << "i = " << i << std::endl;
+        for (size_t j = 0; j < 256; ++j) {
+          std::cout << "  j = " << j << ": ";
+//           for (size_t k = 0; k < 784; ++k) {
+          for (size_t k = 0; k < 4; ++k) {
+            std::cout << in_data[conv::kOut].dptr<float>()[i*(256*784)+j*784+k] << " ";
+          }
+          std::cout << std::endl;
+        }
+      }
+   }
+
     // initialize weight and col_buffer 3D tensors for using gemm
     index_t M = conv_out_channels_ / group_;
     index_t N = conv_out_spatial_dim_;
@@ -239,6 +269,21 @@ class ConvolutionOp {
         Shape3(num_, conv_out_channels_, conv_out_spatial_dim_), s);
       // has bias term, broadcast it to the same shape of output_3d in channel dim
       output_3d += mshadow::expr::broadcast<1>(bias, output_3d.shape_);
+    }
+
+    if (out_data[conv::kOut].Size() == 7056000) {
+       std::cout << "### convolution output:" << std::endl;
+       for (size_t i = 0; i < 1000; ++i) {
+         std::cout << "i = " << i << std::endl;
+         for (size_t j = 0; j < 9; ++j) {
+           std::cout << "  j = " << j << ": ";
+//           for (size_t k = 0; k < 784; ++k) {
+           for (size_t k = 0; k < 4; ++k) {
+             std::cout << out_data[conv::kOut].dptr<float>()[i*(9*784)+j*784+k] << " ";
+           }
+           std::cout << std::endl;
+         }
+       }
     }
   }
 

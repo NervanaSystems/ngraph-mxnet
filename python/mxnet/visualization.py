@@ -352,9 +352,13 @@ def plot_network(symbol, title="plot", save_format='pdf', shape=None, node_attrs
                                 params = input_node["attrs"]
                                 if "num_outputs" in params:
                                     key += str(int(params["num_outputs"]) - 1)
-                            shape = shape_dict[key][1:]
-                            label = "x".join([str(x) for x in shape])
-                            attr["label"] = label
+                            try:
+                                shape = shape_dict[key][1:]
+                                label = "x".join([str(x) for x in shape])
+                                attr["label"] = label
+                            except:
+                                warning_message = "'" + key + "' shape info not found, skipped"
+                                warnings.warn(warning_message, RuntimeWarning)
                         else:
                             key = input_name
                             shape = shape_dict[key][1:]

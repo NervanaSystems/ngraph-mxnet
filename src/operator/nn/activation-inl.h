@@ -90,6 +90,7 @@ void ActivationForward(const OpContext &ctx, const TBlob &in_data,
   using namespace mshadow::expr;
   Stream<xpu> *s = ctx.get_stream<xpu>();
   const size_t sz = in_data.shape_.Size();
+
   if (sz) {
     MSHADOW_REAL_TYPE_SWITCH(in_data.type_flag_, DType, {
       MXNET_ASSIGN_REQ_SWITCH(req, Req, {
@@ -98,6 +99,35 @@ void ActivationForward(const OpContext &ctx, const TBlob &in_data,
       });
     });
   }
+#if 0
+  if (sz == 7056000) {
+    std::cout << "### Activation Input" << std::endl;
+    for (size_t i = 0; i < 1000; ++i) {
+       std::cout << "i = " << i << std::endl;
+       for (size_t j = 0; j < 9; ++j) {
+         std::cout << "  j = " << j << ": ";
+//         for (size_t k = 0; k < 784; ++k) {
+         for (size_t k = 0; k < 4; ++k) {
+           std::cout << in_data.dptr<float>()[i*(9*784)+j*784+k] << " ";
+         }
+         std::cout << std::endl;
+       }
+     }
+
+    std::cout << "### Activation Output" << std::endl;
+    for (size_t i = 0; i < 1000; ++i) {
+       std::cout << "i = " << i << std::endl;
+       for (size_t j = 0; j < 9; ++j) {
+         std::cout << "  j = " << j << ": ";
+//         for (size_t k = 0; k < 784; ++k) {
+         for (size_t k = 0; k < 4; ++k) {
+           std::cout << out_data.dptr<float>()[i*(9*784)+j*784+k] << " ";
+         }
+         std::cout << std::endl;
+       }
+     }
+  }
+#endif
 }
 
 template<typename xpu, typename ForwardOp, typename BackwardOp>
