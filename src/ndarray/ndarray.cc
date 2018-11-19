@@ -33,6 +33,7 @@
 #include <mshadow/tensor.h>
 #if MXNET_USE_NGRAPH == 1
 #include <ngraph_nnvm_utils.h>
+#include <ngraph_utils.h>
 #include <ngraph/ngraph.hpp>
 #endif
 #if MXNET_USE_MKLDNN == 1
@@ -747,8 +748,8 @@ std::shared_ptr<ngraph::runtime::Tensor> &NDArray::create_tensor(
           ngraph_bridge::TShape_to_NShape(shape_)) {
     auto backend = ngraph_bridge::GetBackendFromContext(ctx());
     void* dptr = storage_handle().dptr;
-    CHECK(backend != nullptr);
-    CHECK(dptr != nullptr);
+    ngraph_bridge::check(backend != nullptr);
+    ngraph_bridge::check(dptr != nullptr);
     ngraph::Shape shape{};
     if (!is_scalar) {
       shape = ngraph_bridge::TShape_to_NShape(shape_);
