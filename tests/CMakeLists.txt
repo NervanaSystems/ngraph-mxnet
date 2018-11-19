@@ -25,7 +25,9 @@ if(GTEST_FOUND AND NOT MSVC)
   enable_testing()
 
   file(GLOB_RECURSE UNIT_TEST_SOURCE "cpp/*.cc" "cpp/*.h")
-
+  if (USE_NGRAPH)
+    list(APPEND UNIT_TEST_SOURCE "${NGRAPH_BRIDGE_UNIT_TEST_SOURCE}")
+  endif()
   include_directories(${GTEST_INCLUDE_DIR})
   include_directories(cpp/include)
 
