@@ -190,6 +190,8 @@ if(USE_NGRAPH AND NOT MSVC)
       else()
           set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-strong")
       endif()
+  else()
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-strong")
   endif()
 
   if(NOT MSVC)
