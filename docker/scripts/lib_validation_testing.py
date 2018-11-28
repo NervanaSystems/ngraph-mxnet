@@ -632,13 +632,15 @@ def runSSDDeepMarkScript(sourceDir=None,
     process = subprocess.check_output(["which python"],shell=True)
     python_lib = process.decode('utf-8').split()[0]
     if checkAccurary:
+        cmd = ""
         #cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network ssd-vgg16 --batch-size {} --accuracy-check".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
         #print("The command for checking inference accuracy is: {}".format(cmd))
         print("Disable the test case.NGRAPH-3314")
+        runLog = ""
     else:
         cmd = "OMP_NUM_THREADS={} KMP_AFFINITY={} KMP_BLOCKTIME={} {} {} --network ssd-vgg16 --batch-size {}".format(ompNumThreads, kmpAff, kmpBlocktime, python_lib.strip(), script, batchsize.strip())
         print("The command for checking inference performance is: {}".format(cmd))
-    runLog = runCommand(command=cmd, logID=logID)
+        runLog = runCommand(command=cmd, logID=logID)
     return runLog
 # End: def
 
