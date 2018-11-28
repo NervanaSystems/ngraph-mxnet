@@ -48,6 +48,10 @@ exec(compile(open(libinfo_py, "rb").read(), libinfo_py, 'exec'), libinfo, libinf
 
 LIB_PATHS = libinfo['find_lib_path']()
 LIB_PATHS += glob.glob("/".join(LIB_PATHS[0].split("/")[0:-1]) + "/*.so*")
+
+# mxnet assumes the .so files are located in the same directory
+# as the python module. To get wheel to package things that way,
+# we link all of the .so files into the python directory.
 symlinks = []
 for src in set(LIB_PATHS):
   symlinks.append('mxnet/' + src.split('/')[-1])
@@ -107,6 +111,8 @@ def config_cython():
         print("WARNING: Cython is not installed, will compile without cython module")
         return []
 
+# Create a custom wheel class to ensure the wheel is limited to
+# the platforms we actually support
 from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
 class bdist_wheel(_bdist_wheel):
     def finalize_options(self):
@@ -114,13 +120,14 @@ class bdist_wheel(_bdist_wheel):
         self.root_is_pure = False
     def get_tag(self):
         _, _, plat = _bdist_wheel.get_tag(self)
+        # let users know this is a py2 and py3 compatible package, but only linux x86_64
         return ('py2.py3', 'none', plat)
 
 setup(name='ngraph-mxnet',
       version="0.5.0rc0",
       description=open(os.path.join(CURRENT_DIR, 'README.md')).read(),
       packages=find_packages(),
-      package_data={"mxnet":  "*.so*"},
+      package_data={"mxnet":  "*.so*"}, # tell the wheel to include all of the .so files in the mxnet module
       url='https://github.com/NervanaSystems/ngraph-mxnet',
       ext_modules=config_cython(),
       cmdclass={'bdist_wheel': bdist_wheel},
@@ -150,5 +157,6 @@ setup(name='ngraph-mxnet',
       ],
       **kwargs)
 
+# remove the temporary simlinks to clean up the directory
 for link in symlinks:
   os.remove(link)
