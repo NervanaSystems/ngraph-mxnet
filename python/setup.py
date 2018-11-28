@@ -57,6 +57,13 @@ for src in set(LIB_PATHS):
   symlinks.append('mxnet/' + src.split('/')[-1])
   os.symlink(src, symlinks[-1])
 
+os.symlink(os.path.realpath('../LICENSE'), 'mxnet/LICENSE')
+symlinks.append('mxnet/LICENSE')
+os.symlink(os.path.realpath('../3rdparty/ngraph-mxnet-bridge/build/licenses'), 'mxnet/licenses')
+symlinks.append('mxnet/licenses')
+os.symlink(os.path.realpath('../3rdparty/ngraph-mxnet-bridge/build/LICENSE'), 'mxnet/NGRAPH_LICENSE')
+symlinks.append('mxnet/NGRAPH_LICENSE')
+
 __version__ = libinfo['__version__']
 
 sys.path.insert(0, CURRENT_DIR)
@@ -129,7 +136,7 @@ setup(name='ngraph-mxnet',
       version="0.5.0rc0",
       description=open(os.path.join(CURRENT_DIR, 'README.md')).read(),
       packages=find_packages(),
-      package_data={"mxnet":  "*.so*"}, # tell the wheel to include all of the .so files in the mxnet module
+      package_data={"mxnet":  ["*.so*", "*LICENSE*", "*licenses/*"]}, # tell the wheel to include all of the .so files in the mxnet module
       url='https://github.com/NervanaSystems/ngraph-mxnet',
       ext_modules=config_cython(),
       cmdclass={'bdist_wheel': bdist_wheel},
