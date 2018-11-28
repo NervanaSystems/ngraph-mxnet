@@ -111,8 +111,10 @@ def config_cython():
         print("WARNING: Cython is not installed, will compile without cython module")
         return []
 
-# Create a custom wheel class to ensure the wheel is limited to
-# the platforms we actually support
+# Create a custom wheel class to add information on what kind of 
+# platforms/python versions are supported. 
+# Unfortunately, it's fairly generic on what linux/cpu versions we support, but 
+# This matches the ngraph_tf wheel naming scheme
 from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
 class bdist_wheel(_bdist_wheel):
     def finalize_options(self):
