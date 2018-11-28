@@ -104,6 +104,10 @@ endif
 CFLAGS += -I$(TPARTYDIR)/mshadow/ -I$(TPARTYDIR)/dmlc-core/include -fPIC -I$(NNVM_PATH)/include -I$(DLPACK_PATH)/include -I$(TPARTYDIR)/tvm/include -Iinclude $(MSHADOW_CFLAGS)
 LDFLAGS =
 
+ifneq ($(CPU_TARGET_ARCH),)
+	CFLAGS += -march=$(CPU_TARGET_ARCH) -mtune=$(CPU_TARGET_ARCH)
+endif
+
 ifeq ($(USE_NGRAPH),1)
     CFLAGS += $(NGRAPH_CFLAGS)
 endif

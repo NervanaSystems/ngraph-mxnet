@@ -187,6 +187,13 @@ endif
 USE_F16C =
 
 #----------------------------
+# Target architecture
+#----------------------------
+# If not blank, the value must be valid for GCC's "-march=" and "-mtune=" options.
+# This is complimentary to the USE_SSE, USE_F16C, etc. variables.
+CPU_TARGET_ARCH=generic
+
+#----------------------------
 # distributed computing
 #----------------------------
 
