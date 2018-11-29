@@ -21,6 +21,7 @@ from __future__ import absolute_import
 import os
 import platform
 import sys
+import glob
 
 from setuptools import find_packages
 # need to use distutils.core for correct placement of cython dll
@@ -46,6 +47,33 @@ libinfo = {'__file__': libinfo_py}
 exec(compile(open(libinfo_py, "rb").read(), libinfo_py, 'exec'), libinfo, libinfo)
 
 LIB_PATHS = libinfo['find_lib_path']()
+LIB_PATHS += glob.glob("/".join(LIB_PATHS[0].split("/")[0:-1]) + "/*.so*")
+
+# mxnet assumes the .so files are located in the same directory
+# as the python module. To get wheel to package things that way,
+# we link all of the .so files and License files into the python directory.
+def link_file(src, dst):
+    try:
+        os.remove(dst)
+    except:
+        pass
+    os.symlink(src, dst)
+
+symlinks = []
+for src in set(LIB_PATHS):
+    symlinks.append('mxnet/' + src.split('/')[-1])
+    link_file(src, symlinks[-1])
+
+license_links = {
+    os.path.realpath('../LICENSE'): 'mxnet/LICENSE',
+    os.path.realpath('../3rdparty/ngraph-mxnet-bridge/build/licenses'): 'mxnet/licenses',
+    os.path.realpath('../3rdparty/ngraph-mxnet-bridge/build/LICENSE'): 'mxnet/NGRAPH_LICENSE'
+}
+
+for key in license_links.keys():
+    symlinks.append(license_links[key])
+    link_file(key, symlinks[-1])
+
 __version__ = libinfo['__version__']
 
 sys.path.insert(0, CURRENT_DIR)
@@ -100,13 +128,31 @@ def config_cython():
         print("WARNING: Cython is not installed, will compile without cython module")
         return []
 
-setup(name='mxnet',
-      version=__version__,
+# Create a custom wheel class to add information on what kind of 
+# platforms/python versions are supported. 
+# Unfortunately, it's fairly generic on what linux/cpu versions we support, but 
+# This matches the ngraph_tf wheel naming scheme
+try:
+    from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
+    class bdist_wheel(_bdist_wheel):
+        def finalize_options(self):
+            _bdist_wheel.finalize_options(self)
+            self.root_is_pure = False
+        def get_tag(self):
+            _, _, plat = _bdist_wheel.get_tag(self)
+            # let users know this is a py2 and py3 compatible package, but only linux x86_64
+            return ('py2.py3', 'none', plat)
+except ImportError:
+    bdist_wheel = None
+
+setup(name='ngraph-mxnet',
+      version="0.5.0rc0",
       description=open(os.path.join(CURRENT_DIR, 'README.md')).read(),
       packages=find_packages(),
-      data_files=[('mxnet', LIB_PATHS)],
-      url='https://github.com/apache/incubator-mxnet',
+      package_data={"mxnet":  ["*.so*", "*LICENSE*", "*licenses/*"]}, # tell the wheel to include all of the .so files in the mxnet module
+      url='https://github.com/NervanaSystems/ngraph-mxnet',
       ext_modules=config_cython(),
+      cmdclass={'bdist_wheel': bdist_wheel},
       classifiers=[
           # https://pypi.org/pypi?%3Aaction=list_classifiers
           'Development Status :: 5 - Production/Stable',
@@ -132,3 +178,7 @@ setup(name='mxnet',
           'Topic :: Software Development :: Libraries :: Python Modules',
       ],
       **kwargs)
+
+# remove the temporary simlinks to clean up the directory
+for link in symlinks:
+  os.remove(link)
