@@ -28,11 +28,13 @@ are as follows:
 Please see the files `3rdparty/ngraph-mxnet-bridge/ngraph.mk` and `make/config.mk` for more details.
 
 ## Compilation instructions for Ubuntu 16.04
-A. **Option 1: Use a pre-built Mxnet package**
-  1. **Install Ubuntu prerequisites**
-    Run the following commands from a command-line:
 
-      ``` sh
+A. **Option 1: Use a pre-built Mxnet package**
+  
+1. **Install Ubuntu prerequisites**
+   Run the following commands from a command-line:
+
+     ``` sh
       sudo apt-get update
       sudo apt-get install -y \
        build-essential \
@@ -49,129 +51,129 @@ A. **Option 1: Use a pre-built Mxnet package**
        python-sklearn \
        python3-pip \
        virtualenv
-      ```
-  1. *(Optional) Activate a Python virtual environment.*
+     ```
+1. *(Optional) Activate a Python virtual environment.*
 
-       Activate the Python virtual environment into which you wish
-       to process with ngraph-mxnet bridge installation.
+   Activate the Python virtual environment into which you wish
+   to process with ngraph-mxnet bridge installation.
 
-       (Please visit http://python.org for more information on Python virtual
-       environments.)
+   (Please visit http://python.org for more information on Python virtual
+   environments.)
 
-       For example:
-          ``` sh
-          source ~/path/to/my/venv/bin/activate
-          ```
-  1.  *Build the bridge.*
-       Checkout latest release tag from the ngraph-mxnet repo and build the bridge as follows:
+   For example:
+   ``` sh
+    source ~/path/to/my/venv/bin/activate
+   ```
+
+1.  *Build the bridge.*
+  
+   Checkout latest release tag from the ngraph-mxnet repo and build the bridge as follows:
+   ``` sh
+    git clone --recursive https://github.com/NervanaSystems/ngraph-mxnet.git
+    cd ngraph-mxnet
+    # checkout the specific tag
+    git checkout tags/<tag> -b <branch>
+    cd  dist && pip install ngraph_mxnet-0.5.0rc0-py2.py3-none-linux_x86_64.whl
+   ```
+
+B. **Clone the nGraph-MXNet repository**
+
+   If you have not already done so, create a clone on the local file system of
+   the official nGraph-enabled Apache MXNet repository:
+
+     ``` sh
+     git clone --recursive https://github.com/NervanaSystems/ngraph-mxnet.git
+     ```
+
+   In the instructions below, the root directory of the cloned repository shall
+   be referred to as `MXNET_ROOT`.
+1. **Install Ubuntu prerequisites**
+   Run the following commands from a command-line:
+
+     ``` sh
+     sudo apt-get update
+     sudo apt-get install -y \
+       build-essential \
+       git \
+       graphviz \
+       libatlas-base-dev \
+       libopenblas-dev \
+       libopencv-dev\
+       python \
+       python-dev \
+       python-opencv \
+       python-pip \
+       python-scipy \
+       python-sklearn \
+       python3-pip \
+       virtualenv
+     ```
+1. **Build the nGraph-MXNet libraries**
+
+   The build system for nGraph-enabled MXNet uses GNU Makefiles and is performed
+   in the MXnet source directory.
+
+   The simplest invocation of the build system is as follows:
+
+     ``` sh
+     cd MXNET_ROOT
+     make
+     ```
+
+   Successful completion of the build process results in the creation of the
+   file the files `MXNET/lib/libmxnet.a` and `MXNET/lib/libmxnet.so`.
+
+   The build process is influenced by Make variables whose values can be set in
+   several ways:
+   - customization of the file `make/config.mk`
+   - definition of environment variables with the same name
+   - specification on `make` command line.
+
+   Please see the GNU Make program documentation for more information.
+
+   Here's an example of a typical build command:
+
+   ``` sh
+   cd MXNET_ROOT
+   make USE_NGRAPH=1 USE_CUDA=0 DEBUG=0 -j
+   ```
+
+1. **(Optional) Install the MXNet Python bindings**
+
+   Once `libmxnet.so` has been built, one can optionally install Python bindings
+   for MXNet into a Python environment as follows.
+   1. *(Optional) Activate a Python virtual environment.*
+
+      MXNet's Python bindings are compatible with Python virtual environments.
+      (Please visit http://python.org for more information on Python virtual
+      environments.)
+
+      If desired, activate the Python virtual environment into which you wish
+      to install MXNet's Python bindings.
+
+      For example:
+         ``` sh
+         source ~/path/to/my/venv/bin/activate
+         ```
+   1. *Execute the following commands*
 
         ``` sh
-         git clone --recursive https://github.com/NervanaSystems/ngraph-mxnet.git
-         cd ngraph-mxnet
-         # checkout the specific tag
-         git checkout tags/<tag> -b <branch>
-         cd  dist && pip install ngraph_mxnet-0.5.0rc0-py2.py3-none-linux_x86_64.whl
+        cd MXNET_ROOT/python
+        pip install -e .
         ```
+   1. *(Optional)  Verify functionality of installed Python bindings*
+        1. If the `pip install -e .` command (see above) installed the
+           Python bindings into a Python virtual environment, ensure that
+           Python virtual environment is currently activated.
 
-B. **Option 2: Build nGraph Mxnet bridge from source**
-  1. **Clone the nGraph-MXNet repository**
-
-    If you have not already done so, create a clone on the local file system of
-    the official nGraph-enabled Apache MXNet repository:
-
-      ``` sh
-      git clone --recursive https://github.com/NervanaSystems/ngraph-mxnet.git
-      ```
-
-    In the instructions below, the root directory of the cloned repository shall
-    be referred to as `MXNET_ROOT`.
-  1. **Install Ubuntu prerequisites**
-    Run the following commands from a command-line:
-
-      ``` sh
-      sudo apt-get update
-      sudo apt-get install -y \
-       build-essential \
-       git \
-       graphviz \
-       libatlas-base-dev \
-       libopenblas-dev \
-       libopencv-dev\
-       python \
-       python-dev \
-       python-opencv \
-       python-pip \
-       python-scipy \
-       python-sklearn \
-       python3-pip \
-       virtualenv
-      ```
-  1. **Build the nGraph-MXNet libraries**
-
-    The build system for nGraph-enabled MXNet uses GNU Makefiles and is performed
-    in the MXnet source directory.
-
-    The simplest invocation of the build system is as follows:
-
-      ``` sh
-      cd MXNET_ROOT
-      make
-      ```
-
-    Successful completion of the build process results in the creation of the
-    file the files `MXNET/lib/libmxnet.a` and `MXNET/lib/libmxnet.so`.
-
-    The build process is influenced by Make variables whose values can be set in
-    several ways:
-    - customization of the file `make/config.mk`
-    - definition of environment variables with the same name
-    - specification on `make` command line.
-
-    Please see the GNU Make program documentation for more information.
-
-    Here's an example of a typical build command:
-
-    ``` sh
-    cd MXNET_ROOT
-    make USE_NGRAPH=1 USE_CUDA=0 DEBUG=0 -j
-    ```
-
-  1. **(Optional) Install the MXNet Python bindings**
-
-    Once `libmxnet.so` has been built, one can optionally install Python bindings
-    for MXNet into a Python environment as follows.
-    1. *(Optional) Activate a Python virtual environment.*
-
-       MXNet's Python bindings are compatible with Python virtual environments.
-       (Please visit http://python.org for more information on Python virtual
-       environments.)
-
-       If desired, activate the Python virtual environment into which you wish
-       to install MXNet's Python bindings.
-
-       For example:
-          ``` sh
-          source ~/path/to/my/venv/bin/activate
-          ```
-    1. *Execute the following commands*
-
-         ``` sh
-         cd MXNET_ROOT/python
-         pip install -e .
-         ```
-    1. *(Optional)  Verify functionality of installed Python bindings*
-         1. If the `pip install -e .` command (see above) installed the
-            Python bindings into a Python virtual environment, ensure that
-            Python virtual environment is currently activated.
-
-            Conversely, if the Python bindings were installed with no
-            virtual environment activated, ensure that no virtual environment
-            is active in the current shell.
-         1. Run the MNIST example script
-              ``` sh
-              cd MXNET_ROOT
-              python example/image-classification/train_mnist.py
-              ```
+           Conversely, if the Python bindings were installed with no
+           virtual environment activated, ensure that no virtual environment
+           is active in the current shell.
+        1. Run the MNIST example script
+             ``` sh
+             cd MXNET_ROOT
+             python example/image-classification/train_mnist.py
+             ```
 
 ## Distributed training
 MPI is required for multi-CPU support. Download Open MPI from [here](https://www.open-mpi.org/).
@@ -237,3 +239,4 @@ Of these tests, we see the following failures.
 - `tests/python/unittest/test_module.py::test_monitor`
 
 Integration testing on other python tests are forthcoming.
+
