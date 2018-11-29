@@ -132,15 +132,18 @@ def config_cython():
 # platforms/python versions are supported. 
 # Unfortunately, it's fairly generic on what linux/cpu versions we support, but 
 # This matches the ngraph_tf wheel naming scheme
-from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
-class bdist_wheel(_bdist_wheel):
-    def finalize_options(self):
-        _bdist_wheel.finalize_options(self)
-        self.root_is_pure = False
-    def get_tag(self):
-        _, _, plat = _bdist_wheel.get_tag(self)
-        # let users know this is a py2 and py3 compatible package, but only linux x86_64
-        return ('py2.py3', 'none', plat)
+try:
+    from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
+    class bdist_wheel(_bdist_wheel):
+        def finalize_options(self):
+            _bdist_wheel.finalize_options(self)
+            self.root_is_pure = False
+        def get_tag(self):
+            _, _, plat = _bdist_wheel.get_tag(self)
+            # let users know this is a py2 and py3 compatible package, but only linux x86_64
+            return ('py2.py3', 'none', plat)
+except ImportError:
+    bdist_wheel = None
 
 setup(name='ngraph-mxnet',
       version="0.5.0rc0",
