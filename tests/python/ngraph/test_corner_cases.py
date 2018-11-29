@@ -365,6 +365,20 @@ def test_stop_gradient():
     assert np.isclose(executor.grad_arrays[0].asnumpy(), [0,0]).all()
     assert np.isclose(executor.grad_arrays[1].asnumpy(), [1,1]).all()
 
+def test_quantize():
+    input = mx.nd.array([-127.0, 0.0, 1.0, 3.0, 5.0, 64.0, 127.0, 500.0])
+    min = mx.nd.array([-127.0])
+    max = mx.nd.array([127.0])
+    expected = np.array([-127, 0, 1, 3, 5, 64, 127, 127])
+    expected_type = 'int8'
+    x = mx.sym.Variable('x')
+    n = mx.sym.Variable('n')
+    m = mx.sym.Variable('m')
+    z = mx.sym.contrib.quantize(x, n, m, out_type=expected_type)
+    e = z.bind(mx.cpu(), {'x': input, 'n': min, 'm': max}, grad_req='null')
+    e.forward()
+    assert_allclose(e.outputs[0].asnumpy(), expected)
+
 if __name__ == '__main__':
     import nose
     nose.runmodule()
