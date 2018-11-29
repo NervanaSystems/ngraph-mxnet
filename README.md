@@ -82,9 +82,9 @@ B. **Option 2: Clone the nGraph-MXNet repository**
    If you have not already done so, create a clone on the local file system of
    the official nGraph-enabled Apache MXNet repository:
 
-     ``` sh
+   ``` sh
       git clone --recursive https://github.com/NervanaSystems/ngraph-mxnet.git
-     ```
+   ```
 
    In the instructions below, the root directory of the cloned repository shall
    be referred to as `MXNET_ROOT`.
@@ -137,8 +137,7 @@ B. **Option 2: Clone the nGraph-MXNet repository**
    ``` sh
    cd MXNET_ROOT
    make USE_NGRAPH=1 USE_CUDA=0 DEBUG=0 -j
-   ```
-
+     ```
 1. **(Optional) Install the MXNet Python bindings**
 
    Once `libmxnet.so` has been built, one can optionally install Python bindings
