@@ -33,11 +33,10 @@ endif
 .PHONY: mkldnn mkldnn_clean
 
 mkldnn_build: $(MKLDNN_LIBFILE)
-
 $(MKLDNN_LIBFILE):
 	mkdir -p $(MKLDNNROOT)
 	cd $(MKLDNN_SUBMODDIR) && rm -rf external && cd scripts && ./prepare_mkl.sh && cd .. && cp -a external/*/* $(MKLDNNROOT)/.
-	cmake $(MKLDNN_SUBMODDIR) -DCMAKE_INSTALL_PREFIX=$(MKLDNNROOT) -B$(MKLDNN_BUILDDIR) -DARCH_OPT_FLAGS="-mtune=generic" -DWITH_TEST=OFF -DWITH_EXAMPLE=OFF
+	cmake $(MKLDNN_SUBMODDIR) -DCMAKE_INSTALL_PREFIX=$(MKLDNNROOT) -B$(MKLDNN_BUILDDIR) -DARCH_OPT_FLAGS="-mtune=$(CPU_TARGET_ARCH) -march=$(CPU_TARGET_ARCH)" -DWITH_TEST=OFF -DWITH_EXAMPLE=OFF
 	$(MAKE) -C $(MKLDNN_BUILDDIR) VERBOSE=1
 	$(MAKE) -C $(MKLDNN_BUILDDIR) install
 	mkdir -p $(MXNET_LIBDIR)
