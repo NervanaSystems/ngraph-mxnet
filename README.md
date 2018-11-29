@@ -72,6 +72,7 @@ A. **Option 1: Use a pre-built Mxnet package**
     cd ngraph-mxnet
     # checkout the specific tag
     git checkout tags/<tag> -b <branch>
+    # Use CPU_TARGET_ARCH=haswell in order to support for AVX2
     make USE_NGRAPH=1 USE_MKLDNN=0 USE_CUDA=0 USE_GPERFTOOLS=0 USE_JEMALLOC=0 -j -O all
     cd python && python3 setup.py bdist_wheel
     cd  dist && pip install ngraph_mxnet-0.5.0rc0-py2.py3-none-linux_x86_64.whl
