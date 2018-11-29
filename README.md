@@ -76,7 +76,7 @@ A. **Option 1: Use a pre-built Mxnet package**
     cd  dist && pip install ngraph_mxnet-0.5.0rc0-py2.py3-none-linux_x86_64.whl
    ```
 
-B. **Clone the nGraph-MXNet repository**
+B. **Option 2: Clone the nGraph-MXNet repository**
 
    If you have not already done so, create a clone on the local file system of
    the official nGraph-enabled Apache MXNet repository:
