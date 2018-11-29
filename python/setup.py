@@ -51,18 +51,28 @@ LIB_PATHS += glob.glob("/".join(LIB_PATHS[0].split("/")[0:-1]) + "/*.so*")
 
 # mxnet assumes the .so files are located in the same directory
 # as the python module. To get wheel to package things that way,
-# we link all of the .so files into the python directory.
+# we link all of the .so files and License files into the python directory.
+def link_file(src, dst):
+    try:
+        os.remove(dst)
+    except:
+        pass
+    os.symlink(src, dst)
+
 symlinks = []
 for src in set(LIB_PATHS):
-  symlinks.append('mxnet/' + src.split('/')[-1])
-  os.symlink(src, symlinks[-1])
+    symlinks.append('mxnet/' + src.split('/')[-1])
+    link_file(src, symlinks[-1])
 
-os.symlink(os.path.realpath('../LICENSE'), 'mxnet/LICENSE')
-symlinks.append('mxnet/LICENSE')
-os.symlink(os.path.realpath('../3rdparty/ngraph-mxnet-bridge/build/licenses'), 'mxnet/licenses')
-symlinks.append('mxnet/licenses')
-os.symlink(os.path.realpath('../3rdparty/ngraph-mxnet-bridge/build/LICENSE'), 'mxnet/NGRAPH_LICENSE')
-symlinks.append('mxnet/NGRAPH_LICENSE')
+license_links = {
+    os.path.realpath('../LICENSE'): 'mxnet/LICENSE',
+    os.path.realpath('../3rdparty/ngraph-mxnet-bridge/build/licenses'): 'mxnet/licenses',
+    os.path.realpath('../3rdparty/ngraph-mxnet-bridge/build/LICENSE'): 'mxnet/NGRAPH_LICENSE'
+}
+
+for key in license_links.keys():
+    symlinks.append(license_links[key])
+    link_file(key, symlinks[-1])
 
 __version__ = libinfo['__version__']
 
