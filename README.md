@@ -52,7 +52,7 @@ A. **Option 1: Use a pre-built Mxnet package**
        python3-pip \
        virtualenv
      ```
-1. *(Optional) Activate a Python virtual environment.*
+1. **(Optional) Activate a Python virtual environment.**
 
    Activate the Python virtual environment into which you wish
    to process with ngraph-mxnet bridge installation.
@@ -65,14 +65,15 @@ A. **Option 1: Use a pre-built Mxnet package**
     source ~/path/to/my/venv/bin/activate
    ```
 
-1.  *Build the bridge.*
+1.  **Checkout latest release tag from the ngraph-mxnet repo and build the bridge.**
   
-   Checkout latest release tag from the ngraph-mxnet repo and build the bridge as follows:
    ``` sh
     git clone --recursive https://github.com/NervanaSystems/ngraph-mxnet.git
     cd ngraph-mxnet
     # checkout the specific tag
     git checkout tags/<tag> -b <branch>
+    make USE_NGRAPH=1 USE_MKLDNN=0 USE_CUDA=0 USE_GPERFTOOLS=0 USE_JEMALLOC=0 -j -O all
+    cd python && python3 setup.py bdist_wheel
     cd  dist && pip install ngraph_mxnet-0.5.0rc0-py2.py3-none-linux_x86_64.whl
    ```
 
@@ -82,7 +83,7 @@ B. **Option 2: Clone the nGraph-MXNet repository**
    the official nGraph-enabled Apache MXNet repository:
 
      ``` sh
-     git clone --recursive https://github.com/NervanaSystems/ngraph-mxnet.git
+      git clone --recursive https://github.com/NervanaSystems/ngraph-mxnet.git
      ```
 
    In the instructions below, the root directory of the cloned repository shall
@@ -219,7 +220,7 @@ This is a temporary limitation expected to be lifted in a future release.
 
 ### Supported nGraph back-ends
 The nGraph library supports a number of backends, including `"CPU"`, `"INTERPETER"`, and `"GPU"`.
-The supported models listed above explicitly use nGraph's `"CPU"` back end, and may not function
+The supported models listed above explicitly use nGraph's `"CPU"` backend, and may not function
 properly if altered to use different nGraph back-ends.
 This is a temporary limitation expected to be lifted in a future release.
 
