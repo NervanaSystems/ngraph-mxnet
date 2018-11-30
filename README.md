@@ -37,18 +37,12 @@ A. **Option 1: Use a pre-built Mxnet package**
      ``` sh
       sudo apt-get update
       sudo apt-get install -y \
-       build-essential \
-       git \
-       graphviz \
        libatlas-base-dev \
        libopenblas-dev \
        libopencv-dev\
        python \
-       python-dev \
-       python-opencv \
        python-pip \
-       python-scipy \
-       python-sklearn \
+       python3 \
        python3-pip \
        virtualenv
      ```
@@ -65,17 +59,11 @@ A. **Option 1: Use a pre-built Mxnet package**
     source ~/path/to/my/venv/bin/activate
    ```
 
-1.  **Checkout latest release tag from the ngraph-mxnet repo and build the bridge.**
+1.  **Install the pip package.**
+   Warning, this package has only been tested on Ubuntu 16.04 with Intel CPUs from the Haswell line and later. Use on other platforms/CPUs may or may not work.
   
    ``` sh
-    git clone --recursive https://github.com/NervanaSystems/ngraph-mxnet.git
-    cd ngraph-mxnet
-    # checkout the specific tag
-    git checkout tags/<tag> -b <branch>
-    # Use CPU_TARGET_ARCH=haswell in order to support for AVX2
-    make USE_NGRAPH=1 USE_MKLDNN=0 USE_CUDA=0 USE_GPERFTOOLS=0 USE_JEMALLOC=0 -j -O all
-    cd python && python3 setup.py bdist_wheel
-    cd  dist && pip install ngraph_mxnet-0.5.0rc0-py2.py3-none-linux_x86_64.whl
+    pip install ngraph-mxnet
    ```
 
 B. **Option 2: Clone the nGraph-MXNet repository**
