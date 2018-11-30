@@ -146,7 +146,7 @@ except ImportError:
     bdist_wheel = None
 
 setup(name='ngraph-mxnet',
-      version="0.5.0rc0",
+      version="0.5.0",
       description=open(os.path.join(CURRENT_DIR, 'README.md')).read(),
       packages=find_packages(),
       package_data={"mxnet":  ["*.so*", "*LICENSE*", "*licenses/*"]}, # tell the wheel to include all of the .so files in the mxnet module
