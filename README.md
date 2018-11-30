@@ -1,32 +1,5 @@
 # nGraph - MXNet Integration
 
-## Building with nGraph support
-MXnet's experimental support for the Intel nGraph graph compiler can be enabled
-using MXnet's Makefile-based build system.
-
-When building MXnet with experimental nGraph integration enabled, MXnet's build
-system builds its own copy of the nGraph-supplied libraries.  Upon successful
-completion of an nGraph-enabled build, these libraries and related symbolic links
-can be found in the same build directory as `libmxnet.so`.
-
-The experimental MXnet nGraph integration does not currently support externally
-supplied builds of nGraph's libraries to be used by MXnet.  However, it is possible
-to use control which particular version of the nGraph source code is built by
-executing an appropriate `git checkout ...` command in the `3rdparty/ngraph-mxnet-bridge`
-MXnet source tree.
-
-Some of the Make-variable influential for experimental nGraph MXnet integration
-are as follows:
-- `USE_NGRAPH` - If set to `1`, build MXnet with experimental nGraph integration
-  enabled.
-- `NGRAPH_EXTRA_CMAKE_FLAGS` - nGraph uses a CMake-based build system. This variable
-  can provide additional command-line arguments to the `cmake` invocation used to
-  configure nGraph for compilation.
-- `NGRAPH_EXTRA_MAKE_FLAGS` - This variable can provide additional command-line
-  arguments to the invocation of `make` used to compile and link nGraph.
-
-Please see the files `3rdparty/ngraph-mxnet-bridge/ngraph.mk` and `make/config.mk` for more details.
-
 ## Installation
 
 Warning, this package has only been tested on Ubuntu 16.04 with Intel CPUs from the Haswell line and later. Use on other platforms/CPUs may or may not work.
@@ -66,6 +39,34 @@ Warning, this package has only been tested on Ubuntu 16.04 with Intel CPUs from 
     pip install ngraph-mxnet
    ```
 
+## Building with nGraph support
+MXnet's experimental support for the Intel nGraph graph compiler can be enabled
+using MXnet's Makefile-based build system.
+
+When building MXnet with experimental nGraph integration enabled, MXnet's build
+system builds its own copy of the nGraph-supplied libraries.  Upon successful
+completion of an nGraph-enabled build, these libraries and related symbolic links
+can be found in the same build directory as `libmxnet.so`.
+
+The experimental MXnet nGraph integration does not currently support externally
+supplied builds of nGraph's libraries to be used by MXnet.  However, it is possible
+to use control which particular version of the nGraph source code is built by
+executing an appropriate `git checkout ...` command in the `3rdparty/ngraph-mxnet-bridge`
+MXnet source tree.
+
+Some of the Make-variable influential for experimental nGraph MXnet integration
+are as follows:
+- `USE_NGRAPH` - If set to `1`, build MXnet with experimental nGraph integration
+  enabled.
+- `NGRAPH_EXTRA_CMAKE_FLAGS` - nGraph uses a CMake-based build system. This variable
+  can provide additional command-line arguments to the `cmake` invocation used to
+  configure nGraph for compilation.
+- `NGRAPH_EXTRA_MAKE_FLAGS` - This variable can provide additional command-line
+  arguments to the invocation of `make` used to compile and link nGraph.
+
+Please see the files `3rdparty/ngraph-mxnet-bridge/ngraph.mk` and `make/config.mk` for more details.
+
+
 ## Compilation instructions for Ubuntu 16.04
 
 If you have not already done so, create a clone on the local file system of
@@ -77,7 +78,7 @@ the official nGraph-enabled Apache MXNet repository:
 
 In the instructions below, the root directory of the cloned repository shall
 be referred to as `MXNET_ROOT`.
-   
+
 1. **Install Ubuntu prerequisites**
    Run the following commands from a command-line:
 
