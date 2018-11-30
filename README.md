@@ -2,7 +2,7 @@
 
 ## Installation
 
-Warning, this package has only been tested on Ubuntu 16.04 with Intel CPUs from the Haswell line and later. Use on other platforms/CPUs may or may not work.
+Warning, this package has only been tested on Ubuntu 16.04 with Intel CPUs from the Skylake Line. CPUs without AVX512 will not run these packages, we recommend building from source.
 
 1. **Install Ubuntu prerequisites**
    Run the following commands from a command-line:
