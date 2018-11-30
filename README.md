@@ -60,6 +60,7 @@ A. **Option 1: Use a pre-built Mxnet package**
    ```
 
 1.  **Install the pip package.**
+   
    Warning, this package has only been tested on Ubuntu 16.04 with Intel CPUs from the Haswell line and later. Use on other platforms/CPUs may or may not work.
   
    ``` sh
