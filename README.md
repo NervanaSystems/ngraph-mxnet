@@ -213,21 +213,3 @@ The nGraph library supports a number of backends, including `"CPU"`, `"INTERPETE
 The supported models listed above explicitly use nGraph's `"CPU"` backend, and may not function
 properly if altered to use different nGraph back-ends.
 This is a temporary limitation expected to be lifted in a future release.
-
-### Test status
-Integration testing to date (11/15/2018) has focused on `tests/cpp/*` and `tests/python/unittest/*`.
-Of these tests, we see the following failures.
-
-#### This test fails with relative errors of <1e-4 on a limit of 1e-5.
-- `tests/python/unittest/test_gluon.py::test_export`
-
-#### These test fail with python errors
-- `tests/python/unittest/test_image.py::test_det_augmenters`
-- `tests/python/unittest/test_image.py::test_image_detiter`
-- `tests/python/unittest/test_image.py:test_imageiter`
-
-#### nGraph changes the number of nodes in the graph, so the assumptions in this test are no longer valid.
-- `tests/python/unittest/test_module.py::test_monitor`
-
-Integration testing on other python tests are forthcoming.
-
