@@ -20,7 +20,12 @@
 # with capabilities for python 2.7 and python 3
 # Author: Lam Nguyen
 
-FROM nvidia/cuda:8.0-devel-ubuntu16.04
+#FROM nvidia/cuda:8.0-devel-ubuntu16.04
+FROM nvidia/cuda:8.0-cudnn5-devel
+
+COPY install/cpp.sh install/
+RUN install/cpp.sh
+
 
 RUN echo "deb https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1604/x86_64 /" > /etc/apt/sources.list.d/nvidia-ml.list
 
@@ -31,9 +36,9 @@ RUN rm /etc/apt/sources.list.d/cuda.list
 # "The method driver /usr/lib/apt/methods/https could not be found."
 RUN rm /etc/apt/sources.list.d/nvidia-ml.list
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-            libcudnn7-dev_7.0.1.13-1+cuda8.0_amd64.deb && \
-    rm -rf /var/lib/apt/lists/*
+#RUN apt-get update && apt-get install -y --no-install-recommends \
+#            libcudnn7-dev_7.0.1.13-1+cuda8.0_amd64.deb && \
+#    rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && \
     apt-get install -y curl apt-transport-https ca-certificates && \
