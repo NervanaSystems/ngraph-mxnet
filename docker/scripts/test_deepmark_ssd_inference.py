@@ -101,8 +101,8 @@ def test_deepmark_ssd_cpu_backend():
         VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_ssd_cpu_ngraph.log'))
         VT.checkScript(os.path.join(lDir, 'test_deepmark_ssd_cpu_ngraph.log'))
     else:
-        VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_ssd_300_vgg16__accuracy_cpu_ngraph.log'))
-        VT.checkScript(os.path.join(lDir, 'test_deepmark_ssd_300_vgg16__accuracy_cpu_ngraph.log'))
+        VT.writeLogToFile(ngraphLog, os.path.join(lDir, 'test_deepmark_ssd_300_vgg16_accuracy_cpu_ngraph.log'))
+        VT.checkScript(os.path.join(lDir, 'test_deepmark_ssd_300_vgg16_accuracy_cpu_ngraph.log'))
         assert VT.checkAccuracyResult(os.path.join(lDir, 'test_deepmark_ssd_300_vgg16_accuracy_cpu_ngraph.log')) == True
 
     #writeJenkinsDescription(ngraphLog, os.path.join(lDir, 'test_deepmark_ssd_jenkins_oneline.log'))
