@@ -21,7 +21,11 @@
 
 set -e  # Fail on any command with non-zero exit
 
-DOCKER_FILE='Dockerfile.ci.gpu.mxnet'
+if [ "${CUDA_VERSION}" = "CUDA8" ] ; then
+  DOCKER_FILE='Dockerfile.ci.gpu.cuda8.mxnet'
+else
+  DOCKER_FILE='Dockerfile.ci.gpu.cuda9.mxnet'
+fi
 
 # The docker image name
 IMAGE_NAME='ngmx_ci_gpu'
