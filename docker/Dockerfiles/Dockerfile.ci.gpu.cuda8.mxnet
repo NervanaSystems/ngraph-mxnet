@@ -15,12 +15,19 @@
 # ********************************************************************************
 
 # Environment to build and run unit tests for ngraph-mxnet on gpu
-# with gcc 5.4 by defaul
-# with clang 3.9
+# with cuda 8
+# with libcudnn7-dev_7.0.1.13
 # with capabilities for python 2.7 and python 3
 # Author: Lam Nguyen
 
-FROM nvidia/cuda:9.1-cudnn7-devel
+#FROM nvidia/cuda:8.0-devel-ubuntu16.04
+FROM nvidia/cuda:8.0-cudnn7-devel
+
+COPY install/cpp.sh install/
+RUN install/cpp.sh
+
+
+RUN echo "deb https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1604/x86_64 /" > /etc/apt/sources.list.d/nvidia-ml.list
 
 # try to get around issue with badsig
 RUN rm /etc/apt/sources.list.d/cuda.list
@@ -28,6 +35,10 @@ RUN rm /etc/apt/sources.list.d/cuda.list
 # removing nvidia-ml.list file to avoid apt-get update error
 # "The method driver /usr/lib/apt/methods/https could not be found."
 RUN rm /etc/apt/sources.list.d/nvidia-ml.list
+
+#RUN apt-get update && apt-get install -y --no-install-recommends \
+#            libcudnn7-dev_7.0.1.13-1+cuda8.0_amd64.deb && \
+#    rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && \
     apt-get install -y curl apt-transport-https ca-certificates && \
@@ -74,4 +85,3 @@ RUN pip install pytest-xdist
 WORKDIR /home
 ADD scripts/run-as-user.sh /home/run-as-user.sh
 ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/lib
-
