@@ -21,29 +21,50 @@
 FROM centos:7
 
 #Install MxNet Dependencies:
-RUN yum -y update && \
+
+RUN yum groupinstall -y "Development Tools" && \
     yum -y --enablerepo=extras install epel-release && \
     yum -y install \
     atlas-devel \
+    atlas \
+    lapack-devel \
+    blas-devel \
+    wget \
     glibc-devel.i686 \
     gcc gcc-c++ \
     cmake3 make \
     git \
+    sudo \
+    which \
     python python-devel python-setuptools \
     python36u python36u-devel python36u-setuptools
 
 RUN ln -s /usr/bin/cmake3 /usr/bin/cmake
+
+RUN wget https://codeload.github.com/opencv/opencv/zip/2.4.13 && \
+        unzip 2.4.13 && \
+        cd opencv-2.4.13 && \
+        mkdir release && \
+        cd release && \
+        cmake -D BUILD_opencv_gpu=OFF -D WITH_CUDA=OFF -D WITH_1394=OFF -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local .. && \
+        make -j $(nproc) && \
+        make install 
 
 RUN cmake --version
 RUN make --version
 RUN gcc --version
 RUN c++ --version
 
+RUN ls /usr/local/lib/
+
+RUN easy_install pip
 RUN pip install --upgrade pip
 RUN pip install numpy
+RUN pip install virtualenv
+
 
 # We include psutil
-RUN pip install psutil
+#RUN pip install psutil
 
 # We include pytest
 RUN pip install --upgrade pytest
@@ -57,3 +78,5 @@ RUN pip install pytest-xdist
 # directory to be properly deleted by the user later (e.g. by jenkins).
 WORKDIR /home
 ADD scripts/run-as-user.sh /home/run-as-user.sh
+# Add run-as-user script
+ADD scripts/run_as_centos_user.sh           /home/run-as-user.sh

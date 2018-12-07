@@ -36,7 +36,6 @@ if [ -z "${ng_mx_model}" ] ; then
 fi
 
 set -e  # Make sure we exit on any command that returns non-zero
-set -u  # No unset variables
 set -o pipefail # Make sure cmds in pipe that are non-zero also fail immediately
 
 # ===== run_MLP_MNIST() ========== 
@@ -147,9 +146,18 @@ run_RESNET_I1K() {
 }  # run_RESNET_I1K()
 
 # ===== Main ==================================================================
-echo "the Python version in run_mx_ngraph-validation.py is: PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
+if [ ! -z "${PYTHON_VERSION_NUMBER}" ]; then
+    export PYTHON_VERSION_NUMBER=""
+else
+    if [ "${OS_SYSTEM}" = "CENTOS7" ] ; then
+        export PYTHON_VERSION_NUMBER=3.6
+    else
+        export PYTHON_VERSION_NUMBER=3
+    fi
+fi
 export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
 export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
+echo "the Python version in run_mx_ngraph-validation.py is: PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
 
 # This path is dependent on where host dir-tree is mounted into docker run
 # See script docker-run-tf-ng-build-as-user.sh
@@ -170,6 +178,12 @@ xtime="$(date)"
 echo  ' '
 echo  "===== Building and Installing Mxnet at ${xtime} ====="
 echo  ' '
+
+if [ "${OS_SYSTEM}" = "CENTOS7" ]; then
+    export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig/
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
+fi
+
 # Make sure pip install uses sudo, for installing into system
 # In addition, pip seems to ignore http_proxy env vars, so
 # explicitly set them here
@@ -177,6 +191,7 @@ export PIP_INSTALL_FROM_SUDO=1
 export PIP_INSTALL_EXTRA_ARGS="--proxy=$http_proxy --proxy=$https_proxy"
 export MAKE_VARIABLES="${MAKE_VARIABLES}"
 export NGRAPH_BRANCH="${NGRAPH_BRANCH}"
+export OS_SYSTEM="${OS_SYSTEM}"
 ./build-install-mx.sh 2>&1 | tee ../mx-build.log
 echo "===== Build & Install Pipeline Exited with $? and endtime ${xtime} ===="
 

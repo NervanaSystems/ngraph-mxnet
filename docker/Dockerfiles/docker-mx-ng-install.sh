@@ -35,13 +35,17 @@ fi
 
 # Note that the docker image must have been previously built using the
 # make-docker-mx-ngraph-base.sh script (in the same directory as this script).
-
+D_CMD="docker"
 if [[ ${MAKE_VARIABLES} == "USE_CUDA" ]]; then
     IMAGE_NAME='ngmx_ci_gpu'
     D_CMD="nvidia-docker"
+elif [ "${OS_SYSTEM}" = "CENTOS7" ]; then
+    IMAGE_NAME='ngmx_ci_centos7'
+elif [ "${OS_SYSTEM}" = "UBUNTU16.4" ]; then
+    IMAGE_NAME='ngmx_ci_ubuntu16_4'
 else
-    IMAGE_NAME='ngmx_ci'
-    D_CMD="docker"
+    echo "Missing Input Parameters : MAKE_VARIABLES = ${MAKE_VARIABLES}, and OS_SYSTEM = ${OS_SYSTEM}. Existing .."
+    exit 1
 fi
 
 IMAGE_ID="${1}"
@@ -63,6 +67,7 @@ ${D_CMD} run --rm \
       --env RUN_CMD="${docker_mx_dir}/docker/scripts/${script}" \
       --env PYTHON_VERSION_NUMBER="${PYTHON_VERSION_NUMBER}" \
       --env MAKE_VARIABLES="${MAKE_VARIABLES}" \
+      --env OS_SYSTEM="${OS_SYSTEM}" \
       --env NGRAPH_BRANCH="${NGRAPH_BRANCH}" \
       --env http_proxy=http://proxy-fm.intel.com:911 \
       --env https_proxy=http://proxy-fm.intel.com:912 \
