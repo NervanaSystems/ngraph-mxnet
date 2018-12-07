@@ -39,6 +39,7 @@ RUN make --version
 RUN gcc --version
 RUN c++ --version
 
+RUN easy_install pip
 RUN pip install --upgrade pip
 RUN pip install numpy
 
