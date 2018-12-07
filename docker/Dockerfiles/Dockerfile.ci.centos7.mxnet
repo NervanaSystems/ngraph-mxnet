@@ -26,7 +26,7 @@ RUN yum groupinstall -y "Development Tools" && \
     yum -y --enablerepo=extras install epel-release && \
     yum -y install \
     atlas-devel \
-    opencv  \
+    opencv opencv-python opencv-devel.i686 \
     wget \
     glibc-devel.i686 \
     gcc gcc-c++ \
@@ -42,7 +42,6 @@ RUN cmake --version
 RUN make --version
 RUN gcc --version
 RUN c++ --version
-RUN pkg-config --modversion opencv
 
 RUN easy_install pip
 RUN pip install --upgrade pip
