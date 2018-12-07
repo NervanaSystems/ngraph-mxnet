@@ -59,4 +59,4 @@ RUN pip install pytest-xdist
 # directory to be properly deleted by the user later (e.g. by jenkins).
 WORKDIR /home
 # Add run-as-user script
-ADD run-as-centos-user.sh           /home/run-as-user.sh
+ADD /home/run-as-centos-user.sh           /home/run-as-user.sh
