@@ -58,5 +58,6 @@ RUN pip install pytest-xdist
 # be run as the user who runs "docker run".  This then allows the mounted
 # directory to be properly deleted by the user later (e.g. by jenkins).
 WORKDIR /home
+ADD scripts/run-as-user.sh /home/run-as-user.sh
 # Add run-as-user script
-ADD /home/run-as-centos-user.sh           /home/run-as-user.sh
+ADD scripts/run-as-centos-user.sh           /home/run-as-user.sh
