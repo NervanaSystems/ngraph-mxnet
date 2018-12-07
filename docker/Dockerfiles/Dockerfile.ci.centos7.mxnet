@@ -60,4 +60,4 @@ RUN pip install pytest-xdist
 WORKDIR /home
 ADD scripts/run-as-user.sh /home/run-as-user.sh
 # Add run-as-user script
-ADD scripts/run-as-centos-user.sh           /home/run-as-user.sh
+ADD scripts/run_as_centos_user.sh           /home/run-as-user.sh
