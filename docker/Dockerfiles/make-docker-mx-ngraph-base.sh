@@ -23,11 +23,9 @@ set -e  # Fail on any command with non-zero exit
 
 if [ "${LINUX_SYSTEM}" = "CENTOS7" ] ; then
   DOCKER_FILE='Dockerfile.ci.centos7.mxnet'
-
   IMAGE_NAME='ngmx_ci_centos7'
 elif [ "${LINUX_SYSTEM}" = "UBUNTU16.4" ] ; then
   DOCKER_FILE='Dockerfile.ci.mxnet'
-  # The docker image name
   IMAGE_NAME='ngmx_ci_ubuntu16_4'
 else
   echo "Need to provide the LINUX_SYSTEM. Exitting ..."
