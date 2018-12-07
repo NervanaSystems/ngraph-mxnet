@@ -26,6 +26,7 @@ RUN yum groupinstall -y "Development Tools" && \
     yum -y --enablerepo=extras install epel-release && \
     yum -y install \
     atlas-devel \
+    opencv  \
     glibc-devel.i686 \
     gcc gcc-c++ \
     cmake3 make \
