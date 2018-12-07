@@ -21,6 +21,9 @@
 FROM centos:7
 
 #Install MxNet Dependencies:
+
+RUN apt-get install libc6-dev-i386
+
 RUN yum -y update && \
     yum -y --enablerepo=extras install epel-release && \
     yum -y install \
