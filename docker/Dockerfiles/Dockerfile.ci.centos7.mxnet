@@ -27,6 +27,7 @@ RUN yum groupinstall -y "Development Tools" && \
     yum -y install \
     atlas-devel \
     opencv  \
+    wget \
     glibc-devel.i686 \
     gcc gcc-c++ \
     cmake3 make \
@@ -41,6 +42,7 @@ RUN cmake --version
 RUN make --version
 RUN gcc --version
 RUN c++ --version
+RUN pkg-config --modversion opencv
 
 RUN easy_install pip
 RUN pip install --upgrade pip
