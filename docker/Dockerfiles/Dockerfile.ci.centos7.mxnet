@@ -29,6 +29,7 @@ RUN yum -y update && \
     gcc gcc-c++ \
     cmake3 make \
     git \
+    sudo \
     python python-devel python-setuptools \
     python36u python36u-devel python36u-setuptools
 
@@ -56,5 +57,8 @@ RUN pip install pytest-xdist
 # This will allow the builds, which are done in a mounted directory, to
 # be run as the user who runs "docker run".  This then allows the mounted
 # directory to be properly deleted by the user later (e.g. by jenkins).
+WORKDIR /home
+ADD scripts/run-as-user.sh /home/run-as-user.sh
+
 WORKDIR /home
 ADD scripts/run-as-user.sh /home/run-as-user.sh
