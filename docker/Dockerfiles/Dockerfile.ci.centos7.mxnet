@@ -44,7 +44,7 @@ RUN pip install --upgrade pip
 RUN pip install numpy
 
 # We include psutil
-RUN pip install psutil
+#RUN pip install psutil
 
 # We include pytest
 RUN pip install --upgrade pytest
