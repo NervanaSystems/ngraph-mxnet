@@ -4751,16 +4751,35 @@ def test_ctc_loss_grad():
 
 @with_seed()
 def test_quantization_op():
+    def quantize(input, min, max, out_type):
+        x, n, m = mx.sym.var('x'), mx.sym.var('n'), mx.sym.var('m')
+        s = mx.sym.contrib.quantize(x, n, m, out_type)
+        e = s.bind(default_context(), {'x': input, 'n': min, 'm': max}, grad_req='null')
+        e.forward()
+        return e.outputs[0], e.outputs[1], e.outputs[2]
+    def dequantize(input, min, max, out_type='float32'):
+        x, n, m = mx.sym.var('x', dtype='int8'), mx.sym.var('n'), mx.sym.var('m')
+        s = mx.sym.contrib.dequantize(x, n, m, out_type)
+        e = s.bind(default_context(), {'x': input, 'n': min, 'm': max}, grad_req='null')
+        e.forward()
+        return e.outputs[0]
     min0 = mx.nd.array([0.0])
     max0 = mx.nd.array([1.0])
     a  = mx.nd.array([[0.1392, 0.5928], [0.6027, 0.8579]])
     qa, min1, max1 = mx.nd.contrib.quantize(a, min0, max0, out_type='uint8')
     a_ = mx.nd.contrib.dequantize(qa, min1, max1, out_type='float32')
 
+    # use symbol api and bind
+    sqa, smin1, smax1 = quantize(a, min0, max0, out_type='uint8')
+    sa_ = dequantize(sqa, smin1, smax1, out_type='float32')
+
     qa_real = mx.nd.array([[35, 151], [154, 219]])
     a_real  = mx.nd.array([[0.13725491, 0.59215689], [0.60392159, 0.8588236]])
 
+    assert same(qa.asnumpy(), sqa.asnumpy())
     assert same(qa.asnumpy(), qa_real.asnumpy())
+
+    assert same(a_.asnumpy(),  sa_.asnumpy())
     assert same(a_.asnumpy(),  a_real.asnumpy())
 
 @with_seed()
