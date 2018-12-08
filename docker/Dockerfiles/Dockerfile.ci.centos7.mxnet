@@ -26,6 +26,9 @@ RUN yum groupinstall -y "Development Tools" && \
     yum -y --enablerepo=extras install epel-release && \
     yum -y install \
     atlas-devel \
+    atlas \
+    lapack-devel \
+    blas-devel \
     opencv opencv-python opencv-devel.i686 \
     wget \
     glibc-devel.i686 \
