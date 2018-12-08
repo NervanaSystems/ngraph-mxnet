@@ -34,6 +34,8 @@ else
 		export PYTHON_VERSION_NUMBER=3.6
 	else
 		export PYTHON_VERSION_NUMBER=3
+	fi
+fi
 
 export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
 export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
