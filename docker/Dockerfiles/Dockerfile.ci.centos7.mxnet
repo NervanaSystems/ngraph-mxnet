@@ -59,7 +59,7 @@ RUN ls /usr/local/lib/
 
 RUN easy_install pip
 RUN pip install --upgrade pip
-RUN pip install numpy
+RUN pip install numpy==1.13
 RUN pip install virtualenv
 
 
