@@ -39,6 +39,13 @@ if [ ! -z "${NGRAPH_BRANCH}" ] && [ "${NGRAPH_BRANCH}" != "default" ] ; then
 else
     echo "ngraphBranch === ${NGRAPH_BRANCH}"
 fi
+## DEBUG 
+export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig/
+echo '/usr/local/lib/' >> /etc/ld.so.conf.d/opencv.conf
+ls /usr/local/lib/
+ldconfig
+##end Debug
+
 cd "${MX_DIR}"
 
 case "${MAKE_VARIABLES}" in
