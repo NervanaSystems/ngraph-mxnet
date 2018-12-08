@@ -159,7 +159,9 @@ endif
 # setup opencv
 ifeq ($(USE_OPENCV), 1)
 	CFLAGS += -DMXNET_USE_OPENCV=1 $(shell pkg-config --cflags opencv)
-	LDFLAGS += $(filter-out -lopencv_ts, $(shell pkg-config --libs opencv))
+	#LDFLAGS += $(filter-out -lopencv_ts, $(shell pkg-config --libs opencv))
+	#DEBUG-Lam
+	LDFLAGS += -lopencv_calib3d -lopencv_imgproc -lopencv_contrib -lopencv_legacy -lopencv_core -lopencv_highgui
 	BIN += bin/im2rec
 else
 	CFLAGS+= -DMXNET_USE_OPENCV=0
