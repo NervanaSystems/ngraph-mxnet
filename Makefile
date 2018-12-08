@@ -161,7 +161,8 @@ ifeq ($(USE_OPENCV), 1)
 	CFLAGS += -DMXNET_USE_OPENCV=1 $(shell pkg-config --cflags opencv)
 	LDFLAGS += $(filter-out -lopencv_ts, $(shell pkg-config --libs opencv))
 	#DEBUG-Lam
-	#LDFLAGS += -lopencv_calib3d -lopencv_imgproc -lopencv_contrib -lopencv_legacy -lopencv_core -lopencv_highgui
+	#CFLAGS += -DMXNET_USE_OPENCV=1 -I/usr/local/opencv/include
+    #LDFLAGS += -L/usr/local/opencv/lib -lopencv_calib3d -lopencv_contrib -lopencv_core -lopencv_features2d -lopencv_flann -lopencv_gpu -lopencv_highgui -lopencv_imgproc -lopencv_legacy -lopencv_ml -lopencv_nonfree -lopencv_objdetect -lopencv_ocl -lopencv_photo -lopencv_stitching -lopencv_superres -lopencv_ts -lopencv_video -lopencv_videostab
 	BIN += bin/im2rec
 else
 	CFLAGS+= -DMXNET_USE_OPENCV=0

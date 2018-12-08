@@ -45,6 +45,7 @@ cd "${MX_DIR}"
 case "${MAKE_VARIABLES}" in
 	USE_NGRAPH)
 		echo "Building MXnet with experimental nGraph integration enabled. Engine: CPU + MKLDNN"
+		#-DMXNET_USE_OPENCV=1 -I/usr/local/Cellar/opencv/3.4.1_5/include/opencv -I/usr/local/Cellar/opencv/3.4.1_5/include
 		make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 USE_OPENCV=0 -j $(nproc)
 		;;
 	USE_NGRAPH_DISTRIBUTED)
@@ -70,7 +71,14 @@ case "${MAKE_VARIABLES}" in
 		;;
 esac
 
-export LD_LIBRARY_PATH="${MX_DIR}/3rdparty/ngraph-mxnet-bridge/build/lib"
+if [ -d "${MX_DIR}/3rdparty/ngraph-mxnet-bridge/build/lib" ]; then
+	export LD_LIBRARY_PATH="${MX_DIR}/3rdparty/ngraph-mxnet-bridge/build/lib"
+fi
+
+if [ -d "${MX_DIR}/3rdparty/ngraph-mxnet-bridge/build/lib64" ]; then
+	export LD_LIBRARY_PATH="${MX_DIR}/3rdparty/ngraph-mxnet-bridge/build/lib64"
+fi
+
 echo ${LD_LIBRARY_PATH}
 
 echo "Verify the installation of Mxnet"
