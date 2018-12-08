@@ -25,7 +25,15 @@ set -u  # No unset variables
 
 # For now we simply build ng-mx for python 2.  Later, python 3 builds will
 # be added.
-export PYTHON_VERSION_NUMBER=3
+#export PYTHON_VERSION_NUMBER=3
+
+if [ ! -z "${PYTHON_VERSION_NUMBER}" ]; then
+	export PYTHON_VERSION_NUMBER=""
+else
+	if [ "${LINUX_SYSTEM}" = "CENTOS7" ] ; then
+		export PYTHON_VERSION_NUMBER=3.6
+	else
+		export PYTHON_VERSION_NUMBER=3
 
 export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
 export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
