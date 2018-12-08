@@ -39,19 +39,13 @@ if [ ! -z "${NGRAPH_BRANCH}" ] && [ "${NGRAPH_BRANCH}" != "default" ] ; then
 else
     echo "ngraphBranch === ${NGRAPH_BRANCH}"
 fi
-## DEBUG 
-export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig/
-echo '/usr/local/lib/' >> /etc/ld.so.conf.d/opencv.conf
-ls /usr/local/lib/
-ldconfig
-##end Debug
 
 cd "${MX_DIR}"
 
 case "${MAKE_VARIABLES}" in
 	USE_NGRAPH)
 		echo "Building MXnet with experimental nGraph integration enabled. Engine: CPU + MKLDNN"
-		make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 -j $(nproc)
+		make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 USE_OPENCV=0 -j $(nproc)
 		;;
 	USE_NGRAPH_DISTRIBUTED)
 		echo "Building MXnet with experimental nGraph distributed support enabled. Engine: CPU + MKLDNN"
