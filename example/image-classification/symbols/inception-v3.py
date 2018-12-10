@@ -184,7 +184,8 @@ def get_symbol(num_classes=1000, dtype='float32', **kwargs):
                        448, 384, 384, 384,
                        "max", 192, "mixed_10")
     # pool
-    pool = mx.sym.Pooling(data=in5b, kernel=(8, 8), stride=(1, 1), pool_type="avg", name="global_pool")
+    #pool = mx.sym.Pooling(data=in5b, kernel=(8, 8), stride=(1, 1), pool_type="avg", name="global_pool")
+    pool = mx.sym.Pooling(data=in3a, kernel=(8, 8), stride=(1, 1), pool_type="avg", name="global_pool")
     flatten = mx.sym.Flatten(data=pool, name="flatten")
     fc1 = mx.sym.FullyConnected(data=flatten, num_hidden=num_classes, name='fc1')
     if dtype == 'float16':

@@ -539,11 +539,13 @@ class BaseModule(object):
                     self.update_metric(eval_metric, data_batch.label)
                     self.update_metric(epoch_eval_metric, data_batch.label)
 
-                try:
+                #try:
+                if (nbatch < 2):
                     # pre fetch next batch
                     next_data_batch = next(data_iter)
                     self.prepare(next_data_batch, sparse_row_id_fn=sparse_row_id_fn)
-                except StopIteration:
+                #except StopIteration:
+                else:
                     end_of_batch = True
 
                 if monitor is not None:
@@ -565,6 +567,7 @@ class BaseModule(object):
                 self.logger.info('Epoch[%d] Train-%s=%f', epoch, name, val)
             toc = time.time()
             self.logger.info('Epoch[%d] Time cost=%.3f', epoch, (toc-tic))
+            self.logger.info(self.get_outputs()[0].asnumpy())
 
             # sync aux params across devices
             arg_params, aux_params = self.get_params()

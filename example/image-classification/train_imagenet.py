@@ -22,6 +22,12 @@ logging.basicConfig(level=logging.DEBUG)
 from common import find_mxnet, data, fit
 from common.util import download_file
 import mxnet as mx
+import numpy as np
+import random
+
+random.seed(128)
+mx.random.seed(128)
+np.random.seed(128)
 
 def set_imagenet_aug(aug):
     # standard data augmentation setting for imagenet training
