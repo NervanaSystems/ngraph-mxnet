@@ -30,7 +30,7 @@ set -u  # No unset variables
 if [ ! -z "${PYTHON_VERSION_NUMBER}" ]; then
 	export PYTHON_VERSION_NUMBER=""
 else
-	if [ "${LINUX_SYSTEM}" = "CENTOS7" ] ; then
+	if [ "${OS_SYSTEM}" = "CENTOS7" ] ; then
 		export PYTHON_VERSION_NUMBER=3.6
 	else
 		export PYTHON_VERSION_NUMBER=3
