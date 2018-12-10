@@ -29,13 +29,13 @@ RUN yum groupinstall -y "Development Tools" && \
     atlas \
     lapack-devel \
     blas-devel \
-#    opencv opencv-python opencv-devel.i686 \
     wget \
     glibc-devel.i686 \
     gcc gcc-c++ \
     cmake3 make \
     git \
     sudo \
+    which \
     python python-devel python-setuptools \
     python36u python36u-devel python36u-setuptools
 
