@@ -30,6 +30,9 @@ echo "**************************************************************************
 cd "${MX_DIR}"
 git submodule update --init --recursive
 
+echo "DEBUG"
+echo "PKG_CONFIG_PATH ===.  ${PKG_CONFIG_PATH}"
+
 if [ ! -z "${NGRAPH_BRANCH}" ] && [ "${NGRAPH_BRANCH}" != "default" ] ; then
     echo "NGRAPH_BRANCH == ${NGRAPH_BRANCH}"
     cd "3rdparty/ngraph-mxnet-bridge/cmake"
@@ -46,7 +49,7 @@ case "${MAKE_VARIABLES}" in
 	USE_NGRAPH)
 		echo "Building MXnet with experimental nGraph integration enabled. Engine: CPU + MKLDNN"
 		#-DMXNET_USE_OPENCV=1 -I/usr/local/Cellar/opencv/3.4.1_5/include/opencv -I/usr/local/Cellar/opencv/3.4.1_5/include
-		make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 USE_OPENCV=0 -j $(nproc)
+		make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 -j $(nproc)
 		;;
 	USE_NGRAPH_DISTRIBUTED)
 		echo "Building MXnet with experimental nGraph distributed support enabled. Engine: CPU + MKLDNN"

@@ -29,7 +29,7 @@ RUN yum groupinstall -y "Development Tools" && \
     atlas \
     lapack-devel \
     blas-devel \
-    opencv opencv-python opencv-devel.i686 \
+#    opencv opencv-python opencv-devel.i686 \
     wget \
     glibc-devel.i686 \
     gcc gcc-c++ \
@@ -41,14 +41,14 @@ RUN yum groupinstall -y "Development Tools" && \
 
 RUN ln -s /usr/bin/cmake3 /usr/bin/cmake
 
-#RUN wget https://codeload.github.com/opencv/opencv/zip/2.4.13 && \
-#        unzip 2.4.13 && \
-#        cd opencv-2.4.13 && \
-#        mkdir release && \
-#        cd release && \
-#        cmake -D BUILD_opencv_gpu=OFF -D WITH_CUDA=OFF -D WITH_1394=OFF -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local .. && \
-#        make -j10 && \
-#        make install 
+RUN wget https://codeload.github.com/opencv/opencv/zip/2.4.13 && \
+        unzip 2.4.13 && \
+        cd opencv-2.4.13 && \
+        mkdir release && \
+        cd release && \
+        cmake -D BUILD_opencv_gpu=OFF -D WITH_CUDA=OFF -D WITH_1394=OFF -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local .. && \
+        make -j10 && \
+        make install 
 
 RUN cmake --version
 RUN make --version
