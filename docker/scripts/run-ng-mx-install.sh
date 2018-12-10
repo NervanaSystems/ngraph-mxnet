@@ -25,7 +25,6 @@
 echo "Build Mxnet_Ngraph"
 
 set -e  # Make sure we exit on any command that returns non-zero
-set -u  # No unset variables
 set -o pipefail # Make sure cmds in pipe that are non-zero also fail immediatel
 
 # ===== Main ==================================================================
