@@ -25,7 +25,15 @@ set -u  # No unset variables
 
 # For now we simply build ng-mx for python 2.  Later, python 3 builds will
 # be added.
-export PYTHON_VERSION_NUMBER=3
+if [ ! -z "${PYTHON_VERSION_NUMBER}" ]; then
+	export PYTHON_VERSION_NUMBER=""
+else
+	if [ "${OS_SYSTEM}" = "CENTOS7" ] ; then
+		export PYTHON_VERSION_NUMBER=3.6
+	else
+		export PYTHON_VERSION_NUMBER=3
+	fi
+fi
 
 export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
 export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
@@ -64,6 +72,8 @@ echo  ' '
 # explicitly set them here
 export PIP_INSTALL_FROM_SUDO=1
 export PIP_INSTALL_EXTRA_ARGS="--proxy=$http_proxy --proxy=$https_proxy"
+export MAKE_VARIABLES="${MAKE_VARIABLES}"
+export NGRAPH_BRANCH="${NGRAPH_BRANCH}"
 ./build-install-mx.sh 2>&1 | tee ../mx-build.log
 echo "===== Build & Install Pipeline Exited with $? and endtime ${xtime} ===="
 
@@ -77,9 +87,9 @@ PS2='prompt-more> '
 virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
 source "${venv_dir}/bin/activate"
 cd "$HOME/ng-mx/docker/scripts/"
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
 ./run-ng-mx-unit-tests.sh 2>&1 | tee ../mx-tests.log
 echo "===== Unit Tests Pipeline Exited with $? ====="
-
 xtime="$(date)"
 echo ' '
 echo "===== Completed MXnet-NGraph-Unittes Build and Test at ${xtime} ====="
