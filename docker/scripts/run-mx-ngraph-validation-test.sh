@@ -156,6 +156,17 @@ export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
 # sets this up.
 cd "$HOME/ng-mx"
 
+
+if [ ! -z "${PYTHON_VERSION_NUMBER}" ]; then
+    export PYTHON_VERSION_NUMBER=""
+else
+    if [ "${OS_SYSTEM}" = "CENTOS7" ] ; then
+        export PYTHON_VERSION_NUMBER=3.6
+    else
+        export PYTHON_VERSION_NUMBER=3
+    fi
+fi
+
 echo "In $(basename ${0}):"
 echo "  ng_mx_model=${ng_mx_model}"
 echo "  HOME=${HOME}"
