@@ -35,7 +35,8 @@ echo " PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
 # make-docker-mx-ngraph-base.sh script (in the same directory as this script).
 
 D_CMD="docker"
-if [[ ${MAKE_VARIABLES} == "USE_CUDA" ]]; then
+
+if [ "${MAKE_VARIABLES}" = "USE_CUDA" ]; then
     IMAGE_NAME='ngmx_ci_gpu'
     D_CMD="nvidia-docker"
 elif [ "${OS_SYSTEM}" = "CENTOS7" ]; then

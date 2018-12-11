@@ -67,13 +67,18 @@ xtime="$(date)"
 echo  ' '
 echo  "===== Building and Installing Mxnet at ${xtime} ====="
 echo  ' '
+
+if [ "${OS_SYSTEM}" = "CENTOS7" ]; then
+    export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig/
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
+fi
+
 # Make sure pip install uses sudo, for installing into system
 # In addition, pip seems to ignore http_proxy env vars, so
 # explicitly set them here
 export PIP_INSTALL_FROM_SUDO=1
 export PIP_INSTALL_EXTRA_ARGS="--proxy=$http_proxy --proxy=$https_proxy"
 export MAKE_VARIABLES="${MAKE_VARIABLES}"
-export NGRAPH_BRANCH="${NGRAPH_BRANCH}"
 ./build-install-mx.sh 2>&1 | tee ../mx-build.log
 echo "===== Build & Install Pipeline Exited with $? and endtime ${xtime} ===="
 
