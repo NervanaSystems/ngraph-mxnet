@@ -36,7 +36,6 @@ if [ -z "${ng_mx_model}" ] ; then
 fi
 
 set -e  # Make sure we exit on any command that returns non-zero
-set -u  # No unset variables
 set -o pipefail # Make sure cmds in pipe that are non-zero also fail immediately
 
 # ===== run_MLP_MNIST() ========== 
@@ -170,6 +169,12 @@ xtime="$(date)"
 echo  ' '
 echo  "===== Building and Installing Mxnet at ${xtime} ====="
 echo  ' '
+
+if [ "${OS_SYSTEM}" = "CENTOS7" ]; then
+    export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig/
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
+fi
+
 # Make sure pip install uses sudo, for installing into system
 # In addition, pip seems to ignore http_proxy env vars, so
 # explicitly set them here
