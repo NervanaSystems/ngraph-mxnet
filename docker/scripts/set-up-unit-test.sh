@@ -36,7 +36,6 @@ else
 		export PYTHON_VERSION_NUMBER=3
 	fi
 fi
-set -u
 export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
 export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
 
@@ -78,6 +77,7 @@ if [[ ${MAKE_VARIABLES} == "USE_CUDA" ]]; then
 	./run-unit-tests-gpu.sh 2>&1 | tee ../mx-tests.log
 	echo "===== GPU Unit Tests Pipeline Exited with $? ====="
 else
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
 	echo "LD_LIBRARY_PATH ====== ${LD_LIBRARY_PATH}"
 	echo `ls /usr/local/lib/`
 	./run-unit-tests.sh 2>&1 | tee ../mx-tests.log
