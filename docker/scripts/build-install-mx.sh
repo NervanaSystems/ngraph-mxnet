@@ -30,9 +30,6 @@ echo "**************************************************************************
 cd "${MX_DIR}"
 git submodule update --init --recursive
 
-echo "DEBUG"
-echo "PKG_CONFIG_PATH ===.  ${PKG_CONFIG_PATH}"
-
 if [ ! -z "${NGRAPH_BRANCH}" ] && [ "${NGRAPH_BRANCH}" != "default" ] ; then
     echo "NGRAPH_BRANCH == ${NGRAPH_BRANCH}"
     cd "3rdparty/ngraph-mxnet-bridge/cmake"
