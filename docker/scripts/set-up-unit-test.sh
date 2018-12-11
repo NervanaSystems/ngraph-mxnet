@@ -31,7 +31,6 @@ if [ ! -z "${PYTHON_VERSION_NUMBER}" ]; then
 else
 	if [ "${OS_SYSTEM}" = "CENTOS7" ] ; then
 		export PYTHON_VERSION_NUMBER=3.6
-		export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
 	else
 		export PYTHON_VERSION_NUMBER=3
 	fi
@@ -78,6 +77,7 @@ if [[ ${MAKE_VARIABLES} == "USE_CUDA" ]]; then
 	./run-unit-tests-gpu.sh 2>&1 | tee ../mx-tests.log
 	echo "===== GPU Unit Tests Pipeline Exited with $? ====="
 else
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
 	./run-unit-tests.sh 2>&1 | tee ../mx-tests.log
 	echo "===== Unit Tests Pipeline Exited with $? ====="
 fi
