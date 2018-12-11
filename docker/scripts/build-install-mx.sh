@@ -84,6 +84,10 @@ fi
 
 echo ${LD_LIBRARY_PATH}
 
+echo "=== DEBUG ===="
+echo `ls /usr/local/lib/ | grep libopencv*`
+echo "=== END DEBUG ===="
+
 echo "Verify the installation of Mxnet"
 
 if [ ! -f "./lib/libmxnet.so" ] ; then

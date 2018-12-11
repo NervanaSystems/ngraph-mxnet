@@ -35,7 +35,8 @@ export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
 
 if [ "${OS_SYSTEM}" = "CENTOS7" ]; then
     export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig/
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
+    ln -s /usr/local/lib/libopencv_core.so /usr/local/lib/libopencv_core.so.2.4.13
+    ln -s /usr/local/lib/libopencv_imgproc.so /usr/local/lib/libopencv_imgproc.so.2.4.13 
 fi
 
 # This path is dependent on where host dir-tree is mounted into docker run
