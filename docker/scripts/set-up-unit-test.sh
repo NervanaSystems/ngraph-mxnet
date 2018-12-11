@@ -32,6 +32,7 @@ if [ ! -z "${PYTHON_VERSION_NUMBER}" ]; then
 else
 	if [ "${OS_SYSTEM}" = "CENTOS7" ] ; then
 		export PYTHON_VERSION_NUMBER=3.6
+		export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
 	else
 		export PYTHON_VERSION_NUMBER=3
 	fi
