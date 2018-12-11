@@ -21,7 +21,6 @@
 # It is installed into a docker image.  It will not run outside the container.
 
 set -e  # Make sure we exit on any command that returns non-zero
-set -u  # No unset variables
 
 # For now we simply build ng-mx for python 2.  Later, python 3 builds will
 # be added.
