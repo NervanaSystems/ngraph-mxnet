@@ -84,6 +84,7 @@ docker run --rm \
        --env MX_NG_RESNET_LR_STEP_EPOCHS="${MX_NG_RESNET_LR_STEP_EPOCHS}" \
        --env MX_NG_RESNET_WITH_NNP="${MX_NG_RESNET_WITH_NNP}" \
        --env MX_NG_RESNET_ACCEPTABLE_ACCURACY="${MX_NG_RESNET_ACCEPTABLE_ACCURACY}" \
+       --env OS_SYSTEM="${OS_SYSTEM}" \
        --env http_proxy=http://proxy-fm.intel.com:911 \
        --env https_proxy=http://proxy-fm.intel.com:912 \
        -v "${ngraph_mx_dir}:${docker_mx_dir}" \

@@ -38,7 +38,6 @@ fi
 export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
 export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
 
-set -u
 # We don't need ccache because we are building in a (fresh) docker container
 export BUILD_MX_WITH_CCACHE=0
 
