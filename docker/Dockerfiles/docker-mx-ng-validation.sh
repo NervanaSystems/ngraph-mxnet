@@ -40,7 +40,15 @@ echo " NGRAPH_BRANCH= ${NGRAPH_BRANCH}"
 # Note that the docker image must have been previously built using the
 # make-docker-mx-ngraph-base.sh script (in the same directory as this script).
 
-IMAGE_NAME='ngmx_ci'
+if [ "${OS_SYSTEM}" = "CENTOS7" ]; then
+    IMAGE_NAME='ngmx_ci_centos7'
+elif [ "${OS_SYSTEM}" = "UBUNTU16.4" ]; then
+    IMAGE_NAME='ngmx_ci_ubuntu16_4'
+else
+    echo "Missing Input Parameters : MAKE_VARIABLES = ${MAKE_VARIABLES}, and OS_SYSTEM = ${OS_SYSTEM}. Existing .."
+    exit 1
+fi
+
 IMAGE_ID="${1}"
 if [ -z "${IMAGE_ID}" ] ; then
     echo 'Missing an image version as the only argument. Exitting ...'
