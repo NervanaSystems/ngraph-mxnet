@@ -21,10 +21,16 @@
 
 set -e  # Fail on any command with non-zero exit
 
-DOCKER_FILE='Dockerfile.ci.mxnet'
-
-# The docker image name
-IMAGE_NAME='ngmx_ci'
+if [ "${OS_SYSTEM}" = "CENTOS7" ] ; then
+  DOCKER_FILE='Dockerfile.ci.centos7.mxnet'
+  IMAGE_NAME='ngmx_ci_centos7'
+elif [ "${OS_SYSTEM}" = "UBUNTU16.4" ] ; then
+  DOCKER_FILE='Dockerfile.ci.mxnet'
+  IMAGE_NAME='ngmx_ci_ubuntu16_4'
+else
+  echo "Need to provide the OS_SYSTEM. Exitting ..."
+  exit 1
+fi
 
 # The docker image ID will passed
 IMAGE_ID="${1}"
