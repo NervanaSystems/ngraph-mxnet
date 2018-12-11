@@ -79,6 +79,8 @@ if [[ ${MAKE_VARIABLES} == "USE_CUDA" ]]; then
 	./run-unit-tests-gpu.sh 2>&1 | tee ../mx-tests.log
 	echo "===== GPU Unit Tests Pipeline Exited with $? ====="
 else
+	echo "LD_LIBRARY_PATH ====== ${LD_LIBRARY_PATH}"
+	echo `ls /usr/local/lib/`
 	./run-unit-tests.sh 2>&1 | tee ../mx-tests.log
 	echo "===== Unit Tests Pipeline Exited with $? ====="
 fi
