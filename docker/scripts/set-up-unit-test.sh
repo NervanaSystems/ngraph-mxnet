@@ -21,12 +21,20 @@
 # It is installed into a docker image.  It will not run outside the container.
 
 set -e  # Make sure we exit on any command that returns non-zero
-set -u  # No unset variables
 
 # For now we simply build ng-mx for python 2.  Later, python 3 builds will
 # be added.
-export PYTHON_VERSION_NUMBER=3
+#export PYTHON_VERSION_NUMBER=3
 
+if [ ! -z "${PYTHON_VERSION_NUMBER}" ]; then
+	export PYTHON_VERSION_NUMBER=""
+else
+	if [ "${OS_SYSTEM}" = "CENTOS7" ] ; then
+		export PYTHON_VERSION_NUMBER=3.6
+	else
+		export PYTHON_VERSION_NUMBER=3
+	fi
+fi
 export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
 export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
 
@@ -68,6 +76,7 @@ if [[ ${MAKE_VARIABLES} == "USE_CUDA" ]]; then
 	./run-unit-tests-gpu.sh 2>&1 | tee ../mx-tests.log
 	echo "===== GPU Unit Tests Pipeline Exited with $? ====="
 else
+	export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
 	./run-unit-tests.sh 2>&1 | tee ../mx-tests.log
 	echo "===== Unit Tests Pipeline Exited with $? ====="
 fi

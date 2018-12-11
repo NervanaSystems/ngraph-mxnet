@@ -25,7 +25,6 @@
 echo "Build Mxnet_Ngraph"
 
 set -e  # Make sure we exit on any command that returns non-zero
-set -u  # No unset variables
 set -o pipefail # Make sure cmds in pipe that are non-zero also fail immediatel
 
 # ===== Main ==================================================================
@@ -33,6 +32,11 @@ set -o pipefail # Make sure cmds in pipe that are non-zero also fail immediatel
 echo "the Python version in run_mx_ngraph-validation.py is: PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
 export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
 export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
+
+if [ "${OS_SYSTEM}" = "CENTOS7" ]; then
+    export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig/
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/
+fi
 
 # This path is dependent on where host dir-tree is mounted into docker run
 # See script docker-run-tf-ng-build-as-user.sh
