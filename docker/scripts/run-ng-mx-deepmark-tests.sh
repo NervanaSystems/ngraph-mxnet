@@ -168,14 +168,10 @@ run_inference_topologies() {
 
 
 # ===== Main ==================================================================
-if [ ! -z "${PYTHON_VERSION_NUMBER}" ]; then
-    export PYTHON_VERSION_NUMBER=""
+if [ "${OS_SYSTEM}" = "CENTOS7" ] ; then
+    export PYTHON_VERSION_NUMBER=3.6
 else
-    if [ "${OS_SYSTEM}" = "CENTOS7" ] ; then
-        export PYTHON_VERSION_NUMBER=3.6
-    else
-        export PYTHON_VERSION_NUMBER=3
-    fi
+    export PYTHON_VERSION_NUMBER=3
 fi
 
 echo "the Python version in run_mx_ngraph-validation.py is: PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
