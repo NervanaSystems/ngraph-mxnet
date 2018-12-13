@@ -84,6 +84,11 @@ endif
 include $(TPARTYDIR)/mshadow/make/mshadow.mk
 include $(DMLC_CORE)/make/dmlc.mk
 
+ifeq ($(USE_MKLDNN), 1)
+  USE_MXNET_MKLDNN=1
+else
+  USE_MXNET_MKLDNN=0
+endif
 include 3rdparty/ngraph-mxnet-bridge/ngraph.mk
 
 # all tge possible warning tread
