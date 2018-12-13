@@ -28,7 +28,8 @@ FROM ubuntu:16.04
 RUN apt-get update && apt-get install -y build-essential git \
         libopencv-dev \
         curl \
-        gcc \
+        g++-4.8 gcc-4.8 \
+        g++-5 gcc-5 \
         libatlas-base-dev \
         python \
         python-pip \
