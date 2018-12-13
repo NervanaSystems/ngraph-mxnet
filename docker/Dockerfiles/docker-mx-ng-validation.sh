@@ -93,6 +93,7 @@ docker run --rm \
        --env MX_NG_RESNET_WITH_NNP="${MX_NG_RESNET_WITH_NNP}" \
        --env MX_NG_RESNET_ACCEPTABLE_ACCURACY="${MX_NG_RESNET_ACCEPTABLE_ACCURACY}" \
        --env OS_SYSTEM="${OS_SYSTEM}" \
+       --env GCC_VERSION="${GCC_VERSION}" \
        --env http_proxy=http://proxy-fm.intel.com:911 \
        --env https_proxy=http://proxy-fm.intel.com:912 \
        -v "${ngraph_mx_dir}:${docker_mx_dir}" \
