@@ -26,7 +26,7 @@ ifeq ($(UNAME_S), Darwin)
 else
 	OMP_LIBFILE = $(MKLDNNROOT)/lib/libiomp5.so
 	MKLML_LIBFILE = $(MKLDNNROOT)/lib/libmklml_intel.so
-	MKLDNN_LIBFILE = $(MKLDNNROOT)/lib/libmkldnn.so.0.17.1.0
+	MKLDNN_LIBFILE = $(MKLDNNROOT)/lib/libmkldnn.so.0
 endif
 endif
 
@@ -61,8 +61,7 @@ ifneq ($(UNAME_S), Darwin)
 mkldnn_symlinks:
 	mkdir -p $(MXNET_LIBDIR)
 	cd $(MXNET_LIBDIR) && \
-	ln -s --force libmkldnn.so.0.17.1.0 libmkldnn.so.0 && \
-	ln -s --force libmkldnn.so.0        libmkldnn.so
+	ln -s --force libmkldnn.so.0 libmkldnn.so
 mkldnn: mkldnn_symlinks
 endif
 endif
