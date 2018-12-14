@@ -49,12 +49,8 @@ RUN apt-get update && apt-get install -y build-essential git \
 RUN echo ${GCC_VERSION}
 RUN echo ${GCC_VERSION_VAR}
 
-RUN if [ "${GCC_VERSION}" = "gcc-5"] ; then
-        RUN apt-get install -y g++-5 gcc-5 \
-        libopencv-dev;
-else
-        RUN apt-get install -y g++-4.8 gcc-4.8;
-        RUN wget https://codeload.github.com/opencv/opencv/zip/2.4.13 && \
+RUN if [ "${GCC_VERSION}" = "gcc-5"] ; then RUN apt-get install -y g++-5 gcc-5 libopencv-dev ; else RUN apt-get install -y g++-4.8 gcc-4.8 && \
+        wget https://codeload.github.com/opencv/opencv/zip/2.4.13 && \
         unzip 2.4.13 && \
         cd opencv-2.4.13 && \
         mkdir release && \
