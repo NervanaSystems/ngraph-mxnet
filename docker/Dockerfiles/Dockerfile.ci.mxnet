@@ -27,10 +27,10 @@ FROM ubuntu:16.04
 ARG gccversion
 
 RUN if [ "$gccversion" = "gcc-5" ]; then \
-        apt-get install -y g++-5 gcc-5 \
+        apt-get update && apt-get install -y gcc \
         libopencv-dev ; \
 else \
-        apt-get install -y g++-4.8 gcc-4.8 && \
+        apt-get update && apt-get install -y g++-4.8 gcc-4.8 && \
         wget https://codeload.github.com/opencv/opencv/zip/2.4.13 && \
         unzip 2.4.13 && \
         cd opencv-2.4.13 && \
