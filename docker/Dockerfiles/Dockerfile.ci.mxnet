@@ -52,7 +52,7 @@ RUN if [ "$gccversion" = "gcc-5" ]; then \
         apt-get update && apt-get install -y g++-5 gcc-5 \
         libopencv-dev ; \
 else \
-       apt-get update && apt-get install -y g++-4.8 gcc-4.8 wget unzip zip ;
+       apt-get update && apt-get install -y g++-4.8 gcc-4.8 wget unzip zip ; \
        #apt-get update && apt-get install -y g++-4.8 gcc-4.8 wget unzip zip && \
        #libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev && \
        #wget https://codeload.github.com/opencv/opencv/zip/2.4.13 && \
