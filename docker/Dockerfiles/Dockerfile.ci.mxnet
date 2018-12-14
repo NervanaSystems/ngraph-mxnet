@@ -46,7 +46,7 @@ RUN apt-get update && apt-get install -y build-essential git \
         clang-format-3.9 \
         virtualenv \
         cmake \
-        sudo
+        sudo 
 
 RUN if [ "$gccversion" = "gcc-5" ]; then \
         apt-get update && apt-get install -y g++-5 gcc-5 \
@@ -67,7 +67,6 @@ RUN cmake --version
 RUN make --version
 RUN gcc --version
 RUN c++ --version
-RUN pkg-config --modversion opencv
 
 RUN pip install --upgrade pip
 RUN pip install numpy
