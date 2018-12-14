@@ -49,7 +49,7 @@ if [ -z "${GCC_VERSION}" ] ; then
     echo 'Missing GCC_VERSION. Exitting ...'
     exit 1
 else
-    GCC_VERSION_VAR="--build-arg GCC_VERSION=${GCC_VERSION}"
+    GCC_VERSION_VAR="--build-arg gccversion=${GCC_VERSION}"
 fi
 
 # If there are more parameters, which are intended to be directly passed to
