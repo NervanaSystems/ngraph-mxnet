@@ -43,6 +43,10 @@ else
     echo "IMAGE_ID= ${IMAGE_ID}"
 fi
 
+if [ -z "${GCC_VERSION}" ] ; then
+    GCC_VERSION="gcc-5"
+fi
+
 # If there are more parameters, which are intended to be directly passed to
 # the "docker build ..." command-line, then shift off the IMAGE_NAME
 if [ "x${2}" = 'x' ] ; then
@@ -74,6 +78,6 @@ fi
 # Note that a "shift" is done above to remove the IMAGE_ID from the cmd line.
 
 docker build  --rm=true \
-       ${DOCKER_HTTP_PROXY} ${DOCKER_HTTPS_PROXY} \
+       ${DOCKER_HTTP_PROXY} ${DOCKER_HTTPS_PROXY} ${GCC_VERSION} \
        $@ \
        -f="${DOCKER_FILE}"  -t="${IMAGE_NAME}:${IMAGE_ID}"   ..
