@@ -191,7 +191,6 @@ export PIP_INSTALL_EXTRA_ARGS="--proxy=$http_proxy --proxy=$https_proxy"
 export MAKE_VARIABLES="${MAKE_VARIABLES}"
 export NGRAPH_BRANCH="${NGRAPH_BRANCH}"
 export OS_SYSTEM="${OS_SYSTEM}"
-export GCC_VERSION="${GCC_VERSION}"
 ./build-install-mx.sh 2>&1 | tee ../mx-build.log
 echo "===== Build & Install Pipeline Exited with $? and endtime ${xtime} ===="
 
