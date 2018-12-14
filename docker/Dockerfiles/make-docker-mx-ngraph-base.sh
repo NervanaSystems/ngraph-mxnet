@@ -21,6 +21,8 @@
 
 set -e  # Fail on any command with non-zero exit
 
+GCC_VERSION_VAR=' '
+
 if [ "${OS_SYSTEM}" = "CENTOS7" ] ; then
   DOCKER_FILE='Dockerfile.ci.centos7.mxnet'
   IMAGE_NAME='ngmx_ci_centos7'
@@ -44,7 +46,9 @@ else
 fi
 
 if [ -z "${GCC_VERSION}" ] ; then
-    GCC_VERSION="gcc-5"
+    echo 'Missing GCC_VERSION. Exitting ...'
+    exit 1
+else
     GCC_VERSION_VAR="--build-arg GCC_VERSION=${GCC_VERSION}"
 fi
 
