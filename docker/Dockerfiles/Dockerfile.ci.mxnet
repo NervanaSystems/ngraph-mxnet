@@ -58,7 +58,7 @@ else \
         cd opencv-2.4.13 && \
         mkdir release && \
         cd release && \
-        cmake -D BUILD_opencv_gpu=OFF -D WITH_CUDA=OFF -D WITH_1394=OFF -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local .. && \
+        cmake -D BUILD_opencv_gpu=OFF -D WITH_CUDA=OFF -D WITH_1394=OFF -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D CMAKE_CXX_COMPILER=/usr/bin/g++-4.8 -D CMAKE_C_COMPILER=/usr/bin/gcc-4.8 .. && \
         make -j $(nproc) && \
         make install ; \
 fi
@@ -67,6 +67,7 @@ RUN cmake --version
 RUN make --version
 RUN gcc --version
 RUN c++ --version
+RUN pkg-config --modversion opencv
 
 RUN pip install --upgrade pip
 RUN pip install numpy
