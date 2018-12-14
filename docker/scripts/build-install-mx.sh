@@ -42,17 +42,10 @@ fi
 
 cd "${MX_DIR}"
 
-
-
 case "${MAKE_VARIABLES}" in
 	USE_NGRAPH)
 		echo "Building MXnet with experimental nGraph integration enabled. Engine: CPU + MKLDNN"
-		echo `gcc --version`
-		if [ "${GCC_VERSION}" = "gcc-4.8" ]; then
-			make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 CC=/usr/bin/gcc-4.8 CXX=/usr/bin/g++-4.8 -j $(nproc)
-		else
-			make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 -j $(nproc)
-		fi
+		make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 -j $(nproc)
 		;;
 	USE_NGRAPH_DISTRIBUTED)
 		echo "Building MXnet with experimental nGraph distributed support enabled. Engine: CPU + MKLDNN"
