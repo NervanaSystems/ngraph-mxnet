@@ -26,7 +26,7 @@ FROM ubuntu:16.04
 
 ARG gccversion
 
-RUN if [ "${gccversion}" = "gcc-5" ]; then \
+RUN if [ "$gccversion" = "gcc-5" ]; then \
         apt-get install -y g++-5 gcc-5 \
         libopencv-dev ; \
 else \
