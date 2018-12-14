@@ -45,6 +45,7 @@ fi
 
 if [ -z "${GCC_VERSION}" ] ; then
     GCC_VERSION="gcc-5"
+    GCC_VERSION_VAR="--build-arg GCC_VERSION=${GCC_VERSION}"
 fi
 
 # If there are more parameters, which are intended to be directly passed to
@@ -78,6 +79,6 @@ fi
 # Note that a "shift" is done above to remove the IMAGE_ID from the cmd line.
 
 docker build  --rm=true \
-       ${DOCKER_HTTP_PROXY} ${DOCKER_HTTPS_PROXY} ${GCC_VERSION} \
+       ${DOCKER_HTTP_PROXY} ${DOCKER_HTTPS_PROXY} ${GCC_VERSION_VAR} \
        $@ \
        -f="${DOCKER_FILE}"  -t="${IMAGE_NAME}:${IMAGE_ID}"   ..

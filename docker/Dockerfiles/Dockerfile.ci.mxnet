@@ -46,6 +46,9 @@ RUN apt-get update && apt-get install -y build-essential git \
         cmake \
         sudo
 
+RUN echo ${GCC_VERSION}
+RUN echo ${GCC_VERSION_VAR}
+
 RUN if [ "${GCC_VERSION}" = "gcc-5"] ; then
         apt-get install -y g++-5 gcc-5 \
         libopencv-dev;
