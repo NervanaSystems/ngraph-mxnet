@@ -26,7 +26,11 @@ FROM ubuntu:16.04
 
 ARG gccversion
 
-RUN if [ "${gccversion}" = "gcc-5" ] ; then RUN apt-get install -y g++-5 gcc-5 libopencv-dev ; else RUN apt-get install -y g++-4.8 gcc-4.8 && \
+RUN if [ "${gccversion}" = "gcc-5" ]; then \
+        apt-get install -y g++-5 gcc-5 \
+        libopencv-dev ; \
+else \
+        apt-get install -y g++-4.8 gcc-4.8 && \
         wget https://codeload.github.com/opencv/opencv/zip/2.4.13 && \
         unzip 2.4.13 && \
         cd opencv-2.4.13 && \
@@ -34,7 +38,8 @@ RUN if [ "${gccversion}" = "gcc-5" ] ; then RUN apt-get install -y g++-5 gcc-5 l
         cd release && \
         cmake -D BUILD_opencv_gpu=OFF -D WITH_CUDA=OFF -D WITH_1394=OFF -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local .. && \
         make -j $(nproc) && \
-        make install ; fi
+        make install ; \
+fi
 
 
 #Install MxNet Dependencies:
