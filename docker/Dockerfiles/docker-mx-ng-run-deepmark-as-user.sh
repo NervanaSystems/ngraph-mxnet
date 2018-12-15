@@ -60,6 +60,10 @@ ngraph_mx_dir="$(realpath ../..)"
 
 jenkin_cje_dir="$(realpath ../../..)"
 
+echo "==== jenkin_cje_dir ===== "
+echo "==== ${jenkin_cje_dir} ==== "
+echo "==== end jenkin_cje_dir ===="
+
 docker_mx_dir="/home/dockuser/ng-mx"
 
 docker_jenkin_dir="/home/dockuser/jenkins"
