@@ -1,5 +1,44 @@
 # nGraph - MXNet Integration
 
+## Installation
+
+Warning, this package has only been tested on Ubuntu 16.04 with Intel CPUs from the Skylake Line. CPUs without AVX512 will not run these packages, we recommend building from source.
+
+1. **Install Ubuntu prerequisites**
+   Run the following commands from a command-line:
+
+     ``` sh
+      sudo apt-get update
+      sudo apt-get install -y \
+       libatlas-base-dev \
+       libopenblas-dev \
+       libopencv-dev\
+       python \
+       python-pip \
+       python3 \
+       python3-pip \
+       virtualenv
+     ```
+1. **(Optional) Activate a Python virtual environment.**
+
+   Activate the Python virtual environment into which you wish
+   to process with ngraph-mxnet bridge installation.
+
+   (Please visit http://python.org for more information on Python virtual
+   environments.)
+
+   For example:
+   ``` sh
+    source ~/path/to/my/venv/bin/activate
+   ```
+
+1.  **Install the pip package.**
+   
+  
+   ``` sh
+    pip install ngraph-mxnet
+   ```
+
 ## Building with nGraph support
 MXnet's experimental support for the Intel nGraph graph compiler can be enabled
 using MXnet's Makefile-based build system.
@@ -27,19 +66,19 @@ are as follows:
 
 Please see the files `3rdparty/ngraph-mxnet-bridge/ngraph.mk` and `make/config.mk` for more details.
 
+
 ## Compilation instructions for Ubuntu 16.04
 
-1. **Clone the nGraph-MXNet repository**
+If you have not already done so, create a clone on the local file system of
+the official nGraph-enabled Apache MXNet repository:
 
-   If you have not already done so, create a clone on the local file system of
-   the official nGraph-enabled Apache MXNet repository:
+``` sh
+  git clone --recursive https://github.com/NervanaSystems/ngraph-mxnet.git
+```
 
-     ``` sh
-     git clone --recursive https://github.com/NervanaSystems/ngraph-mxnet.git
-     ```
+In the instructions below, the root directory of the cloned repository shall
+be referred to as `MXNET_ROOT`.
 
-   In the instructions below, the root directory of the cloned repository shall
-   be referred to as `MXNET_ROOT`.
 1. **Install Ubuntu prerequisites**
    Run the following commands from a command-line:
 
@@ -89,8 +128,7 @@ Please see the files `3rdparty/ngraph-mxnet-bridge/ngraph.mk` and `make/config.m
    ``` sh
    cd MXNET_ROOT
    make USE_NGRAPH=1 USE_CUDA=0 DEBUG=0 -j
-   ```
-
+     ```
 1. **(Optional) Install the MXNet Python bindings**
 
    Once `libmxnet.so` has been built, one can optionally install Python bindings
@@ -172,24 +210,6 @@ This is a temporary limitation expected to be lifted in a future release.
 
 ### Supported nGraph back-ends
 The nGraph library supports a number of backends, including `"CPU"`, `"INTERPETER"`, and `"GPU"`.
-The supported models listed above explicitly use nGraph's `"CPU"` back end, and may not function
+The supported models listed above explicitly use nGraph's `"CPU"` backend, and may not function
 properly if altered to use different nGraph back-ends.
 This is a temporary limitation expected to be lifted in a future release.
-
-### Test status
-Integration testing to date (11/15/2018) has focused on `tests/cpp/*` and `tests/python/unittest/*`.
-Of these tests, we see the following failures.
-
-#### This test fails with relative errors of <1e-4 on a limit of 1e-5.
-- `tests/python/unittest/test_gluon.py::test_export`
-
-#### These test fail with python errors
-- `tests/python/unittest/test_image.py::test_det_augmenters`
-- `tests/python/unittest/test_image.py::test_image_detiter`
-- `tests/python/unittest/test_image.py:test_imageiter`
-
-#### nGraph changes the number of nodes in the graph, so the assumptions in this test are no longer valid.
-- `tests/python/unittest/test_module.py::test_monitor`
-
-Integration testing on other python tests are forthcoming.
-

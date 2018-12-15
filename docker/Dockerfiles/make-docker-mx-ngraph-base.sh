@@ -21,10 +21,18 @@
 
 set -e  # Fail on any command with non-zero exit
 
-DOCKER_FILE='Dockerfile.ci.mxnet'
+GCC_VERSION_VAR=' '
 
-# The docker image name
-IMAGE_NAME='ngmx_ci'
+if [ "${OS_SYSTEM}" = "CENTOS7" ] ; then
+  DOCKER_FILE='Dockerfile.ci.centos7.mxnet'
+  IMAGE_NAME='ngmx_ci_centos7'
+elif [ "${OS_SYSTEM}" = "UBUNTU16.4" ] ; then
+  DOCKER_FILE='Dockerfile.ci.mxnet'
+  IMAGE_NAME='ngmx_ci_ubuntu16_4'
+else
+  echo "Need to provide the OS_SYSTEM. Exitting ..."
+  exit 1
+fi
 
 # The docker image ID will passed
 IMAGE_ID="${1}"
@@ -35,6 +43,13 @@ if [ -z "${IMAGE_ID}" ] ; then
     exit 1
 else
     echo "IMAGE_ID= ${IMAGE_ID}"
+fi
+
+if [ -z "${GCC_VERSION}" ] ; then
+    echo 'Missing GCC_VERSION. Exitting ...'
+    exit 1
+else
+    GCC_VERSION_VAR="--build-arg gccversion=${GCC_VERSION}"
 fi
 
 # If there are more parameters, which are intended to be directly passed to
@@ -68,6 +83,6 @@ fi
 # Note that a "shift" is done above to remove the IMAGE_ID from the cmd line.
 
 docker build  --rm=true \
-       ${DOCKER_HTTP_PROXY} ${DOCKER_HTTPS_PROXY} \
+       ${DOCKER_HTTP_PROXY} ${DOCKER_HTTPS_PROXY} ${GCC_VERSION_VAR} \
        $@ \
        -f="${DOCKER_FILE}"  -t="${IMAGE_NAME}:${IMAGE_ID}"   ..
