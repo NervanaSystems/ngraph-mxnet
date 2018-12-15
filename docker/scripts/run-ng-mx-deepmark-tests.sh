@@ -69,6 +69,11 @@ run_inference_topologies() {
 
 
 # ===== Main ==================================================================
+if [ "${OS_SYSTEM}" = "CENTOS7" ] ; then
+    export PYTHON_VERSION_NUMBER=3.6
+else
+    export PYTHON_VERSION_NUMBER=3
+fi
 
 echo "the Python version in run_mx_ngraph-validation.py is: PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
 export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
