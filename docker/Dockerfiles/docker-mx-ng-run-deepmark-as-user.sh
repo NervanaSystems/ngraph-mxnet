@@ -58,11 +58,7 @@ set -u  # No unset variables after this point
 
 ngraph_mx_dir="$(realpath ../..)"
 
-jenkin_cje_dir="$(realpath ../../..)"
-
-echo "==== jenkin_cje_dir ===== "
-echo "==== ${jenkin_cje_dir} ==== "
-echo "==== end jenkin_cje_dir ===="
+jenkin_cje_dir="$(realpath ../..)"
 
 docker_mx_dir="/home/dockuser/ng-mx"
 
