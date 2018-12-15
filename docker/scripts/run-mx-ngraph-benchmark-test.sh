@@ -76,6 +76,15 @@ run_benchmark_score() {
 
 
 # ===== Main ==================================================================
+if [ ! -z "${PYTHON_VERSION_NUMBER}" ]; then
+    export PYTHON_VERSION_NUMBER=""
+else
+    if [ "${OS_SYSTEM}" = "CENTOS7" ] ; then
+        export PYTHON_VERSION_NUMBER=3.6
+    else
+        export PYTHON_VERSION_NUMBER=3
+    fi
+fi
 echo "the Python version in run_mx_ngraph-validation.py is: PYTHON_VERSION_NUMBER = ${PYTHON_VERSION_NUMBER}"
 export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
 export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
