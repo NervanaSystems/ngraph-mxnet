@@ -38,7 +38,7 @@ run_inference_topologies() {
     PS2='prompt-more> '
     virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
     source "${venv_dir}/bin/activate"
-    cd python && pip install -e . && pip install psutil pytest scipy gluoncv && cd ..
+    cd python && pip install -e . && pip install psutil pytest scipy gluoncv && cd ../
     xtime="$(date)"
     echo  ' '
     echo  "===== Running Ngraph Mxnet DeepMark on CPU-Backend at ${xtime} ====="
@@ -71,6 +71,7 @@ run_inference_topologies() {
 
     make 
     
+    cd "${HOME}/ng-mx/mxnet-deepmark"
     # 1. Run the inception_v4
     cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_mask_rcnn_tusimple_cpu_backend.py --junit-xml=validation_test_deepmark_mask_rcnn_tusimple_inference.xml --junit-prefix=inference_deepmark_mask_rcnn_tusimple_cpu"
     eval $cmd
