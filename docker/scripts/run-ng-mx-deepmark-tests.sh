@@ -38,7 +38,7 @@ run_inference_topologies() {
     PS2='prompt-more> '
     virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
     source "${venv_dir}/bin/activate"
-    cd python && pip install -e . && pip install psutil pytest scipy gluoncv && cd ../
+    cd python && pip install -e . && pip install psutil pytest scipy gluoncv && cd ..
     xtime="$(date)"
     echo  ' '
     echo  "===== Running Ngraph Mxnet DeepMark on CPU-Backend at ${xtime} ====="
@@ -62,9 +62,6 @@ run_inference_topologies() {
 
     #cmd_download_data=". .${HOME}/jenkins/ngraph-mxnet-validation/utils/downloadMaskrcnnTusimpleData.sh"
     #eval $cmd_download_data
-
-    cd ..
-    ls 
 
     cd "mxnet-deepmark/image+video/maskrcnn_tusimple/"
 
