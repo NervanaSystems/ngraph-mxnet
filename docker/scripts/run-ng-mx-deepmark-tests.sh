@@ -55,25 +55,125 @@ run_inference_topologies() {
     
     INFERENCE_PY_SCRIPTS="${HOME}/jenkins/ngraph-mxnet-validation/ng-mx-topologies-scripts/"
 
-    # Hard code 
-    #DOWNLOAD_DATA_PATH="${HOME}/jenkins/ngraph-mxnet-validation/utils/downloadMaskrcnnTusimpleData.sh"
+    # 1. Run the Faster-RCNN, --batch-size 1
+    if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
 
-    #ls "${HOME}/jenkins/ngraph-mxnet-validation/utils/"
+        cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_Faster_RCNN_inference.py --junit-xml=validation_test_deepmark_Faster_RCNN_inference.xml --junit-prefix=inference_deepmark_Faster_RCNN_cpu"
+        eval $cmd
+    else
+        echo "Faster-RCNN doesn't work with any --batch-size except 1."
+    fi
 
-    #cmd_download_data=". .${HOME}/jenkins/ngraph-mxnet-validation/utils/downloadMaskrcnnTusimpleData.sh"
-    #eval $cmd_download_data
+    ## 2. DeepSpeech 2: Issue NGRAPH-2911
+    if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
+        #24. Run DeepSpeed 2
+        cmd="pytest -s docker/scripts/test_deepmark_deepspeech_inference.py --junit-xml=validation_test_deepmark_deepspeech_inference.xml --junit-prefix=inference_deepmark_deepspeech"
+        eval $cmd
+    else
+        echo "DeepSpeech 2 doesn't work with any --batch-size except 1."
+    fi
 
-    cd "mxnet-deepmark/image+video/maskrcnn_tusimple/"
+     ## 3. Mask_rcnn_tusimple
+    if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
+        #Dowload Data
+        cd "mxnet-deepmark/image+video/maskrcnn_tusimple/"
+        cp -r /dataset/cityscape/maskrcnn-tusimple/data .
+        pip install -r requirements.txt
+        make
 
-    cp -r /dataset/cityscape/maskrcnn-tusimple/data .
+        cd "${HOME}/ng-mx/mxnet-deepmark"
+        cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_mask_rcnn_tusimple_cpu_backend.py --junit-xml=validation_test_deepmark_mask_rcnn_tusimple_inference.xml --junit-prefix=inference_deepmark_mask_rcnn_tusimple_cpu"
+        eval $cmd
+    else
+        echo "MaskRCNN tusimple ONLY supports --batch-size 1."
+    fi
 
-    pip install -r requirements.txt
+    # 4. Run the inception_v4
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_inception_v4_inference.py --junit-xml=validation_test_deepmark_inception_v4_inference.xml --junit-prefix=inference_deepmark_inception_v4_cpu"
+    eval $cmd
 
-    make 
-    
-    cd "${HOME}/ng-mx/mxnet-deepmark"
-    # 1. Run the inception_v4
-    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_mask_rcnn_tusimple_cpu_backend.py --junit-xml=validation_test_deepmark_mask_rcnn_tusimple_inference.xml --junit-prefix=inference_deepmark_mask_rcnn_tusimple_cpu"
+    # 5. Run the inception_v3
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_inception_v3_inference.py --junit-xml=validation_test_deepmark_inception_v3_inference.xml --junit-prefix=inference_deepmark_inception_v3_cpu"
+    eval $cmd
+
+    # 6. Run the inception_resnet_v2
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_inception_resnet_v2_inference.py --junit-xml=validation_test_deepmark_inception_resnet_v2_inference.xml --junit-prefix=inference_deepmark_inception_resnet_v2_cpu"
+    eval $cmd
+
+    # 7. Run the resnet_50_v2
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_resnet_50_inference.py --junit-xml=validation_test_deepmark_resnet_50_v2_inference.xml --junit-prefix=inference_deepmark_resnet_50_v2_cpu"
+    eval $cmd
+
+    # 8. Run the resnet_50_v1
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_resnet_50_v1_inference.py --junit-xml=validation_test_deepmark_resnet_50_v1_inference.xml --junit-prefix=inference_deepmark_resnet_50_v1_cpu"
+    eval $cmd
+
+    # 9. Run the a3c
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_a3c_inference.py --junit-xml=validation_test_deepmark_a3c_inference.xml --junit-prefix=inference_deepmark_a3c_cpu"
+    eval $cmd
+
+    # 10. Run the test wide_deep
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_wide_deep_inference.py --junit-xml=validation_test_deepmark_wide_deep_inference.xml --junit-prefix=inference_deepmark_wide_deep_cpu"
+    eval $cmd
+
+    # 11. Run the test mobilenet
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_mobilenet_inference.py --junit-xml=validation_test_deepmark_mobilenet_inference.xml --junit-prefix=inference_deepmark_mobilenet_cpu"
+    eval $cmd
+
+    # 12. Run the test mobilenet_v2
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_mobilenet_v2_inference.py --junit-xml=validation_test_deepmark_mobilenet_v2_inference.xml --junit-prefix=inference_deepmark_mobilenet_v2_cpu"
+    eval $cmd
+
+    # 13. Run the densenet121
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_densenet121_inference.py --junit-xml=validation_test_deepmark_densenet121_inference.xml --junit-prefix=inference_deepmark_densenet121_cpu"
+    eval $cmd
+
+    # 14. Run the densenet161
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_densenet161_inference.py --junit-xml=validation_test_deepmark_densenet161_inference.xml --junit-prefix=inference_deepmark_densenet161_cpu"
+    eval $cmd
+
+    # 15. Run the densenet169
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_densenet169_inference.py --junit-xml=validation_test_deepmark_densenet169_inference.xml --junit-prefix=inference_deepmark_densenet169_cpu"
+    eval $cmd
+
+    # 16. Run the densenet201
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_densenet201_inference.py --junit-xml=validation_test_deepmark_densenet201_inference.xml --junit-prefix=inference_deepmark_densenet201_cpu"
+    eval $cmd
+
+    # 17. Run the squeezenet1.1
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_squeezenet_inference.py --junit-xml=validation_test_deepmark_squeezenet_inference.xml --junit-prefix=inference_deepmark_squeezenet_cpu"
+    eval $cmd
+
+    # 18. Run squeezenet1.0
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_squeezenet1_0_inference.py --junit-xml=validation_test_deepmark_squeezenet1_0_inference.xml --junit-prefix=inference_deepmark_squeezenet1_0_cpu"
+    eval $cmd
+
+    # 19. Run DCGAN 
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_dcgan_inference.py --junit-xml=validation_test_deepmark_dcgan_inference.xml --junit-prefix=inference_deepmark_dcgan_cpu"
+    eval $cmd
+
+    # 20. Run  sockeye_transformer
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_sockeye_transformer_inference.py --junit-xml=validation_test_deepmark_sockeye_transformer_inference.xml --junit-prefix=inference_deepmark_sockeye_transformer_cpu"
+    eval $cmd
+
+    # 21. Run  sockeye_gnmt
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_sockeye_gnmt_inference.py --junit-xml=validation_test_deepmark_sockeye_gnmt_inference.xml --junit-prefix=inference_deepmark_sockeye_gnmt_cpu"
+    eval $cmd
+
+    # 22. Run ssd_512_mobilenet1_0_voc 
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_ssd_512_mobilenet_inference.py --junit-xml=validation_test_deepmark_ssd_512_mobilenet_inference.xml --junit-prefix=inference_deepmark_ssd_512_mobilenet_cpu"
+    eval $cmd
+
+    # 23. Run ssd
+    cmd="pytest -s docker/scripts/test_deepmark_ssd_inference.py --junit-xml=validation_test_deepmark_ssd_inference.xml --junit-prefix=inference_deepmark_ssd_cpu"
+    eval $cmd
+
+    # 24. Run vgg16
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_vgg16_inference.py --junit-xml=validation_test_deepmark_vgg16_inference.xml --junit-prefix=inference_deepmark_vgg16_cpu"
+    eval $cmd
+
+    # 25. Run deepspeech2_mod
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_deepspeech2_mod_inference.py --junit-xml=validation_test_deepmark_deepspeech2_mod_inference.xml --junit-prefix=inference_deepmark_deepspeech2_mod_cpu"
     eval $cmd
 
     echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
