@@ -62,7 +62,10 @@ run_inference_topologies() {
 
     #cmd_download_data=". .${HOME}/jenkins/ngraph-mxnet-validation/utils/downloadMaskrcnnTusimpleData.sh"
     #eval $cmd_download_data
-    cd "${HOME}/ngraph-mxnet/mxnet-deepmark/image+video/maskrcnn_tusimple/"
+
+    ls 
+    
+    cd "mxnet-deepmark/image+video/maskrcnn_tusimple/"
 
     cp -r /dataset/cityscape/maskrcnn-tusimple/data .
 
