@@ -60,11 +60,7 @@ set -u  # No unset variables after this point
 
 ngraph_mx_dir="$(realpath ../..)"
 
-jenkin_cje_dir="$(realpath ../..)"
-
 docker_mx_dir="/home/dockuser/ng-mx"
-
-docker_jenkin_dir="/home/dockuser/jenkins"
 
 script='run-ng-mx-deepmark-tests.sh'
 
@@ -82,6 +78,5 @@ ${D_CMD} run --rm \
       --env https_proxy=http://proxy-fm.intel.com:912 \
       --env OS_SYSTEM=${OS_SYSTEM} \
       -v "${ngraph_mx_dir}:${docker_mx_dir}" \
-      -v "${jenkin_cje_dir}:${docker_jenkin_dir}" \
       -v "/dataset/mxnet_imagenet/:/dataset/mxnet_imagenet/" \
       "${IMAGE_NAME}:${IMAGE_ID}" /home/run-as-user.sh
