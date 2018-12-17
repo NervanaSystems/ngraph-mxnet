@@ -54,7 +54,10 @@ run_inference_topologies() {
     export LD_LIBRARY_PATH="${HOME}/ng-mx/warp-ctc/build"${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     
     INFERENCE_PY_SCRIPTS="${HOME}/jenkins/ngraph-mxnet-validation/ng-mx-topologies-scripts/"
+    DOWNLOAD_DATA_PATH="${HOME}/jenkins/ngraph-mxnet-validation/utils/downloadMaskrcnnTusimpleData.sh"
 
+    cmd_download_data "./${HOME}/jenkins/ngraph-mxnet-validation/utils/downloadMaskrcnnTusimpleData.sh"
+    eval $cmd_download_data
     # 1. Run the inception_v4
     cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_mask_rcnn_tusimple_cpu_backend.py --junit-xml=validation_test_deepmark_mask_rcnn_tusimple_inference.xml --junit-prefix=inference_deepmark_mask_rcnn_tusimple_cpu"
     eval $cmd
