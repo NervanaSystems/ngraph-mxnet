@@ -55,18 +55,9 @@ run_inference_topologies() {
     
     INFERENCE_PY_SCRIPTS="${HOME}/jenkins/ngraph-mxnet-validation/ng-mx-topologies-scripts/"
 
-    echo "====DEBUG ======="
-    echo " INFERENCE_PY_SCRIPTS ===== ${INFERENCE_PY_SCRIPTS}"
-    echo `ls ${INFERENCE_PY_SCRIPTS}`
-    echo "=== END DEBUG ===="
-
-    if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
-        # 23. Run the Faster-RCNN, --batch-size 1
-        cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_Faster_RCNN_inference.py --junit-xml=validation_test_deepmark_Faster_RCNN_inference.xml --junit-prefix=inference_deepmark_Faster_RCNN_cpu"
-        eval $cmd
-    else
-        echo "Faster-RCNN doesn't work with any --batch-size except 1."
-    fi
+    # 1. Run the inception_v4
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_mask_rcnn_tusimple_cpu_backend.py --junit-xml=validation_test_deepmark_mask_rcnn_tusimple_inference.xml --junit-prefix=inference_deepmark_mask_rcnn_tusimple_cpu"
+    eval $cmd
 
     echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
 
