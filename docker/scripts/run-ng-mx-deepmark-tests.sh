@@ -67,13 +67,13 @@ run_inference_topologies() {
     ## 2. DeepSpeech 2: Issue NGRAPH-2911
     if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
         #24. Run DeepSpeed 2
-        cmd="pytest -s docker/scripts/test_deepmark_deepspeech_inference.py --junit-xml=validation_test_deepmark_deepspeech_inference.xml --junit-prefix=inference_deepmark_deepspeech"
+        cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_deepspeech_inference.py --junit-xml=validation_test_deepmark_deepspeech_inference.xml --junit-prefix=inference_deepmark_deepspeech"
         eval $cmd
     else
         echo "DeepSpeech 2 doesn't work with any --batch-size except 1."
     fi
 
-     ## 3. Mask_rcnn_tusimple
+    ## 3. Mask_rcnn_tusimple
     if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
         #Dowload Data
         cd "mxnet-deepmark/image+video/maskrcnn_tusimple/"
@@ -165,7 +165,7 @@ run_inference_topologies() {
     eval $cmd
 
     # 23. Run ssd
-    cmd="pytest -s docker/scripts/test_deepmark_ssd_inference.py --junit-xml=validation_test_deepmark_ssd_inference.xml --junit-prefix=inference_deepmark_ssd_cpu"
+    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_ssd_inference.py --junit-xml=validation_test_deepmark_ssd_inference.xml --junit-prefix=inference_deepmark_ssd_cpu"
     eval $cmd
 
     # 24. Run vgg16
