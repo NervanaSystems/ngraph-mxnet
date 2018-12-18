@@ -157,7 +157,7 @@ else
 fi
 export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
 export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
-TRAINING_MODEL_SCRIPTS_PATH="${HOME}/jenkins/ng-mx-topologies-scripts/"
+TRAINING_MODEL_SCRIPTS_PATH="${HOME}/jenkins/ngraph-mxnet-validation/ng-mx-topologies-scripts/"
 
 # This path is dependent on where host dir-tree is mounted into docker run
 # See script docker-run-tf-ng-build-as-user.sh
