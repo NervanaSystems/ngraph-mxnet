@@ -63,8 +63,10 @@ fi
 set -u  # No unset variables
 
 ngraph_mx_dir="$(realpath ../..)"
+jenkin_cje_dir="$(realpath ../../..)/jenkins"
 docker_mx_dir="/home/dockuser/ng-mx"
 script='run-mx-ngraph-validation-test.sh'
+docker_jenkin_dir="/home/dockuser/jenkins"
 
 # Parameters:
 #           MX_NG_MODEL          Model to run
@@ -102,4 +104,5 @@ ${D_CMD} run --rm \
        --env https_proxy=http://proxy-fm.intel.com:912 \
        -v "${ngraph_mx_dir}:${docker_mx_dir}" \
        -v "/dataset/mxnet_imagenet/:/dataset/mxnet_imagenet/" \
+       -v "${jenkin_cje_dir}:${docker_jenkin_dir}" \
        "${IMAGE_NAME}:${IMAGE_ID}" /home/run-as-user.sh
