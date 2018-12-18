@@ -59,7 +59,7 @@ run_MLP_MNIST() {
     # Test parameters
     export TEST_MLP_MNIST_LOG_DIR="${HOME}/ng-mx"
     # Run the test
-    pytest -s docker/scripts/test_mnist_cpu_daily_validation.py --junit-xml=validation_tests_mnist_mlp_cpu.xml --junit-prefix=daily_validation_mnist_mlp_cpu
+    pytest -s ${TRAINING_MODEL_SCRIPTS_PATH}test_mnist_cpu_daily_validation.py --junit-xml=validation_tests_mnist_mlp_cpu.xml --junit-prefix=daily_validation_mnist_mlp_cpu
     echo "===== Daily Validation CPU-Backend Pipeline Exited with $? ====="
 
 }  # run_MLP_MNIST()
@@ -101,7 +101,7 @@ run_RESNET110_CIFAR10() {
         export TEST_RESNET110_CIFAR10_EPOCHS=1  # Default is 300 epoches
     fi
     # Run the test
-    pytest -s docker/scripts/test_resnet_cifar_daily_validation.py --junit-xml=validation_tests_resnet_cifar_cpu.xml --junit-prefix=daily_validation_resnet_cifar_cpu
+    pytest -s ${TRAINING_MODEL_SCRIPTS_PATH}test_resnet_cifar_daily_validation.py --junit-xml=validation_tests_resnet_cifar_cpu.xml --junit-prefix=daily_validation_resnet_cifar_cpu
     echo "===== Daily Validation CPU-Backend Pipeline Exited with $? ====="
 
 }  # run_RESNET110_CIFAR10()
@@ -140,7 +140,7 @@ run_RESNET_I1K() {
         export TEST_RESNET_I1K_EPOCHS=1  # Default is 300 epoches
     fi
     # Run the test
-    pytest -s docker/scripts/test_resnet_i1k_daily_validation.py --junit-xml=validation_tests_resnet_i1k_cpu.xml --junit-prefix=daily_validation_resnet_i1k_cpu
+    pytest -s ${TRAINING_MODEL_SCRIPTS_PATH}test_resnet_i1k_daily_validation.py --junit-xml=validation_tests_resnet_i1k_cpu.xml --junit-prefix=daily_validation_resnet_i1k_cpu
     echo "===== Daily Validation CPU-Backend Pipeline Exited with $? ====="
 
 }  # run_RESNET_I1K()
@@ -157,6 +157,7 @@ else
 fi
 export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
 export venv_dir="/tmp/venv_python${PYTHON_VERSION_NUMBER}"
+TRAINING_MODEL_SCRIPTS_PATH="${HOME}/jenkins/ngraph-mxnet-validation/ng-mx-topologies-scripts/"
 
 # This path is dependent on where host dir-tree is mounted into docker run
 # See script docker-run-tf-ng-build-as-user.sh

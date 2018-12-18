@@ -32,7 +32,6 @@ export PYTHON_BIN_PATH="/usr/bin/python$PYTHON_VERSION_NUMBER"
 export BUILD_MX_WITH_CCACHE=0
 
 # This path is dependent on where host dir-tree is mounted into docker run
-# See script docker-run-mx-ng-build-as-user.sh
 # HOME is expected to be /home/dockuser.  See script run-as-user.sh, which
 # sets this up.
 cd "$HOME/ng-mx"

@@ -39,7 +39,9 @@ D_CMD="docker"
 if [ "${MAKE_VARIABLES}" = "USE_CUDA" ]; then
     IMAGE_NAME='ngmx_ci_gpu'
     D_CMD="nvidia-docker"
-elif [ "${OS_SYSTEM}" = "CENTOS7" ]; then
+fi
+
+if [ "${OS_SYSTEM}" = "CENTOS7" ]; then
     IMAGE_NAME='ngmx_ci_centos7'
 elif [ "${OS_SYSTEM}" = "UBUNTU16.4" ]; then
     IMAGE_NAME='ngmx_ci_ubuntu16_4'
@@ -58,12 +60,16 @@ set -u  # No unset variables after this point
 
 ngraph_mx_dir="$(realpath ../..)"
 
+jenkin_cje_dir="$(realpath ../../..)/jenkins"
+
 docker_mx_dir="/home/dockuser/ng-mx"
+
+docker_jenkin_dir="/home/dockuser/jenkins"
 
 script='run-ng-mx-deepmark-tests.sh'
 
 ## deepmark
-docker run --rm \
+${D_CMD} run --rm \
       --env RUN_UID="$(id -u)" \
       --env RUN_CMD="${docker_mx_dir}/docker/scripts/${script}" \
       --env PYTHON_VERSION_NUMBER="${PYTHON_VERSION_NUMBER}"\
@@ -76,5 +82,7 @@ docker run --rm \
       --env https_proxy=http://proxy-fm.intel.com:912 \
       --env OS_SYSTEM=${OS_SYSTEM} \
       -v "${ngraph_mx_dir}:${docker_mx_dir}" \
+      -v "${jenkin_cje_dir}:${docker_jenkin_dir}" \
       -v "/dataset/mxnet_imagenet/:/dataset/mxnet_imagenet/" \
+      -v "/dataset/cityscape/maskrcnn-tusimple/data/:/dataset/cityscape/maskrcnn-tusimple/data/" \
       "${IMAGE_NAME}:${IMAGE_ID}" /home/run-as-user.sh

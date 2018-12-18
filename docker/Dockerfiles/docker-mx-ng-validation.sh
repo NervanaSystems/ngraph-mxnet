@@ -39,6 +39,11 @@ echo " NGRAPH_BRANCH= ${NGRAPH_BRANCH}"
 
 # Note that the docker image must have been previously built using the
 # make-docker-mx-ngraph-base.sh script (in the same directory as this script).
+D_CMD="docker"
+if [[ ${MAKE_VARIABLES} == "USE_CUDA" ]]; then
+    IMAGE_NAME='ngmx_ci_gpu'
+    D_CMD="nvidia-docker"
+fi
 
 if [ "${OS_SYSTEM}" = "CENTOS7" ]; then
     IMAGE_NAME='ngmx_ci_centos7'
@@ -58,8 +63,10 @@ fi
 set -u  # No unset variables
 
 ngraph_mx_dir="$(realpath ../..)"
+jenkin_cje_dir="$(realpath ../../..)/jenkins"
 docker_mx_dir="/home/dockuser/ng-mx"
 script='run-mx-ngraph-validation-test.sh'
+docker_jenkin_dir="/home/dockuser/jenkins"
 
 # Parameters:
 #           MX_NG_MODEL          Model to run
@@ -72,7 +79,7 @@ if [ -z "${MX_NG_MODEL}" ] ; then
     exit
 fi
 
-docker run --rm \
+${D_CMD} run --rm \
        --env RUN_UID="$(id -u)" \
        --env RUN_CMD="${docker_mx_dir}/docker/scripts/${script}" \
        --env PYTHON_VERSION_NUMBER="${PYTHON_VERSION_NUMBER}" \
@@ -97,4 +104,5 @@ docker run --rm \
        --env https_proxy=http://proxy-fm.intel.com:912 \
        -v "${ngraph_mx_dir}:${docker_mx_dir}" \
        -v "/dataset/mxnet_imagenet/:/dataset/mxnet_imagenet/" \
+       -v "${jenkin_cje_dir}:${docker_jenkin_dir}" \
        "${IMAGE_NAME}:${IMAGE_ID}" /home/run-as-user.sh
