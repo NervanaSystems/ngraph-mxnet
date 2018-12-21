@@ -65,13 +65,13 @@ run_inference_topologies() {
     fi
 
     ## 2. DeepSpeech 2: Issue NGRAPH-2911
-    if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
+    ##if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
         #24. Run DeepSpeed 2
-        cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_deepspeech_inference.py --junit-xml=validation_test_deepmark_deepspeech_inference.xml --junit-prefix=inference_deepmark_deepspeech"
-        eval $cmd
-    else
-        echo "DeepSpeech 2 doesn't work with any --batch-size except 1."
-    fi
+    ##    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_deepspeech_inference.py --junit-xml=validation_test_deepmark_deepspeech_inference.xml --junit-prefix=inference_deepmark_deepspeech"
+    ##    eval $cmd
+    ##else
+    ##    echo "DeepSpeech 2 doesn't work with any --batch-size except 1."
+    ##fi
 
     ## 3. Mask_rcnn_tusimple
     if [ "${TEST_BATCH_SIZE}" == "1" ] ; then
@@ -173,8 +173,8 @@ run_inference_topologies() {
     eval $cmd
 
     # 25. Run deepspeech2_mod
-    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_deepspeech2_mod_inference.py --junit-xml=validation_test_deepmark_deepspeech2_mod_inference.xml --junit-prefix=inference_deepmark_deepspeech2_mod_cpu"
-    eval $cmd
+    #cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_deepspeech2_mod_inference.py --junit-xml=validation_test_deepmark_deepspeech2_mod_inference.xml --junit-prefix=inference_deepmark_deepspeech2_mod_cpu"
+    #eval $cmd
 
     echo "===== Inference CPU-Backend Pipeline Exited with $? ====="
 
