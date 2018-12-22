@@ -22,6 +22,8 @@
 
 set -e  # Make sure we exit on any command that returns non-zero
 
+ulimit -a
+
 # For now we simply build ng-mx for python 2.  Later, python 3 builds will
 # be added.
 if [ ! -z "${PYTHON_VERSION_NUMBER}" ]; then
