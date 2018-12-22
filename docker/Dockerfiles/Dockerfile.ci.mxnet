@@ -71,10 +71,10 @@ RUN gcc --version
 RUN c++ --version
 
 RUN pip install --upgrade pip
-RUN pip install numpy
+RUN pip install numpy==1.13.1
 
 # We include psutil
-RUN pip install psutil
+RUN pip install psutil==5.4.5
 
 # We include pytest
 RUN pip install --upgrade pytest
