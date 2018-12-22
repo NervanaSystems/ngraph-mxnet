@@ -113,8 +113,8 @@ run_inference_topologies() {
     eval $cmd
 
     # 10. Run the test wide_deep
-    cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_wide_deep_inference.py --junit-xml=validation_test_deepmark_wide_deep_inference.xml --junit-prefix=inference_deepmark_wide_deep_cpu"
-    eval $cmd
+    #cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_wide_deep_inference.py --junit-xml=validation_test_deepmark_wide_deep_inference.xml --junit-prefix=inference_deepmark_wide_deep_cpu"
+    #eval $cmd
 
     # 11. Run the test mobilenet
     cmd="pytest -s ${INFERENCE_PY_SCRIPTS}test_deepmark_mobilenet_inference.py --junit-xml=validation_test_deepmark_mobilenet_inference.xml --junit-prefix=inference_deepmark_mobilenet_cpu"
