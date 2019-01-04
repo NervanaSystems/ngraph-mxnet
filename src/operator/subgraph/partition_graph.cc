@@ -484,6 +484,21 @@ void SortEntries(const std::unordered_map<const nnvm::NodeEntry*, size_t>& entry
   std::sort(entries->begin(), entries->end(), entry_cmp);
 }
 
+// Remove duplicate Node Entries from a vector
+void DeduplicateEntries(std::vector<nnvm::NodeEntry*>* entries) {
+  auto temp_entries = *entries;
+  entries->clear();
+
+  nnvm::NodeEntryMap<bool> used;
+
+  for (nnvm::NodeEntry* entry : temp_entries) {
+    if (!used.count(*entry)) {
+      entries->push_back(entry);
+      used.insert({*entry, true});
+    }
+  }
+}
+
 /*!
  * \brief Given a subgraph, find the output entries of a subgraph.
  * \param g pointer to the whole graph
@@ -512,7 +527,8 @@ void FindInputEntries(
       auto& e = inputs[j];
       if (input_entry_map->count(e) != 0) {
         input_entry_map->at(e).push_back(&e);
-        continue;
+      } else {
+        input_entry_map->insert({e, {&e}});
       }
       if (indexed_graph.exist(e.node.get())) {
         // e's source node is not a subgraph node
@@ -520,17 +536,16 @@ void FindInputEntries(
         // this is a node not belonging to the subgraph
         if (simple_nodes[nid]->label != label) {
           input_entries->push_back(&e);
-          input_entry_map->insert({e, {&e}});
         }
       } else {
         // e's source node is a subgraph node.
         // In this case, two subgraphs are adjacent.
         input_entries->push_back(&e);
-        input_entry_map->insert({e, {&e}});
       }
     }
   }
   SortEntries(entry_top_order_map, input_entries);
+  DeduplicateEntries(input_entries);
 }
 
 /*!
@@ -554,11 +569,11 @@ void FindOutputEntries(
   auto add_output = [output_entries,
                      output_entry_map](nnvm::NodeEntry* entry) {
     if (output_entry_map->count(*entry) == 0) {
-      output_entries->push_back(entry);
       output_entry_map->insert({*entry, {entry}});
     } else {
       output_entry_map->at(*entry).push_back(entry);
     }
+    output_entries->push_back(entry);
   };
 
   for (size_t i = 0; i < subgraph_nodes.size(); ++i) {
@@ -603,6 +618,7 @@ void FindOutputEntries(
     }
   }
   SortEntries(entry_top_order_map, output_entries);
+  DeduplicateEntries(output_entries);
 }
 
 /*!
