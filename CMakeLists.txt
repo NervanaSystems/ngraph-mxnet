@@ -21,7 +21,7 @@ mxnet_option(USE_LAPACK           "Build with lapack support" ON)
 mxnet_option(USE_NGRAPH           "Build with nGraph support" ON)
 mxnet_option(USE_MKL_IF_AVAILABLE "Use MKL if found" ON)
 mxnet_option(USE_MKLML_MKL        "Use MKLDNN variant of MKL (if MKL found)" ON IF USE_MKL_IF_AVAILABLE AND (NOT APPLE))
-mxnet_option(USE_MKLDNN           "Use MKLDNN variant of MKL (if MKL found)" ON IF USE_MKL_IF_AVAILABLE AND (NOT APPLE) AND (NOT USE_NGRAPH))
+mxnet_option(USE_MKLDNN           "Use MKLDNN variant of MKL (if MKL found)" ON IF USE_MKL_IF_AVAILABLE AND (NOT APPLE) AND (NOT MSVC) AND (CMAKE_SYSTEM_PROCESSOR MATCHES x86_64) AND (NOT USE_NGRAPH))
 mxnet_option(USE_OPERATOR_TUNING  "Enable auto-tuning of operators" ON IF NOT MSVC)
 mxnet_option(USE_GPERFTOOLS       "Build with GPerfTools support (if found)" ON)
 mxnet_option(USE_JEMALLOC         "Build with Jemalloc support"   ON)
@@ -168,75 +168,6 @@ endif(MSVC)
 if(NOT mxnet_LINKER_LIBS)
   set(mxnet_LINKER_LIBS "")
 endif(NOT mxnet_LINKER_LIBS)
-
-if(USE_NGRAPH AND NOT MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-comment")
-  set(NGRAPH_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/3rdparty/ngraph-mxnet-bridge)
-
-  # Flags required for SDL325
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -D_FORTIFY_SOURCE=2 -fPIE")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wformat -Wformat-security")
-  if (APPLE)
-      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-bind_at_load")
-      set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-bind_at_load")
-  else()
-      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie")
-      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now")
-      set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now")
-  endif()
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-      if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
-          set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector")
-      else()
-          set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-strong")
-      endif()
-  else()
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fstack-protector-strong")
-  endif()
-
-  if(NOT MSVC)
-    set(ARCH_OPT_FLAGS "-mtune=generic")
-  endif()
-
-  set(NGRAPH_BRIDGE_UNIT_TEST_SOURCE "")
-
-  add_subdirectory(3rdparty/ngraph-mxnet-bridge)
-
-  get_directory_property(NGRAPH_BRIDGE_UNIT_TEST_SOURCE DIRECTORY 3rdparty/ngraph-mxnet-bridge DEFINITION NGRAPH_BRIDGE_UNIT_TEST_SOURCE) 
-
-  include_directories(3rdparty/ngraph-mxnet-bridge/src)
-  include_directories(${CMAKE_BINARY_DIR}/3rdparty/ngraph-mxnet-bridge/include)
-
-  add_definitions(-DMXNET_USE_NGRAPH=1)
-
-  # The following libraries collectively provide the symbols required by the
-  # MXnet-nGraph bridge code at static-link time.
-  #
-  # NOTE: nGraph loads individual backends as-needed at runtime (using 'dlopen'),
-  # and so one might assume that `libcpu_backend` is not needed during static-link
-  # time.  However, it provides some symbols required by other backend-agnostic
-  # code.
-  if (CMAKE_HOST_APPLE)
-      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libngraph.dylib)
-      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libmkldnn.dylib)
-      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libiomp5.dylib)
-      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libmklml.dylib)
-      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libcpu_backend.dylib)
-  elseif (UNIX AND NOT APPLE)
-      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libngraph.so)
-      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libmkldnn.so)
-      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libiomp5.so)
-      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libmklml_intel.so)
-      list(APPEND mxnet_LINKER_LIBS ${NGRAPH_INSTALL_PREFIX}/lib/libcpu_backend.so)
-  else()
-      message(FATAL_ERROR "Not sure how to handle this operating system.")
-  endif()
-
-  if(USE_NGRAPH_DISTRIBUTED)
-    add_definitions(-DMXNET_USE_NGRAPH_DISTRIBUTED=1)
-  endif(USE_NGRAPH_DISTRIBUTED)
-
-endif()
 
 if(USE_GPROF)
   message(STATUS "Using GPROF")
@@ -498,13 +429,13 @@ endif()
 
 # ---[ LAPack
 if(USE_LAPACK)
+  message("USE_LAPACK is ON")
   add_definitions(-DMXNET_USE_LAPACK=1)
   if (NOT MSVC)
     list(APPEND mxnet_LINKER_LIBS lapack)
   endif()
 endif()
 
-message("USE LAPACK ${USE_LAPACK}")
 
 # ---[ jemalloc
 if(USE_JEMALLOC)
@@ -729,23 +660,13 @@ if(UNIX)
   set(DUMMY_SOURCE ${CMAKE_BINARY_DIR}/dummy.c)
   file(WRITE ${DUMMY_SOURCE} "")
   list(APPEND MXNET_INSTALL_TARGETS mxnet_static)
+  add_library(mxnet_static STATIC ${SOURCE})
   add_library(mxnet SHARED ${DUMMY_SOURCE})
-  if(USE_NGRAPH AND NOT MSVC)
-    add_library(mxnet_static STATIC ${SOURCE} $<TARGET_OBJECTS:ngraph-mxnet-bridge>)
-  else()
-    add_library(mxnet_static STATIC ${SOURCE})
-  endif()
   target_link_libraries(mxnet PRIVATE ${BEGIN_WHOLE_ARCHIVE} $<TARGET_FILE:mxnet_static> ${END_WHOLE_ARCHIVE})
   target_link_libraries(mxnet PRIVATE mxnet_static)
   set_target_properties(mxnet_static PROPERTIES OUTPUT_NAME mxnet)
 else()
   add_library(mxnet SHARED ${SOURCE})
-endif()
-
-if(USE_NGRAPH AND NOT MSVC)
-  if(UNIX)
-    add_dependencies(mxnet_static ngraph-mxnet-bridge)
-  endif()
 endif()
 
 if(USE_CUDA)
