@@ -38,7 +38,7 @@ run_inference_topologies() {
     PS2='prompt-more> '
     virtualenv -p "${PYTHON_BIN_PATH}" "${venv_dir}"
     source "${venv_dir}/bin/activate"
-    cd python && pip install -e . && pip install psutil pytest scipy gluoncv && cd ../
+    cd python && pip install -e . && pip install psutil==5.4.5 && pip install scipy==0.19.1 &&  pip install pytest &&  pip install gluoncv==0.3.0 && cd ../
     xtime="$(date)"
     echo  ' '
     echo  "===== Running Ngraph Mxnet DeepMark on CPU-Backend at ${xtime} ====="
