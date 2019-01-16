@@ -506,28 +506,22 @@ void DeduplicateEntries(std::vector<nnvm::NodeEntry*>* entries) {
  * \param entry_top_order_map mapping entry pointer to its top sorted position
  * \param input_entries input entries of the subgraph
  */
-void FindInputEntries(const Graph& g,
-                      const std::vector<SimpleNodePtr>& simple_nodes,
+void FindInputEntries(
+    const Graph& g, const std::vector<SimpleNodePtr>& simple_nodes,
                       const std::vector<SimpleNode*>& subgraph_nodes,
-                      const std::unordered_map<const nnvm::NodeEntry*, size_t>& entry_top_order_map,
-                      std::vector<nnvm::NodeEntry*>* input_entries) {
+    const std::unordered_map<const nnvm::NodeEntry*, size_t>&
+        entry_top_order_map,
+    std::vector<nnvm::NodeEntry*>* input_entries,
+    nnvm::NodeEntryMap<std::vector<nnvm::NodeEntry*>>* input_entry_map) {
   const auto& indexed_graph = g.indexed_graph();
   int label = -1;
-  for (auto subgraph_node : subgraph_nodes) {
+  for (size_t i = 0; i < subgraph_nodes.size(); ++i) {
     if (label == -1) {
-      label = subgraph_node->label;
+      label = subgraph_nodes[i]->label;
     } else {
-      CHECK_EQ(subgraph_node->label, label);
+      CHECK_EQ(subgraph_nodes[i]->label, label);
     }
 
-    // There was a merge conflict between the 
-    // next two not-commented lines, and the
-    // the following commented-out lines.
-    // The not-commented lines are from upstream, the
-    // commented lines are from ngraph-mxnet/master.
-    // TODO: Remove this comment once we're 
-    // confident in the merged code.
-    /*
     auto& inputs = subgraph_nodes[i]->node->inputs;
     for (size_t j = 0; j < inputs.size(); ++j) {
       auto& e = inputs[j];
@@ -536,10 +530,6 @@ void FindInputEntries(const Graph& g,
       } else {
         input_entry_map->insert({e, {&e}});
       }
-    */
-
-    auto& inputs = subgraph_node->node->inputs;
-    for (auto &e : inputs) {
       if (indexed_graph.exist(e.node.get())) {
         // e's source node is not a subgraph node
         const auto nid = indexed_graph.node_id(e.node.get());
