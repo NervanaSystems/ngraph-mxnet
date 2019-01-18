@@ -190,32 +190,32 @@ eval $cmd
 #eval $cmd 
 
 ## Test Suite 41: Unit tests test_exc_handling.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_exc_handling.py --verbose --capture=no --junit-xml=result_test_exc_handling.xml --junit-prefix=result_test_exc_handling"
-eval $cmd 
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_exc_handling.py --verbose --capture=no --junit-xml=result_test_exc_handling.xml --junit-prefix=result_test_exc_handling"
+#eval $cmd 
 
 ## Test Suite 42: Unit tests test_gluon_trainer.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_gluon_trainer.py --verbose --capture=no --junit-xml=result_test_gluon_trainer.xml --junit-prefix=result_test_gluon_trainer"
-eval $cmd 
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_gluon_trainer.py --verbose --capture=no --junit-xml=result_test_gluon_trainer.xml --junit-prefix=result_test_gluon_trainer"
+#eval $cmd 
 
 ## Test Suite 43: Unit tests test_metric_perf.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_metric_perf.py --verbose --capture=no --junit-xml=result_test_metric_perf.xml --junit-prefix=result_test_metric_perf"
-eval $cmd 
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_metric_perf.py --verbose --capture=no --junit-xml=result_test_metric_perf.xml --junit-prefix=result_test_metric_perf"
+#eval $cmd 
 
 ## Test Suite 44: Unit tests test_predictor.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_predictor.py --verbose --capture=no --junit-xml=result_test_predictor.xml --junit-prefix=result_test_predictor"
-eval $cmd 
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_predictor.py --verbose --capture=no --junit-xml=result_test_predictor.xml --junit-prefix=result_test_predictor"
+#eval $cmd 
 
 ## Test Suite 45: Unit tests test_contrib_control_flow.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_contrib_control_flow.py --verbose --capture=no --junit-xml=result_test_contrib_control_flow.xml --junit-prefix=result_test_contrib_control_flow"
-eval $cmd 
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_contrib_control_flow.py --verbose --capture=no --junit-xml=result_test_contrib_control_flow.xml --junit-prefix=result_test_contrib_control_flow"
+#eval $cmd 
 
 ## Test Suite 46:Unit tests test_gluon_utils.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_gluon_utils.py --verbose --capture=no --junit-xml=result_test_gluon_utils.xml --junit-prefix=result_test_gluon_utils"
-eval $cmd 
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_gluon_utils.py --verbose --capture=no --junit-xml=result_test_gluon_utils.xml --junit-prefix=result_test_gluon_utils"
+#eval $cmd 
 
 ## Test Suite 47: Unit tests test_test_utils.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_test_utils.py --verbose --capture=no --junit-xml=result_test_test_utils.xml --junit-prefix=result_test_test_utils"
-eval $cmd 
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_test_utils.py --verbose --capture=no --junit-xml=result_test_test_utils.xml --junit-prefix=result_test_test_utils"
+#eval $cmd 
 
 ### tests/cpp
 #make test -j$(nproc) USE_NGRAPH=1
