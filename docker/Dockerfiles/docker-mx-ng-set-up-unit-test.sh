@@ -43,7 +43,11 @@ if [ "${OS_SYSTEM}" = "CENTOS7" ]; then
 elif [ "${OS_SYSTEM}" = "UBUNTU16.4" ]; then
     IMAGE_NAME='ngmx_ci_ubuntu16_4'
 else
-    echo "Missing Input Parameters : MAKE_VARIABLES = ${MAKE_VARIABLES}, and OS_SYSTEM = ${OS_SYSTEM}. Existing .."
+    echo "Missing Input Parameters : MAKE_VARIABLES = ${MAKE_VARIABLES}, and OS_SYSTEM = ${OS_SYSTEM}"
+fi
+
+if [ -z "${IMAGE_NAME}" ] ; then
+    echo "Missing IMAGE_NAME. Existing .."
     exit 1
 fi
 
