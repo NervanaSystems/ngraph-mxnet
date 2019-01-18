@@ -186,8 +186,8 @@ cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_b
 eval $cmd 
 
 ## Test Suite 40: Unit tests test_subgraph_op.py
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_subgraph_op.py --verbose --capture=no --junit-xml=result_test_subgraph_op.xml --junit-prefix=result_test_subgraph_op"
-eval $cmd 
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_subgraph_op.py --verbose --capture=no --junit-xml=result_test_subgraph_op.xml --junit-prefix=result_test_subgraph_op"
+#eval $cmd 
 
 ## Test Suite 41: Unit tests test_exc_handling.py
 cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_exc_handling.py --verbose --capture=no --junit-xml=result_test_exc_handling.xml --junit-prefix=result_test_exc_handling"
