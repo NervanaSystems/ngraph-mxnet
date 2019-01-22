@@ -16,6 +16,8 @@
 
 #!/bin/bash
 #Author:  Lam Nguyen
+
+# Testing
 set -u
 set -e
 
