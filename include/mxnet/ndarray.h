@@ -48,10 +48,6 @@
 #error "cxx11 was required for ndarray module"
 #endif
 
-#if MXNET_USE_NGRAPH == 1
-#include <ngraph/ngraph.hpp>
-#endif
-
 namespace mxnet {
 // enum for storage types
 namespace csr {
@@ -759,12 +755,6 @@ class NDArray {
   void UpdateMKLDNNMemDesc();
 #endif
 
-#if MXNET_USE_NGRAPH == 1
-  // create and return tensor_view with this ndarray mem
-  std::shared_ptr<ngraph::runtime::Tensor> &create_tensor(bool is_boolean,
-                                                          bool is_scalar);
-#endif
-
   /*!
    * \brief Save list of ndarray into the Stream.x
    * \param fo The stream of output.
@@ -804,11 +794,6 @@ class NDArray {
     /*! This is created when data is stored in MKLDNN format.
      */
     std::shared_ptr<MKLDNNMemory> mkl_mem_;
-#endif
-#if MXNET_USE_NGRAPH == 1
-    /*! this is set if ngraph tensorview is associated with this ndarray
-     */
-    std::shared_ptr<ngraph::runtime::Tensor> tensor_view_;
 #endif
     /*! \brief variable from engine */
     Engine::VarHandle var;
