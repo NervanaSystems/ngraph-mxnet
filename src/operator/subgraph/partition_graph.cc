@@ -53,7 +53,6 @@ namespace sg {  // sg stands for subgraph
 struct SimpleNode;
 using SimpleNodePtr = std::shared_ptr<SimpleNode>;
 
-
 /*!
  * \brief Node of the undirected graph which replicates the network structures
  * of the computational graph. It is used to ease the graph traversal for finding
@@ -244,8 +243,8 @@ bool LabelSubgraph(const Graph& g,
     s.push(descendant);
     size_t count = 0;
     while (!s.empty()) {
-      CHECK_LT(count, indexed_graph.num_nodes())
-          << "Finding ancestor failed. There is probably a loop in the graph";
+      CHECK_LT(count, indexed_graph.num_nodes()) << "Finding ancestor failed. There is probably"
+                                                    " a loop in the graph";
       ++count;
       const nnvm::Node* top = s.top();
       s.pop();
@@ -509,7 +508,7 @@ void DeduplicateEntries(std::vector<nnvm::NodeEntry*>* entries) {
  */
 void FindInputEntries(
     const Graph& g, const std::vector<SimpleNodePtr>& simple_nodes,
-    const std::vector<SimpleNode*>& subgraph_nodes,
+                      const std::vector<SimpleNode*>& subgraph_nodes,
     const std::unordered_map<const nnvm::NodeEntry*, size_t>&
         entry_top_order_map,
     std::vector<nnvm::NodeEntry*>* input_entries,
@@ -522,6 +521,7 @@ void FindInputEntries(
     } else {
       CHECK_EQ(subgraph_nodes[i]->label, label);
     }
+
     auto& inputs = subgraph_nodes[i]->node->inputs;
     for (size_t j = 0; j < inputs.size(); ++j) {
       auto& e = inputs[j];
@@ -556,11 +556,11 @@ void FindInputEntries(
  * \param entry_top_order_map mapping entry pointer to its top sorted position
  * \param output_entries output entries of the subgraph
  */
-void FindOutputEntries(
-    Graph* g, const std::vector<SimpleNodePtr>& simple_nodes,
-    const std::vector<SimpleNode*>& subgraph_nodes,
-    const std::unordered_map<const nnvm::NodeEntry*, size_t>&
-        entry_top_order_map,
+void FindOutputEntries(Graph* g,
+                       const std::vector<SimpleNodePtr>& simple_nodes,
+                       const std::vector<SimpleNode*>& subgraph_nodes,
+                       const std::unordered_map<const nnvm::NodeEntry*, size_t>&
+                         entry_top_order_map,
     std::vector<nnvm::NodeEntry*>* output_entries,
     nnvm::NodeEntryMap<std::vector<nnvm::NodeEntry*>>* output_entry_map) {
   if (subgraph_nodes.empty()) return;
@@ -631,7 +631,7 @@ void CutGraphInputs(
     const std::vector<nnvm::NodeEntry*>& input_entries,
     std::vector<nnvm::NodeEntry>* orig_entries,
     const nnvm::NodeEntryMap<std::vector<nnvm::NodeEntry*>>& input_entry_map,
-    const bool skip_var = false) {
+                    const bool skip_var = false) {
   orig_entries->resize(input_entries.size());
   // map for creating unique var nodes for deduplicating entries from the same node
   std::unordered_map<std::string, int> name_count_map;
@@ -643,7 +643,6 @@ void CutGraphInputs(
     }
 
     orig_entries->at(i) = *e;
-
     nnvm::Symbol sym;
     sym.outputs.push_back(*e);
     const auto output_names = sym.ListOutputNames();
@@ -658,7 +657,7 @@ void CutGraphInputs(
     nnvm::NodePtr n = nnvm::CreateVariableNode(var_name + std::to_string(name_count_map[var_name]));
     for (auto* entry : input_entry_map.at(*e)) {
       *entry = nnvm::NodeEntry{n, 0, 0};
-    }
+  }
   }
 }
 
@@ -774,7 +773,6 @@ void CreateSubgraphNode(Graph* g,
   for (size_t i = 0; i < output_entries.size(); ++i) {
     sym.outputs[i] = *output_entries[i];
   }
-
   const SubgraphPropertyPtr& subg_prop = g->GetAttr<SubgraphPropertyPtr>("subgraph_property");
   nnvm::NodePtr n;
   if (!subg_prop->NeedGraphAttrs()) {
@@ -787,6 +785,7 @@ void CreateSubgraphNode(Graph* g,
     n = subg_prop->CreateSubgraphNode(subgraph, subgraph_id);
   }
   subgraphs->insert({n.get(), sym});
+
   // Connect the external nodes to the subgraph node.
   subg_prop->ConnectSubgraphOutputs(n, &output_entries, output_entry_map);
   subg_prop->ConnectSubgraphInputs(n, &input_entries, &orig_input_entries);
@@ -795,7 +794,6 @@ void CreateSubgraphNode(Graph* g,
   for (size_t i = 0; i < n->inputs.size(); ++i) {
     auto& e = n->inputs[i];
     // update entry_top_order_map with newly created orig_input_entries
-
     auto it = entry_top_order_map->find(input_entries[i]);
     CHECK(it != entry_top_order_map->end());
     entry_top_order_map->emplace(&e, it->second);
