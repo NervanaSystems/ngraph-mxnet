@@ -78,7 +78,7 @@ if [ -d "${MX_DIR}/3rdparty/ngraph-mxnet-bridge/build/lib64" ]; then
 	export LD_LIBRARY_PATH="${MX_DIR}/3rdparty/ngraph-mxnet-bridge/build/lib64"
 fi
 
-export MKLDNN_LIB_PATH ="${MX_DIR}/lib"
+export MKLDNN_LIB_PATH="${MX_DIR}/lib"
 
 echo ${LD_LIBRARY_PATH}
 echo "Verify the installation of Mxnet"
