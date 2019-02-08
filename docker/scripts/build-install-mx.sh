@@ -78,6 +78,8 @@ if [ -d "${MX_DIR}/3rdparty/ngraph-mxnet-bridge/build/lib64" ]; then
 	export LD_LIBRARY_PATH="${MX_DIR}/3rdparty/ngraph-mxnet-bridge/build/lib64"
 fi
 
+export MKLDNN_LIB_PATH="${MX_DIR}/lib"
+
 echo ${LD_LIBRARY_PATH}
 echo "Verify the installation of Mxnet"
 
@@ -98,13 +100,13 @@ if [ "${MAKE_VARIABLES}" == "USE_NGRAPH" ] || [ "${MAKE_VARIABLES}" == "USE_NGRA
 		echo "Success to install 3rdparty Ngraph."
 	fi	
 
-	if [ ! -f "$LD_LIBRARY_PATH/libmkldnn.so" ] ; then
-  		( >&2 echo "FATAL ERROR: libmkldnn.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
+	if [ ! -f "$MKLDNN_LIB_PATH/libmkldnn.so" ] ; then
+  		( >&2 echo "FATAL ERROR: libmkldnn.so not found in MKLDNN_LIB_PATH [$MKLDNN_LIB_PATH]" )
   		exit 1
 	fi
 elif [ "${MAKE_VARIABLES}" == "USE_MKLDNN" ]; then
-	if [ ! -f "./lib/libmkldnn.so" ] ; then
-		( >&2 echo "FATAL ERROR: libmkldnn.so not found in LD_LIBRARY_PATH [$LD_LIBRARY_PATH]" )
+	if [ ! -f "$MKLDNN_LIB_PATH/libmkldnn.so" ] ; then
+		( >&2 echo "FATAL ERROR: libmkldnn.so not found in MKLDNN_LIB_PATH [$MKLDNN_LIB_PATH]" )
   		exit 1
   	else
   		echo "Success to install MKLDNN."
