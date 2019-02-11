@@ -73,7 +73,6 @@ if __name__ == '__main__':
 
     parser.add_argument('--add_stn',  action="store_true", default=False, help='Add Spatial Transformer Network Layer (lenet only)')
     parser.add_argument('--image_shape', default='1, 28, 28', help='shape of training images')
-    parser.add_argument('--with-nnp',  action="store_true", default=False, dest="is_nnp")
 
     fit.add_fit_args(parser)
     parser.set_defaults(
