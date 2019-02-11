@@ -523,6 +523,11 @@ void FindInputEntries(
     }
     auto& inputs = subgraph_node->node->inputs;
     for (auto &e : inputs) {
+      if (input_entry_map->count(e) != 0) {
+        input_entry_map->at(e).push_back(&e);
+      } else {
+        input_entry_map->insert({e, {&e}});
+      }
       if (indexed_graph.exist(e.node.get())) {
         // e's source node is not a subgraph node
         const auto nid = indexed_graph.node_id(e.node.get());
@@ -559,6 +564,15 @@ void FindOutputEntries(Graph* g,
   if (subgraph_nodes.empty()) return;
   const auto& indexed_graph = g->indexed_graph();
   int label = -1;
+  auto add_output = [output_entries,
+                     output_entry_map](nnvm::NodeEntry* entry) {
+    if (output_entry_map->count(*entry) == 0) {
+      output_entry_map->insert({*entry, {entry}});
+    } else {
+      output_entry_map->at(*entry).push_back(entry);
+    }
+    output_entries->push_back(entry);
+  };
   for (auto subgraph_node : subgraph_nodes) {
     if (label == -1) {
       label = subgraph_node->label;
@@ -572,15 +586,14 @@ void FindOutputEntries(Graph* g,
         // this is a node not belonging to the current subgraph
         if (simple_nodes[nid]->label != label) {
           for (auto idx : output_node.second) {
-            auto& e = simple_nodes[nid]->node->inputs[idx];
-            output_entries->push_back(&e);
+            add_output(&simple_nodes[nid]->node->inputs[idx]);
           }
         }
       } else {
         // if the output node is a subgraph node
         // two graphs are adjacent
         for (auto idx : output_node.second) {
-          output_entries->push_back(&(output_node.first->inputs[idx]));
+          add_output(&output_node.first->inputs[idx]);
         }
       }
     }

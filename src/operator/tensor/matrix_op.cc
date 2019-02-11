@@ -156,57 +156,6 @@ inline static bool ReshapeStorageType(const nnvm::NodeAttrs& attrs,
 }
 #endif
 
-#if MXNET_USE_MKLDNN == 1
-void MKLDNNReshape(const NDArray &in_data, const NDArray &out_data) {
-  MSHADOW_TYPE_SWITCH(in_data.dtype(), DType, {
-    auto this_mem = in_data.GetMKLDNNData();
-    auto out_dptr = out_data.data().dptr<DType>();
-    mkldnn::memory::primitive_desc this_pd = this_mem->get_primitive_desc();
-    mkldnn::memory::desc this_desc = this_pd.desc();
-    mkldnn::memory::dims dims(this_desc.data.dims,
-                              this_desc.data.dims + this_desc.data.ndims);
-    auto this_dtype = static_cast<mkldnn::memory::data_type>(this_desc.data.data_type);
-    auto this_format = static_cast<mkldnn::memory::format>(GetDefaultFormat(this_desc));
-    mkldnn::memory::desc data_md(dims, this_dtype, this_format);
-    mkldnn::memory::primitive_desc pd(data_md, this_pd.get_engine());
-    auto temp_mem = mkldnn::memory(pd, out_dptr);
-    MKLDNNStream::Get()->RegisterPrim(mkldnn::reorder(*this_mem, temp_mem));
-    MKLDNNStream::Get()->Submit();
-
-    // Removing out_data mkl_mem_ and store data in the default format
-    const_cast<NDArray &>(out_data).InvalidateMKLDNNData();
-  });
-}
-
-static void ReshapeComputeExCPU(const nnvm::NodeAttrs& attrs,
-                                const OpContext& ctx,
-                                const std::vector<NDArray>& inputs,
-                                const std::vector<OpReqType>& req,
-                                const std::vector<NDArray>& outputs) {
-  CHECK_EQ(inputs.size(), 1U);
-  CHECK_EQ(outputs.size(), 1U);
-  // If inputs are supposed to be in MKLDNN format and
-  // MKLDNNsupport the data type or the shape. Then convert
-  // it to the output format and shape
-  if (SupportMKLDNNArray(inputs[0].dtype(), inputs[0].shape()) && req[0] != kAddTo) {
-    MKLDNNReshape(inputs[0], outputs[0]);
-    return;
-  }
-  FallBackCompute(UnaryOp::IdentityCompute<cpu>, attrs, ctx, inputs, req, outputs);
-}
-
-inline static bool ReshapeStorageType(const nnvm::NodeAttrs& attrs,
-                                      const int dev_mask,
-                                      DispatchMode* dispatch_mode,
-                                      std::vector<int>* in_attrs,
-                                      std::vector<int>* out_attrs) {
-  CHECK_EQ(in_attrs->size(), 1U);
-  CHECK_EQ(out_attrs->size(), 1U);
-  return MKLDNNStorageType(attrs, dev_mask, true, dispatch_mode, in_attrs,
-                           out_attrs);
-}
-#endif
-
 NNVM_REGISTER_OP(Reshape)
 .add_alias("reshape")
 .describe(R"code(Reshapes the input array.
