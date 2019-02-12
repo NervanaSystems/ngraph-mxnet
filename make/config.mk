@@ -104,40 +104,6 @@ USE_OPENMP = 1
 # you can disable it explicity with USE_MKLDNN = 0
 USE_MKLDNN =
 
-# The following variables influence if/how MXnet is built with nGraph support:
-#
-# USE_NGRAPH - If 1, then MXnet will built with nGraph support.
-#
-# USE_NGRAPH_IE - If 1, then if/when nGraph is built it will contain support for inference-engine
-#   processing.
-#
-# USE_NGRAPH_GPU - If 1, then if/when nGraph is built it will contain support for NVIDIA GPU
-#   processing. Requires USE_CUDA and USE_CUDA_PATH to be set above.
-#
-# USE_NGRAPH_DISTRIBUTED - If 1, then if/when nGraph is built it will contain support for
-#   distributed processing.
-#
-# NGRAPH_EXTRA_CMAKE_FLAGS - Additional command-line arguments passed to the 'cmake' invocation
-#   used to configure the nGraph build.
-#
-# NGRAPH_EXTRA_MAKE_FLAGS - Additional command-line arugments passed to the 'make' invocation
-#   used to build nGraph.
-#
-# ADD_NGRAPH_LIBDIR_TO_MXNET_RPATH - If USE_NGRAPH=1 and ADD_NGRAPH_LIBDIR_TO_MXNET_RPATH=1, then
-#   'libmxnet.so' will be linked with linker option `-rpath=D`, where "D" is whatever directory
-#   contains the copy of `libngraph.so` used by MXnet's build system.
-
-USE_NGRAPH = 0
-USE_NGRAPH_IE = 0
-USE_NGRAPH_GPU = 0
-USE_NGRAPH_DISTRIBUTED = 0
-
-# use prebuilt mkldnn if set
-ifneq ($(MKLDNNROOT),)
-  override NGRAPH_EXTRA_CMAKE_FLAGS += -DMKLDNN_INCLUDE_DIR=$(MKLDNNROOT)/include
-  override NGRAPH_EXTRA_CMAKE_FLAGS += -DMKLDNN_LIB_DIR=$(MKLDNNROOT)/lib
-endif
-
 # whether use NNPACK library
 USE_NNPACK = 0
 

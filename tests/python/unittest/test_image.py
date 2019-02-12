@@ -226,8 +226,7 @@ class TestImage(unittest.TestCase):
             mx_result = mx.image.color_normalize(mx.nd.array(src),
                 mx.nd.array(mean), mx.nd.array(std))
             assert_almost_equal(mx_result.asnumpy(), (src - mean) / std, atol=1e-3)
-            
-    @unittest.skip("The test fail with python errors. Temporarily disabled till it gets fixed")
+
     def test_imageiter(self):
         im_list = [[np.random.randint(0, 5), x] for x in TestImage.IMAGES]
         fname = './data/test_imageiter.lst'

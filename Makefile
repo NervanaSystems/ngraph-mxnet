@@ -76,6 +76,7 @@ endif
 endif
 endif
 endif
+
 ifeq ($(USE_MKL2017), 1)
 $(warning "USE_MKL2017 is deprecated. We will switch to USE_MKLDNN.")
 	USE_MKLDNN=1
@@ -228,6 +229,16 @@ endif
 ifeq ($(USE_CUDNN), 1)
 	CFLAGS += -DMSHADOW_USE_CUDNN=1
 	LDFLAGS += -lcudnn
+endif
+
+ifeq ($(use_blas), open)
+	CFLAGS += -DMXNET_USE_BLAS_OPEN=1
+else ifeq ($(use_blas), atlas)
+	CFLAGS += -DMXNET_USE_BLAS_ATLAS=1
+else ifeq ($(use_blas), mkl)
+	CFLAGS += -DMXNET_USE_BLAS_MKL=1
+else ifeq ($(use_blas), apple)
+	CFLAGS += -DMXNET_USE_BLAS_APPLE=1
 endif
 
 # whether to use F16C instruction set extension for fast fp16 compute on CPU
@@ -485,6 +496,7 @@ endif
 ifeq ($(CI), 1)
 	MAVEN_ARGS := -B
 endif
+
 # For quick compile test, used smaller subset
 ALLX_DEP= $(ALL_DEP)
 
@@ -494,7 +506,7 @@ build/src/%.o: src/%.cc | mkldnn ngraph
 
 build/src/%_gpu.o: src/%.cu | mkldnn ngraph
 	@mkdir -p $(@D)
-	$(NVCC) $(NVCCFLAGS) $(CUDA_ARCH) -Xcompiler "$(CFLAGS)" -M -MT build/src/$*_gpu.o $< >build/src/$*_gpu.d
+	$(NVCC) $(NVCCFLAGS) $(CUDA_ARCH) -Xcompiler "$(CFLAGS)" --generate-dependencies -MT build/src/$*_gpu.o $< >build/src/$*_gpu.d
 	$(NVCC) -c -o $@ $(NVCCFLAGS) $(CUDA_ARCH) -Xcompiler "$(CFLAGS)" $<
 
 # A nvcc bug cause it to generate "generic/xxx.h" dependencies from torch headers.
@@ -521,6 +533,7 @@ build/plugin/%.o: plugin/%.cc | ngraph
 ifeq ($(UNAME_S), Darwin)
         LDFLAGS += -Wl,-install_name,@rpath/libmxnet.so
 endif
+
 # NOTE: to statically link libmxnet.a we need the option
 # --Wl,--whole-archive -lmxnet --Wl,--no-whole-archive
 lib/libmxnet.a: $(ALLX_DEP)
@@ -621,6 +634,13 @@ rpkg:
 	mkdir -p R-package/inst/libs
 	cp src/io/image_recordio.h R-package/src
 	cp -rf lib/libmxnet.so R-package/inst/libs
+
+	if [ -e "lib/libmkldnn.so.0" ]; then \
+		cp -rf lib/libmkldnn.so.0 R-package/inst/libs; \
+		cp -rf lib/libiomp5.so R-package/inst/libs; \
+		cp -rf lib/libmklml_intel.so R-package/inst/libs; \
+	fi
+
 	mkdir -p R-package/inst/include
 	cp -rf include/* R-package/inst/include
 	rm R-package/inst/include/dmlc
@@ -628,7 +648,7 @@ rpkg:
 	cp -rf 3rdparty/dmlc-core/include/* R-package/inst/include/
 	cp -rf 3rdparty/tvm/nnvm/include/* R-package/inst/include
 	Rscript -e "if(!require(devtools)){install.packages('devtools', repo = 'https://cloud.r-project.org/')}"
-	Rscript -e "if(!require(devtools)||packageVersion('roxygen2') < '6.1.1'){install.packages('roxygen2', repo = 'https://cloud.r-project.org/')}"
+	Rscript -e "if(!require(roxygen2)||packageVersion('roxygen2') < '6.1.1'){install.packages('roxygen2', repo = 'https://cloud.r-project.org/')}"
 	Rscript -e "library(devtools); library(methods); options(repos=c(CRAN='https://cloud.r-project.org/')); install_deps(pkg='R-package', dependencies = TRUE)"
 	cp R-package/dummy.NAMESPACE R-package/NAMESPACE
 	echo "import(Rcpp)" >> R-package/NAMESPACE
@@ -674,9 +694,8 @@ clean: rclean cyclean $(EXTRA_PACKAGES_CLEAN)
 	$(RM) -r  $(patsubst %, %/*.d, $(EXTRA_OPERATORS)) $(patsubst %, %/*/*.d, $(EXTRA_OPERATORS))
 	$(RM) -r  $(patsubst %, %/*.o, $(EXTRA_OPERATORS)) $(patsubst %, %/*/*.o, $(EXTRA_OPERATORS))
 else
-clean: ngraph_clean rclean mkldnn_clean cyclean testclean $(EXTRA_PACKAGES_CLEAN)
-	$(RM) -r build lib bin *~ */*~ */*/*~ */*/*/*~ R-package/NAMESPACE R-package/man R-package/R/mxnet_generated.R \
-		R-package/inst R-package/src/image_recordio.h R-package/src/*.o R-package/src/*.so mxnet_*.tar.gz
+clean: rclean mkldnn_clean cyclean testclean $(EXTRA_PACKAGES_CLEAN)
+	$(RM) -r build lib bin *~ */*~ */*/*~ */*/*/*~ 
 	cd $(DMLC_CORE); $(MAKE) clean; cd -
 	cd $(PS_PATH); $(MAKE) clean; cd -
 	cd $(NNVM_PATH); $(MAKE) clean; cd -
