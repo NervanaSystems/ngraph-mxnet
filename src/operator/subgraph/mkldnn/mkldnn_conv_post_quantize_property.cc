@@ -143,9 +143,8 @@ class SgMKLDNNConvPostQuantizeProperty : public SubgraphProperty {
   }
 
   void ConnectSubgraphOutputs(
-      const nnvm::NodePtr n, std::vector<nnvm::NodeEntry *> *output_entries,
-      const nnvm::NodeEntryMap<std::vector<nnvm::NodeEntry *>>
-          &output_entry_map) const override {
+      const nnvm::NodePtr n,
+      std::vector<nnvm::NodeEntry *> *output_entries) const override {
     for (size_t i = 0; i < output_entries->size(); ++i) {
       auto entry_ptr = output_entries->at(i);
       *entry_ptr = nnvm::NodeEntry{n, entry_ptr->index, 0};

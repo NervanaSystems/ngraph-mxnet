@@ -6861,7 +6861,6 @@ def test_op_output_names_monitor():
                             name='pooling')
     check_name(us_sym, ['pooling_output'])
 
-@unittest.skip("skip for ngraph-mxnet as output names are handled internally")
 def test_op_all_names_monitor():
     def check_name(op_sym, expected_names):
         output_names = []
