@@ -66,6 +66,7 @@ if __name__ == '__main__':
     # parse args
     parser = argparse.ArgumentParser(description="train mnist",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--with-nnp',  action="store_true", default=False, dest="is_nnp")
     parser.add_argument('--num-classes', type=int, default=10,
                         help='the number of classes')
     parser.add_argument('--num-examples', type=int, default=60000,
@@ -94,4 +95,4 @@ if __name__ == '__main__':
     sym = net.get_symbol(**vars(args))
 
     # train
-    fit.fit(args, sym, get_mnist_iter,args.is_nnp)
+    fit.fit(args, sym, get_mnist_iter, args.is_nnp)
