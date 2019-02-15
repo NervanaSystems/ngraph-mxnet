@@ -20,9 +20,12 @@ set -u
 set -e
 
 cd "$HOME/ng-mx"
-cd python && pip install -e . && pip install pytest nose scipy &&  cd ../
+cd python && pip install -e . && pip install coverage nose scipy &&  cd ../
 
 ## Unit tests test_operator.py 
-cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_operator.py --verbose --capture=no --junit-xml=result_test_operator.xml --junit-prefix=result_test_operator"
-eval $cmd
+#cmd="OMP_NUM_THREADS=4 $(which python) -m pytest -s tests/python/unittest/test_operator.py --verbose --capture=no --junit-xml=result_test_operator.xml --junit-prefix=result_test_operator"
+#eval $cmd
 
+## Unit tests:
+cmd="OMP_NUM_THREADS=4 nosetests-3.4 --with-coverage --cover-inclusive --cover-xml --cover-branches --cover-package=mxnet --with-xunit --xunit-file result_nosetests_unittest.xml --verbose tests/python/unittest"
+eval $cmd

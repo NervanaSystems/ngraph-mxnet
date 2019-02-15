@@ -27,7 +27,7 @@ set -e  # Make sure we exit on any command that returns non-zero
 #export PYTHON_VERSION_NUMBER=3
 
 if [ ! -z "${PYTHON_VERSION_NUMBER}" ]; then
-	export PYTHON_VERSION_NUMBER=""
+	export PYTHON_VERSION_NUMBER="3"
 else
 	if [ "${OS_SYSTEM}" = "CENTOS7" ] ; then
 		export PYTHON_VERSION_NUMBER=3.6
