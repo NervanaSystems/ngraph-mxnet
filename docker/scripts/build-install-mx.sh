@@ -38,6 +38,7 @@ if [ ! -z "${NGRAPH_BRANCH}" ] && [ "${NGRAPH_BRANCH}" != "default" ] ; then
     rm -rf ngraph.cmake.test
 else
     echo "ngraphBranch === ${NGRAPH_BRANCH}"
+    echo "testing"
 fi
 
 cd "${MX_DIR}"
