@@ -54,6 +54,18 @@ mkldnn_clean:
 	$(RM) -r 3rdparty/mkldnn/build
 	$(RM) -r $(MKLDNNROOT)
 
+
+ifeq ($(USE_MKLDNN), 1)
+ifneq ($(UNAME_S), Darwin)
+
+mkldnn_symlinks:
+	mkdir -p $(MXNET_LIBDIR)
+	cd $(MXNET_LIBDIR) && \
+	ln -s --force libmkldnn.so.0 libmkldnn.so
+mkldnn: mkldnn_symlinks
+endif
+endif
+
 ifeq ($(USE_MKLDNN), 1)
 mkldnn: mkldnn_build
 else
