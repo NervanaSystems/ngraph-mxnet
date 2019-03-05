@@ -243,8 +243,8 @@ bool LabelSubgraph(const Graph& g,
     s.push(descendant);
     size_t count = 0;
     while (!s.empty()) {
-      CHECK_LT(count, indexed_graph.num_nodes()) << "Finding ancestor failed. There is probably"
-                                                    " a loop in the graph";
+      CHECK_LT(count, indexed_graph.num_nodes())
+          << "Finding ancestor failed. There is probably a loop in the graph";
       ++count;
       const nnvm::Node* top = s.top();
       s.pop();
@@ -637,12 +637,12 @@ nnvm::Graph InferSubgraphAttrs(
   auto orig_ctx = g->GetAttr<exec::ContextVector>("context");
   auto orig_dev_masks = g->GetAttr<exec::DevMaskVector>("dev_mask");
 
-  auto oshapes = g->GetAttr<nnvm::ShapeVector>("shape");
+  auto oshapes = g->GetAttr<mxnet::ShapeVector>("shape");
   auto odtypes = g->GetAttr<nnvm::DTypeVector>("dtype");
   auto ostypes = g->GetAttr<mxnet::StorageTypeVector>("storage_type");
 
   exec::ContextVector contexts(idx_g.num_nodes(), orig_ctx[0]);
-  nnvm::ShapeVector shapes(num_nodes);
+  mxnet::ShapeVector shapes(num_nodes);
   nnvm::DTypeVector types(num_nodes, -1);
   StorageTypeVector stypes(num_nodes, kUndefinedStorage);
   exec::DevMaskVector dev_masks(idx_g.num_nodes(), orig_ctx[0].dev_mask());
@@ -656,12 +656,14 @@ nnvm::Graph InferSubgraphAttrs(
     }
   });
 
+  // copy shapes/types from original graph if available
   const auto &input_nids = idx_g.input_nodes();
   for (size_t i = 0; i < input_nids.size(); i++) {
     auto nid = input_nids[i];
     auto eid = idx_g.entry_id(input_nids[i], 0);
     uint32_t onid = 0;
     uint32_t oeid = 0;
+    // get nodes ids from original graph, or previous subgraphs.
     if (idx_og.exist(orig_input_entries[i].node.get())) {
       onid = idx_og.node_id(orig_input_entries[i].node.get());
       oeid = idx_og.entry_id(orig_input_entries[i]);
@@ -671,9 +673,11 @@ nnvm::Graph InferSubgraphAttrs(
       oeid = idx_og.entry_id(previous.outputs[orig_input_entries[i].index]);
     }
 
+    // copy ctx/mask
     contexts[nid] = orig_ctx[onid];
     dev_masks[nid] = orig_dev_masks[onid];
 
+    // copy shapes/types
     shapes[eid] = oshapes[oeid];
     types[eid] = odtypes[oeid];
     stypes[eid] = ostypes[oeid];

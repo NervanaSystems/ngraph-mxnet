@@ -154,11 +154,15 @@ std::vector<std::string> NgraphSubgraphListInputNames(
 std::vector<std::string> NgraphSubgraphListOutputNames(
     const nnvm::NodeAttrs &attrs) {
   auto graph = get_ngraph(attrs);
-  return NgraphSubgraphListNodeNames(graph->outputs_);
+  auto names = NgraphSubgraphListNodeNames(graph->outputs_);
+  for (size_t i = names.size(); i < graph->get_results().size(); ++i) {
+    names.push_back(graph->name_ + "_output_" + std::to_string(i));
+  }
+  return names;
 }
 bool NgraphSubgraphInferShape(const nnvm::NodeAttrs &attrs,
-                              std::vector<nnvm::TShape> *in_attrs,
-                              std::vector<nnvm::TShape> *out_attrs) {
+                              std::vector<mxnet::TShape> *in_attrs,
+                              std::vector<mxnet::TShape> *out_attrs) {
   auto compiler =
       nnvm::get<std::shared_ptr<ngraph_bridge::Compiler>>(attrs.parsed);
   auto graph = get_ngraph(attrs);
@@ -271,7 +275,7 @@ NNVM_REGISTER_OP(_ngraph_subgraph_op)
     .set_attr<nnvm::FListOutputNames>("FListOutputNames",
                                       NgraphSubgraphListOutputNames)
     .set_attr<FCreateOpState>("FCreateOpState", CreateNgraphSubgraphOpState)
-    .set_attr<nnvm::FInferShape>("FInferShape", NgraphSubgraphInferShape)
+    .set_attr<mxnet::FInferShape>("FInferShape", NgraphSubgraphInferShape)
     .set_attr<nnvm::FInferType>("FInferType", NgraphSubgraphInferType)
     .set_attr<FInferStorageType>("FInferStorageType",
                                  NgraphSubgraphInferStorageType)

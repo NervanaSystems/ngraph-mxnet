@@ -958,7 +958,7 @@ def test_unix_perl_cpu() {
 def test_unix_cpp_gpu() {
     return ['Cpp: GPU': {
       node(NODE_LINUX_GPU) {
-        ws('workspace/ut-cpp-mkldnn-gpu') {
+        ws('workspace/it-dist-kvstore') {
           timeout(time: max_time, unit: 'MINUTES') {
             utils.unpack_and_init('cmake_gpu', mx_cmake_lib, true)
             utils.docker_run('ubuntu_gpu', 'unittest_cpp', true)
@@ -972,7 +972,7 @@ def test_unix_cpp_gpu() {
 def test_unix_cpp_mkldnn_gpu() {
     return ['Cpp: MKLDNN+GPU': {
       node(NODE_LINUX_GPU) {
-        ws('workspace/ut-perl-gpu') {
+        ws('workspace/ut-cpp-mkldnn-gpu') {
           timeout(time: max_time, unit: 'MINUTES') {
             utils.unpack_and_init('cmake_mkldnn_gpu', mx_cmake_mkldnn_lib, true)
             utils.docker_run('ubuntu_gpu', 'unittest_cpp', true)
@@ -1028,7 +1028,7 @@ def test_unix_r_gpu() {
 def test_unix_julia07_cpu() {
     return ['Julia 0.7: CPU': {
       node(NODE_LINUX_CPU) {
-        ws('workspace/ut-julia07-cpu') {
+        ws('workspace/ut-it-julia07-cpu') {
           timeout(time: max_time, unit: 'MINUTES') {
             utils.unpack_and_init('cpu', mx_lib)
             utils.docker_run('ubuntu_cpu', 'unittest_ubuntu_cpu_julia07', false)
@@ -1041,7 +1041,7 @@ def test_unix_julia07_cpu() {
 def test_unix_julia10_cpu() {
     return ['Julia 1.0: CPU': {
       node(NODE_LINUX_CPU) {
-        ws('workspace/ut-julia10-cpu') {
+        ws('workspace/ut-it-julia10-cpu') {
           timeout(time: max_time, unit: 'MINUTES') {
             utils.unpack_and_init('cpu', mx_lib)
             utils.docker_run('ubuntu_cpu', 'unittest_ubuntu_cpu_julia10', false)
