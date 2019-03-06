@@ -240,6 +240,7 @@ def check_symbol_consistency(sym1, sym2, ctx, skip_grad=False, equal_nan=False):
                                     grad_req='null' if skip_grad else 'write',
                                     equal_nan=equal_nan)
 
+@unittest.skip("flaky test fails randomly on non-ngraph and ngraph")
 def test_load_000800():
     with mx.AttrScope(ctx_group='stage1'):
         data = mx.symbol.Variable('data', lr_mult=0.2)
