@@ -236,10 +236,6 @@ if(USE_NGRAPH AND NOT MSVC)
       message(FATAL_ERROR "Not sure how to handle this operating system.")
   endif()
 
-  if(USE_NGRAPH_DISTRIBUTED)
-    add_definitions(-DMXNET_USE_NGRAPH_DISTRIBUTED=1)
-  endif(USE_NGRAPH_DISTRIBUTED)
-
 endif()
 
 if(USE_GPROF)

@@ -166,27 +166,6 @@ be referred to as `MXNET_ROOT`.
              python example/image-classification/train_mnist.py
              ```
 
-## Distributed training
-MPI is required for multi-CPU support. Download Open MPI from [here](https://www.open-mpi.org/).
-
-Use `USE_NGRAPH_DISTRIBUTED=1` and `NGRAPH_EXTRA_CMAKE_FLAGS=-DNGRAPH_DISTRIBUTED_ENABLE=1`
-in order for MXNet to build with nGraph distributed support.
-
-Here's an example of a typical build command for distributed training:
-
-``` sh
-cd MXNET_ROOT
-make USE_NGRAPH=1 USE_NGRAPH_DISTRIBUTED=1 NGRAPH_EXTRA_CMAKE_FLAGS=-DNGRAPH_DISTRIBUTED_ENABLE=1 USE_CUDA=0 DEBUG=0 -j
-```
-
-Here's an example to run ResNet-50 on two nodes:
-
-``` sh
-export MXNET_NGRAPH_GLUON=1
-export MXNET_ENGINE_TYPE=NaiveEngine
-mpirun -map-by node -x MXNET_NGRAPH_GLUON -x MXNET_ENGINE_TYPE -hostfile hosts -np 2 python MXNET_ROOT/example/image-classification/train_cifar10.py --network resnet --num-layers 50 --kv-store ngraph
-```
-
 ## Runtime environment variables
 Some environment variables influence the behavior of the
 nGraph-enabled MXNet software and supporting libraries.  Here is a partial list of those variables:

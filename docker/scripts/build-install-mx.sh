@@ -47,11 +47,7 @@ case "${MAKE_VARIABLES}" in
 		echo "Building MXnet with experimental nGraph integration enabled. Engine: CPU + MKLDNN"
 		make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 -j $(nproc)
 		;;
-	USE_NGRAPH_DISTRIBUTED)
-		echo "Building MXnet with experimental nGraph distributed support enabled. Engine: CPU + MKLDNN"
-		make USE_NGRAPH=1 USE_GPERFTOOLS=0 USE_JEMALLOC=0  USE_CUDA=0 DEBUG=0 USE_NGRAPH_DISTRIBUTED=1 NGRAPH_EXTRA_CMAKE_FLAGS=-DNGRAPH_DISTRIBUTED_ENABLE=1 -j $(nproc)
-		;;
-	USE_CUDA)
+    USE_CUDA)
 		echo "CUDA Version"
 		cat /usr/local/cuda/version.txt
 		echo "Print the nvidia-smi"
@@ -92,7 +88,7 @@ fi
 
 echo "Verify the installation of 3rdparty Ngraph"
 
-if [ "${MAKE_VARIABLES}" == "USE_NGRAPH" ] || [ "${MAKE_VARIABLES}" == "USE_NGRAPH_DISTRIBUTED" ]; then
+if [ "${MAKE_VARIABLES}" == "USE_NGRAPH" ]; then
 	if [ ! -f "$LD_LIBRARY_PATH/libngraph.so" ] ; then
 		( >&2 echo "FATAL ERROR: Can not found libngraph.so. Exiting ...." )
   		exit  
