@@ -4,5 +4,5 @@ nose
 nose-timer
 numpy<=1.15.2,>=1.8.2
 pylint==1.8.3
-requests<2.19.0,>=2.18.4
+requests<3,>=2.20.0
 scipy==1.0.1
