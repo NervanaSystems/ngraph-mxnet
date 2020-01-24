@@ -121,6 +121,13 @@ def test_symbol_infer_type():
     assert out == [np.float32]
     assert aux == []
 
+    # partial infer type
+    arg, out, aux = mlp.infer_type_partial()
+    assert arg == [None, np.float32, np.float32, np.float32]
+    assert out == [np.float32]
+    assert aux == []
+
+
 def test_symbol_infer_shape():
     num_hidden = 128
     num_dim    = 64
@@ -150,6 +157,19 @@ def test_symbol_infer_shape():
     assert arg_shapes['data'] == (num_sample, num_dim)
     assert arg_shapes['x2h_weight'] == (num_hidden, num_dim)
     assert arg_shapes['h2h_weight'] == (num_hidden, num_hidden)
+
+    # Partial shape inference with some unknown dimensions
+    data_shape = (1, 0, 0, 0)
+    data = mx.sym.Variable('data', shape=data_shape)
+    weight = mx.sym.Variable('weight')
+    cdata = mx.sym.cast(data, dtype='float16')
+    cweight = mx.sym.cast(weight, dtype='float16')
+    test = mx.sym.Convolution(data=cdata, weight=cweight, pad=(3, 3), num_filter=64, stride=(2, 2), no_bias=True, kernel=(7, 7))
+
+    arg, _, _ = test.infer_shape_partial()
+    arg_shapes = dict(zip(test.list_arguments(), arg))
+    assert arg_shapes['data'] == data_shape
+    assert arg_shapes['weight'] == (64, 0, 7, 7)
 
 
 def test_symbol_infer_shape_var():
@@ -233,6 +253,7 @@ def check_symbol_consistency(sym1, sym2, ctx, skip_grad=False, equal_nan=False):
                                     grad_req='null' if skip_grad else 'write',
                                     equal_nan=equal_nan)
 
+@unittest.skip("flaky test fails randomly on non-ngraph and ngraph")
 def test_load_000800():
     with mx.AttrScope(ctx_group='stage1'):
         data = mx.symbol.Variable('data', lr_mult=0.2)

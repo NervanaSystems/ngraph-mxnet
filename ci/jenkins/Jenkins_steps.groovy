@@ -476,13 +476,11 @@ def compile_unix_amalgamation() {
 def compile_windows_cpu() {
     return ['Build CPU windows':{
       node(NODE_WINDOWS_CPU) {
-        timeout(time: max_time, unit: 'MINUTES') {
-          ws('workspace/build-cpu') {
-            withEnv(['OpenBLAS_HOME=C:\\mxnet\\openblas', 'OpenCV_DIR=C:\\mxnet\\opencv_vc14', 'CUDA_PATH=C:\\CUDA\\v8.0']) {
-              utils.init_git_win()
-              powershell 'python ci/build_windows.py -f WIN_CPU'
-              stash includes: 'windows_package.7z', name: 'windows_package_cpu'
-            }
+        ws('workspace/build-cpu') {
+          timeout(time: max_time, unit: 'MINUTES') {
+            utils.init_git_win()
+            powershell 'py -3 ci/build_windows.py -f WIN_CPU'
+            stash includes: 'windows_package.7z', name: 'windows_package_cpu'
           }
         }
       }
@@ -492,13 +490,11 @@ def compile_windows_cpu() {
 def compile_windows_gpu() {
     return ['Build GPU windows':{
       node(NODE_WINDOWS_CPU) {
-        timeout(time: max_time, unit: 'MINUTES') {
-          ws('workspace/build-gpu') {
-            withEnv(['OpenBLAS_HOME=C:\\mxnet\\openblas', 'OpenCV_DIR=C:\\mxnet\\opencv_vc14', 'CUDA_PATH=C:\\CUDA\\v8.0']) {
+        ws('workspace/build-gpu') {
+          timeout(time: max_time, unit: 'MINUTES') {
               utils.init_git_win()
-              powershell 'python ci/build_windows.py -f WIN_GPU'
+              powershell 'py -3 ci/build_windows.py -f WIN_GPU'
               stash includes: 'windows_package.7z', name: 'windows_package_gpu'
-            }
           }
         }
       }
@@ -508,13 +504,11 @@ def compile_windows_gpu() {
 def compile_windows_gpu_mkldnn() {
     return ['Build GPU MKLDNN windows':{
       node(NODE_WINDOWS_CPU) {
-        timeout(time: max_time, unit: 'MINUTES') {
-          ws('workspace/build-gpu') {
-            withEnv(['OpenBLAS_HOME=C:\\mxnet\\openblas', 'OpenCV_DIR=C:\\mxnet\\opencv_vc14', 'CUDA_PATH=C:\\CUDA\\v8.0','BUILD_NAME=vc14_gpu_mkldnn']) {
-              utils.init_git_win()
-              powershell 'python ci/build_windows.py -f WIN_GPU_MKLDNN'
-              stash includes: 'windows_package.7z', name: 'windows_package_gpu_mkldnn'
-            }
+        ws('workspace/build-gpu') {
+          timeout(time: max_time, unit: 'MINUTES') {
+            utils.init_git_win()
+            powershell 'py -3 ci/build_windows.py -f WIN_GPU_MKLDNN'
+            stash includes: 'windows_package.7z', name: 'windows_package_gpu_mkldnn'
           }
         }
       }
@@ -958,7 +952,7 @@ def test_unix_perl_cpu() {
 def test_unix_cpp_gpu() {
     return ['Cpp: GPU': {
       node(NODE_LINUX_GPU) {
-        ws('workspace/ut-cpp-mkldnn-gpu') {
+        ws('workspace/it-dist-kvstore') {
           timeout(time: max_time, unit: 'MINUTES') {
             utils.unpack_and_init('cmake_gpu', mx_cmake_lib, true)
             utils.docker_run('ubuntu_gpu', 'unittest_cpp', true)
@@ -972,7 +966,7 @@ def test_unix_cpp_gpu() {
 def test_unix_cpp_mkldnn_gpu() {
     return ['Cpp: MKLDNN+GPU': {
       node(NODE_LINUX_GPU) {
-        ws('workspace/ut-perl-gpu') {
+        ws('workspace/ut-cpp-mkldnn-gpu') {
           timeout(time: max_time, unit: 'MINUTES') {
             utils.unpack_and_init('cmake_mkldnn_gpu', mx_cmake_mkldnn_lib, true)
             utils.docker_run('ubuntu_gpu', 'unittest_cpp', true)
@@ -1028,7 +1022,7 @@ def test_unix_r_gpu() {
 def test_unix_julia07_cpu() {
     return ['Julia 0.7: CPU': {
       node(NODE_LINUX_CPU) {
-        ws('workspace/ut-julia07-cpu') {
+        ws('workspace/ut-it-julia07-cpu') {
           timeout(time: max_time, unit: 'MINUTES') {
             utils.unpack_and_init('cpu', mx_lib)
             utils.docker_run('ubuntu_cpu', 'unittest_ubuntu_cpu_julia07', false)
@@ -1041,7 +1035,7 @@ def test_unix_julia07_cpu() {
 def test_unix_julia10_cpu() {
     return ['Julia 1.0: CPU': {
       node(NODE_LINUX_CPU) {
-        ws('workspace/ut-julia10-cpu') {
+        ws('workspace/ut-it-julia10-cpu') {
           timeout(time: max_time, unit: 'MINUTES') {
             utils.unpack_and_init('cpu', mx_lib)
             utils.docker_run('ubuntu_cpu', 'unittest_ubuntu_cpu_julia10', false)

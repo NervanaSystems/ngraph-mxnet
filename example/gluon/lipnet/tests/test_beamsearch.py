@@ -15,26 +15,28 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mxnet as mx
-import sys
-from mxnet.mxfeatures import *
-from mxnet.base import MXNetError
-from nose.tools import *
+"""it is the test for the decode using beam search
+Ref:
+https://github.com/ThomasDelteil/HandwrittenTextRecognition_MXNet/blob/master/utils/CTCDecoder/BeamSearch.py
+"""
 
-def test_runtime_features():
-    for f in Feature:
-        res = has_feature(f.value)
-        ok_(type(res) is bool)
-    for f in features_enabled():
-        ok_(type(f) is Feature)
-    ok_(type(features_enabled_str()) is str)
-    print("Features enabled: {}".format(features_enabled_str()))
+import unittest
+import numpy as np
+from BeamSearch import ctcBeamSearch
 
-@raises(MXNetError)
-def test_has_feature_2large():
-    has_feature(sys.maxsize)
+class TestBeamSearch(unittest.TestCase):
+    """Test Beam Search
+    """
+    def test_ctc_beam_search(self):
+        "test decoder"
+        classes = 'ab'
+        mat = np.array([[0.4, 0, 0.6], [0.4, 0, 0.6]])
+        print('Test beam search')
+        expected = 'a'
+        actual = ctcBeamSearch(mat, classes, None, k=2, beamWidth=3)[0]
+        print('Expected: "' + expected + '"')
+        print('Actual: "' + actual + '"')
+        self.assertEqual(expected, actual)
 
-
-if __name__ == "__main__":
-    import nose
-    nose.runmodule()
+if __name__ == '__main__':
+    unittest.main()

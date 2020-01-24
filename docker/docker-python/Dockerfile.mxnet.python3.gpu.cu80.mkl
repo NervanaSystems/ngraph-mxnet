@@ -1,3 +1,4 @@
+# -*- mode: dockerfile -*-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,17 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
+# Dockerfile to build MXNet for GPU with MKL
 
-import os
-import mxnet as mx
-from mxnet import libinfo
+FROM nvidia/cuda:8.0-cudnn5-devel
+ARG version
 
-def test_include_path():
-    incl_path = libinfo.find_include_path()
-    assert os.path.exists(incl_path)
-    assert os.path.isdir(incl_path)
+RUN apt-get update && \
+    apt-get install -y wget python3-dev gcc && \
+    wget https://bootstrap.pypa.io/get-pip.py && \
+    python3 get-pip.py
 
-
-if __name__ == '__main__':
-    import nose
-    nose.runmodule()
+RUN pip3 install mxnet-cu80mkl==$version

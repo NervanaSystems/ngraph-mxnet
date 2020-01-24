@@ -325,6 +325,7 @@ if(USE_MKLDNN)
   add_subdirectory(3rdparty/mkldnn)
 
   include_directories(3rdparty/mkldnn/include)
+  include_directories(${PROJECT_BINARY_DIR}/3rdparty/mkldnn/include)
   add_definitions(-DUSE_MKL=1)
   add_definitions(-DCUB_MKL=1)
   add_definitions(-DMXNET_USE_MKLDNN=1)
@@ -364,8 +365,8 @@ else()
   add_definitions(-DMXNET_USE_NCCL=0)
 endif()
 
+include(cmake/ChooseBlas.cmake)
 if(USE_CUDA AND FIRST_CUDA)
-  include(cmake/ChooseBlas.cmake)
   include(3rdparty/mshadow/cmake/Utils.cmake)
   include(cmake/FirstClassLangCuda.cmake)
   include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
@@ -829,6 +830,10 @@ install(TARGETS ${MXNET_INSTALL_TARGETS}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
+# NOTE: Public headers will be installed into ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}, see
+#       https://cmake.org/cmake/help/v3.0/variable/CMAKE_INSTALL_PREFIX.html
+#       https://cmake.org/cmake/help/v3.0/module/GNUInstallDirs.html
+
 # NOTE: Public headers will be installed into ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}, see
 #       https://cmake.org/cmake/help/v3.0/variable/CMAKE_INSTALL_PREFIX.html
 #       https://cmake.org/cmake/help/v3.0/module/GNUInstallDirs.html
